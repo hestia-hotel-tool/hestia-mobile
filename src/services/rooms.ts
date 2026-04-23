@@ -6,6 +6,7 @@
 import { supabase } from '../lib/supabase';
 import { invalidateNotificationBadges } from './inAppNotifications';
 import { notifyServer } from './notifications';
+import { getMyHotelId } from './tenant';
 import type {
   AllRoomsScreenData,
   RoomCardData,
@@ -681,6 +682,12 @@ export async function assignRoomToStaff(
 ): Promise<StaffInfo | null> {
   if (!isValidUUID(roomId) || !isValidUUID(userId)) return null;
 
+  // Ensure tenant context is resolvable; without this, auth_hotel_id() returns NULL and RLS will reject inserts.
+  const myHotelId = await getMyHotelId();
+  if (!myHotelId) {
+    throw new Error('Your account is not assigned to a hotel yet. Run ensure_current_user_profile / hotel assignment migration on Supabase.');
+  }
+
   // Fetch user first so we can always return StaffInfo for the UI
   const { data: userData } = await supabase
     .from('users')
@@ -706,10 +713,27 @@ export async function assignRoomToStaff(
     return staffInfo;
   }
 
+  // Tenant-scoped RLS requires `room_assignments.hotel_id = auth_hotel_id()`.
+  // Derive it from the room so inserts work regardless of client auth metadata.
+  const { data: roomRow, error: roomHotelErr } = await supabase
+    .from('rooms')
+    .select('hotel_id')
+    .eq('id', roomId)
+    .limit(1)
+    .maybeSingle();
+  if (roomHotelErr) throw roomHotelErr;
+  const hotelId = (roomRow as { hotel_id?: string | null } | null)?.hotel_id ?? null;
+  if (!hotelId || !isValidUUID(hotelId)) {
+    throw new Error('Missing hotel_id for room; cannot assign staff under tenant RLS.');
+  }
+  if (myHotelId !== hotelId) {
+    throw new Error('Tenant mismatch: you cannot assign staff to a room from a different hotel.');
+  }
+
   const { error } = await supabase
     .from('room_assignments')
     .upsert(
-      { room_id: roomId, shift_id: shiftId, user_id: userId },
+      { room_id: roomId, shift_id: shiftId, user_id: userId, hotel_id: hotelId },
       { onConflict: 'room_id,shift_id' }
     );
 
@@ -736,6 +760,7 @@ export async function assignRoomToStaff(
           room_id: roomId,
           shift_id: shiftId,
           user_id: userId,
+          hotel_id: hotelId,
         });
         if (insertResult.error) throw insertResult.error;
       }

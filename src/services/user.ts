@@ -113,6 +113,19 @@ type UserRow = {
   departments?: { name: string } | null;
 };
 
+let didAttemptBootstrapProfile = false;
+async function ensureCurrentUserProfileOnce(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  if (didAttemptBootstrapProfile) return;
+  didAttemptBootstrapProfile = true;
+  try {
+    // Creates/repairs public.users row for auth.uid() (migration: 20260415110000...)
+    await supabase.rpc('ensure_current_user_profile');
+  } catch {
+    // ignore: older DBs may not have the function yet
+  }
+}
+
 function mapUserRowToUser(row: UserRow, email = ''): User {
   return {
     id: row.id,
@@ -141,6 +154,23 @@ export interface GetUsersResponse {
 }
 
 /**
+ * List users by department id (UUID).
+ * Preferred for app flows that need stable IDs (e.g. ticket tagging).
+ */
+export async function getUsersByDepartmentId(departmentId: string, params?: Omit<GetUsersParams, 'departmentId'>): Promise<GetUsersResponse> {
+  if (!departmentId) return { data: [], total: 0, page: 1, limit: 0, totalPages: 0 };
+  const pageSize = Math.min(params?.limit ?? 100, 100);
+  const res = await getUsers({ ...params, departmentId, page: 1, limit: pageSize });
+  return {
+    data: res.data,
+    total: res.total,
+    page: 1,
+    limit: res.data.length,
+    totalPages: 1,
+  };
+}
+
+/**
  * List users from Supabase (users table + roles/departments).
  */
 export async function getUsers(params?: GetUsersParams): Promise<GetUsersResponse> {
@@ -148,6 +178,10 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
   const limit = Math.min(params?.limit ?? 20, 100);
   const from = (page - 1) * limit;
   const to = from + limit - 1;
+
+  // Tenant-scoped RLS depends on public.users existing for auth.uid().
+  // If an environment has auth users created before the sync trigger, staff lists will be empty.
+  await ensureCurrentUserProfileOnce();
 
   let query = supabase
     .from('users')
@@ -163,8 +197,15 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
     query = query.eq('department_id', params.departmentId);
   }
 
-  const { data, error, count } = await query;
+  let { data, error, count } = await query;
   if (error) throw error;
+
+  // If RLS hid everything due to missing profile, retry once after bootstrap.
+  if ((data == null || (Array.isArray(data) && data.length === 0)) && !didAttemptBootstrapProfile) {
+    await ensureCurrentUserProfileOnce();
+    ({ data, error, count } = await query);
+    if (error) throw error;
+  }
 
   const rows = (data ?? []) as UserRow[];
   const total = count ?? 0;
@@ -182,14 +223,46 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
  */
 export async function getDepartmentIdByName(departmentName: string): Promise<string | null> {
   if (!isSupabaseConfigured || !departmentName?.trim()) return null;
-  const { data, error } = await supabase
+  const raw = departmentName.trim();
+  const normalized = raw.replace(/\s+/g, ' ');
+
+  await ensureCurrentUserProfileOnce();
+
+  // Try exact match first (fast path), then case-insensitive exact match (more forgiving).
+  let data: any = null;
+  let error: any = null;
+
+  ({ data, error } = await supabase
     .from('departments')
     .select('id')
-    .eq('name', departmentName.trim())
+    .eq('name', normalized)
     .limit(1)
-    .maybeSingle();
-  if (error || !data) return null;
-  return (data as { id: string }).id;
+    .maybeSingle());
+
+  if (!error && data?.id) return (data as { id: string }).id;
+
+  ({ data, error } = await supabase
+    .from('departments')
+    .select('id')
+    .ilike('name', normalized) // case-insensitive exact match (no wildcards)
+    .limit(1)
+    .maybeSingle());
+
+  if (!error && data?.id) return (data as { id: string }).id;
+
+  // Final attempt: allow minor naming differences by collapsing punctuation to spaces.
+  const relaxed = normalized.replace(/[^\w]+/g, ' ').replace(/\s+/g, ' ').trim();
+  if (relaxed && relaxed !== normalized) {
+    ({ data, error } = await supabase
+      .from('departments')
+      .select('id')
+      .ilike('name', relaxed)
+      .limit(1)
+      .maybeSingle());
+    if (!error && data?.id) return (data as { id: string }).id;
+  }
+
+  return null;
 }
 
 /**
@@ -200,8 +273,21 @@ export async function getDepartmentIdByName(departmentName: string): Promise<str
  * staff member in that department is loaded.
  */
 export async function getUsersByDepartment(departmentName: string, params?: Omit<GetUsersParams, 'departmentId'>): Promise<GetUsersResponse> {
+  await ensureCurrentUserProfileOnce();
   const departmentId = await getDepartmentIdByName(departmentName);
-  if (!departmentId) return { data: [], total: 0, page: 1, limit: 0, totalPages: 0 };
+  // If the department name doesn't exist in DB (common in dev DBs), fall back to "all users"
+  // so the Tag Staff picker isn't empty.
+  if (!departmentId) {
+    const pageSize = Math.min(params?.limit ?? 100, 100);
+    const res = await getUsers({ ...params, page: 1, limit: pageSize });
+    return {
+      data: res.data,
+      total: res.total,
+      page: 1,
+      limit: res.data.length,
+      totalPages: 1,
+    };
+  }
 
   const { page: _ignoredPage, ...rest } = params ?? {};
   const pageSize = Math.min(rest.limit ?? 100, 100);

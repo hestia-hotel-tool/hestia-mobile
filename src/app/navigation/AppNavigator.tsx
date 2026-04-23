@@ -63,7 +63,8 @@ export default function AppNavigator() {
         gestureEnabled: true,
         gestureDirection: 'horizontal',
         fullScreenGestureEnabled: true,
-        freezeOnBlur: true,
+        // Freezing can cause janky transitions on heavier screens.
+        freezeOnBlur: false,
       }}
     >
       <Stack.Screen name="Splash" component={SplashScreen} />

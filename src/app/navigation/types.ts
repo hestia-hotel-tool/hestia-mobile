@@ -35,6 +35,13 @@ export type RootStackParamList = {
     departmentName?: string; 
     roomId?: string; 
     roomNumber?: string;
+    guestId?: string;
+    guestName?: string;
+    checkIn?: string;
+    checkOut?: string;
+    guestCount?: number;
+    vipCode?: string;
+    guestImageUrl?: string;
     isPublicArea?: boolean;
     publicAreaName?: string;
   };

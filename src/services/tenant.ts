@@ -13,7 +13,22 @@ export async function getMyHotelId(): Promise<string | null> {
     const userId = data?.session?.user?.id;
     if (!userId) return null;
 
-    const { data: row, error } = await supabase.from('users').select('hotel_id').eq('id', userId).single();
+    // Tenant-scoped RLS depends on public.users existing; older environments can have auth users
+    // without a corresponding public.users row. In that case, bootstrap it via RPC first.
+    let row: any = null;
+    let error: any = null;
+
+    ({ data: row, error } = await supabase.from('users').select('hotel_id').eq('id', userId).maybeSingle());
+
+    if (error || !row?.hotel_id) {
+      try {
+        await supabase.rpc('ensure_current_user_profile');
+      } catch {
+        // ignore and fall through
+      }
+      ({ data: row, error } = await supabase.from('users').select('hotel_id').eq('id', userId).maybeSingle());
+    }
+
     if (error || !row) return null;
     const hid = (row as { hotel_id?: string | null }).hotel_id ?? null;
     cachedHotelId = hid;

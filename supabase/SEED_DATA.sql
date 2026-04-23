@@ -112,18 +112,43 @@ ON CONFLICT (name) DO NOTHING;
 -- ============================================
 -- 5. SHIFTS
 -- ============================================
-INSERT INTO shifts (name, start_time, end_time) VALUES
-  ('AM', '06:00', '14:00'),
-  ('PM', '14:00', '22:00'),
-  ('Night', '22:00', '06:00')
-ON CONFLICT DO NOTHING;
+-- Hotel-scoped: seed shifts for every hotel
+WITH shift_rows(name, start_time, end_time) AS (
+  VALUES
+    ('AM', '06:00'::time, '14:00'::time),
+    ('PM', '14:00'::time, '22:00'::time),
+    ('Night', '22:00'::time, '06:00'::time)
+)
+INSERT INTO shifts (hotel_id, name, start_time, end_time)
+SELECT h.id AS hotel_id, sr.name, sr.start_time, sr.end_time
+FROM public.hotels h
+CROSS JOIN shift_rows sr
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public.shifts s
+  WHERE s.hotel_id = h.id
+    AND s.name ILIKE sr.name
+);
 
 -- ============================================
 -- 6. CONSUMABLES
 -- ============================================
-INSERT INTO consumables (name, category, unit_price, billable) VALUES
-  ('Mini Bar - Water', 'mini_bar', 5.00, true),
-  ('Mini Bar - Coke', 'mini_bar', 4.00, true),
-  ('Laundry - Shirt', 'laundry', 8.00, true),
-  ('Towels - Extra', 'towels', 0, false)
-ON CONFLICT DO NOTHING;
+-- Hotel-scoped: seed consumables for every hotel
+WITH consumable_rows(name, category, unit_price, billable) AS (
+  VALUES
+    ('Mini Bar - Water', 'mini_bar', 5.00::numeric, true),
+    ('Mini Bar - Coke', 'mini_bar', 4.00::numeric, true),
+    ('Laundry - Shirt', 'laundry', 8.00::numeric, true),
+    ('Towels - Extra', 'towels', 0::numeric, false)
+)
+INSERT INTO consumables (hotel_id, name, category, unit_price, billable)
+SELECT h.id AS hotel_id, cr.name, cr.category, cr.unit_price, cr.billable
+FROM public.hotels h
+CROSS JOIN consumable_rows cr
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public.consumables c
+  WHERE c.hotel_id = h.id
+    AND c.name = cr.name
+    AND c.category = cr.category
+);

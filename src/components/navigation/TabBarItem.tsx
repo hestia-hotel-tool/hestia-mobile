@@ -32,7 +32,7 @@ export default function TabBarItem({
 
   const finalOpacity = iconOpacity !== undefined ? iconOpacity : 1;
   const activeColor = '#FF46A3';
-  const labelNumberOfLines = label === 'Lost & Found' ? 2 : 1;
+  const labelNumberOfLines = 1;
   const iconStyle = iconWidth && iconHeight
     ? ([
         {
@@ -74,7 +74,11 @@ export default function TabBarItem({
         </View>
         {label ? (
           <View style={[styles.labelContainer, labelNumberOfLines > 1 ? styles.labelContainerTwoLines : null]}>
-            <Text style={[styles.label, active && styles.labelActive]} numberOfLines={labelNumberOfLines}>
+            <Text
+              style={[styles.label, label === 'Lost & Found' ? styles.labelLostAndFound : null, active && styles.labelActive]}
+              numberOfLines={labelNumberOfLines}
+              ellipsizeMode="clip"
+            >
               {label}
             </Text>
           </View>
@@ -159,6 +163,13 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
       color: colors.primary.main,
       includeFontPadding: false,
       textAlign: 'center',
+      flexWrap: 'nowrap',
+    },
+    labelLostAndFound: {
+      fontSize: Math.round(13 * ns),
+      lineHeight: Math.round(13 * ns),
+      letterSpacing: -0.2,
+      flexShrink: 0,
     },
     labelActive: {
       fontFamily: Platform.OS === 'ios' ? 'Helvetica' : typography.fontFamily.primary,

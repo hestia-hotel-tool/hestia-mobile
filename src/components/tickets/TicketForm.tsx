@@ -18,11 +18,13 @@ import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useToast } from '../../contexts/ToastContext';
 import { typography } from '../../theme';
-import { getUsersByDepartment } from '../../services/user';
+import { getUsersByDepartmentId } from '../../services/user';
 import type { User } from '../../types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../../services/tickets';
 import type { RootStackParamList } from '../../navigation/types';
+import { getDepartments } from '../../services/departments';
+import { DEPARTMENT_NAME_TO_ICON } from '../../constants/createTicketStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -39,7 +41,7 @@ const FREQUENT_CASES = [
   'Furniture & Fixtures',
 ];
 
-const DEPARTMENTS = [
+const FALLBACK_DEPARTMENTS = [
   { id: 'Engineering', name: 'Engineering', icon: require('../../../assets/icons/engineering.png'), noTint: false },
   { id: 'HSK Portier', name: 'HSK Portier', icon: require('../../../assets/icons/hsk-portier.png'), noTint: true },
   { id: 'In Room Dining', name: 'In Room Dining', icon: require('../../../assets/icons/in-room-dining-icon.png'), noTint: true },
@@ -48,6 +50,13 @@ const DEPARTMENTS = [
   { id: 'Reception', name: 'Reception', icon: require('../../../assets/icons/reception.png'), noTint: false },
   { id: 'IT', name: 'IT', icon: require('../../../assets/icons/it.png'), noTint: false },
 ];
+
+type DepartmentUiItem = {
+  id: string;
+  name: string;
+  icon: any;
+  noTint?: boolean;
+};
 
 interface TicketFormProps {
   roomNumber: string;
@@ -119,7 +128,9 @@ export default function TicketForm({
   // Form state
   const [ticketName, setTicketName] = useState('');
   const [showFrequentCasesDropdown, setShowFrequentCasesDropdown] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState(departmentName);
+  const [departments, setDepartments] = useState<DepartmentUiItem[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [assignedStaff, setAssignedStaff] = useState<string[]>([]);
   const [priority, setPriority] = useState<Priority>('high');
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -135,14 +146,58 @@ export default function TicketForm({
   // If the department changes, previously tagged staff may no longer be valid.
   useEffect(() => {
     setAssignedStaff([]);
-  }, [selectedDepartment]);
+  }, [selectedDepartmentId]);
+
+  // Load departments from DB (source of truth)
+  useEffect(() => {
+    let cancelled = false;
+    setDepartmentsLoading(true);
+    getDepartments()
+      .then((res) => {
+        if (cancelled) return;
+        const db = res.data ?? [];
+        const mapped: DepartmentUiItem[] = db
+          .filter((d) => d && (d as any).id && (d as any).name)
+          .map((d) => {
+            const name = String((d as any).name ?? '').trim();
+            const iconCfg = DEPARTMENT_NAME_TO_ICON[name] ?? DEPARTMENT_NAME_TO_ICON.Engineering;
+            return { id: String((d as any).id), name, icon: iconCfg.icon, noTint: iconCfg.noTint };
+          });
+        setDepartments(mapped);
+
+        const initial =
+          mapped.find((m) => m.name.toLowerCase() === String(departmentName).trim().toLowerCase()) ??
+          mapped[0] ??
+          null;
+        setSelectedDepartmentId(initial?.id ?? null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDepartments([]);
+        setSelectedDepartmentId(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDepartmentsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [departmentName]);
+
+  const selectedDepartmentName = useMemo(() => {
+    if (selectedDepartmentId) {
+      const found = departments.find((d) => d.id === selectedDepartmentId)?.name;
+      if (found) return found;
+    }
+    return departmentName;
+  }, [departments, selectedDepartmentId, departmentName]);
 
   // Load department staff
   useEffect(() => {
-    if (!selectedDepartment) return;
+    if (!selectedDepartmentId) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartment(selectedDepartment)
+    getUsersByDepartmentId(selectedDepartmentId, { limit: 200 })
       .then((response) => {
         if (cancelled) return;
         setDepartmentStaff(response.data);
@@ -157,7 +212,7 @@ export default function TicketForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedDepartment]);
+  }, [selectedDepartmentId]);
 
   const handleFrequentCaseSelect = (caseItem: string) => {
     setTicketName(caseItem);
@@ -201,7 +256,7 @@ export default function TicketForm({
   };
 
   const handleOpenStaffModal = () => {
-    if (!selectedDepartment) {
+    if (!selectedDepartmentId) {
       toast.show('Please select a department first.', { type: 'error' });
       return;
     }
@@ -215,7 +270,7 @@ export default function TicketForm({
       return;
     }
 
-    if (!selectedDepartment) {
+    if (!selectedDepartmentId) {
       toast.show('Please select a department', { type: 'error' });
       return;
     }
@@ -230,7 +285,8 @@ export default function TicketForm({
         title: ticketName,
         description: combinedDescription,
         priority: priority === 'high' ? 'urgent' : priority === 'medium' ? 'medium' : 'notUrgent',
-        departmentName: selectedDepartment,
+        departmentId: selectedDepartmentId,
+        departmentName: selectedDepartmentName,
         assignedToId,
         taggedStaffIds: assignedStaff,
         roomId: roomId ?? null,
@@ -276,13 +332,13 @@ export default function TicketForm({
           style={styles.departmentScrollView}
           contentContainerStyle={styles.departmentIconsContainer}
         >
-          {DEPARTMENTS.map((dept) => {
-            const isSelected = dept.id === selectedDepartment;
+          {(departmentsLoading ? [] : (departments.length > 0 ? departments : FALLBACK_DEPARTMENTS)).map((dept) => {
+            const isSelected = dept.id === selectedDepartmentId;
             return (
               <TouchableOpacity
                 key={dept.id}
                 style={styles.departmentItem}
-                onPress={() => setSelectedDepartment(dept.id)}
+                onPress={() => setSelectedDepartmentId(dept.id)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.departmentIconContainer, isSelected && styles.departmentIconSelected]}>
@@ -610,7 +666,7 @@ export default function TicketForm({
         onSelect={(staffIds) => {
           setAssignedStaff(staffIds);
         }}
-        departmentName={selectedDepartment || departmentName || 'Department'}
+        departmentName={selectedDepartmentName || departmentName || 'Department'}
         loading={loadingStaff}
       />
     </View>

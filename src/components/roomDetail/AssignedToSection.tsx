@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { typography } from '../../theme';
 import { scaleX, ASSIGNED_TO } from '../../constants/roomDetailStyles';
 
@@ -16,11 +16,13 @@ interface AssignedToSectionProps {
   /** When null/undefined, shows empty assignee row with Reassign (Arrival / ArrivalDeparture parity with Figma). */
   staff: AssignedStaffInfo | null | undefined;
   onReassignPress?: () => void;
+  isLoading?: boolean;
 }
 
 export default function AssignedToSection({
   staff,
   onReassignPress,
+  isLoading = false,
 }: AssignedToSectionProps) {
   if (!staff) {
     return (
@@ -33,8 +35,13 @@ export default function AssignedToSection({
           onPress={onReassignPress}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          disabled={isLoading}
         >
-          <Text style={styles.reassignButtonText}>Reassign</Text>
+          {isLoading ? (
+            <ActivityIndicator size="small" color={ASSIGNED_TO.reassignButton.color ?? '#ffffff'} />
+          ) : (
+            <Text style={styles.reassignButtonText}>Reassign</Text>
+          )}
         </TouchableOpacity>
       </View>
     );
@@ -84,8 +91,13 @@ export default function AssignedToSection({
         onPress={onReassignPress}
         activeOpacity={0.7}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        disabled={isLoading}
       >
-        <Text style={styles.reassignButtonText}>Reassign</Text>
+        {isLoading ? (
+          <ActivityIndicator size="small" color={ASSIGNED_TO.reassignButton.color ?? '#ffffff'} />
+        ) : (
+          <Text style={styles.reassignButtonText}>Reassign</Text>
+        )}
       </TouchableOpacity>
     </View>
   );

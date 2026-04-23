@@ -257,6 +257,7 @@ export default function RoomDetailScreen() {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showViewTaskModal, setShowViewTaskModal] = useState(false);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isAssigningStaff, setIsAssigningStaff] = useState(false);
   const [statusButtonPosition, setStatusButtonPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const statusButtonRef = useRef<React.ComponentRef<typeof TouchableOpacity>>(null);
   
@@ -836,6 +837,7 @@ export default function RoomDetailScreen() {
     // Persist assignment + refresh history (best-effort).
     (async () => {
       try {
+        setIsAssigningStaff(true);
         const info = await assignRoomToStaff(room.id, staffId, shift as 'AM' | 'PM');
         if (info) {
           setAssignedStaff({
@@ -850,6 +852,7 @@ export default function RoomDetailScreen() {
         // Keep placeholder assignment; do not crash the flow.
         console.warn('[RoomDetailScreen] Failed to persist assignment', e);
       } finally {
+        setIsAssigningStaff(false);
         void refreshHistory();
       }
     })();
@@ -972,6 +975,7 @@ export default function RoomDetailScreen() {
         guests={guestsWithTypes}
         specialInstructions={room.specialInstructions ?? undefined}
         assignedTo={assignedStaff}
+        isAssigningStaff={isAssigningStaff}
         taskDescription={taskDescription}
         notes={notes}
         lostAndFoundItems={lostAndFoundItems}

@@ -53,10 +53,11 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
 
   const isDone = ticket.status === 'done';
   const isOfo = ticket.status === 'ofo';
+  const hasImages = !!ticket.images?.length;
 
   return (
     <TouchableOpacity
-      style={styles.card}
+      style={[styles.card, !hasImages && styles.cardNoImages]}
       onPress={onPress}
       activeOpacity={0.7}
     >
@@ -154,9 +155,9 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
         </View>
       </View>
 
-      <View style={styles.divider} />
+      <View style={[styles.divider, !hasImages && styles.dividerNoImages]} />
 
-      {!!ticket.images?.length && (
+      {hasImages && (
         <View style={styles.imagesRow}>
           {ticket.images.slice(0, 3).map((uri, idx) => (
             <View key={`${uri}-${idx}`} style={styles.imageThumbWrap}>
@@ -238,11 +239,19 @@ const styles = StyleSheet.create({
     paddingTop: 18 * scaleX,
     paddingBottom: 14 * scaleX,
   },
+  // Figma: no-image cards have a slightly tighter bottom padding and the divider sits lower.
+  cardNoImages: {
+    paddingBottom: 10 * scaleX,
+  },
   divider: {
     height: 1,
     backgroundColor: '#e3e3e3',
     marginTop: 16 * scaleX,
     marginBottom: 12 * scaleX,
+  },
+  dividerNoImages: {
+    marginTop: 28 * scaleX,
+    marginBottom: 10 * scaleX,
   },
   topRow: {
     flexDirection: 'row',
@@ -259,6 +268,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'nowrap',
     gap: 10 * scaleX,
+  },
+  dueAtLine: {
+    marginTop: 6 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '400',
+    color: '#334866',
+    includeFontPadding: false,
   },
   title: {
     flexShrink: 1,
@@ -293,14 +310,6 @@ const styles = StyleSheet.create({
   /** Figma 3147:127 — room badge when OFO */
   roomPillOfo: {
     backgroundColor: '#c6c5c5',
-  },
-  dueAtLine: {
-    marginTop: 4 * scaleX,
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '400',
-    color: '#334866',
-    includeFontPadding: false,
   },
   roomPillText: {
     fontSize: 24 * scaleX,

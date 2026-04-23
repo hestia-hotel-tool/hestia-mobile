@@ -147,7 +147,7 @@ function mapRowToTicketData(
     id: row.id,
     title: row.title,
     description: row.description ?? '',
-    roomNumber: row.rooms?.room_number ?? '—',
+    roomNumber: row.room_id ? (row.rooms?.room_number ?? '—') : '',
     images: images && images.length ? images : undefined,
     guest,
     category: departmentName,
@@ -369,6 +369,8 @@ export type CreateTicketInput = {
   roomId?: string | null;
   locationType?: 'room' | 'publicArea';
   publicAreaName?: string | null;
+  /** Preferred: DB department UUID (public.departments.id). */
+  departmentId?: string | null;
   departmentName?: string | null;
   priority?: string | null;
   assignedToId?: string | null;
@@ -443,12 +445,17 @@ export async function createTicket(input: CreateTicketInput): Promise<void> {
       input.locationType === 'publicArea'
         ? (input.publicAreaName ?? null)
         : null,
-    department_id: input.departmentName ? await getDepartmentIdByName(input.departmentName) : null,
+    department_id: input.departmentId
+      ? input.departmentId
+      : (input.departmentName ? await getDepartmentIdByName(input.departmentName) : null),
   };
+
+  const hotelId = await getMyHotelId();
+  if (!hotelId) throw new Error('Missing hotel context');
 
   const { data: inserted, error } = await supabase
     .from('tickets')
-    .insert(payload)
+    .insert({ ...payload, hotel_id: hotelId })
     .select('id, room_id')
     .single();
   if (error) throw error;
@@ -465,6 +472,7 @@ export async function createTicket(input: CreateTicketInput): Promise<void> {
         ticket_id: ticketId,
         tagged_user_id,
         tagged_by_id: userId,
+        hotel_id: hotelId,
       }))
     );
     if (tagErr) {
@@ -499,6 +507,7 @@ export async function createTicket(input: CreateTicketInput): Promise<void> {
       event_id: ticketId,
       description: buildFriendlyRoomHistoryMessage({ type: 'ticket', ticketTitle: trimmedTitle }),
       attachments: attachmentUrls.length > 0 ? attachmentUrls : [],
+      hotel_id: hotelId,
     });
     if (histError) {
       console.warn('[tickets.createTicket] Failed to persist room_history', histError.message, histError.code);

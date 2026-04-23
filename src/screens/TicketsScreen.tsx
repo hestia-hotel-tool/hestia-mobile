@@ -235,7 +235,8 @@ export default function TicketsScreen() {
     try {
       await updateTicketDueAt(ticketId, iso);
       setStatusMenuTicket((t) => (t?.id === ticketId ? { ...t, dueAt: iso } : t));
-      await loadTickets(selectedTab);
+      // Avoid freezing the UI with a full-screen loader while the popover is open.
+      await loadTickets(selectedTab, { silent: true });
     } catch (e) {
       console.warn('[TicketsScreen] Failed to save due time', e);
     }
@@ -252,7 +253,7 @@ export default function TicketsScreen() {
           const iso = now.toISOString();
           await updateTicketDueAt(ticketId, iso);
           setStatusMenuTicket((t) => (t?.id === ticketId ? { ...t, dueAt: iso } : t));
-          await loadTickets(selectedTab);
+          await loadTickets(selectedTab, { silent: true });
         } catch (e) {
           console.warn('[TicketsScreen] Failed to save default due time', e);
         }
@@ -268,7 +269,7 @@ export default function TicketsScreen() {
           setDueDay('');
           setDueMonth('');
           setStatusMenuTicket((t) => (t?.id === ticketId ? { ...t, dueAt: null } : t));
-          await loadTickets(selectedTab);
+          await loadTickets(selectedTab, { silent: true });
         } catch (e) {
           console.warn('[TicketsScreen] Failed to clear due time', e);
         }
@@ -330,11 +331,7 @@ export default function TicketsScreen() {
 
     if (selectedTab === 'myTickets') {
       if (!currentUserId) return false;
-      return (
-        ticket.assignedToId === currentUserId ||
-        ticket.createdById === currentUserId ||
-        ticket.viewerIsTagged === true
-      );
+      return ticket.assignedToId === currentUserId;
     } else if (selectedTab === 'open') {
       return ticket.status === 'unsolved' || ticket.status === 'ofo';
     } else if (selectedTab === 'closed') {

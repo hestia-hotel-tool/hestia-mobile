@@ -41,6 +41,12 @@ interface RoomData {
   guest_count?: number;
   vip_code?: string;
   image_url?: string;
+  guests?: Array<{
+    id?: string;
+    full_name?: string;
+    vip_code?: string;
+    image_url?: string;
+  }>;
 }
 
 export default function SelectTicketLocationScreen() {
@@ -61,6 +67,7 @@ export default function SelectTicketLocationScreen() {
   const [rooms, setRooms] = useState<RoomData[]>([]);
   const [filteredRooms, setFilteredRooms] = useState<RoomData[]>([]);
   const [selectedRoom, setSelectedRoom] = useState<RoomData | null>(null);
+  const [selectedGuestIndex, setSelectedGuestIndex] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedPublicArea, setSelectedPublicArea] = useState<string | null>(null);
@@ -103,6 +110,7 @@ export default function SelectTicketLocationScreen() {
           room_number,
           reservations (
             guests (
+              id,
               full_name,
               vip_code,
               image_url
@@ -117,19 +125,45 @@ export default function SelectTicketLocationScreen() {
 
       if (error) throw error;
 
+      const now = new Date();
       const roomsData: RoomData[] = (data || []).map((room: any) => {
-        const reservation = room.reservations?.[0];
-        const guest = reservation?.guests?.[0];
+        const reservations = Array.isArray(room.reservations) ? room.reservations : [];
+        // Pick the "active" reservation first (today between arrival/departure), otherwise latest by arrival_date.
+        const sorted = [...reservations].sort((a: any, b: any) => {
+          const aT = a?.arrival_date ? new Date(a.arrival_date).getTime() : 0;
+          const bT = b?.arrival_date ? new Date(b.arrival_date).getTime() : 0;
+          return bT - aT;
+        });
+        const isActive = (r: any) => {
+          const a = r?.arrival_date ? new Date(r.arrival_date) : null;
+          const d = r?.departure_date ? new Date(r.departure_date) : null;
+          if (!a || !d || Number.isNaN(a.getTime()) || Number.isNaN(d.getTime())) return false;
+          // include same-day departure as active until end of day
+          const end = new Date(d);
+          end.setHours(23, 59, 59, 999);
+          return a.getTime() <= now.getTime() && now.getTime() <= end.getTime();
+        };
+        const reservation = sorted.find(isActive) ?? sorted[0];
+
+        const rawGuests = reservation?.guests;
+        const guests = Array.isArray(rawGuests) ? rawGuests : rawGuests ? [rawGuests] : [];
+        const primaryGuest = guests.find((g: any) => g?.full_name) ?? guests?.[0];
         
         return {
           id: room.id,
           room_number: room.room_number,
-          guest_name: guest?.full_name,
+          guest_name: primaryGuest?.full_name,
           check_in: reservation?.arrival_date,
           check_out: reservation?.departure_date,
           guest_count: (reservation?.adults || 0) + (reservation?.kids || 0),
-          vip_code: guest?.vip_code,
-          image_url: guest?.image_url,
+          vip_code: primaryGuest?.vip_code,
+          image_url: primaryGuest?.image_url,
+          guests: guests.map((g: any) => ({
+            id: g?.id,
+            full_name: g?.full_name,
+            vip_code: g?.vip_code,
+            image_url: g?.image_url,
+          })),
         };
       });
 
@@ -148,13 +182,22 @@ export default function SelectTicketLocationScreen() {
 
   const handleContinue = async () => {
     if (locationType === 'room' && selectedRoom) {
-      // Navigate to the room details screen with Tickets tab active
-      // We need to pass the full room data, so let's navigate with roomId and let the screen fetch the details
-      navigation.navigate('RoomDetail', {
-        roomId: selectedRoom.id,
-        initialTab: 'Tickets',
+      const selectedGuest = (selectedRoom.guests ?? []).find((g) => g?.full_name) ?? selectedRoom.guests?.[0];
+
+      // Navigate to ticket form with room + guest info (as before).
+      navigation.navigate('CreateTicketForm', {
         departmentName,
-      } as any);
+        roomId: selectedRoom.id,
+        roomNumber: selectedRoom.room_number,
+        guestId: selectedGuest?.id,
+        guestName: selectedGuest?.full_name ?? selectedRoom.guest_name,
+        checkIn: selectedRoom.check_in,
+        checkOut: selectedRoom.check_out,
+        guestCount: selectedRoom.guest_count,
+        vipCode: selectedGuest?.vip_code ?? selectedRoom.vip_code,
+        guestImageUrl: selectedGuest?.image_url ?? selectedRoom.image_url,
+        isPublicArea: false,
+      });
     } else if (locationType === 'publicArea' && selectedPublicArea) {
       navigation.navigate('CreateTicketForm', {
         departmentName,
@@ -230,6 +273,7 @@ export default function SelectTicketLocationScreen() {
             onPress={() => {
               setLocationType('room');
               setSelectedRoom(null); // When coming back to Room, show dropdown again
+                setSelectedGuestIndex(null);
               setSelectedPublicArea(null);
               setShowDropdown(false);
               setSearchQuery('');
@@ -247,6 +291,7 @@ export default function SelectTicketLocationScreen() {
             onPress={() => {
               setLocationType('publicArea');
               setSelectedRoom(null); // Unchecking Room should return to dropdown state
+                setSelectedGuestIndex(null);
               setShowDropdown(false);
               setSearchQuery('');
             }}
@@ -304,6 +349,7 @@ export default function SelectTicketLocationScreen() {
                             style={styles.roomCard}
                             onPress={() => {
                               setSelectedRoom(room);
+                              setSelectedGuestIndex(null);
                               setShowDropdown(false);
                               setSearchQuery('');
                             }}
@@ -363,14 +409,17 @@ export default function SelectTicketLocationScreen() {
             ) : (
               <TouchableOpacity
                 style={[styles.roomCard, styles.selectedRoomCard]}
-                onPress={() => setSelectedRoom(null)}
+                onPress={() => {
+                  setSelectedRoom(null);
+                  setSelectedGuestIndex(null);
+                }}
                 activeOpacity={0.7}
               >
                 <View style={styles.roomCardContent}>
                   <View style={styles.roomNumberSection}>
                     <Text style={styles.roomNumber}>Room {selectedRoom.room_number}</Text>
                   </View>
-                  
+
                   {selectedRoom.guest_name && (
                     <>
                       <View style={styles.verticalDivider} />
@@ -396,8 +445,8 @@ export default function SelectTicketLocationScreen() {
                             </Text>
                             {selectedRoom.guest_count !== undefined && (
                               <>
-                                <Image 
-                                  source={require('../../assets/icons/people-icon.png')} 
+                                <Image
+                                  source={require('../../assets/icons/people-icon.png')}
                                   style={styles.guestCountIcon}
                                   resizeMode="contain"
                                 />
@@ -451,7 +500,8 @@ export default function SelectTicketLocationScreen() {
       <TouchableOpacity
         style={[
           styles.continueButton,
-          ((locationType === 'room' && !selectedRoom) || (locationType === 'publicArea' && !selectedPublicArea)) && styles.continueButtonDisabled,
+          ((locationType === 'room' && !selectedRoom) || (locationType === 'publicArea' && !selectedPublicArea)) &&
+            styles.continueButtonDisabled,
           {
             bottom: PixelRatio.roundToNearestPixel(40 * scaleX + Math.max(insets.bottom, 8 * scaleX)),
           },

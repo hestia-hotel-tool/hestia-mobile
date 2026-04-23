@@ -31,6 +31,8 @@ interface ChatState {
   removeChat: (chatId: string) => void;
   /** Update chat name in the list (e.g. after edit group name) */
   updateChatName: (chatId: string, name: string) => void;
+  /** Update chat list last-message fields (e.g. from realtime) */
+  applyIncomingMessageToChatList: (chatId: string, message: ChatMessage) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -112,4 +114,20 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({
       chats: s.chats.map((c) => (c.id === chatId ? { ...c, name } : c)),
     })),
+
+  applyIncomingMessageToChatList: (chatId, message) =>
+    set((s) => {
+      const idx = s.chats.findIndex((c) => c.id === chatId);
+      if (idx < 0) return s;
+      const existing = s.chats[idx];
+      const next: ChatItemData = {
+        ...existing,
+        lastMessage: message.type === 'image' ? '📷 Image' : message.type === 'file' ? (message.fileName ? `📎 ${message.fileName}` : '📎 File') : message.message,
+        lastMessageSender: message.senderName ? `${message.senderName}:` : undefined,
+      };
+      const nextChats = [...s.chats];
+      nextChats.splice(idx, 1);
+      nextChats.unshift(next);
+      return { chats: nextChats };
+    }),
 }));

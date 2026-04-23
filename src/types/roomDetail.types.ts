@@ -111,6 +111,9 @@ export interface RoomDetailScreenProps {
     avatarColor?: string;
     department?: string;
   };
+
+  /** When true, the Assigned To section is performing a mutation (e.g. reassign). */
+  isAssigningStaff?: boolean;
   
   // Task description
   taskDescription?: string;

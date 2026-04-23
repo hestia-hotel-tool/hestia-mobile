@@ -50,6 +50,7 @@ export default function RoomDetailContent({
   guests,
   specialInstructions,
   assignedTo,
+  isAssigningStaff = false,
   taskDescription,
   notes = [],
   lostAndFoundItems,
@@ -274,7 +275,11 @@ export default function RoomDetailContent({
 
                 {showAssignedTaskCard ? (
                   <View style={[styles.assignedCard, { minHeight: cardMinHeight }]}>
-                    <AssignedToSection staff={assignedTo ?? null} onReassignPress={onReassign} />
+                    <AssignedToSection
+                      staff={assignedTo ?? null}
+                      onReassignPress={onReassign}
+                      isLoading={isAssigningStaff}
+                    />
 
                     {taskDescription ? <View style={styles.cardDivider} /> : null}
 

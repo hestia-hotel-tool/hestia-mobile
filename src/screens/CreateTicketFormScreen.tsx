@@ -20,12 +20,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../contexts/ToastContext';
 import { typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
-import { getUsersByDepartment } from '../services/user';
+import { getUsersByDepartmentId } from '../services/user';
 import type { User } from '../types';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 import TicketStaffSelectorModal from '../components/tickets/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getDepartments } from '../services/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -93,15 +94,7 @@ const FREQUENT_CASES = [
   'Furniture & Fixtures',
 ];
 
-const DEPARTMENTS = [
-  { id: 'Engineering', name: 'Engineering', icon: require('../../assets/icons/engineering.png'), noTint: false },
-  { id: 'HSK Portier', name: 'HSK Portier', icon: require('../../assets/icons/hsk-portier.png'), noTint: true },
-  { id: 'In Room Dining', name: 'In Room Dining', icon: require('../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  { id: 'Laundry', name: 'Laundry', icon: require('../../assets/icons/laundry-icon.png'), noTint: false },
-  { id: 'Concierge', name: 'Concierge', icon: require('../../assets/icons/concierge.png'), noTint: false },
-  { id: 'Reception', name: 'Reception', icon: require('../../assets/icons/reception.png'), noTint: false },
-  { id: 'IT', name: 'IT', icon: require('../../assets/icons/it.png'), noTint: false },
-];
+type DepartmentUiItem = { id: string; name: string; icon: any; noTint?: boolean };
 
 export default function CreateTicketFormScreen() {
   const navigation = useNavigation<CreateTicketFormScreenNavigationProp>();
@@ -111,12 +104,20 @@ export default function CreateTicketFormScreen() {
   const paramRoomNumber = route.params?.roomNumber;
   const paramIsPublicArea = route.params?.isPublicArea;
   const paramPublicAreaName = route.params?.publicAreaName;
+  const paramGuestName = route.params?.guestName;
+  const paramCheckIn = route.params?.checkIn;
+  const paramCheckOut = route.params?.checkOut;
+  const paramGuestCount = route.params?.guestCount;
+  const paramVipCode = route.params?.vipCode;
+  const paramGuestImageUrl = route.params?.guestImageUrl;
   const toast = useToast();
 
   // Form state
   const [ticketName, setTicketName] = useState('');
   const [showFrequentCasesDropdown, setShowFrequentCasesDropdown] = useState(false);
-  const [selectedDepartment, setSelectedDepartment] = useState(paramDepartmentName);
+  const [departments, setDepartments] = useState<DepartmentUiItem[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [assignedStaff, setAssignedStaff] = useState<string[]>([]);
   const [priority, setPriority] = useState<Priority>('high');
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
@@ -126,48 +127,109 @@ export default function CreateTicketFormScreen() {
   const [departmentStaff, setDepartmentStaff] = useState<User[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [rooms, setRooms] = useState<Array<{ id: string; room_number: string }>>([]);
-  const [selectedRoom, setSelectedRoom] = useState<string>(
-    paramRoomNumber ? `Room ${paramRoomNumber}` : paramIsPublicArea ? paramPublicAreaName || 'Public Area' : 'Room 201'
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
+  const [selectedRoomLabel, setSelectedRoomLabel] = useState<string>(
+    paramRoomNumber
+      ? `Room ${paramRoomNumber}`
+      : paramIsPublicArea
+        ? paramPublicAreaName || 'Public Area'
+        : 'Select a room'
   );
   const [activeTab, setActiveTab] = useState<'Overview' | 'Tickets' | 'Checklist' | 'History'>('Tickets');
   const descriptionInputRef = useRef<TextInput>(null);
 
+  // Keep local selection in sync with navigation params (e.g. coming back from SelectTicketLocation)
+  useEffect(() => {
+    setSelectedRoomId(paramRoomId ?? null);
+    setSelectedRoomLabel(
+      paramRoomNumber
+        ? `Room ${paramRoomNumber}`
+        : paramIsPublicArea
+          ? paramPublicAreaName || 'Public Area'
+          : 'Select a room'
+    );
+  }, [paramRoomId, paramRoomNumber, paramIsPublicArea, paramPublicAreaName]);
+
+  const isPublicArea = !!paramIsPublicArea;
+
+  const headerTitle = isPublicArea
+    ? 'Public Area'
+    : selectedRoomLabel;
+
+  const headerSubtitle = isPublicArea
+    ? (paramPublicAreaName ?? null)
+    : null;
+
+  const tabs = useMemo(() => {
+    // Figma: Public Area screen only has Tickets + History tabs.
+    return (isPublicArea ? (['Tickets', 'History'] as const) : (['Overview', 'Tickets', 'Checklist', 'History'] as const));
+  }, [isPublicArea]);
+
   // If the department changes, previously tagged staff may no longer be valid.
   useEffect(() => {
     setAssignedStaff([]);
-  }, [selectedDepartment]);
+  }, [selectedDepartmentId]);
 
-  // Load rooms
+  // Load departments from DB (source of truth)
   useEffect(() => {
-    if (!isSupabaseConfigured) return;
     let cancelled = false;
-    supabase
-      .from('rooms')
-      .select('id, room_number')
-      .order('room_number')
-      .then(({ data, error }) => {
+    setDepartmentsLoading(true);
+    getDepartments()
+      .then((res) => {
         if (cancelled) return;
-        if (error) {
-          console.warn('Failed to load rooms', error);
-          return;
-        }
-        setRooms(data ?? []);
-        if (data && data.length > 0) {
-          setSelectedRoom(`Room ${data[0].room_number}`);
-        }
+        const db = res.data ?? [];
+        const mappedUnsorted: DepartmentUiItem[] = db
+          .filter((d) => d && (d as any).id && (d as any).name)
+          .map((d) => {
+            const name = String((d as any).name ?? '').trim();
+            const iconCfg = DEPARTMENT_NAME_TO_ICON[name] ?? DEPARTMENT_NAME_TO_ICON.Engineering;
+            return { id: String((d as any).id), name, icon: iconCfg.icon, noTint: iconCfg.noTint };
+          });
+
+        // Figma behavior: the selected department appears first in the list.
+        const desired =
+          mappedUnsorted.find(
+            (m) => m.name.toLowerCase() === String(paramDepartmentName).trim().toLowerCase(),
+          ) ?? mappedUnsorted[0] ?? null;
+
+        const mapped: DepartmentUiItem[] = desired
+          ? [desired, ...mappedUnsorted.filter((m) => m.id !== desired.id)]
+          : mappedUnsorted;
+
+        setDepartments(mapped);
+        setSelectedDepartmentId(mapped[0]?.id ?? null);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setDepartments([]);
+        setSelectedDepartmentId(null);
+      })
+      .finally(() => {
+        if (!cancelled) setDepartmentsLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [paramDepartmentName]);
+
+  const selectedDepartmentName = useMemo(() => {
+    if (selectedDepartmentId) {
+      const found = departments.find((d) => d.id === selectedDepartmentId)?.name;
+      if (found) return found;
+    }
+    return paramDepartmentName;
+  }, [departments, selectedDepartmentId, paramDepartmentName]);
+
+  const handleChangeLocation = () => {
+    navigation.navigate('SelectTicketLocation', { departmentName: selectedDepartmentName || paramDepartmentName } as any);
+  };
 
   // Load department staff
   useEffect(() => {
-    if (!selectedDepartment) return;
+    if (!selectedDepartmentId) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartment(selectedDepartment)
+    getUsersByDepartmentId(selectedDepartmentId, { limit: 200 })
       .then((response) => {
         if (cancelled) return;
         setDepartmentStaff(response.data);
@@ -182,7 +244,7 @@ export default function CreateTicketFormScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDepartment]);
+  }, [selectedDepartmentId]);
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -223,7 +285,7 @@ export default function CreateTicketFormScreen() {
   };
 
   const handleOpenStaffModal = () => {
-    if (!selectedDepartment) {
+    if (!selectedDepartmentId) {
       toast.show('Please select a department first.', { type: 'error' });
       return;
     }
@@ -237,7 +299,7 @@ export default function CreateTicketFormScreen() {
       return;
     }
 
-    if (!selectedDepartment) {
+    if (!selectedDepartmentId) {
       toast.show('Please select a department', { type: 'error' });
       return;
     }
@@ -253,10 +315,11 @@ export default function CreateTicketFormScreen() {
         title: ticketName,
         description: combinedDescription,
         priority: priority === 'high' ? 'urgent' : priority === 'medium' ? 'medium' : 'notUrgent',
-        departmentName: selectedDepartment,
+        departmentId: selectedDepartmentId,
+        departmentName: selectedDepartmentName,
         assignedToId,
         taggedStaffIds: assignedStaff,
-        roomId: paramIsPublicArea ? null : (paramRoomId ?? null),
+        roomId: paramIsPublicArea ? null : (selectedRoomId ?? null),
         locationType,
         publicAreaName: paramIsPublicArea ? (paramPublicAreaName ?? null) : null,
         pictures,
@@ -278,26 +341,39 @@ export default function CreateTicketFormScreen() {
   return (
     <View style={styles.container}>
       {/* Header with Room Info */}
-      <View style={styles.header}>
+      <View style={[styles.header, isPublicArea && styles.headerPublicArea]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
           <Image
             source={require('../../assets/icons/back-arrow.png')}
-            style={styles.backArrow}
+            style={[styles.backArrow, isPublicArea && styles.backArrowPublicArea]}
             resizeMode="contain"
           />
         </TouchableOpacity>
         <View style={styles.headerContent}>
-          <Text style={styles.roomNumber}>{selectedRoom}</Text>
-          <Text style={styles.ticketCode}>ST2K-1.4</Text>
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>✓ Cleaned</Text>
-          </View>
+          <TouchableOpacity onPress={handleChangeLocation} activeOpacity={0.7}>
+            <Text style={[styles.roomNumber, isPublicArea && styles.roomNumberPublicArea]}>
+              {headerTitle}
+            </Text>
+          </TouchableOpacity>
+          {headerSubtitle ? (
+            <Text style={styles.publicAreaSubtitle} numberOfLines={1} ellipsizeMode="tail">
+              {headerSubtitle}
+            </Text>
+          ) : null}
+          {!isPublicArea ? (
+            <>
+              <Text style={styles.ticketCode}>ST2K-1.4</Text>
+              <View style={styles.statusBadge}>
+                <Text style={styles.statusText}>✓ Cleaned</Text>
+              </View>
+            </>
+          ) : null}
         </View>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
-        {(['Overview', 'Tickets', 'Checklist', 'History'] as const).map((tab) => (
+        {tabs.map((tab) => (
           <TouchableOpacity
             key={tab}
             style={styles.tab}
@@ -333,13 +409,13 @@ export default function CreateTicketFormScreen() {
           style={styles.departmentScrollView}
           contentContainerStyle={styles.departmentIconsContainer}
         >
-          {DEPARTMENTS.map((dept) => {
-            const isSelected = dept.id === selectedDepartment;
+          {(departmentsLoading ? [] : departments).map((dept) => {
+            const isSelected = dept.id === selectedDepartmentId;
             return (
               <TouchableOpacity
                 key={dept.id}
                 style={styles.departmentItem}
-                onPress={() => setSelectedDepartment(dept.id)}
+                onPress={() => setSelectedDepartmentId(dept.id)}
                 activeOpacity={0.7}
               >
                 <View style={[styles.departmentIconContainer, isSelected && styles.departmentIconSelected]}>
@@ -347,8 +423,8 @@ export default function CreateTicketFormScreen() {
                     source={dept.icon}
                     style={[
                       styles.departmentIcon,
-                      !dept.noTint && { tintColor: isSelected ? '#F92424' : '#F92424' },
-                      !isSelected && { opacity: 0.3 },
+                      !dept.noTint && { tintColor: isSelected ? '#ffffff' : '#F92424' },
+                      isSelected ? { opacity: 1 } : { opacity: 0.3 },
                     ]}
                     resizeMode="contain"
                   />
@@ -628,7 +704,7 @@ export default function CreateTicketFormScreen() {
         onSelect={(staffIds) => {
           setAssignedStaff(staffIds);
         }}
-        departmentName={selectedDepartment || paramDepartmentName || 'Department'}
+        departmentName={selectedDepartmentName || paramDepartmentName || 'Department'}
         loading={loadingStaff}
       />
     </View>
@@ -646,6 +722,9 @@ const styles = StyleSheet.create({
     paddingTop: 50 * scaleX,
     paddingHorizontal: 24 * scaleX,
   },
+  headerPublicArea: {
+    backgroundColor: '#e4eefe',
+  },
   backButton: {
     width: 40 * scaleX,
     height: 40 * scaleX,
@@ -654,11 +733,22 @@ const styles = StyleSheet.create({
   backArrow: {
     width: 28 * scaleX,
     height: 28 * scaleX,
-    tintColor: '#607AA1',
+    tintColor: '#ffffff',
+  },
+  backArrowPublicArea: {
+    tintColor: '#5b769e',
   },
   headerContent: {
     alignItems: 'center',
     marginTop: 8 * scaleX,
+  },
+  publicAreaSubtitle: {
+    fontSize: 17 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#1e1e1e',
+    marginTop: 4 * scaleX,
+    maxWidth: 320 * scaleX,
   },
   roomNumber: {
     fontSize: 24 * scaleX,
@@ -666,6 +756,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     marginBottom: 4 * scaleX,
+  },
+  roomNumberPublicArea: {
+    color: '#5b769e',
   },
   ticketCode: {
     fontSize: 17 * scaleX,
@@ -767,7 +860,7 @@ const styles = StyleSheet.create({
     marginBottom: 8 * scaleX,
   },
   departmentIconSelected: {
-    backgroundColor: '#ffebeb',
+    backgroundColor: '#F92424',
   },
   departmentIcon: {
     width: 24 * scaleX,

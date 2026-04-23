@@ -38,6 +38,8 @@ type ChatRow = {
   created_at: string | null;
 };
 
+type UserRow = { id: string; full_name: string | null; avatar_url?: string | null };
+
 function isValidUUID(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 }
@@ -167,6 +169,55 @@ export async function uploadChatAttachment(
   return { url: urlData.publicUrl };
 }
 
+// Small runtime caches to avoid N+1 lookups from Realtime handlers.
+// Scoped to the JS runtime (clears on app restart).
+const userCache = new Map<string, { full_name: string | null; avatar_url: string | null }>();
+const replySnippetCache = new Map<string, { senderName: string; message: string }>();
+
+async function getUsersByIds(ids: string[]): Promise<Map<string, { full_name: string | null; avatar_url: string | null }>> {
+  const result = new Map<string, { full_name: string | null; avatar_url: string | null }>();
+  const unique = Array.from(new Set(ids.filter((x) => isValidUUID(x))));
+  if (unique.length === 0) return result;
+
+  const missing = unique.filter((id) => !userCache.has(id));
+  if (missing.length > 0) {
+    const { data } = await supabase.from('users').select('id, full_name, avatar_url').in('id', missing);
+    for (const row of (data ?? []) as UserRow[]) {
+      userCache.set(row.id, { full_name: row.full_name ?? null, avatar_url: row.avatar_url ?? null });
+    }
+    // Cache negative lookups too (prevents repeated fetch attempts).
+    for (const id of missing) {
+      if (!userCache.has(id)) userCache.set(id, { full_name: null, avatar_url: null });
+    }
+  }
+
+  for (const id of unique) {
+    const v = userCache.get(id);
+    if (v) result.set(id, v);
+  }
+  return result;
+}
+
+async function getReplySnippetById(messageId: string): Promise<{ senderName: string; message: string } | null> {
+  if (!isValidUUID(messageId)) return null;
+  const cached = replySnippetCache.get(messageId);
+  if (cached) return cached;
+
+  const { data } = await supabase
+    .from('messages')
+    .select('id, content, sender_id, users!sender_id(full_name)')
+    .eq('id', messageId)
+    .maybeSingle();
+
+  if (!data) return null;
+  const row = data as { id: string; content: string | null; users: { full_name: string | null } | null };
+  const content = row.content ?? '';
+  const snippet = content.slice(0, 80) + (content.length > 80 ? '…' : '');
+  const resolved = { senderName: row.users?.full_name ?? 'Unknown', message: snippet };
+  replySnippetCache.set(messageId, resolved);
+  return resolved;
+}
+
 /**
  * Fetch all chats for the current user (where they are a participant),
  * with last message and display name/avatar for list.
@@ -204,36 +255,68 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
 
   const unreadByChatId = await getUnreadChatMessageCountsByChatId();
 
+  // Fetch all last messages in one go (then pick the first per chat_id).
+  const { data: messageRows } = await supabase
+    .from('messages')
+    .select('id, chat_id, content, created_at, sender_id, users!sender_id(full_name)')
+    .in('chat_id', chatIds)
+    .order('created_at', { ascending: false });
+
+  const lastByChatId = new Map<
+    string,
+    { id: string; chat_id: string; content: string | null; created_at: string | null; sender_id: string; users?: { full_name: string | null } | null }
+  >();
+  for (const row of (messageRows ?? []) as Array<{
+    id: string;
+    chat_id: string;
+    content: string | null;
+    created_at: string | null;
+    sender_id: string;
+    users?: { full_name: string | null } | null;
+  }>) {
+    if (!lastByChatId.has(row.chat_id)) lastByChatId.set(row.chat_id, row);
+  }
+
+  // Fetch other participants in one go (up to 3 per chat for groups).
+  const { data: participantRowsAll } = await supabase
+    .from('chat_participants')
+    .select('chat_id, user_id, users(full_name, avatar_url)')
+    .in('chat_id', chatIds)
+    .neq('user_id', userId);
+
+  const othersByChatId = new Map<
+    string,
+    Array<{ user_id: string; users: { full_name: string | null; avatar_url: string | null } | null }>
+  >();
+  for (const r of (participantRowsAll ?? []) as Array<{
+    chat_id: string;
+    user_id: string;
+    users: { full_name: string | null; avatar_url: string | null } | null;
+  }>) {
+    const list = othersByChatId.get(r.chat_id) ?? [];
+    list.push({ user_id: r.user_id, users: r.users });
+    othersByChatId.set(r.chat_id, list);
+  }
+
   const result: (ChatItemData & { lastMessageAt: string })[] = [];
-
   for (const chat of chats as ChatRow[]) {
-    const { data: lastMsgRows } = await supabase
-      .from('messages')
-      .select('id, content, created_at, sender_id, users!sender_id(full_name)')
-      .eq('chat_id', chat.id)
-      .order('created_at', { ascending: false })
-      .limit(1);
-
-    const lastMsg = lastMsgRows?.[0] as (MessageRow & { users?: { full_name: string | null } }) | undefined;
+    const lastMsg = lastByChatId.get(chat.id);
     const lastMessageText = lastMsg?.content ?? '';
-    const lastMessageAt = lastMsg?.created_at ?? chat.created_at ?? '';
+    const lastMessageAt = lastMsg?.created_at ?? '';
     const lastMessageSender =
       lastMsg?.sender_id === userId ? 'You:' : lastMsg?.users?.full_name ? `${lastMsg.users.full_name}:` : '';
 
-    const { data: otherParticipants } = await supabase
-      .from('chat_participants')
-      .select('user_id, users(full_name, avatar_url)')
-      .eq('chat_id', chat.id)
-      .neq('user_id', userId)
-      .limit(chat.type === 'group' ? 3 : 1);
-
-    const others = (otherParticipants ?? []) as Array<{
+    const allOthers = othersByChatId.get(chat.id) ?? [];
+    const others = (chat.type === 'group' ? allOthers.slice(0, 3) : allOthers.slice(0, 1)) as Array<{
       user_id: string;
       users: { full_name: string | null; avatar_url: string | null } | null;
     }>;
+
     const displayName =
       chat.type === 'group'
-        ? (chat.name && chat.name.trim() ? chat.name.trim() : others.map((o) => o.users?.full_name ?? 'Unknown').join(', ') || 'Group')
+        ? (chat.name && chat.name.trim()
+            ? chat.name.trim()
+            : others.map((o) => o.users?.full_name ?? 'Unknown').join(', ') || 'Group')
         : others[0]?.users?.full_name ?? 'Chat';
     const avatarUrl = others[0]?.users?.avatar_url ?? null;
 
@@ -245,7 +328,7 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
       unreadCount: unreadByChatId.get(chat.id) ?? 0,
       avatar: avatarUrl ? { uri: avatarUrl } : undefined,
       isGroup: chat.type === 'group',
-      lastMessageAt,
+      lastMessageAt: lastMessageAt || chat.created_at || '',
     });
   }
 
@@ -451,6 +534,8 @@ export async function sendMessage(
   const { data } = await supabase.auth.getSession();
   const userId = data?.session?.user?.id;
   if (!userId) throw new Error('Not authenticated');
+  const hotelId = await getMyHotelId();
+  if (!hotelId) throw new Error('Missing hotel context');
 
   const dbType = type === 'image' ? 'image' : type === 'file' ? 'file' : MESSAGE_TYPE;
   const insertPayload: Record<string, unknown> = {
@@ -458,6 +543,7 @@ export async function sendMessage(
     sender_id: userId,
     type: dbType,
     content: content.trim(),
+    hotel_id: hotelId,
   };
   if (options?.taggedUserId) insertPayload.tagged_user_id = options.taggedUserId;
   if (options?.replyToMessageId) insertPayload.reply_to_id = options.replyToMessageId;
@@ -538,9 +624,9 @@ export function subscribeToMessages(
         const userId = await userIdPromise;
         if (!userId) return;
         if (row.sender_id === userId) return;
-        let senderName = 'Unknown';
-        const { data: u } = await supabase.from('users').select('full_name').eq('id', row.sender_id).single();
-        if (u?.full_name) senderName = u.full_name;
+
+        const users = await getUsersByIds([row.sender_id, row.tagged_user_id ?? ''].filter(Boolean));
+        const senderName = users.get(row.sender_id)?.full_name ?? 'Unknown';
         const msgType = (row.type === 'image' ? 'image' : row.type === 'file' ? 'file' : 'text') as ChatMessage['type'];
         const msg: ChatMessage = {
           id: row.id,
@@ -565,20 +651,11 @@ export function subscribeToMessages(
         }
         if (row.tagged_user_id) {
           msg.taggedUserId = row.tagged_user_id;
-          const { data: tu } = await supabase.from('users').select('full_name').eq('id', row.tagged_user_id).single();
-          msg.taggedUserName = (tu as { full_name?: string } | null)?.full_name ?? 'Unknown';
+          msg.taggedUserName = users.get(row.tagged_user_id)?.full_name ?? 'Unknown';
         }
         if (row.reply_to_id) {
-          const { data: replyRow } = await supabase
-            .from('messages')
-            .select('id, content, sender_id, users!sender_id(full_name)')
-            .eq('id', row.reply_to_id)
-            .single();
-          if (replyRow) {
-            const r = replyRow as { id: string; content: string | null; users: { full_name: string | null } | null };
-            const snippet = (r.content ?? '').slice(0, 80) + ((r.content ?? '').length > 80 ? '…' : '');
-            msg.replyTo = { id: r.id, senderName: r.users?.full_name ?? 'Unknown', message: snippet };
-          }
+          const snippet = await getReplySnippetById(row.reply_to_id);
+          if (snippet) msg.replyTo = { id: row.reply_to_id, ...snippet };
         }
         onMessage(msg);
       }
@@ -597,6 +674,11 @@ export function subscribeToMessages(
 export async function getOrCreateDirectChat(otherUserId: string): Promise<string | null> {
   const userId = await getCurrentUserId();
   if (!userId || !isValidUUID(otherUserId)) return null;
+  const hotelId = await getMyHotelId();
+  if (!hotelId) {
+    console.warn('[Chat] getOrCreateDirectChat: missing hotelId');
+    return null;
+  }
 
   const { data: allParticipantChats } = await supabase
     .from('chat_participants')
@@ -606,19 +688,23 @@ export async function getOrCreateDirectChat(otherUserId: string): Promise<string
   if (!allParticipantChats?.length) {
     const { data: newChat, error: createErr } = await supabase
       .from('chats')
-      .insert({ type: 'direct', created_by_id: userId })
+      .insert({ type: 'direct', created_by_id: userId, hotel_id: hotelId })
       .select('id')
       .single();
     if (createErr || !newChat) {
       if (createErr) console.warn('[Chat] create direct chat error:', createErr.message, createErr.code);
       return null;
     }
-    const { error: selfErr } = await supabase.from('chat_participants').insert([{ chat_id: newChat.id, user_id: userId }]);
+    const { error: selfErr } = await supabase
+      .from('chat_participants')
+      .insert([{ chat_id: newChat.id, user_id: userId, hotel_id: hotelId }]);
     if (selfErr) {
       console.warn('[Chat] add direct chat participants (self) error:', selfErr.message, selfErr.code);
       return null;
     }
-    const { error: otherErr } = await supabase.from('chat_participants').insert([{ chat_id: newChat.id, user_id: otherUserId }]);
+    const { error: otherErr } = await supabase
+      .from('chat_participants')
+      .insert([{ chat_id: newChat.id, user_id: otherUserId, hotel_id: hotelId }]);
     if (otherErr) {
       console.warn('[Chat] add direct chat participants (other) error:', otherErr.message, otherErr.code);
       return null;
@@ -639,19 +725,23 @@ export async function getOrCreateDirectChat(otherUserId: string): Promise<string
 
   const { data: newChat, error: createErr } = await supabase
     .from('chats')
-    .insert({ type: 'direct', created_by_id: userId })
+    .insert({ type: 'direct', created_by_id: userId, hotel_id: hotelId })
     .select('id')
     .single();
   if (createErr || !newChat) {
     if (createErr) console.warn('[Chat] create direct chat (existing) error:', createErr.message, createErr.code);
     return null;
   }
-  const { error: selfErr } = await supabase.from('chat_participants').insert([{ chat_id: newChat.id, user_id: userId }]);
+  const { error: selfErr } = await supabase
+    .from('chat_participants')
+    .insert([{ chat_id: newChat.id, user_id: userId, hotel_id: hotelId }]);
   if (selfErr) {
     console.warn('[Chat] add direct chat participants (existing, self) error:', selfErr.message, selfErr.code);
     return null;
   }
-  const { error: otherErr } = await supabase.from('chat_participants').insert([{ chat_id: newChat.id, user_id: otherUserId }]);
+  const { error: otherErr } = await supabase
+    .from('chat_participants')
+    .insert([{ chat_id: newChat.id, user_id: otherUserId, hotel_id: hotelId }]);
   if (otherErr) {
     console.warn('[Chat] add direct chat participants (existing, other) error:', otherErr.message, otherErr.code);
     return null;
@@ -667,6 +757,11 @@ export async function getOrCreateDirectChat(otherUserId: string): Promise<string
 export async function createGroupChat(participantUserIds: string[], groupName: string): Promise<string | null> {
   const userId = await getCurrentUserId();
   if (!userId) return null;
+  const hotelId = await getMyHotelId();
+  if (!hotelId) {
+    console.warn('[Chat] createGroupChat: missing hotelId');
+    return null;
+  }
 
   const uniqueIds = Array.from(new Set(participantUserIds.filter((id) => isValidUUID(id))));
   if (uniqueIds.length === 0) return null;
@@ -674,7 +769,7 @@ export async function createGroupChat(participantUserIds: string[], groupName: s
   const name = typeof groupName === 'string' && groupName.trim() ? groupName.trim() : 'Group';
   const { data: newChat, error: createErr } = await supabase
     .from('chats')
-    .insert({ type: 'group', name, created_by_id: userId })
+    .insert({ type: 'group', name, created_by_id: userId, hotel_id: hotelId })
     .select('id')
     .single();
 
@@ -685,7 +780,7 @@ export async function createGroupChat(participantUserIds: string[], groupName: s
 
   const others = uniqueIds.filter((id) => id !== userId);
   const { error: selfErr } = await supabase.from('chat_participants').insert([
-    { chat_id: newChat.id, user_id: userId, role: 'admin' },
+    { chat_id: newChat.id, user_id: userId, role: 'admin', hotel_id: hotelId },
   ]);
   if (selfErr) {
     console.warn('[Chat] add group chat participants (self) error:', selfErr.message, selfErr.code);
@@ -694,7 +789,7 @@ export async function createGroupChat(participantUserIds: string[], groupName: s
   if (others.length > 0) {
     const { error: othersErr } = await supabase
       .from('chat_participants')
-      .insert(others.map((uid) => ({ chat_id: newChat.id, user_id: uid, role: 'member' })));
+      .insert(others.map((uid) => ({ chat_id: newChat.id, user_id: uid, role: 'member', hotel_id: hotelId })));
     if (othersErr) {
       console.warn('[Chat] add group chat participants (others) error:', othersErr.message, othersErr.code);
       return null;

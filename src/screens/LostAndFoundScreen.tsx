@@ -48,6 +48,10 @@ export default function LostAndFoundScreen() {
   const [activeTab, setActiveTab] = useState('LostAndFound');
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
   const [items, setItems] = useState<LostAndFoundItem[]>([]);
+  const itemsRef = React.useRef<LostAndFoundItem[]>([]);
+  React.useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
   /** First open / blank list — full-screen spinner. */
   const [listLoading, setListLoading] = useState(true);
   /** Refocus reload after we already have data — header indicator only (non-blocking). */
@@ -62,6 +66,9 @@ export default function LostAndFoundScreen() {
     itemImage?: string;
     itemData: any;
   } | null>(null);
+  const [needsRefreshAfterRegister, setNeedsRefreshAfterRegister] = useState(false);
+  const registerInflightRef = React.useRef<Promise<void> | null>(null);
+  const pendingInsertedItemIdRef = React.useRef<string | null>(null);
   const [statusModalItem, setStatusModalItem] = useState<LostAndFoundItem | null>(null);
   const [statusAnchor, setStatusAnchor] = useState<LostAndFoundStatusAnchorLayout | null>(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -169,6 +176,7 @@ export default function LostAndFoundScreen() {
         description,
         status,
         storage_location,
+        found_at,
         room_id,
         found_location,
         created_at,
@@ -201,7 +209,8 @@ export default function LostAndFoundScreen() {
       ({ data, error } = await supabase
         .from('lost_and_found_items')
         .select(withShippedSelect)
-        .order('found_at', { ascending: false }));
+        .order('found_at', { ascending: false, nullsFirst: false })
+        .order('created_at', { ascending: false }));
 
       if (!error) shippedLocationColumnAvailableRef.current = true;
 
@@ -210,7 +219,8 @@ export default function LostAndFoundScreen() {
         ({ data, error } = await supabase
           .from('lost_and_found_items')
           .select(baseSelect)
-          .order('found_at', { ascending: false }));
+          .order('found_at', { ascending: false, nullsFirst: false })
+          .order('created_at', { ascending: false }));
       }
 
       if (error || !data) {
@@ -381,8 +391,18 @@ export default function LostAndFoundScreen() {
   };
 
   const handleCloseRegisterModal = () => {
+    // Show loading immediately on close, then refresh once the modal is dismissed.
+    // This avoids a perceived lag where the user taps Close but sees no feedback.
+    if (hasLoadedOnceRef.current) {
+      setRefetchLoading(true);
+    } else {
+      setListLoading(true);
+    }
     setShowRegisterModal(false);
     setPreselectedRoomIdForRegister(undefined);
+    // Always refresh the list when leaving the register flow (even if the user cancelled),
+    // so the list reflects any new items created from another device/session.
+    void loadItems('focus');
   };
 
   const handleRegisterNext = async (data: {
@@ -395,6 +415,8 @@ export default function LostAndFoundScreen() {
 
     // Close the register modal first; then show success.
     // iOS can drop a second Modal if it’s shown while another Modal is dismissing.
+    // We refresh only once when the success modal is closed, but we must ensure the insert finished first.
+    setNeedsRefreshAfterRegister(true);
     setSuccessData({
       trackingNumber: trackingNumberFromDb,
       itemImage: data.itemImage,
@@ -403,7 +425,8 @@ export default function LostAndFoundScreen() {
     setShowRegisterModal(false);
     setTimeout(() => setShowSuccessModal(true), 250);
 
-    try {
+    registerInflightRef.current = (async () => {
+      try {
       if (isSupabaseConfigured) {
         const itemData = data.itemData ?? {};
         const title: string = itemData.title ?? '';
@@ -420,6 +443,9 @@ export default function LostAndFoundScreen() {
 
         const { data: sessionData } = await supabase.auth.getSession();
         const userId = sessionData?.session?.user?.id ?? null;
+
+        const hotelId = await getMyHotelId();
+        if (!hotelId) throw new Error('No hotel assigned to this user.');
 
         // Build found_at timestamp
         const foundAt = new Date(
@@ -485,8 +511,6 @@ export default function LostAndFoundScreen() {
               body = base64ToArrayBuffer(base64);
             }
 
-            const hotelId = await getMyHotelId();
-            if (!hotelId) throw new Error('No hotel assigned to this user.');
             const fileName = `${hotelId}/items/${Date.now()}-${Math.random()
               .toString(36)
               .slice(2)}.${normalizedExt}`;
@@ -583,52 +607,65 @@ export default function LostAndFoundScreen() {
                   ? (selectedRoom as any).id
                   : null,
               image_url: imageUrl,
+              hotel_id: hotelId,
             })
             .select('id, tracking_number, image_url')
             .single();
           if (!error && inserted?.tracking_number) {
             trackingNumberFromDb = inserted.tracking_number;
           }
-          await loadItems('focus');
-          // Ensure the newly created item shows image and (for rooms) guest name on the Created tab
-          if (inserted?.id) {
-            // Only use a remote URL that we successfully wrote to the DB/upload.
-            const finalImageUri = inserted.image_url ?? imageUrl;
-            const guestNameForCard =
-              selectedLocation === 'room' && (selectedRoom as any)?.guestName
-                ? `Mr ${(selectedRoom as any).guestName}`
-                : undefined;
-
-            setItems((prev) =>
-              prev.map((item) =>
-                item.id === inserted.id
-                  ? {
-                      ...item,
-                      image: finalImageUri ? { uri: finalImageUri } : item.image,
-                      guestName: guestNameForCard ?? item.guestName,
-                    }
-                  : item
-              )
-            );
+          if (!error && inserted?.id) {
+            pendingInsertedItemIdRef.current = inserted.id;
           }
+          // Do not refresh here; we refresh once when the user closes the success modal.
         } else {
           console.warn('[LostAndFoundScreen] No authenticated user – lost & found item not persisted.');
         }
       }
-    } catch (e) {
-      console.warn('[LostAndFoundScreen] Failed to persist lost & found item', e);
-    }
-
-    // Update the success screen with the final tracking number, if we got one.
-    setSuccessData((prev) => ({
-      ...(prev ?? { itemData: data.itemData, itemImage: data.itemImage, trackingNumber: '' }),
-      trackingNumber: trackingNumberFromDb,
-    }));
+      } catch (e) {
+        console.warn('[LostAndFoundScreen] Failed to persist lost & found item', e);
+      } finally {
+        // Update the success screen with the final tracking number, if we got one.
+        setSuccessData((prev) => ({
+          ...(prev ?? { itemData: data.itemData, itemImage: data.itemImage, trackingNumber: '' }),
+          trackingNumber: trackingNumberFromDb,
+        }));
+      }
+    })();
   };
 
   const handleCloseSuccessModal = () => {
+    // Show loading immediately, then refresh exactly once so the new item appears without flicker.
+    if (needsRefreshAfterRegister) {
+      if (hasLoadedOnceRef.current) setRefetchLoading(true);
+      else setListLoading(true);
+      void (async () => {
+        try {
+          // Wait for the insert/upload to finish if the user closes quickly.
+          await (registerInflightRef.current ?? Promise.resolve());
+
+          // Refresh; if PostgREST/storage propagation is slightly behind, retry briefly until the new item shows.
+          const pendingId = pendingInsertedItemIdRef.current;
+          const maxAttempts = pendingId ? 3 : 1;
+          for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            // eslint-disable-next-line no-await-in-loop
+            await loadItems('focus');
+            if (!pendingId) break;
+            const hasIt = itemsRef.current.some((it) => it.id === pendingId);
+            if (hasIt) break;
+            // eslint-disable-next-line no-await-in-loop
+            await new Promise((r) => setTimeout(r, attempt * 600));
+          }
+        } finally {
+          pendingInsertedItemIdRef.current = null;
+          registerInflightRef.current = null;
+          setNeedsRefreshAfterRegister(false);
+        }
+      })();
+    }
     setShowSuccessModal(false);
     setSuccessData(null);
+    // No reload here: we already refresh right after insert in `handleRegisterNext`.
   };
 
   const handleTabChange = (tab: LostAndFoundTab) => {
@@ -831,7 +868,7 @@ export default function LostAndFoundScreen() {
 
   return (
     <View style={styles.container}>
-      {listLoading && <LoadingOverlay fullScreen message="Loading items…" />}
+      {(listLoading || refetchLoading) && <LoadingOverlay fullScreen message="Loading items…" />}
       {refreshing && !listLoading && <LoadingOverlay fullScreen message="Refreshing…" />}
       <View style={styles.scrollContainer}>
         <ScrollView

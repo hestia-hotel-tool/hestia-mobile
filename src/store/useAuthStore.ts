@@ -9,6 +9,7 @@ import { authService } from '../services/auth';
 import { isSupabaseConfigured } from '../lib/supabase';
 import { registerAndSyncPushToken } from '../services/notifications';
 import { clearCachedHotelId, getMyHotelId } from '../services/tenant';
+import { resetTenantScopedStores } from './resetTenantScopedStores';
 
 interface AuthState {
   session: Session | null;
@@ -31,7 +32,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   error: null,
 
   setSession: (session) => set({ session }),
-  setHotelId: (hotelId) => set({ hotelId }),
+  setHotelId: (hotelId) => {
+    const prev = get().hotelId;
+    if (prev && hotelId && prev !== hotelId) {
+      // Switching tenants: clear any cached room/chat/user state.
+      resetTenantScopedStores();
+    }
+    set({ hotelId });
+  },
   setLoading: (isLoading) => set({ isLoading }),
 
   signIn: async (email: string, password: string) => {
@@ -59,6 +67,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return { error: error as Error };
       }
       clearCachedHotelId();
+      resetTenantScopedStores();
       set({ session: null, hotelId: null });
       return { error: null };
     } catch (err) {
@@ -84,6 +93,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   init: () => {
     authService.getSession().then((session) => {
+      const prevUserId = get().session?.user?.id ?? null;
+      const nextUserId = session?.user?.id ?? null;
+      if (prevUserId && nextUserId && prevUserId !== nextUserId) {
+        resetTenantScopedStores();
+      }
       set({ session, isLoading: false, hotelId: null });
       if (session) {
         registerAndSyncPushToken().catch(() => {});
@@ -98,12 +112,18 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       }
     }).catch(() => {
       clearCachedHotelId();
+      resetTenantScopedStores();
       set({ session: null, hotelId: null, isLoading: false });
     });
 
     if (!isSupabaseConfigured) return () => {};
 
     const { data: { subscription } } = authService.onAuthStateChange((_event, session) => {
+      const prevUserId = get().session?.user?.id ?? null;
+      const nextUserId = session?.user?.id ?? null;
+      if (prevUserId !== nextUserId) {
+        resetTenantScopedStores();
+      }
       if (!session) {
         clearCachedHotelId();
         set({ session: null, hotelId: null });

@@ -18,6 +18,7 @@ import { invalidateNotificationBadges } from '../services/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
+import type { RealtimeChannel } from '@supabase/supabase-js';
 
 type MainTabsParamList = {
   Home: undefined;
@@ -44,7 +45,7 @@ export default function ChatScreen() {
   const [activeTab, setActiveTab] = useState('Chat');
   const [showNewChatMenu, setShowNewChatMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { chats, loading, fetchChats } = useChatStore();
+  const { chats, loading, fetchChats, applyIncomingMessageToChatList } = useChatStore();
   const [refreshing, setRefreshing] = useState(false);
   const [topNotification, setTopNotification] = useState<NotificationItemData | null>(null);
   const [dummyGeneralUnreadCount, setDummyGeneralUnreadCount] = useState(() => Math.floor(Math.random() * 10) + 1);
@@ -116,6 +117,64 @@ export default function ChatScreen() {
     void loadTopNotification();
     rerollDummyNotificationCounts();
   }, [loadChats, loadTopNotification]);
+
+  // Realtime: keep chat list last-message updated instantly.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !session?.user?.id) return;
+    if (!chats || chats.length === 0) return;
+
+    const ids = chats.map((c) => c.id).filter(Boolean);
+    if (ids.length === 0) return;
+
+    // Supabase realtime filter supports `in` syntax: chat_id=in.(id1,id2,...)
+    // Chunk to keep filter strings reasonable.
+    const chunks: string[][] = [];
+    const chunkSize = 40;
+    for (let i = 0; i < ids.length; i += chunkSize) chunks.push(ids.slice(i, i + chunkSize));
+
+    const channels: RealtimeChannel[] = chunks.map((chunk, i) =>
+      supabase
+        .channel(`chat-list-messages:${session.user.id}:${i}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `chat_id=in.(${chunk.join(',')})`,
+          },
+          (payload) => {
+            const row = payload.new as {
+              id: string;
+              chat_id: string;
+              sender_id: string;
+              type: string;
+              content: string | null;
+              created_at: string | null;
+            };
+            // We only need minimal fields to update the list item.
+            // Sender name resolution is already handled in `ChatDetailScreen` via store messages;
+            // for list preview, "You:" vs "Someone:" isn't critical, so keep it lightweight.
+            applyIncomingMessageToChatList(row.chat_id, {
+              id: row.id,
+              chatId: row.chat_id,
+              senderId: row.sender_id,
+              senderName: row.sender_id === session.user.id ? 'You' : 'Someone',
+              message: row.content ?? '',
+              timestamp: row.created_at ?? new Date().toISOString(),
+              type: (row.type === 'image' ? 'image' : row.type === 'file' ? 'file' : 'text') as any,
+            } as any);
+          }
+        )
+        .subscribe()
+    );
+
+    return () => {
+      for (const ch of channels) {
+        void supabase.removeChannel(ch);
+      }
+    };
+  }, [session?.user?.id, chats, applyIncomingMessageToChatList]);
 
   useFocusEffect(
     useCallback(() => {
