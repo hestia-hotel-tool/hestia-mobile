@@ -45,9 +45,9 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
     const v = (item.shippedLocation ?? '').trim();
     return v || '—';
   })();
-  const isPublicAreaItem =
-    item.publicArea != null ||
-    (typeof item.location === 'string' && !item.location.toLowerCase().startsWith('room'));
+  const locationTrimmed = typeof item.location === 'string' ? item.location.trim() : '';
+  const isRoomItem = item.roomNumber != null || /^room\b/i.test(locationTrimmed);
+  const isPublicAreaItem = !isRoomItem && (item.publicArea != null || !!locationTrimmed);
   const roomBadgeText =
     item.roomNumber != null
       ? String(item.roomNumber)
@@ -174,7 +174,7 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
       <View style={styles.foundInCard}>
         <View style={styles.foundInCardContent}>
           {/* Room: guest block starts from left (Figma 3107:70). */}
-          {!isPublicAreaItem && (item.guestName || item.guestDates || item.guestImage) ? (
+          {isRoomItem && (item.guestName || item.guestDates || item.guestImage) ? (
             <>
               <View style={styles.foundInGuestSection}>
                 {/* Guest thumbnail */}
@@ -208,6 +208,26 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
               </View>
 
             </>
+          ) : isRoomItem ? (
+            <View style={styles.foundInGuestSection}>
+              <View style={styles.foundInGuestTextContainer}>
+                <View style={styles.foundInGuestNameRow}>
+                  <Text style={styles.foundInGuestName} numberOfLines={1} ellipsizeMode="tail">
+                    {roomBadgeText ? `Room ${roomBadgeText}` : (locationTrimmed || 'Room')}
+                  </Text>
+                  {roomBadgeText ? (
+                    <View style={styles.roomBadge}>
+                      <Text style={styles.roomBadgeText} numberOfLines={1}>
+                        {roomBadgeText}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.foundInGuestDates} numberOfLines={1} ellipsizeMode="tail">
+                  {formatPublicAreaTimestamp(item.storedAt ?? item.createdAt) || ''}
+                </Text>
+              </View>
+            </View>
           ) : isPublicAreaItem ? (
             <View style={styles.publicAreaFoundInSection}>
               <View style={styles.publicAreaFoundInIconTile} aria-hidden>
