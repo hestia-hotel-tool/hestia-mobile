@@ -99,7 +99,9 @@ export default function RoomDetailScreen() {
   const { updateRoom, updatingRoomId, data: roomsData } = useRoomsStore();
   const shift = roomsData?.selectedShift ?? 'AM';
 
-  const [loadingDetails, setLoadingDetails] = useState(!!(roomId && UUID_REGEX.test(roomId)));
+  // If we already have a room object from navigation, keep it as the single source of truth
+  // to avoid "correct first render -> wrong after refetch" UI flips.
+  const [loadingDetails, setLoadingDetails] = useState(!!(roomId && UUID_REGEX.test(roomId) && !initialRoom));
   const [fetchedRoom, setFetchedRoom] = useState<RoomCardData | null>(null);
   const [fetchedRoomType, setFetchedRoomType] = useState<RoomType | null>(null);
   const [fetchedNotes, setFetchedNotes] = useState<Note[] | null>(null);
@@ -114,6 +116,12 @@ export default function RoomDetailScreen() {
   const [fetchedLostAndFound, setFetchedLostAndFound] = useState<LostAndFoundItem[] | null>(null);
 
   useEffect(() => {
+    // When we navigated here from the room card, do not refetch/overwrite the room payload.
+    // That background update can change guest ordering/images and make the UI "flip".
+    if (initialRoom) {
+      setLoadingDetails(false);
+      return;
+    }
     if (!roomId || !UUID_REGEX.test(roomId)) {
       setLoadingDetails(false);
       return;
@@ -872,29 +880,12 @@ export default function RoomDetailScreen() {
   const guestsWithTypes: Array<{ guest: import('../types/allRooms.types').GuestInfo; type: 'Arrival' | 'Departure' | 'Stayover' | 'Turndown' }> = [];
   
   if (effectiveRoomType === 'ArrivalDeparture') {
-    // For Arrival/Departure: show both guests whenever we have at least two entries.
-    // Prefer ETA/EDT when present, but always fall back to array order so nothing disappears.
-    const etaGuest = roomGuests.find((g) => g.timeLabel === 'ETA');
-    const edtGuest = roomGuests.find((g) => g.timeLabel === 'EDT');
-
-    let arrivalGuest = etaGuest ?? roomGuests[0];
-    let departureGuest = edtGuest ?? (roomGuests.length > 1 ? roomGuests[1] : roomGuests[0]);
-
-    // If both resolved to the same object but we have more than one guest, pick a different one for departure
-    if (arrivalGuest === departureGuest && roomGuests.length > 1) {
-      const alt = roomGuests.find((g) => g !== arrivalGuest);
-      if (alt) {
-        // Prefer keeping EDT as departure when possible
-        departureGuest = edtGuest && edtGuest !== arrivalGuest ? edtGuest : alt;
-      }
-    }
-
-    if (arrivalGuest) {
-      guestsWithTypes.push({ guest: arrivalGuest, type: 'Arrival' });
-    }
-    if (departureGuest && departureGuest !== arrivalGuest) {
-      guestsWithTypes.push({ guest: departureGuest, type: 'Departure' });
-    }
+    // For Arrival/Departure: the UI expects the first guest to be Arrival and the second to be Departure.
+    // Keep this strictly aligned with the room card ordering to avoid mismatched names/images.
+    const arrivalGuest = roomGuests[0];
+    const departureGuest = roomGuests.length > 1 ? roomGuests[1] : undefined;
+    if (arrivalGuest) guestsWithTypes.push({ guest: arrivalGuest, type: 'Arrival' });
+    if (departureGuest) guestsWithTypes.push({ guest: departureGuest, type: 'Departure' });
   } else if (effectiveRoomType === 'Arrival') {
     // For Arrival: single arrival guest
     const arrivalGuest = roomGuests.find((g) => g.timeLabel === 'ETA') || roomGuests[0];
@@ -919,6 +910,36 @@ export default function RoomDetailScreen() {
     if (turndownGuest) {
       guestsWithTypes.push({ guest: turndownGuest, type: 'Turndown' });
     }
+  }
+  // Ensure Room Detail always has at least one guest block to render.
+  if (guestsWithTypes.length === 0) {
+    const fallbackGuest =
+      roomGuests[0] ??
+      ({
+        name: 'Guest',
+        datesOfStay: { from: '', to: '' },
+        time: 'N/A',
+        timeLabel: 'N/A',
+        guestCount: { adults: 0, kids: 0 },
+        imageUrl: `https://i.pravatar.cc/96?u=${room.id}-0`,
+      } as import('../types/allRooms.types').GuestInfo);
+    const fallbackType: 'Arrival' | 'Departure' | 'Stayover' | 'Turndown' =
+      effectiveRoomType === 'Departure'
+        ? 'Departure'
+        : effectiveRoomType === 'Turndown'
+          ? 'Turndown'
+          : effectiveRoomType === 'Arrival'
+            ? 'Arrival'
+            : 'Stayover';
+    guestsWithTypes.push({
+      guest: {
+        ...fallbackGuest,
+        imageUrl:
+          (fallbackGuest as any)?.imageUrl ??
+          `https://i.pravatar.cc/96?u=${room.id}-0`,
+      },
+      type: fallbackType,
+    });
   }
 
   // Get task description from tasks

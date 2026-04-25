@@ -64,6 +64,7 @@ type GuestRow = {
 type ReservationGuestRow = {
   reservation_id: string;
   guest_id: string;
+  guest_order?: number | null;
   reservations?: ReservationRow | null;
   guests?: GuestRow | null;
 };
@@ -227,14 +228,30 @@ function normalizeFrontOfficeStatus(value: string | null | undefined): FrontOffi
 function mapToGuestInfo(
   res: ReservationRow,
   guest: GuestRow | null,
-  _index: number,
-  _roomId: string
+  index: number,
+  roomId: string
 ): GuestInfo {
   const name = guest?.full_name ?? 'Guest';
   const from = res.arrival_date ?? '';
   const to = res.departure_date ?? '';
-  const time = res.eta ?? 'N/A';
-  const timeLabel = res.eta ? 'ETA' : (res.departure_date ? 'EDT' : 'N/A');
+  // Some hotels encode "Arrival/Departure" as a single reservation with 2 guests:
+  // guest[0] = arrival, guest[1] = departure. Ensure those render as distinct.
+  const normalizedFrontOffice = normalizeFrontOfficeStatus(res.front_office_status);
+  const isArrivalDeparture = normalizedFrontOffice === 'Arrival/Departure';
+  const isArrival = normalizedFrontOffice === 'Arrival';
+  const isDeparture = normalizedFrontOffice === 'Departure';
+  const time =
+    res.eta && String(res.eta).trim()
+      ? String(res.eta).trim()
+      : 'N/A';
+  const timeLabel =
+    isArrivalDeparture
+      ? (index === 1 ? 'EDT' : 'ETA')
+      : isDeparture
+        ? 'EDT'
+        : isArrival
+          ? 'ETA'
+          : (res.eta ? 'ETA' : (res.departure_date ? 'EDT' : 'N/A'));
   const isVacant = (res.reservation_status ?? '').toLowerCase() === 'vacant';
   return {
     name,
@@ -244,7 +261,8 @@ function mapToGuestInfo(
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
     vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
     arrivalDate: res.arrival_date,
-    imageUrl: guest?.image_url ?? undefined,
+    // Ensure every guest has an image on cards (fallback to deterministic placeholder).
+    imageUrl: guest?.image_url ?? `https://i.pravatar.cc/96?u=${guest?.id ?? `${roomId}-${index}`}`,
     isVacant: isVacant || undefined,
   };
 }
@@ -270,6 +288,7 @@ function mapRoomToCard(
       time: 'N/A',
       timeLabel: 'N/A',
       guestCount: { adults: 0, kids: 0 },
+      imageUrl: `https://i.pravatar.cc/96?u=${room.id}-0`,
     });
   }
 
@@ -278,7 +297,18 @@ function mapRoomToCard(
   if (reservations.length >= 2) {
     frontOfficeStatus = 'Arrival/Departure';
   }
-  const guestsForCard = frontOfficeStatus === 'Arrival/Departure' ? guests : guests.slice(0, 1);
+  const guestsForCard = (() => {
+    if (frontOfficeStatus !== 'Arrival/Departure') return guests.slice(0, 1);
+    const arrival = guests.find((g) => g.timeLabel === 'ETA') ?? guests[0];
+    const departure =
+      guests.find((g) => g.timeLabel === 'EDT' && g !== arrival) ??
+      guests.find((g) => g !== arrival) ??
+      guests[1] ??
+      guests[0];
+    const ordered = [arrival, departure].filter(Boolean) as GuestInfo[];
+    // Ensure max 2 and avoid duplicates
+    return Array.from(new Set(ordered)).slice(0, 2);
+  })();
 
   const noteCount = notesAgg?.count ?? 0;
   return {
@@ -395,12 +425,20 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
       .select(`
         reservation_id,
         guest_id,
+        guest_order,
         reservations (id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time),
         guests (id, full_name, vip_code, image_url)
       `)
       .in('reservation_id', resIds);
     if (!rgError) reservationGuests = (rgData ?? []) as ReservationGuestRow[];
   }
+  // Ensure deterministic guest ordering per reservation (and stable grouping).
+  reservationGuests.sort((a, b) => {
+    const ra = String(a.reservation_id ?? '');
+    const rb = String(b.reservation_id ?? '');
+    if (ra !== rb) return ra.localeCompare(rb);
+    return Number(a.guest_order ?? 0) - Number(b.guest_order ?? 0);
+  });
 
   const resByRoom = new Map<string, Array<{ res: ReservationRow; guest: GuestRow | null }>>();
   for (const rg of reservationGuests) {
@@ -478,7 +516,8 @@ export async function getRoomNotes(roomId: string): Promise<RoomNote[]> {
 
   const { data, error } = await supabase
     .from('room_notes')
-    .select('id, text, created_at, users(full_name, avatar_url)')
+    // Be explicit about the author FK to avoid incorrect/ambiguous joins.
+    .select('id, text, created_at, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
     .eq('room_id', roomId)
     .order('created_at', { ascending: false });
 
@@ -504,22 +543,56 @@ export async function addRoomNote(roomId: string, text: string): Promise<RoomNot
   const { data } = await supabase.auth.getSession();
   const userId = data?.session?.user?.id ?? null;
 
-  const { data: inserted, error: insertError } = await supabase
+  // Tenant-scoped RLS requires room_notes.hotel_id = auth_hotel_id() (and it is NOT NULL in tenant migrations).
+  // Derive hotel_id from the room so inserts succeed under RLS.
+  let hotelId: string | null = null;
+  try {
+    const { data: roomRow } = await supabase
+      .from('rooms')
+      .select('hotel_id')
+      .eq('id', roomId)
+      .limit(1)
+      .maybeSingle();
+    hotelId = (roomRow as any)?.hotel_id ?? null;
+  } catch {
+    hotelId = null;
+  }
+
+  let inserted: any = null;
+  let insertError: any = null;
+
+  // Try insert with hotel_id (new schema).
+  ({ data: inserted, error: insertError } = await supabase
     .from('room_notes')
     .insert({
       room_id: roomId,
       text: text.trim(),
       created_by_id: userId,
-    })
+      ...(hotelId ? { hotel_id: hotelId } : {}),
+    } as any)
     .select('id')
-    .single();
+    .single());
+
+  // Back-compat: if PostgREST schema cache doesn't include hotel_id yet, retry without it.
+  if (insertError && (insertError.code === '42703' || insertError.code === 'PGRST204')) {
+    ({ data: inserted, error: insertError } = await supabase
+      .from('room_notes')
+      .insert({
+        room_id: roomId,
+        text: text.trim(),
+        created_by_id: userId,
+      })
+      .select('id')
+      .single());
+  }
 
   if (insertError) throw insertError;
   if (!inserted?.id) throw new Error('Failed to create note');
 
   const { data: full, error: fetchError } = await supabase
     .from('room_notes')
-    .select('id, text, created_at, users(full_name, avatar_url)')
+    // Be explicit about the author FK to avoid incorrect/ambiguous joins.
+    .select('id, text, created_at, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
     .eq('id', inserted.id)
     .single();
 
@@ -868,13 +941,29 @@ export interface FullRoomDetails {
 /** Map one reservation + guest from full details to GuestInfo (for room cards). */
 function mapReservationDetailToGuestInfo(
   res: ReservationDetail,
-  guest: { id: string; full_name: string; vip_code: string | null; image_url: string | null } | null
+  guest: { id: string; full_name: string; vip_code: string | null; image_url: string | null } | null,
+  index: number,
+  roomId: string
 ): GuestInfo {
   const name = guest?.full_name ?? 'Guest';
   const from = res.arrival_date ?? '';
   const to = res.departure_date ?? '';
-  const time = res.eta ?? 'N/A';
-  const timeLabel = res.eta ? 'ETA' : (res.departure_date ? 'EDT' : 'N/A');
+  const normalizedFrontOffice = normalizeFrontOfficeStatus(res.front_office_status);
+  const isArrivalDeparture = normalizedFrontOffice === 'Arrival/Departure';
+  const isArrival = normalizedFrontOffice === 'Arrival';
+  const isDeparture = normalizedFrontOffice === 'Departure';
+  const time =
+    res.eta && String(res.eta).trim()
+      ? String(res.eta).trim()
+      : 'N/A';
+  const timeLabel =
+    isArrivalDeparture
+      ? (index === 1 ? 'EDT' : 'ETA')
+      : isDeparture
+        ? 'EDT'
+        : isArrival
+          ? 'ETA'
+          : (res.eta ? 'ETA' : (res.departure_date ? 'EDT' : 'N/A'));
   const isVacant = (res.reservation_status ?? '').toLowerCase() === 'vacant';
   return {
     name,
@@ -884,7 +973,7 @@ function mapReservationDetailToGuestInfo(
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
     vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
     arrivalDate: res.arrival_date,
-    imageUrl: guest?.image_url ?? undefined,
+    imageUrl: guest?.image_url ?? `https://i.pravatar.cc/96?u=${guest?.id ?? `${roomId}-${index}`}`,
     isVacant: isVacant || undefined,
   };
 }
@@ -906,11 +995,11 @@ export function fullRoomDetailsToRoomCardData(
   const guests: GuestInfo[] = [];
   for (const res of full.reservations) {
     if (res.guests.length) {
-      for (const g of res.guests) {
-        guests.push(mapReservationDetailToGuestInfo(res, g));
-      }
+      res.guests.forEach((g, i) => {
+        guests.push(mapReservationDetailToGuestInfo(res, g, i, room.id));
+      });
     } else {
-      guests.push(mapReservationDetailToGuestInfo(res, null));
+      guests.push(mapReservationDetailToGuestInfo(res, null, 0, room.id));
     }
   }
   if (guests.length === 0) {
@@ -920,6 +1009,7 @@ export function fullRoomDetailsToRoomCardData(
       time: 'N/A',
       timeLabel: 'N/A',
       guestCount: { adults: 0, kids: 0 },
+      imageUrl: `https://i.pravatar.cc/96?u=${room.id}-0`,
     });
   }
 
@@ -929,8 +1019,17 @@ export function fullRoomDetailsToRoomCardData(
     frontOfficeStatus = 'Arrival/Departure';
   }
   // For single-guest card types, only pass first guest so layout/height match (card expects one guest section)
-  const guestsForCard =
-    frontOfficeStatus === 'Arrival/Departure' ? guests : guests.slice(0, 1);
+  const guestsForCard = (() => {
+    if (frontOfficeStatus !== 'Arrival/Departure') return guests.slice(0, 1);
+    const arrival = guests.find((g) => g.timeLabel === 'ETA') ?? guests[0];
+    const departure =
+      guests.find((g) => g.timeLabel === 'EDT' && g !== arrival) ??
+      guests.find((g) => g !== arrival) ??
+      guests[1] ??
+      guests[0];
+    const ordered = [arrival, departure].filter(Boolean) as GuestInfo[];
+    return Array.from(new Set(ordered)).slice(0, 2);
+  })();
 
   const assignment = full.assignedStaff.find((a) => a.shift_name === shift);
   const attendant: StaffInfo | null = assignment
@@ -1063,10 +1162,17 @@ export async function getFullRoomDetails(roomId?: string): Promise<FullRoomDetai
   if (resIds.length > 0) {
     const { data: rgData, error: rgError } = await supabase
       .from('reservation_guests')
-      .select('reservation_id, guest_id, guests(id, full_name, vip_code, image_url)')
+      .select('reservation_id, guest_id, guest_order, guests(id, full_name, vip_code, image_url)')
       .in('reservation_id', resIds);
     if (!rgError) reservationGuests = (rgData ?? []) as ReservationGuestRow[];
   }
+  // Ensure deterministic guest ordering per reservation (and stable grouping).
+  reservationGuests.sort((a, b) => {
+    const ra = String(a.reservation_id ?? '');
+    const rb = String(b.reservation_id ?? '');
+    if (ra !== rb) return ra.localeCompare(rb);
+    return Number(a.guest_order ?? 0) - Number(b.guest_order ?? 0);
+  });
 
   const resWithGuestsByRoom = new Map<string, ReservationDetail[]>();
   for (const rid of roomIds) {
@@ -1074,6 +1180,7 @@ export async function getFullRoomDetails(roomId?: string): Promise<FullRoomDetai
     const list: ReservationDetail[] = roomReservations.map((res) => {
       const guests = reservationGuests
         .filter((rg) => rg.reservation_id === res.id && rg.guests)
+        .sort((a, b) => (Number(a.guest_order ?? 0) - Number(b.guest_order ?? 0)))
         .map((rg) => rg.guests as GuestRow)
         .filter(Boolean);
       return {
