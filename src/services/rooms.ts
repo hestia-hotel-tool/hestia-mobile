@@ -205,7 +205,8 @@ const HOUSE_KEEPING_CANONICAL: Record<string, import('../types/allRooms.types').
 /** Normalize DB house_keeping_status so room detail and cards display correctly (case-insensitive, snake_case). */
 function normalizeHouseKeepingStatus(value: string | null | undefined): import('../types/allRooms.types').RoomStatus {
   const key = (value ?? '').trim().toLowerCase().replace(/\s+/g, ' ');
-  return (key && HOUSE_KEEPING_CANONICAL[key]) ?? 'Dirty';
+  if (!key) return 'Dirty';
+  return HOUSE_KEEPING_CANONICAL[key] ?? 'Dirty';
 }
 
 const FRONT_OFFICE_CANONICAL: Record<string, FrontOfficeStatus> = {
@@ -430,15 +431,95 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
         guests (id, full_name, vip_code, image_url)
       `)
       .in('reservation_id', resIds);
-    if (!rgError) reservationGuests = (rgData ?? []) as ReservationGuestRow[];
+    // Cast to `unknown` first so typed Supabase schema mismatches (e.g. older generated types missing `guest_order`) don't break builds.
+    if (!rgError) reservationGuests = (rgData ?? []) as unknown as ReservationGuestRow[];
   }
   // Ensure deterministic guest ordering per reservation (and stable grouping).
+  // NOTE: When `guest_order` is NULL/duplicated, PostgREST can return rows in arbitrary order.
+  // We stabilize the ordering so Arrival/Departure cards render Arrival first, Departure second.
   reservationGuests.sort((a, b) => {
     const ra = String(a.reservation_id ?? '');
     const rb = String(b.reservation_id ?? '');
     if (ra !== rb) return ra.localeCompare(rb);
-    return Number(a.guest_order ?? 0) - Number(b.guest_order ?? 0);
+    const ao = a.guest_order;
+    const bo = b.guest_order;
+    // Prefer non-null guest_order; NULLs last so explicit ordering wins.
+    if (ao == null && bo != null) return 1;
+    if (ao != null && bo == null) return -1;
+    if ((ao ?? 0) !== (bo ?? 0)) return (ao ?? 0) - (bo ?? 0);
+    // Final deterministic tie-breaker.
+    const ag = String(a.guest_id ?? '');
+    const bg = String(b.guest_id ?? '');
+    return ag.localeCompare(bg);
   });
+
+  // Focused debug logs: missing guest links + Arrival/Departure ordering.
+  try {
+    const roomsById = new Map<string, RoomRow>();
+    for (const r of rooms) roomsById.set(r.id, r);
+
+    const guestLinksByResId = new Map<string, ReservationGuestRow[]>();
+    for (const rg of reservationGuests) {
+      const list = guestLinksByResId.get(rg.reservation_id) ?? [];
+      list.push(rg);
+      guestLinksByResId.set(rg.reservation_id, list);
+    }
+
+    const missingGuestLinks: Array<{
+      room_number: string;
+      reservation_id: string;
+      front_office_status: string | null;
+      arrival_date: string;
+      departure_date: string;
+    }> = [];
+
+    for (const res of reservations) {
+      const links = guestLinksByResId.get(res.id) ?? [];
+      if (!links.length) {
+        const roomNumber = roomsById.get(res.room_id)?.room_number ?? res.room_id;
+        missingGuestLinks.push({
+          room_number: String(roomNumber),
+          reservation_id: res.id,
+          front_office_status: res.front_office_status ?? null,
+          arrival_date: res.arrival_date,
+          departure_date: res.departure_date,
+        });
+      }
+    }
+
+    if (missingGuestLinks.length) {
+      console.log('[rooms] Missing reservation_guests for reservations:\n' + JSON.stringify(missingGuestLinks, null, 2));
+    }
+
+    // Log how Arrival/Departure cards will be ordered after mapping.
+    // We only log a small sample to avoid noisy console output.
+    const arrivalDepartureSamples: any[] = [];
+    for (const room of rooms) {
+      const list = reservationGuests.filter((rg) => (rg.reservations?.room_id ?? '') === room.id);
+      if (!list.length) continue;
+      const first = list[0]?.reservations;
+      const status = (first?.front_office_status ?? '').toLowerCase();
+      const isAD = status.includes('arrival') && status.includes('departure');
+      const uniqueResIds = Array.from(new Set(list.map((x) => x.reservation_id)));
+      if (isAD || uniqueResIds.length >= 2 || list.length >= 2) {
+        arrivalDepartureSamples.push({
+          room_number: String(room.room_number),
+          reservation_ids: uniqueResIds,
+          guests: list.map((rg) => ({
+            guest_order: rg.guest_order ?? null,
+            guest_id: rg.guest_id,
+            full_name: rg.guests?.full_name ?? null,
+          })),
+        });
+      }
+      if (arrivalDepartureSamples.length >= 10) break;
+    }
+    if (arrivalDepartureSamples.length) {
+      console.log('[rooms] Arrival/Departure ordering samples:\n' + JSON.stringify(arrivalDepartureSamples, null, 2));
+    }
+  } catch (e) {
+    console.log('[rooms] debug logging failed', e);
+  }
 
   const resByRoom = new Map<string, Array<{ res: ReservationRow; guest: GuestRow | null }>>();
   for (const rg of reservationGuests) {
@@ -1034,7 +1115,7 @@ export function fullRoomDetailsToRoomCardData(
   const assignment = full.assignedStaff.find((a) => a.shift_name === shift);
   const attendant: StaffInfo | null = assignment
     ? staffInfoFromAssignment({
-        user_id: assignment.staff.id,
+        user_id: assignment.user_id,
         work_status: assignment.work_status,
         users: {
           full_name: assignment.staff.full_name,
@@ -1164,7 +1245,8 @@ export async function getFullRoomDetails(roomId?: string): Promise<FullRoomDetai
       .from('reservation_guests')
       .select('reservation_id, guest_id, guest_order, guests(id, full_name, vip_code, image_url)')
       .in('reservation_id', resIds);
-    if (!rgError) reservationGuests = (rgData ?? []) as ReservationGuestRow[];
+    // Cast to `unknown` first so typed Supabase schema mismatches (e.g. older generated types missing `guest_order`) don't break builds.
+    if (!rgError) reservationGuests = (rgData ?? []) as unknown as ReservationGuestRow[];
   }
   // Ensure deterministic guest ordering per reservation (and stable grouping).
   reservationGuests.sort((a, b) => {
