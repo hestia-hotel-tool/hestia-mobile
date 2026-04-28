@@ -118,6 +118,8 @@ function generateTenantUsers(hotelName) {
 }
 
 async function ensureHotelId(supabase, hotelName) {
+  // Some deployments don't have the tenant schema (no hotels table / schema cache not updated).
+  // In that case, return null and proceed without hotel_id.
   const { data: existing, error: selectErr } = await supabase
     .from('hotels')
     .select('id, name')
@@ -125,7 +127,14 @@ async function ensureHotelId(supabase, hotelName) {
     .limit(1)
     .maybeSingle();
 
-  if (selectErr) throw selectErr;
+  if (selectErr) {
+    const msg = selectErr.message || '';
+    if (selectErr.code === 'PGRST205' || /schema cache|Could not find the table/i.test(msg)) {
+      console.warn(`[seedUsers] hotels table not available; skipping hotel seeding (${hotelName}).`);
+      return null;
+    }
+    throw selectErr;
+  }
   if (existing?.id) return existing.id;
 
   const { data: inserted, error: insertErr } = await supabase
@@ -145,6 +154,37 @@ async function main() {
   if (!url || !serviceKey) {
     console.error('Missing EXPO_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY');
     console.error('Add to .env: SUPABASE_SERVICE_ROLE_KEY=... (from Dashboard → Settings → API)');
+    process.exit(1);
+  }
+
+  // Validate the provided key looks like a service_role JWT (helps avoid "not_admin" confusion).
+  function decodeJwtPayload(jwt) {
+    try {
+      const [, payload] = String(jwt).split('.');
+      if (!payload) return null;
+      const json = Buffer.from(payload.replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8');
+      return JSON.parse(json);
+    } catch {
+      return null;
+    }
+  }
+  const payload = decodeJwtPayload(serviceKey);
+  const role = payload?.role;
+  const ref = payload?.ref;
+  const host = (() => {
+    try {
+      return new URL(url).host;
+    } catch {
+      return String(url);
+    }
+  })();
+  console.log(`[seedUsers] Target Supabase URL: ${host}`);
+  console.log(`[seedUsers] Key role: ${role ?? 'unknown'}${ref ? ` (ref: ${ref})` : ''}`);
+  if (role && role !== 'service_role') {
+    console.error(
+      `[seedUsers] SUPABASE_SERVICE_ROLE_KEY is not a service_role key (role=${role}).\n` +
+        `Go to Supabase Dashboard → Settings → API → "service_role" key and paste it into .env as SUPABASE_SERVICE_ROLE_KEY.`
+    );
     process.exit(1);
   }
 
@@ -173,7 +213,11 @@ async function main() {
         email: u.email,
         password: DEFAULT_PASSWORD,
         email_confirm: true,
-        user_metadata: { full_name: u.full_name, role_name: roleDisplayName, hotel_id: hotelId },
+        user_metadata: {
+          full_name: u.full_name,
+          role_name: roleDisplayName,
+          ...(hotelId ? { hotel_id: hotelId } : {}),
+        },
       });
 
       if (authErr) {
@@ -183,14 +227,34 @@ async function main() {
           const { data: existing } = await supabase.auth.admin.listUsers();
           const user = existing?.users?.find(x => x.email === u.email);
           if (user) {
-            await supabase.from('users').update({
-              department_id: deptMap[u.department_name] || null,
-              role_id: roleId,
-              full_name: u.full_name,
-              hotel_id: hotelId,
-            }).eq('id', user.id);
+            // Update profile: try tenant schema first, then fallback to legacy schema (no hotel_id)
+            let updateRes = await supabase
+              .from('users')
+              .update({
+                department_id: deptMap[u.department_name] || null,
+                role_id: roleId,
+                full_name: u.full_name,
+                ...(hotelId ? { hotel_id: hotelId } : {}),
+              })
+              .eq('id', user.id);
+            if (updateRes.error && (updateRes.error.code === '42703' || updateRes.error.code === 'PGRST204')) {
+              updateRes = await supabase
+                .from('users')
+                .update({
+                  department_id: deptMap[u.department_name] || null,
+                  role_id: roleId,
+                  full_name: u.full_name,
+                })
+                .eq('id', user.id);
+            }
+            if (updateRes.error) throw updateRes.error;
+
             await supabase.auth.admin.updateUserById(user.id, {
-              user_metadata: { full_name: u.full_name, role_name: roleDisplayName, hotel_id: hotelId },
+              user_metadata: {
+                full_name: u.full_name,
+                role_name: roleDisplayName,
+                ...(hotelId ? { hotel_id: hotelId } : {}),
+              },
             });
             console.log(`  Updated profile for ${u.email}`);
           }
@@ -205,17 +269,37 @@ async function main() {
 
       // Ensure public.users row exists and has the right fields (idempotent)
       const userId = authUser.user.id;
-      await supabase.from('users').upsert({
-        id: userId,
-        full_name: u.full_name,
-        department_id: deptMap[u.department_name] || null,
-        role_id: roleId,
-        hotel_id: hotelId,
-      }, { onConflict: 'id' });
+      // Try tenant schema first (hotel_id), then fallback for legacy schema.
+      let upsertRes = await supabase.from('users').upsert(
+        {
+          id: userId,
+          full_name: u.full_name,
+          department_id: deptMap[u.department_name] || null,
+          role_id: roleId,
+          ...(hotelId ? { hotel_id: hotelId } : {}),
+        },
+        { onConflict: 'id' }
+      );
+      if (upsertRes.error && (upsertRes.error.code === '42703' || upsertRes.error.code === 'PGRST204')) {
+        upsertRes = await supabase.from('users').upsert(
+          {
+            id: userId,
+            full_name: u.full_name,
+            department_id: deptMap[u.department_name] || null,
+            role_id: roleId,
+          },
+          { onConflict: 'id' }
+        );
+      }
+      if (upsertRes.error) throw upsertRes.error;
 
       // Keep auth metadata in sync (idempotent)
       await supabase.auth.admin.updateUserById(userId, {
-        user_metadata: { full_name: u.full_name, role_name: roleDisplayName, hotel_id: hotelId },
+        user_metadata: {
+          full_name: u.full_name,
+          role_name: roleDisplayName,
+          ...(hotelId ? { hotel_id: hotelId } : {}),
+        },
       });
 
       console.log(`Created: ${u.email} (${u.role_key})`);
@@ -232,4 +316,27 @@ async function main() {
   console.log('\nDone. Default password for all: ' + DEFAULT_PASSWORD);
 }
 
-main();
+function formatSupabaseError(err) {
+  if (!err) return err;
+  if (typeof err === 'string') return err;
+  if (err instanceof Error) return `${err.name}: ${err.message}\n${err.stack || ''}`;
+  try {
+    return JSON.stringify(err, Object.getOwnPropertyNames(err), 2);
+  } catch (_) {
+    try {
+      return String(err);
+    } catch (__) {
+      return '[unserializable error]';
+    }
+  }
+}
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[seedUsers] Unhandled promise rejection:\n', formatSupabaseError(reason));
+  process.exitCode = 1;
+});
+
+main().catch((err) => {
+  console.error('[seedUsers] Failed:\n', formatSupabaseError(err));
+  process.exit(1);
+});

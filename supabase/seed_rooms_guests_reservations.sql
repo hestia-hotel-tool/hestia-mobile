@@ -10,6 +10,36 @@ ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS house_keeping_status TEXT;
 ALTER TABLE public.reservations ADD COLUMN IF NOT EXISTS promised_time TIME;
 CREATE INDEX IF NOT EXISTS idx_rooms_house_keeping_status ON public.rooms(house_keeping_status);
 
+-- Ensure multi-tenant columns/indexes exist (some DBs may be missing these migrations)
+DO $$
+DECLARE
+  default_hotel_id UUID;
+BEGIN
+  SELECT id INTO default_hotel_id
+  FROM public.hotels
+  WHERE name = 'Default Hotel'
+  LIMIT 1;
+
+  IF default_hotel_id IS NULL THEN
+    RAISE EXCEPTION 'Default Hotel not found; expected public.hotels row to exist.';
+  END IF;
+
+  -- Rooms must be hotel-scoped for this seed.
+  ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS hotel_id UUID;
+  UPDATE public.rooms SET hotel_id = default_hotel_id WHERE hotel_id IS NULL;
+
+  IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'rooms_hotel_id_fkey') THEN
+    ALTER TABLE public.rooms
+      ADD CONSTRAINT rooms_hotel_id_fkey FOREIGN KEY (hotel_id) REFERENCES public.hotels(id) ON DELETE RESTRICT;
+  END IF;
+
+  CREATE INDEX IF NOT EXISTS idx_rooms_hotel_id ON public.rooms(hotel_id);
+END $$;
+
+-- Needed for: ON CONFLICT (hotel_id, room_number)
+CREATE UNIQUE INDEX IF NOT EXISTS idx_rooms_hotel_id_room_number_unique
+  ON public.rooms(hotel_id, room_number);
+
 -- 1. ROOMS
 INSERT INTO public.rooms (room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, hotel_id) VALUES ('101', 'ST2K', 60, 'no_linen', 'normal', false, 'Baby 1 years Old , Crib , Bottle Warmer', 'Dirty', (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1)) ON CONFLICT (hotel_id, room_number) DO UPDATE SET category = EXCLUDED.category, credit = EXCLUDED.credit, linen_status = EXCLUDED.linen_status, priority = EXCLUDED.priority, flagged = EXCLUDED.flagged, special_instructions = EXCLUDED.special_instructions, house_keeping_status = EXCLUDED.house_keeping_status;
 INSERT INTO public.rooms (room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, hotel_id) VALUES ('102', 'R01K', 45, 'no_linen', 'normal', true, 'Top Vip Guest', 'Cleaned', (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1)) ON CONFLICT (hotel_id, room_number) DO UPDATE SET category = EXCLUDED.category, credit = EXCLUDED.credit, linen_status = EXCLUDED.linen_status, priority = EXCLUDED.priority, flagged = EXCLUDED.flagged, special_instructions = EXCLUDED.special_instructions, house_keeping_status = EXCLUDED.house_keeping_status;
@@ -53,16 +83,26 @@ INSERT INTO public.rooms (room_number, category, credit, linen_status, priority,
 INSERT INTO public.rooms (room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, hotel_id) VALUES ('507', 'JS1KT', 60, 'no_linen', 'normal', false, NULL, 'Inspected', (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1)) ON CONFLICT (hotel_id, room_number) DO UPDATE SET category = EXCLUDED.category, credit = EXCLUDED.credit, linen_status = EXCLUDED.linen_status, priority = EXCLUDED.priority, flagged = EXCLUDED.flagged, special_instructions = EXCLUDED.special_instructions, house_keeping_status = EXCLUDED.house_keeping_status;
 
 -- 1b. ROOM_NOTES (from mock roomNotes)
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Remove Dyson Fan', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '101' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Remove Dyson Fan');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Call Supervisor to Check room after Service', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '102' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Call Supervisor to Check room after Service');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Pre registered', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '105' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Pre registered');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Guest wants 2 extra bath towels + 1 hand towel. Don''t move items on desk. Refill water bottles daily. Check minibar usage. Leave AC on medium-cool.', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '201' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Guest wants 2 extra bath towels + 1 hand towel. Don''t move items on desk. Refill water bottles daily. Check minibar usage. Leave AC on medium-cool.');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'There is a kid in the room try to do early the service.', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '205' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'There is a kid in the room try to do early the service.');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Early Arrival tomorrow at 07:00', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '304' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Early Arrival tomorrow at 07:00');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'deep clean the carpet', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '307' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'deep clean the carpet');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Call Manager to check', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '309' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Call Manager to check');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Make twin beds', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '402' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Make twin beds');
-INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'open connecting door', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '502' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'open connecting door');
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'room_notes'
+  ) THEN
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Remove Dyson Fan', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '101' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Remove Dyson Fan');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Call Supervisor to Check room after Service', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '102' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Call Supervisor to Check room after Service');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Pre registered', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '105' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Pre registered');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Guest wants 2 extra bath towels + 1 hand towel. Don''t move items on desk. Refill water bottles daily. Check minibar usage. Leave AC on medium-cool.', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '201' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Guest wants 2 extra bath towels + 1 hand towel. Don''t move items on desk. Refill water bottles daily. Check minibar usage. Leave AC on medium-cool.');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'There is a kid in the room try to do early the service.', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '205' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'There is a kid in the room try to do early the service.');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Early Arrival tomorrow at 07:00', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '304' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Early Arrival tomorrow at 07:00');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'deep clean the carpet', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '307' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'deep clean the carpet');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Call Manager to check', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '309' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Call Manager to check');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'Make twin beds', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '402' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'Make twin beds');
+    INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) SELECT r.id, 'open connecting door', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '502' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = 'open connecting door');
+  END IF;
+END $$;
 
 -- 2. GUESTS
 -- 3. RESERVATIONS

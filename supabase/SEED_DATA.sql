@@ -5,58 +5,72 @@
 -- ============================================
 -- 1. PERMISSIONS (name = permission name, description = description)
 -- ============================================
-INSERT INTO permissions (name, description) VALUES
-  ('view_dashboard', 'View system dashboard'),
-  ('view_rooms', 'View room details'),
-  ('assign_rooms', 'Assign rooms to staff'),
-  ('update_room_status', 'Update room work status'),
-  ('view_reservations', 'View reservations'),
-  ('create_ticket', 'Create tickets'),
-  ('update_ticket', 'Update ticket status or details'),
-  ('close_ticket', 'Close tickets'),
-  ('record_consumption', 'Record guest consumptions'),
-  ('bill_consumption', 'Bill guest consumptions'),
-  ('report_lost_found', 'Report lost and found items'),
-  ('update_lost_found', 'Update lost and found status'),
-  ('view_room_history', 'View room activity history'),
-  ('send_message', 'Send chat messages'),
-  ('view_chats', 'View chats'),
-  ('manage_users', 'Manage system users'),
-  ('manage_roles', 'Manage roles and permissions'),
-  ('system_settings', 'Manage system settings')
-ON CONFLICT (name) DO NOTHING;
+WITH perm_rows(name, description) AS (
+  VALUES
+    ('view_dashboard', 'View system dashboard'),
+    ('view_rooms', 'View room details'),
+    ('assign_rooms', 'Assign rooms to staff'),
+    ('update_room_status', 'Update room work status'),
+    ('view_reservations', 'View reservations'),
+    ('create_ticket', 'Create tickets'),
+    ('update_ticket', 'Update ticket status or details'),
+    ('close_ticket', 'Close tickets'),
+    ('record_consumption', 'Record guest consumptions'),
+    ('bill_consumption', 'Bill guest consumptions'),
+    ('report_lost_found', 'Report lost and found items'),
+    ('update_lost_found', 'Update lost and found status'),
+    ('view_room_history', 'View room activity history'),
+    ('send_message', 'Send chat messages'),
+    ('view_chats', 'View chats'),
+    ('manage_users', 'Manage system users'),
+    ('manage_roles', 'Manage roles and permissions'),
+    ('system_settings', 'Manage system settings')
+)
+INSERT INTO public.permissions (name, description)
+SELECT pr.name, pr.description
+FROM perm_rows pr
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.permissions p WHERE p.name = pr.name
+);
 
 -- ============================================
 -- 2. ROLES (name and description)
 -- ============================================
-INSERT INTO roles (name, description) VALUES
-  ('Executive Housekeeper', 'Executive Housekeeper'),
-  ('Housekeeping Manager', 'Housekeeping Manager'),
-  ('Assistant Housekeeping Manager', 'Assistant Housekeeping Manager'),
-  ('Senior Supervisor', 'Senior Supervisor'),
-  ('Supervisor', 'Supervisor'),
-  ('Coordinator', 'Coordinator'),
-  ('Housekeeping Room Attendant', 'Housekeeping Room Attendant'),
-  ('Housekeeping Portier / Houseman', 'Housekeeping Portier / Houseman'),
-  ('Housekeeping Laundry Attendant', 'Housekeeping Laundry Attendant'),
-  ('Housekeeping Public Area Attendant', 'Housekeeping Public Area Attendant'),
-  ('Director of Rooms', 'Director of Rooms'),
-  ('Assistant Director of Rooms', 'Assistant Director of Rooms'),
-  ('Director of Front Office', 'Director of Front Office'),
-  ('Front Office Manager', 'Front Office Manager'),
-  ('Front Office Supervisor', 'Front Office Supervisor'),
-  ('Front Office Agent', 'Front Office Agent'),
-  ('Front Office Trainee', 'Front Office Trainee'),
-  ('Night Manager', 'Night Manager'),
-  ('Night Auditor', 'Night Auditor'),
-  ('Night Agent', 'Night Agent'),
-  ('Director of Engineering', 'Director of Engineering'),
-  ('Engineering Supervisor', 'Engineering Supervisor'),
-  ('Shift Engineer', 'Shift Engineer'),
-  ('IT Manager', 'IT Manager'),
-  ('General Manager', 'General Manager'),
-  ('Hotel Manager', 'Hotel Manager')
-ON CONFLICT (name) DO NOTHING;
+WITH role_rows(name, description) AS (
+  VALUES
+    ('Executive Housekeeper', 'Executive Housekeeper'),
+    ('Housekeeping Manager', 'Housekeeping Manager'),
+    ('Assistant Housekeeping Manager', 'Assistant Housekeeping Manager'),
+    ('Senior Supervisor', 'Senior Supervisor'),
+    ('Supervisor', 'Supervisor'),
+    ('Coordinator', 'Coordinator'),
+    ('Housekeeping Room Attendant', 'Housekeeping Room Attendant'),
+    ('Housekeeping Portier / Houseman', 'Housekeeping Portier / Houseman'),
+    ('Housekeeping Laundry Attendant', 'Housekeeping Laundry Attendant'),
+    ('Housekeeping Public Area Attendant', 'Housekeeping Public Area Attendant'),
+    ('Director of Rooms', 'Director of Rooms'),
+    ('Assistant Director of Rooms', 'Assistant Director of Rooms'),
+    ('Director of Front Office', 'Director of Front Office'),
+    ('Front Office Manager', 'Front Office Manager'),
+    ('Front Office Supervisor', 'Front Office Supervisor'),
+    ('Front Office Agent', 'Front Office Agent'),
+    ('Front Office Trainee', 'Front Office Trainee'),
+    ('Night Manager', 'Night Manager'),
+    ('Night Auditor', 'Night Auditor'),
+    ('Night Agent', 'Night Agent'),
+    ('Director of Engineering', 'Director of Engineering'),
+    ('Engineering Supervisor', 'Engineering Supervisor'),
+    ('Shift Engineer', 'Shift Engineer'),
+    ('IT Manager', 'IT Manager'),
+    ('General Manager', 'General Manager'),
+    ('Hotel Manager', 'Hotel Manager')
+)
+INSERT INTO public.roles (name, description)
+SELECT rr.name, rr.description
+FROM role_rows rr
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.roles r WHERE r.name = rr.name
+);
 
 -- ============================================
 -- 3. ROLE_PERMISSIONS (map permissions to roles by name)
@@ -90,65 +104,166 @@ WITH role_perms(role_name, perm_name) AS (
     ('General Manager','view_dashboard'),('General Manager','manage_users'),('General Manager','manage_roles'),('General Manager','view_rooms'),('General Manager','view_reservations'),('General Manager','close_ticket'),('General Manager','bill_consumption'),('General Manager','system_settings'),('General Manager','view_room_history'),('General Manager','send_message'),('General Manager','view_chats'),
     ('Hotel Manager','view_dashboard'),('Hotel Manager','view_rooms'),('Hotel Manager','view_reservations'),('Hotel Manager','close_ticket'),('Hotel Manager','bill_consumption'),('Hotel Manager','view_room_history'),('Hotel Manager','send_message'),('Hotel Manager','view_chats')
 )
-INSERT INTO role_permissions (role_id, permission_id)
+INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id FROM role_perms rp
-JOIN roles r ON r.name = rp.role_name
-JOIN permissions p ON p.name = rp.perm_name
+JOIN public.roles r ON r.name = rp.role_name
+JOIN public.permissions p ON p.name = rp.perm_name
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- ============================================
 -- 4. DEPARTMENTS (extracted from users)
 -- ============================================
-INSERT INTO departments (name, description) VALUES
-  ('Management', 'Hotel management'),
-  ('Housekeeping', 'Room cleaning and maintenance'),
-  ('Rooms Division', 'Rooms and guest services'),
-  ('Front Office', 'Guest check-in and reservations'),
-  ('Night Team', 'Night shift operations'),
-  ('Engineering', 'Maintenance and repairs'),
-  ('Information Technology', 'IT systems and support')
-ON CONFLICT (name) DO NOTHING;
+WITH dept_rows(name, description) AS (
+  VALUES
+    ('Management', 'Hotel management'),
+    ('Housekeeping', 'Room cleaning and maintenance'),
+    ('Rooms Division', 'Rooms and guest services'),
+    ('Front Office', 'Guest check-in and reservations'),
+    ('Night Team', 'Night shift operations'),
+    ('Engineering', 'Maintenance and repairs'),
+    ('Information Technology', 'IT systems and support')
+)
+INSERT INTO public.departments (name, description)
+SELECT dr.name, dr.description
+FROM dept_rows dr
+WHERE NOT EXISTS (
+  SELECT 1 FROM public.departments d WHERE d.name = dr.name
+);
 
 -- ============================================
 -- 5. SHIFTS
 -- ============================================
 -- Hotel-scoped: seed shifts for every hotel
-WITH shift_rows(name, start_time, end_time) AS (
-  VALUES
-    ('AM', '06:00'::time, '14:00'::time),
-    ('PM', '14:00'::time, '22:00'::time),
-    ('Night', '22:00'::time, '06:00'::time)
-)
-INSERT INTO shifts (hotel_id, name, start_time, end_time)
-SELECT h.id AS hotel_id, sr.name, sr.start_time, sr.end_time
-FROM public.hotels h
-CROSS JOIN shift_rows sr
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM public.shifts s
-  WHERE s.hotel_id = h.id
-    AND s.name ILIKE sr.name
-);
+DO $$
+BEGIN
+  -- Only run when tenant schema exists (shifts.hotel_id + hotels table).
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='shifts' AND column_name='hotel_id'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='hotels'
+  ) THEN
+    WITH shift_rows(name, start_time, end_time) AS (
+      VALUES
+        ('AM', '06:00'::time, '14:00'::time),
+        ('PM', '14:00'::time, '22:00'::time),
+        ('Night', '22:00'::time, '06:00'::time)
+    )
+    INSERT INTO public.shifts (hotel_id, name, start_time, end_time)
+    SELECT h.id AS hotel_id, sr.name, sr.start_time, sr.end_time
+    FROM public.hotels h
+    CROSS JOIN shift_rows sr
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM public.shifts s
+      WHERE s.hotel_id = h.id
+        AND s.name ILIKE sr.name
+    );
+  END IF;
+END $$;
 
 -- ============================================
 -- 6. CONSUMABLES
 -- ============================================
 -- Hotel-scoped: seed consumables for every hotel
-WITH consumable_rows(name, category, unit_price, billable) AS (
-  VALUES
-    ('Mini Bar - Water', 'mini_bar', 5.00::numeric, true),
-    ('Mini Bar - Coke', 'mini_bar', 4.00::numeric, true),
-    ('Laundry - Shirt', 'laundry', 8.00::numeric, true),
-    ('Towels - Extra', 'towels', 0::numeric, false)
-)
-INSERT INTO consumables (hotel_id, name, category, unit_price, billable)
-SELECT h.id AS hotel_id, cr.name, cr.category, cr.unit_price, cr.billable
-FROM public.hotels h
-CROSS JOIN consumable_rows cr
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM public.consumables c
-  WHERE c.hotel_id = h.id
-    AND c.name = cr.name
-    AND c.category = cr.category
-);
+DO $$
+BEGIN
+  -- Only run when tenant schema exists (consumables.hotel_id + hotels table).
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema='public' AND table_name='consumables' AND column_name='hotel_id'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema='public' AND table_name='hotels'
+  ) THEN
+    WITH consumable_rows(name, category, unit_price, billable) AS (
+      VALUES
+        ('Mini Bar - Water', 'mini_bar', 5.00::numeric, true),
+        ('Mini Bar - Coke', 'mini_bar', 4.00::numeric, true),
+        ('Laundry - Shirt', 'laundry', 8.00::numeric, true),
+        ('Towels - Extra', 'towels', 0::numeric, false)
+    )
+    INSERT INTO public.consumables (hotel_id, name, category, unit_price, billable)
+    SELECT h.id AS hotel_id, cr.name, cr.category, cr.unit_price, cr.billable
+    FROM public.hotels h
+    CROSS JOIN consumable_rows cr
+    WHERE NOT EXISTS (
+      SELECT 1
+      FROM public.consumables c
+      WHERE c.hotel_id = h.id
+        AND c.name = cr.name
+        AND c.category = cr.category
+    );
+  END IF;
+END $$;
+
+-- ============================================
+-- 7. USERS (SYNC auth.users -> public.users)
+-- ============================================
+-- This DOES NOT create auth users (those must be created via Supabase Auth signup/invite or dashboard).
+-- It ensures every existing authenticated user has a corresponding row in `public.users`,
+-- which the app uses for staff lists, assignments, notes, etc.
+DO $$
+BEGIN
+  -- Ensure Default Hotel exists for fallback (tenant schema).
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.tables
+    WHERE table_schema = 'public'
+      AND table_name = 'hotels'
+  ) THEN
+    INSERT INTO public.hotels (name)
+    VALUES ('Default Hotel')
+    ON CONFLICT (name) DO NOTHING;
+  END IF;
+
+  -- Tenant schema (users.hotel_id exists)
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'users'
+      AND column_name = 'hotel_id'
+  ) THEN
+    INSERT INTO public.users (id, full_name, avatar_url, hotel_id)
+    SELECT
+      au.id,
+      COALESCE(
+        NULLIF(au.raw_user_meta_data->>'full_name', ''),
+        NULLIF(au.raw_user_meta_data->>'name', ''),
+        au.email,
+        split_part(COALESCE(au.email, 'user'), '@', 1),
+        'User'
+      ) AS full_name,
+      NULLIF(au.raw_user_meta_data->>'avatar_url', '') AS avatar_url,
+      COALESCE(
+        NULLIF(au.raw_user_meta_data->>'hotel_id', '')::uuid,
+        (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1)
+      ) AS hotel_id
+    FROM auth.users au
+    ON CONFLICT (id) DO UPDATE
+    SET
+      full_name = EXCLUDED.full_name,
+      avatar_url = EXCLUDED.avatar_url,
+      hotel_id = COALESCE(public.users.hotel_id, EXCLUDED.hotel_id);
+  ELSE
+    -- Legacy schema (users table without hotel_id)
+    INSERT INTO public.users (id, full_name, avatar_url)
+    SELECT
+      au.id,
+      COALESCE(
+        NULLIF(au.raw_user_meta_data->>'full_name', ''),
+        NULLIF(au.raw_user_meta_data->>'name', ''),
+        au.email,
+        split_part(COALESCE(au.email, 'user'), '@', 1),
+        'User'
+      ) AS full_name,
+      NULLIF(au.raw_user_meta_data->>'avatar_url', '') AS avatar_url
+    FROM auth.users au
+    ON CONFLICT (id) DO UPDATE
+    SET
+      full_name = EXCLUDED.full_name,
+      avatar_url = EXCLUDED.avatar_url;
+  END IF;
+END $$;
