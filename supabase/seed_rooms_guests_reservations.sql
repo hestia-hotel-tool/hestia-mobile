@@ -263,3 +263,9 @@ INSERT INTO public.reservation_guests (reservation_id, guest_id, hotel_id) SELEC
 INSERT INTO public.guests (full_name, vip_code, image_url, hotel_id) SELECT 'Paige Reynolds & Quentin Harris', '9', NULL, (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) WHERE NOT EXISTS (SELECT 1 FROM public.guests WHERE full_name = 'Paige Reynolds & Quentin Harris' AND hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1));
 INSERT INTO public.reservations (room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time, hotel_id) SELECT r.id, '2026-05-20', '2026-05-31', NULL, 2, 0, 'Checked out', 'Departure', NULL, r.hotel_id FROM public.rooms r WHERE r.room_number = '507' AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1) AND NOT EXISTS (SELECT 1 FROM public.reservations res WHERE res.room_id = r.id AND res.hotel_id = r.hotel_id AND res.arrival_date = '2026-05-20' AND res.departure_date = '2026-05-31' AND res.eta IS NULL AND res.adults = 2 AND res.kids = 0);
 INSERT INTO public.reservation_guests (reservation_id, guest_id, hotel_id) SELECT res.id, gs.id, res.hotel_id FROM public.reservations res JOIN public.rooms r ON r.id = res.room_id AND r.room_number = '507' AND r.hotel_id = res.hotel_id JOIN public.guests gs ON gs.full_name = 'Paige Reynolds & Quentin Harris' AND gs.hotel_id = res.hotel_id WHERE res.arrival_date = '2026-05-20' AND res.departure_date = '2026-05-31' AND res.eta IS NULL AND res.adults = 2 AND res.kids = 0 AND NOT EXISTS (SELECT 1 FROM public.reservation_guests rg WHERE rg.reservation_id = res.id AND rg.guest_id = gs.id);
+
+-- Ensure every guest has a stable unique avatar URL (used across the app).
+-- This matches migration 20250620000001_guest_image_url_placeholders.sql.
+UPDATE public.guests
+SET image_url = 'https://i.pravatar.cc/96?u=' || id
+WHERE image_url IS NULL;
