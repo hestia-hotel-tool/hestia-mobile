@@ -203,16 +203,18 @@ export default function RoomDetailHeader({
       >
         <Image
           source={require('../../../assets/icons/back-arrow.png')}
-          style={styles.backArrow}
-          tintColor={
-            isPaused
-              ? ROOM_DETAIL_HEADER.paused.backArrowTint
-              : showRefuseServiceHeader
-                ? RS.backArrowTint
-                : isReturnLater || isPromiseTime
-                  ? ROOM_DETAIL_HEADER.returnLater.backArrowTint
-                  : '#FFFFFF'
-          }
+          style={[
+            styles.backArrow,
+            {
+              tintColor: isPaused
+                ? ROOM_DETAIL_HEADER.paused.backArrowTint
+                : showRefuseServiceHeader
+                  ? RS.backArrowTint
+                  : isReturnLater || isPromiseTime
+                    ? ROOM_DETAIL_HEADER.returnLater.backArrowTint
+                    : '#FFFFFF',
+            },
+          ]}
           resizeMode="contain"
         />
       </TouchableOpacity>
@@ -235,9 +237,8 @@ export default function RoomDetailHeader({
           <View style={styles.priorityBadge}>
             <Image
               source={require('../../../assets/icons/flag.png')}
-              style={styles.priorityBadgeIcon}
+              style={[styles.priorityBadgeIcon, { tintColor: '#f92424' }]}
               resizeMode="contain"
-              tintColor="#f92424"
             />
           </View>
         )}
@@ -291,19 +292,21 @@ export default function RoomDetailHeader({
         <>
             <Image
               source={statusIconSource}
-              style={styles.statusIcon}
+              style={[
+                styles.statusIcon,
+                {
+                  tintColor: isPaused
+                    ? ROOM_DETAIL_HEADER.paused.statusTextAndIconColor
+                    : showRefuseServiceHeader
+                      ? RS.statusTextAndIconColor
+                      : isReturnLater || isPromiseTime
+                        ? ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor
+                        : shouldTintIcon
+                          ? '#FFFFFF'
+                          : undefined,
+                },
+              ]}
               resizeMode="contain"
-              tintColor={
-                isPaused
-                  ? ROOM_DETAIL_HEADER.paused.statusTextAndIconColor
-                  : showRefuseServiceHeader
-                    ? RS.statusTextAndIconColor
-                    : isReturnLater || isPromiseTime
-                      ? ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor
-                      : shouldTintIcon
-                        ? '#FFFFFF'
-                        : undefined
-              }
             />
             <Text
               style={[
