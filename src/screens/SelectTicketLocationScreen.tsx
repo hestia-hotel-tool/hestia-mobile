@@ -42,6 +42,7 @@ interface RoomData {
   guest_count?: number;
   vip_code?: string;
   image_url?: string;
+  front_office_status?: string;
   guests?: Array<{
     id?: string;
     full_name?: string;
@@ -142,7 +143,8 @@ export default function SelectTicketLocationScreen() {
             arrival_date,
             departure_date,
             adults,
-            kids
+            kids,
+            front_office_status
           )
         `)
         .order('room_number', { ascending: true });
@@ -171,7 +173,13 @@ export default function SelectTicketLocationScreen() {
 
         const rawGuests = reservation?.guests;
         const guests = Array.isArray(rawGuests) ? rawGuests : rawGuests ? [rawGuests] : [];
-        const primaryGuest = guests.find((g: any) => g?.full_name) ?? guests?.[0];
+        const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();
+        const isArrivalDeparture = frontOfficeStatus.toLowerCase() === 'arrival/departure';
+        // For "Arrival/Departure", show the departure guest (typically index 1) wherever we display a single guest.
+        const primaryGuest =
+          (isArrivalDeparture ? (guests?.[1] ?? guests?.[0]) : (guests?.[0])) ??
+          guests.find((g: any) => g?.full_name) ??
+          guests?.[0];
         
         const mappedGuests = guests.map((g: any, idx: number) => {
           const id = g?.id ? String(g.id) : undefined;
@@ -181,8 +189,8 @@ export default function SelectTicketLocationScreen() {
             rawImageUrl && rawImageUrl.trim()
               ? rawImageUrl
               : fullName
-                ? fallbackGuestAvatarUrl(`${room.id}-${idx}-${fullName}`)
-                : fallbackGuestAvatarUrl(`${room.id}-${idx}`);
+                ? fallbackGuestAvatarUrl(id ?? `${room.id}-${idx}-${fullName}`)
+                : fallbackGuestAvatarUrl(id ?? `${room.id}-${idx}`);
           return {
             id,
             full_name: fullName,
@@ -204,6 +212,7 @@ export default function SelectTicketLocationScreen() {
             primaryGuest?.image_url && String(primaryGuest.image_url).trim()
               ? String(primaryGuest.image_url)
               : mappedGuests.find((g) => g?.full_name)?.image_url ?? mappedGuests[0]?.image_url,
+          front_office_status: frontOfficeStatus || undefined,
           guests: mappedGuests,
         };
       });
@@ -281,7 +290,13 @@ export default function SelectTicketLocationScreen() {
 
   const handleContinue = async () => {
     if (locationType === 'room' && selectedRoom) {
-      const selectedGuest = (selectedRoom.guests ?? []).find((g) => g?.full_name) ?? selectedRoom.guests?.[0];
+      const frontOfficeStatus = String(selectedRoom.front_office_status ?? '').trim();
+      const isArrivalDeparture = frontOfficeStatus.toLowerCase() === 'arrival/departure';
+      const roomGuests = selectedRoom.guests ?? [];
+      const selectedGuest =
+        (isArrivalDeparture ? (roomGuests[1] ?? roomGuests[0]) : (roomGuests[0])) ??
+        roomGuests.find((g) => g?.full_name) ??
+        roomGuests[0];
 
       // Navigate to ticket form with room + guest info (as before).
       navigation.navigate('CreateTicketForm', {

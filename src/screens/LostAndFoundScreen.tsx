@@ -188,6 +188,7 @@ export default function LostAndFoundScreen() {
           room_number,
           reservations (
             guests (
+              id,
               full_name,
               vip_code,
               image_url
@@ -195,7 +196,8 @@ export default function LostAndFoundScreen() {
             arrival_date,
             departure_date,
             adults,
-            kids
+            kids,
+            front_office_status
           )
         )
       `;
@@ -255,7 +257,11 @@ export default function LostAndFoundScreen() {
       const mapped: LostAndFoundItem[] = rows.map((row) => {
         const room = (row as any).rooms;
         const reservation = room?.reservations?.[0];
-        const guest = reservation?.guests?.[0];
+        const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();
+        const isArrivalDeparture = frontOfficeStatus.toLowerCase() === 'arrival/departure';
+        const guestsRaw = reservation?.guests;
+        const guests = Array.isArray(guestsRaw) ? guestsRaw : guestsRaw ? [guestsRaw] : [];
+        const guest = (isArrivalDeparture ? (guests?.[1] ?? guests?.[0]) : (guests?.[0])) ?? guests?.[0];
         const guestCount = (reservation?.adults || 0) + (reservation?.kids || 0);
         const registeredByUser = userById.get(row.registered_by_id ?? row.found_by_id);
 
@@ -292,7 +298,11 @@ export default function LostAndFoundScreen() {
           roomNumber: room?.room_number ? Number(room.room_number) : undefined,
           guestDates: formatGuestDates(reservation?.arrival_date, reservation?.departure_date),
           guestCount: guestCount || undefined,
-          guestImage: guest?.image_url ? { uri: guest.image_url } : undefined,
+          guestImage: {
+            uri:
+              String(guest?.image_url ?? '').trim() ||
+              `https://i.pravatar.cc/96?u=${encodeURIComponent(String(guest?.id ?? `${row.room_id ?? row.id}-${guest?.full_name ?? 'guest'}`))}`,
+          },
           storedLocation: row.storage_location ?? '',
           shippedLocation:
             (row as any).shipped_location ??

@@ -300,7 +300,8 @@ export default function RegisterLostAndFoundModal({
             arrival_date,
             departure_date,
             adults,
-            kids
+            kids,
+            front_office_status
           )
         `)
         .order('room_number', { ascending: true });
@@ -332,10 +333,14 @@ export default function RegisterLostAndFoundModal({
       const mapped: RoomSelection[] = await Promise.all(
         (data as any[]).map(async (room) => {
           const reservation = room.reservations?.[0];
-          const guest = reservation?.guests?.[0];
+          const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();
+          const isArrivalDeparture = frontOfficeStatus.toLowerCase() === 'arrival/departure';
+          const guestsRaw = reservation?.guests;
+          const guests = Array.isArray(guestsRaw) ? guestsRaw : guestsRaw ? [guestsRaw] : [];
+          const guest = (isArrivalDeparture ? (guests?.[1] ?? guests?.[0]) : (guests?.[0])) ?? guests?.[0];
           const guestCount = (reservation?.adults || 0) + (reservation?.kids || 0);
           const guestName = guest?.full_name ?? '';
-          const seed = `${room.id ?? room.room_number}-0-${guestName || 'guest'}`;
+          const seed = String(guest?.id ?? `${room.id ?? room.room_number}-${guestName || 'guest'}`);
           const img = await resolveAccessibleImageUrl(guest?.image_url ?? null, seed);
 
           return {

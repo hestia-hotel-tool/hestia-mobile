@@ -209,7 +209,7 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
                     <Image
                       source={
                         item.guestImage ??
-                        ({ uri: fallbackGuestAvatarUrl(`${item.id}-${item.guestName ?? ''}`) } as any)
+                        ({ uri: fallbackGuestAvatarUrl(`${roomBadgeText ?? item.location ?? 'room'}-${item.guestName ?? 'guest'}`) } as any)
                       }
                       style={styles.foundInImageThumb}
                       resizeMode="cover"
