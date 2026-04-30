@@ -8,6 +8,8 @@ export interface LostAndFoundItem {
   itemId: string; // e.g., "FH31390"
   location: string; // e.g., "Room 201", "Brasserie"
   guestName?: string; // e.g., "Mr Mohamed. B"
+  /** VIP code for the guest (drives the red badge on the guest avatar). */
+  guestVipCode?: string | null;
   publicArea?: string; // e.g., "Public Area"
   roomNumber?: number; // e.g., 11
   guestDates?: string; // e.g., "07/10-15/10"

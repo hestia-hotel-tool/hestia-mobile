@@ -200,21 +200,36 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
                 {/* Guest thumbnail */}
                 <View style={styles.foundInImageThumbContainer}>
                   {guestThumbFailed ? (
-                    <View style={styles.foundInGuestThumbFallback}>
-                      <Text style={styles.foundInGuestThumbFallbackText}>
-                        {getInitials(item.guestName)}
-                      </Text>
+                    <View style={styles.foundInImageThumbClip}>
+                      <View style={styles.foundInGuestThumbFallback}>
+                        <Text style={styles.foundInGuestThumbFallbackText}>
+                          {getInitials(item.guestName)}
+                        </Text>
+                      </View>
                     </View>
                   ) : (
-                    <Image
-                      source={
-                        item.guestImage ??
-                        ({ uri: fallbackGuestAvatarUrl(`${roomBadgeText ?? item.location ?? 'room'}-${item.guestName ?? 'guest'}`) } as any)
-                      }
-                      style={styles.foundInImageThumb}
-                      resizeMode="cover"
-                      onError={() => setGuestThumbFailed(true)}
-                    />
+                    <>
+                      <View style={styles.foundInImageThumbClip}>
+                        <Image
+                          source={
+                            item.guestImage ??
+                            ({ uri: fallbackGuestAvatarUrl(`${roomBadgeText ?? item.location ?? 'room'}-${item.guestName ?? 'guest'}`) } as any)
+                          }
+                          style={styles.foundInImageThumb}
+                          resizeMode="cover"
+                          onError={() => setGuestThumbFailed(true)}
+                        />
+                      </View>
+                      {!!item.guestVipCode && (
+                        <View style={styles.foundInVipBadge}>
+                          <Image
+                            source={require('../../../assets/icons/spear-arrow.png')}
+                            style={styles.foundInVipBadgeIcon}
+                            resizeMode="contain"
+                          />
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
 
@@ -521,10 +536,35 @@ const styles = StyleSheet.create({
     width: 34.6 * scaleX,
     height: 34.6 * scaleX,
     borderRadius: 5 * scaleX,
-    overflow: 'hidden',
+    // Important: badge sits slightly outside the image corner in Figma
+    // so the outer container must NOT clip.
+    overflow: 'visible',
+    position: 'relative',
     // Figma gap between thumb and name ~11px
     marginRight: 11 * scaleX,
     backgroundColor: '#e5e7eb',
+  },
+  foundInImageThumbClip: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 5 * scaleX,
+    overflow: 'hidden',
+    backgroundColor: '#e5e7eb',
+  },
+  foundInVipBadge: {
+    position: 'absolute',
+    right: -4 * scaleX,
+    bottom: -4 * scaleX,
+    width: 14.118 * scaleX,
+    height: 14.118 * scaleX,
+    borderRadius: 7.059 * scaleX,
+    backgroundColor: '#ff0000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  foundInVipBadgeIcon: {
+    width: 10 * scaleX,
+    height: 10 * scaleX,
   },
   foundInImageThumb: {
     width: '100%',

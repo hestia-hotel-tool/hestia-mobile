@@ -496,7 +496,11 @@ export default function SelectTicketLocationScreen() {
                                       )}
                                       {room.vip_code && (
                                         <View style={styles.vipBadge}>
-                                          <Text style={styles.vipBadgeText}>!</Text>
+                                          <Image
+                                            source={require('../../assets/icons/spear-arrow.png')}
+                                            style={styles.vipBadgeIcon}
+                                            resizeMode="contain"
+                                          />
                                         </View>
                                       )}
                                     </View>
@@ -568,7 +572,11 @@ export default function SelectTicketLocationScreen() {
                           )}
                           {selectedRoom.vip_code && (
                             <View style={styles.vipBadge}>
-                              <Text style={styles.vipBadgeText}>!</Text>
+                              <Image
+                                source={require('../../assets/icons/spear-arrow.png')}
+                                style={styles.vipBadgeIcon}
+                                resizeMode="contain"
+                              />
                             </View>
                           )}
                         </View>
@@ -936,6 +944,11 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     fontFamily: typography.fontFamily.primary,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  vipBadgeIcon: {
+    width: 12 * scaleX,
+    height: 12 * scaleX,
+    tintColor: '#ffffff',
   },
   guestDetails: {
     flex: 1,

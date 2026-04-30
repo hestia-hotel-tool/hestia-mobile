@@ -654,7 +654,9 @@ export default function RegisterLostAndFoundModal({
             keyboardShouldPersistTaps="handled"
           >
             {/* Title */}
-            <Text style={styles.title}>Register</Text>
+            <Text style={styles.title}>
+              {currentStep === 3 ? 'Confirm Registration' : 'Register'}
+            </Text>
 
           {/* Step Indicator */}
           <Text style={styles.stepIndicator}>Step {currentStep}</Text>
@@ -843,7 +845,11 @@ export default function RegisterLostAndFoundModal({
                                           )}
                                           {room.vip_code ? (
                                             <View style={styles.vipBadge}>
-                                              <Text style={styles.vipBadgeText}>!</Text>
+                                              <Image
+                                                source={require('../../../assets/icons/spear-arrow.png')}
+                                                style={styles.vipBadgeIcon}
+                                                resizeMode="contain"
+                                              />
                                             </View>
                                           ) : null}
                                         </View>
@@ -914,7 +920,11 @@ export default function RegisterLostAndFoundModal({
                               )}
                               {selectedRoom.vip_code ? (
                                 <View style={styles.vipBadge}>
-                                  <Text style={styles.vipBadgeText}>!</Text>
+                                  <Image
+                                    source={require('../../../assets/icons/spear-arrow.png')}
+                                    style={styles.vipBadgeIcon}
+                                    resizeMode="contain"
+                                  />
                                 </View>
                               ) : null}
                             </View>
@@ -1350,7 +1360,11 @@ export default function RegisterLostAndFoundModal({
                           )}
                           {selectedRoom?.vip_code ? (
                             <View style={styles.step3FoundInVipBadge}>
-                              <Text style={styles.step3FoundInVipBadgeText}>!</Text>
+                              <Image
+                                source={require('../../../assets/icons/spear-arrow.png')}
+                                style={styles.step3FoundInVipBadgeIcon}
+                                resizeMode="contain"
+                              />
                             </View>
                           ) : null}
                         </View>
@@ -1691,6 +1705,8 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: REGISTER_FORM.title.fontWeight as any,
     color: REGISTER_FORM.title.color,
+    // The container has 27px horizontal padding; Figma title starts at x=31.
+    marginLeft: (REGISTER_FORM.title.left - 27) * scaleX,
     marginBottom: 9 * scaleX,
   },
   stepIndicator: {
@@ -1698,6 +1714,8 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: REGISTER_FORM.stepIndicator.fontWeight as any,
     color: REGISTER_FORM.stepIndicator.color,
+    // The container has 27px horizontal padding; Figma step label starts at x=32.
+    marginLeft: (REGISTER_FORM.stepIndicator.left - 27) * scaleX,
     marginBottom: 19 * scaleX,
   },
   progressBarContainer: {
@@ -2000,6 +2018,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  vipBadgeIcon: {
+    width: 12 * scaleX,
+    height: 12 * scaleX,
+    tintColor: '#ffffff',
   },
   guestDetails: {
     flex: 1,
@@ -2409,8 +2432,10 @@ const styles = StyleSheet.create({
     backgroundColor: REGISTER_FORM.nextButton.backgroundColor,
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginTop: 40 * scaleX, // Increased margin top for Done button
+    // Match Figma: button starts at x=36; container padding is 27.
+    alignSelf: 'flex-start',
+    marginLeft: (REGISTER_FORM.nextButton.left - 27) * scaleX,
+    marginTop: 32 * scaleX,
   },
   nextButtonDisabled: {
     backgroundColor: '#d3d3d3', // Gray background when disabled
@@ -2656,6 +2681,11 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: 'bold',
     color: '#fff',
+  },
+  step3FoundInVipBadgeIcon: {
+    width: 10 * scaleX,
+    height: 10 * scaleX,
+    tintColor: '#ffffff',
   },
   step3FoundInGuestDetails: {
     flex: 1,

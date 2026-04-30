@@ -295,6 +295,7 @@ export default function LostAndFoundScreen() {
           location:
             row.found_location ?? (room?.room_number ? `Room ${room.room_number}` : 'Public Area'),
           guestName: guest?.full_name,
+          guestVipCode: guest?.vip_code ?? null,
           roomNumber: room?.room_number ? Number(room.room_number) : undefined,
           guestDates: formatGuestDates(reservation?.arrival_date, reservation?.departure_date),
           guestCount: guestCount || undefined,
