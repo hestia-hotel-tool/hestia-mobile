@@ -19,6 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { typography } from '../theme';
 import type { RootStackParamList } from '../navigation/types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { GUEST_IMAGES_BUCKET } from '../services/guests';
 import {
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,
@@ -49,6 +50,28 @@ interface RoomData {
   }>;
 }
 
+function getInitials(name?: string): string {
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0] ?? '')
+    .join('')
+    .toUpperCase();
+}
+
+function isHttpUrl(raw?: string | null): boolean {
+  return /^https?:\/\//i.test(String(raw ?? '').trim());
+}
+
+function fallbackGuestAvatarUrl(seed: string): string {
+  // Mirrors other screens that use pravatar as a deterministic placeholder.
+  return `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`;
+}
+
 export default function SelectTicketLocationScreen() {
   const navigation = useNavigation<SelectTicketLocationScreenNavigationProp>();
   const route = useRoute<SelectTicketLocationScreenRouteProp>();
@@ -71,6 +94,7 @@ export default function SelectTicketLocationScreen() {
   const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedPublicArea, setSelectedPublicArea] = useState<string | null>(null);
+  const [failedGuestImages, setFailedGuestImages] = useState<Record<string, true>>({});
   // Room selection dropdown state
 
   const PUBLIC_AREAS = [
@@ -126,7 +150,7 @@ export default function SelectTicketLocationScreen() {
       if (error) throw error;
 
       const now = new Date();
-      const roomsData: RoomData[] = (data || []).map((room: any) => {
+      let roomsData: RoomData[] = (data || []).map((room: any) => {
         const reservations = Array.isArray(room.reservations) ? room.reservations : [];
         // Pick the "active" reservation first (today between arrival/departure), otherwise latest by arrival_date.
         const sorted = [...reservations].sort((a: any, b: any) => {
@@ -149,6 +173,24 @@ export default function SelectTicketLocationScreen() {
         const guests = Array.isArray(rawGuests) ? rawGuests : rawGuests ? [rawGuests] : [];
         const primaryGuest = guests.find((g: any) => g?.full_name) ?? guests?.[0];
         
+        const mappedGuests = guests.map((g: any, idx: number) => {
+          const id = g?.id ? String(g.id) : undefined;
+          const fullName = g?.full_name ? String(g.full_name) : undefined;
+          const rawImageUrl = g?.image_url ? String(g.image_url) : undefined;
+          const img =
+            rawImageUrl && rawImageUrl.trim()
+              ? rawImageUrl
+              : fullName
+                ? fallbackGuestAvatarUrl(`${room.id}-${idx}-${fullName}`)
+                : fallbackGuestAvatarUrl(`${room.id}-${idx}`);
+          return {
+            id,
+            full_name: fullName,
+            vip_code: g?.vip_code,
+            image_url: img,
+          };
+        });
+
         return {
           id: room.id,
           room_number: room.room_number,
@@ -157,15 +199,72 @@ export default function SelectTicketLocationScreen() {
           check_out: reservation?.departure_date,
           guest_count: (reservation?.adults || 0) + (reservation?.kids || 0),
           vip_code: primaryGuest?.vip_code,
-          image_url: primaryGuest?.image_url,
-          guests: guests.map((g: any) => ({
-            id: g?.id,
-            full_name: g?.full_name,
-            vip_code: g?.vip_code,
-            image_url: g?.image_url,
-          })),
+          // image_url might be a public URL or a Storage path. We'll resolve accessibility below.
+          image_url:
+            primaryGuest?.image_url && String(primaryGuest.image_url).trim()
+              ? String(primaryGuest.image_url)
+              : mappedGuests.find((g) => g?.full_name)?.image_url ?? mappedGuests[0]?.image_url,
+          guests: mappedGuests,
         };
       });
+
+      // If guest images are stored as Storage paths (private bucket), we need signed URLs to display them.
+      // We keep URLs as-is when they are already http(s).
+      const rawPaths = Array.from(
+        new Set(
+          roomsData
+            .flatMap((r) => [
+              r.image_url,
+              ...(r.guests?.map((g) => g?.image_url) ?? []),
+            ])
+            .filter((p): p is string => typeof p === 'string' && p.trim().length > 0 && !isHttpUrl(p))
+        )
+      );
+
+      if (rawPaths.length > 0) {
+        // 1 hour is plenty for a selection screen session.
+        const expiresIn = 60 * 60;
+        let signedByPath = new Map<string, string>();
+        try {
+          // supabase-js supports createSignedUrls for batching.
+          const { data: signedList, error: signedErr } = await supabase.storage
+            .from(GUEST_IMAGES_BUCKET)
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            .createSignedUrls(rawPaths as any, expiresIn);
+          if (signedErr) throw signedErr;
+          (signedList ?? []).forEach((item: any) => {
+            if (item?.path && item?.signedUrl) signedByPath.set(String(item.path), String(item.signedUrl));
+          });
+        } catch (e) {
+          // Fallback: try getPublicUrl (if bucket is public) or per-path signed URLs.
+          for (const p of rawPaths) {
+            try {
+              const { data: pub } = supabase.storage.from(GUEST_IMAGES_BUCKET).getPublicUrl(p);
+              if (pub?.publicUrl) {
+                signedByPath.set(p, pub.publicUrl);
+                continue;
+              }
+              const { data: signedOne } = await supabase.storage
+                .from(GUEST_IMAGES_BUCKET)
+                .createSignedUrl(p, expiresIn);
+              if ((signedOne as any)?.signedUrl) signedByPath.set(p, (signedOne as any).signedUrl);
+            } catch {
+              // ignore
+            }
+          }
+        }
+
+        if (signedByPath.size > 0) {
+          roomsData = roomsData.map((r) => ({
+            ...r,
+            image_url: (r.image_url && signedByPath.get(r.image_url)) || r.image_url,
+            guests: (r.guests ?? []).map((g) => ({
+              ...g,
+              image_url: (g.image_url && signedByPath.get(g.image_url)) || g.image_url,
+            })),
+          }));
+        }
+      }
 
       setRooms(roomsData);
       setFilteredRooms(roomsData);
@@ -364,16 +463,28 @@ export default function SelectTicketLocationScreen() {
                                 <>
                                   <View style={styles.verticalDivider} />
                                   <View style={styles.guestInfoSection}>
-                                    {room.image_url && (
-                                      <View style={styles.guestImageContainer}>
-                                        <Image source={{ uri: room.image_url }} style={styles.guestImage} />
-                                        {room.vip_code && (
-                                          <View style={styles.vipBadge}>
-                                            <Text style={styles.vipBadgeText}>!</Text>
-                                          </View>
-                                        )}
-                                      </View>
-                                    )}
+                                    <View style={styles.guestImageContainer}>
+                                      {room.image_url && !failedGuestImages[room.image_url] ? (
+                                        <Image
+                                          source={{ uri: room.image_url }}
+                                          style={styles.guestImage}
+                                          onError={() =>
+                                            setFailedGuestImages((prev) => ({ ...prev, [room.image_url!]: true }))
+                                          }
+                                        />
+                                      ) : (
+                                        <View style={styles.guestImagePlaceholder}>
+                                          <Text style={styles.guestImagePlaceholderText}>
+                                            {getInitials(room.guest_name)}
+                                          </Text>
+                                        </View>
+                                      )}
+                                      {room.vip_code && (
+                                        <View style={styles.vipBadge}>
+                                          <Text style={styles.vipBadgeText}>!</Text>
+                                        </View>
+                                      )}
+                                    </View>
                                     <View style={styles.guestDetails}>
                                       <View style={styles.guestNameRow}>
                                         <Text style={styles.guestName}>{room.guest_name}</Text>
@@ -424,16 +535,28 @@ export default function SelectTicketLocationScreen() {
                     <>
                       <View style={styles.verticalDivider} />
                       <View style={styles.guestInfoSection}>
-                        {selectedRoom.image_url && (
-                          <View style={styles.guestImageContainer}>
-                            <Image source={{ uri: selectedRoom.image_url }} style={styles.guestImage} />
-                            {selectedRoom.vip_code && (
-                              <View style={styles.vipBadge}>
-                                <Text style={styles.vipBadgeText}>!</Text>
-                              </View>
-                            )}
-                          </View>
-                        )}
+                        <View style={styles.guestImageContainer}>
+                          {selectedRoom.image_url && !failedGuestImages[selectedRoom.image_url] ? (
+                            <Image
+                              source={{ uri: selectedRoom.image_url }}
+                              style={styles.guestImage}
+                              onError={() =>
+                                setFailedGuestImages((prev) => ({ ...prev, [selectedRoom.image_url!]: true }))
+                              }
+                            />
+                          ) : (
+                            <View style={styles.guestImagePlaceholder}>
+                              <Text style={styles.guestImagePlaceholderText}>
+                                {getInitials(selectedRoom.guest_name)}
+                              </Text>
+                            </View>
+                          )}
+                          {selectedRoom.vip_code && (
+                            <View style={styles.vipBadge}>
+                              <Text style={styles.vipBadgeText}>!</Text>
+                            </View>
+                          )}
+                        </View>
                         <View style={styles.guestDetails}>
                           <View style={styles.guestNameRow}>
                             <Text style={styles.guestName}>{selectedRoom.guest_name}</Text>
@@ -767,6 +890,20 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     width: 35 * scaleX,
     height: 35 * scaleX,
     borderRadius: 5 * scaleX,
+  },
+  guestImagePlaceholder: {
+    width: 35 * scaleX,
+    height: 35 * scaleX,
+    borderRadius: 5 * scaleX,
+    backgroundColor: '#5a759d',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestImagePlaceholderText: {
+    fontSize: 12 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#ffffff',
   },
   vipBadge: {
     position: 'absolute',
