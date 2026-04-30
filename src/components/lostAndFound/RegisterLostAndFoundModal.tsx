@@ -20,6 +20,7 @@ import { typography } from '../../theme';
 import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../../constants/lostAndFoundStyles';
 import { supabase, isSupabaseConfigured } from '../../lib/supabase';
 import { fetchStaffFromSupabase } from '../../services/staff';
+import { GUEST_IMAGES_BUCKET } from '../../services/guests';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';
@@ -30,6 +31,27 @@ import type { StaffMember } from '../../types/staff.types';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TWO_COL_GAP = 12 * scaleX;
 const PHOTO_GRID_ITEM_SIZE = (SCREEN_WIDTH - 2 * (27 * scaleX) - TWO_COL_GAP) / 2;
+
+function isHttpUrl(raw?: string | null): boolean {
+  return /^https?:\/\//i.test(String(raw ?? '').trim());
+}
+
+function fallbackGuestAvatarUrl(seed: string): string {
+  return `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`;
+}
+
+function getInitials(name?: string): string {
+  const parts = String(name ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (parts.length === 0) return '?';
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0] ?? '')
+    .join('')
+    .toUpperCase();
+}
 
 function GradientText({
   text,
@@ -172,6 +194,7 @@ export default function RegisterLostAndFoundModal({
   const getInitialRoom = (): RoomSelection =>
     rooms[0] ?? { number: '—', guestName: '', badgeCount: 0, guest_count: 0, vip_code: null, image_url: null };
   const [selectedRoom, setSelectedRoom] = useState<RoomSelection | null>(getInitialRoom());
+  const [failedGuestImages, setFailedGuestImages] = useState<Record<string, true>>({});
   
   // Step 2 state
   const [showFoundedByModal, setShowFoundedByModal] = useState(false);
@@ -261,52 +284,84 @@ export default function RegisterLostAndFoundModal({
   useEffect(() => {
     let cancelled = false;
     if (!isSupabaseConfigured) return;
-    supabase
-      .from('rooms')
-      .select(`
-        id,
-        room_number,
-        reservations (
-          guests (
-            full_name,
-            vip_code,
-            image_url
-          ),
-          arrival_date,
-          departure_date,
-          adults,
-          kids
-        )
-      `)
-      .order('room_number', { ascending: true })
-      .then(({ data, error }) => {
-        if (cancelled || error || !data) return;
-        const mapped: RoomSelection[] = (data as any[]).map((room) => {
+    (async () => {
+      const { data, error } = await supabase
+        .from('rooms')
+        .select(`
+          id,
+          room_number,
+          reservations (
+            guests (
+              id,
+              full_name,
+              vip_code,
+              image_url
+            ),
+            arrival_date,
+            departure_date,
+            adults,
+            kids
+          )
+        `)
+        .order('room_number', { ascending: true });
+
+      if (cancelled || error || !data) return;
+
+      const expiresIn = 60 * 60; // 1 hour
+      const resolveAccessibleImageUrl = async (
+        rawUrl: string | null | undefined,
+        seed: string
+      ): Promise<string> => {
+        const v = String(rawUrl ?? '').trim();
+        if (!v) return fallbackGuestAvatarUrl(seed);
+        if (isHttpUrl(v)) return v;
+        try {
+          const { data: signed } = await supabase.storage
+            .from(GUEST_IMAGES_BUCKET)
+            .createSignedUrl(v, expiresIn);
+          const signedUrl = (signed as any)?.signedUrl as string | undefined;
+          if (signedUrl) return signedUrl;
+        } catch {}
+        try {
+          const { data: pub } = supabase.storage.from(GUEST_IMAGES_BUCKET).getPublicUrl(v);
+          if (pub?.publicUrl) return pub.publicUrl;
+        } catch {}
+        return fallbackGuestAvatarUrl(seed);
+      };
+
+      const mapped: RoomSelection[] = await Promise.all(
+        (data as any[]).map(async (room) => {
           const reservation = room.reservations?.[0];
           const guest = reservation?.guests?.[0];
           const guestCount = (reservation?.adults || 0) + (reservation?.kids || 0);
+          const guestName = guest?.full_name ?? '';
+          const seed = `${room.id ?? room.room_number}-0-${guestName || 'guest'}`;
+          const img = await resolveAccessibleImageUrl(guest?.image_url ?? null, seed);
 
           return {
             id: room.id,
             number: room.room_number,
-            guestName: guest?.full_name ?? '',
+            guestName,
             badgeCount: guestCount,
             guest_count: guestCount,
             vip_code: guest?.vip_code ?? null,
-            image_url: guest?.image_url ?? null,
+            image_url: img,
             check_in: reservation?.arrival_date ?? null,
             check_out: reservation?.departure_date ?? null,
           };
-        });
-        if (mapped.length) {
-          setRooms(mapped);
-          const preselectedRoom =
-            preselectedRoomId != null
-              ? mapped.find((room) => room.id === preselectedRoomId)
-              : undefined;
-          setSelectedRoom(preselectedRoom ?? mapped[0]);
-        }
-      });
+        })
+      );
+
+      if (cancelled) return;
+      if (mapped.length) {
+        setRooms(mapped);
+        const preselectedRoom =
+          preselectedRoomId != null
+            ? mapped.find((room) => room.id === preselectedRoomId)
+            : undefined;
+        setSelectedRoom(preselectedRoom ?? mapped[0]);
+      }
+    })().catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -766,10 +821,20 @@ export default function RegisterLostAndFoundModal({
                                       <View style={styles.verticalDivider} />
                                       <View style={styles.guestInfoSection}>
                                         <View style={styles.guestImageContainer}>
-                                          {room.image_url ? (
-                                            <Image source={{ uri: room.image_url }} style={styles.guestImage} />
+                                          {room.image_url && !failedGuestImages[room.image_url] ? (
+                                            <Image
+                                              source={{ uri: room.image_url }}
+                                              style={styles.guestImage}
+                                              onError={() =>
+                                                setFailedGuestImages((prev) => ({ ...prev, [room.image_url!]: true }))
+                                              }
+                                            />
                                           ) : (
-                                            <View style={styles.guestImagePlaceholder} />
+                                            <View style={styles.guestImagePlaceholder}>
+                                              <Text style={styles.guestImagePlaceholderText}>
+                                                {getInitials(room.guestName)}
+                                              </Text>
+                                            </View>
                                           )}
                                           {room.vip_code ? (
                                             <View style={styles.vipBadge}>
@@ -827,10 +892,20 @@ export default function RegisterLostAndFoundModal({
                           <View style={styles.verticalDivider} />
                           <View style={styles.guestInfoSection}>
                             <View style={styles.guestImageContainer}>
-                              {selectedRoom.image_url ? (
-                                <Image source={{ uri: selectedRoom.image_url }} style={styles.guestImage} />
+                              {selectedRoom.image_url && !failedGuestImages[selectedRoom.image_url] ? (
+                                <Image
+                                  source={{ uri: selectedRoom.image_url }}
+                                  style={styles.guestImage}
+                                  onError={() =>
+                                    setFailedGuestImages((prev) => ({ ...prev, [selectedRoom.image_url!]: true }))
+                                  }
+                                />
                               ) : (
-                                <View style={styles.guestImagePlaceholder} />
+                                <View style={styles.guestImagePlaceholder}>
+                                  <Text style={styles.guestImagePlaceholderText}>
+                                    {getInitials(selectedRoom.guestName)}
+                                  </Text>
+                                </View>
                               )}
                               {selectedRoom.vip_code ? (
                                 <View style={styles.vipBadge}>
@@ -1252,14 +1327,21 @@ export default function RegisterLostAndFoundModal({
 
                       <View style={styles.step3FoundInGuestSection}>
                         <View style={styles.step3FoundInGuestImageContainer}>
-                          {selectedRoom?.image_url ? (
+                          {selectedRoom?.image_url && !failedGuestImages[selectedRoom.image_url] ? (
                             <Image
                               source={{ uri: selectedRoom.image_url }}
                               style={styles.step3FoundInGuestImage}
                               resizeMode="cover"
+                              onError={() =>
+                                setFailedGuestImages((prev) => ({ ...prev, [selectedRoom.image_url!]: true }))
+                              }
                             />
                           ) : (
-                            <View style={styles.step3FoundInGuestImagePlaceholder} />
+                            <View style={styles.step3FoundInGuestImagePlaceholder}>
+                              <Text style={styles.guestImagePlaceholderText}>
+                                {getInitials(selectedRoom?.guestName)}
+                              </Text>
+                            </View>
                           )}
                           {selectedRoom?.vip_code ? (
                             <View style={styles.step3FoundInVipBadge}>
@@ -1888,6 +1970,14 @@ const styles = StyleSheet.create({
     height: 35 * scaleX,
     borderRadius: 5 * scaleX,
     backgroundColor: '#e5e7eb',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  guestImagePlaceholderText: {
+    fontSize: 12 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#5a759d',
   },
   vipBadge: {
     position: 'absolute',

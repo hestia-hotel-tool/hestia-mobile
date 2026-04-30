@@ -29,7 +29,22 @@ interface LostAndFoundItemCardProps {
 export default function LostAndFoundItemCard({ item, onPress, onStatusPress, statusUpdating = false }: LostAndFoundItemCardProps) {
   const toast = useToast();
   const [isImageLoading, setIsImageLoading] = useState<boolean>(false);
+  const [guestThumbFailed, setGuestThumbFailed] = useState(false);
   const imagePulse = useRef(new Animated.Value(0.35)).current;
+  const getInitials = (name?: string) => {
+    const parts = String(name ?? '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean);
+    if (parts.length === 0) return '?';
+    return parts
+      .slice(0, 2)
+      .map((p) => p[0] ?? '')
+      .join('')
+      .toUpperCase();
+  };
+  const fallbackGuestAvatarUrl = (seed: string) =>
+    `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`;
   const formatPublicAreaTimestamp = (iso?: string) => {
     if (!iso) return '';
     const dt = new Date(iso);
@@ -111,6 +126,11 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
   }, [item.image, imagePulse]);
 
   useEffect(() => {
+    // Reset guest thumb error when the item changes.
+    setGuestThumbFailed(false);
+  }, [item.id, item.guestImage, item.guestName]);
+
+  useEffect(() => {
     if (!isImageLoading) return;
     const animation = Animated.loop(
       Animated.sequence([
@@ -178,11 +198,25 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
             <>
               <View style={styles.foundInGuestSection}>
                 {/* Guest thumbnail */}
-                {item.guestImage && (
-                  <View style={styles.foundInImageThumbContainer}>
-                    <Image source={item.guestImage} style={styles.foundInImageThumb} resizeMode="cover" />
-                  </View>
-                )}
+                <View style={styles.foundInImageThumbContainer}>
+                  {guestThumbFailed ? (
+                    <View style={styles.foundInGuestThumbFallback}>
+                      <Text style={styles.foundInGuestThumbFallbackText}>
+                        {getInitials(item.guestName)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <Image
+                      source={
+                        item.guestImage ??
+                        ({ uri: fallbackGuestAvatarUrl(`${item.id}-${item.guestName ?? ''}`) } as any)
+                      }
+                      style={styles.foundInImageThumb}
+                      resizeMode="cover"
+                      onError={() => setGuestThumbFailed(true)}
+                    />
+                  )}
+                </View>
 
                 <View style={styles.foundInGuestTextContainer}>
                   <View style={styles.foundInGuestNameRow}>
@@ -495,6 +529,20 @@ const styles = StyleSheet.create({
   foundInImageThumb: {
     width: '100%',
     height: '100%',
+  },
+  foundInGuestThumbFallback: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#5a759d',
+  },
+  foundInGuestThumbFallbackText: {
+    fontSize: 12 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700' as any,
+    color: '#ffffff',
+    includeFontPadding: false,
   },
   foundInGuestTextContainer: {
     flex: 1,
