@@ -326,6 +326,7 @@ export default function StatusChangeModal({
                 const isRefuseService = option.id === 'RefuseService';
                 const isPromisedTime = option.id === 'PromisedTime';
                 const isPriority = option.id === 'Priority';
+                const isDirty = option.id === 'Dirty';
                 const iconOnly =
                   isCleaned ||
                   isInspected ||
@@ -345,7 +346,7 @@ export default function StatusChangeModal({
                     // For iconOnly statuses: no circular background – show icon only
                     backgroundColor={iconOnly ? undefined : getOptionBackgroundColor(option.id)}
                     // Upscale iconOnly statuses so they visually match In Progress size
-                    iconScale={iconOnly ? 2 : 1}
+                    iconScale={isDirty ? 1.35 : iconOnly ? 2 : 1}
                   />
                 );
               })}

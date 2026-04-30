@@ -599,7 +599,8 @@ export default function RoomDetailScreen() {
         refuse_service_reason: null,
       }).catch((e) => console.warn('Failed to persist pause in Supabase', e));
     } else {
-      setSelectedStatusText(statusLabel);
+      // Normal statuses should use the default header label + icon (prevents wrong icon/tinting).
+      setSelectedStatusText(undefined);
       setPausedAt(undefined);
       // Clear any prior pause / return later / refuse service state when a normal status is chosen.
       updateRoom(room.id, {

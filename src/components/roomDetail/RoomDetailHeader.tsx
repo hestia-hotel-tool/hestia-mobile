@@ -175,7 +175,7 @@ export default function RoomDetailHeader({
       return require('../../../assets/icons/in-progress-icon.png');
     }
     if (status === 'Dirty') {
-      return require('../../../assets/icons/dirty-icon.png');
+      return require('../../../assets/icons/dirty-status.png');
     }
     if (status === 'Cleaned') {
       return require('../../../assets/icons/cleaned-icon.png');
@@ -290,24 +290,32 @@ export default function RoomDetailHeader({
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
         <>
-            <Image
-              source={statusIconSource}
-              style={[
-                styles.statusIcon,
-                {
-                  tintColor: isPaused
-                    ? ROOM_DETAIL_HEADER.paused.statusTextAndIconColor
-                    : showRefuseServiceHeader
-                      ? RS.statusTextAndIconColor
-                      : isReturnLater || isPromiseTime
-                        ? ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor
-                        : shouldTintIcon
-                          ? '#FFFFFF'
-                          : undefined,
-                },
-              ]}
-              resizeMode="contain"
-            />
+            {status === 'Dirty' && !customStatusText ? (
+              <Image
+                source={statusIconSource}
+                style={[styles.statusIcon, styles.statusIconDirty]}
+                resizeMode="contain"
+              />
+            ) : (
+              <Image
+                source={statusIconSource}
+                style={[
+                  styles.statusIcon,
+                  {
+                    tintColor: isPaused
+                      ? ROOM_DETAIL_HEADER.paused.statusTextAndIconColor
+                      : showRefuseServiceHeader
+                        ? RS.statusTextAndIconColor
+                        : isReturnLater || isPromiseTime
+                          ? ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor
+                          : shouldTintIcon
+                            ? '#FFFFFF'
+                            : undefined,
+                  },
+                ]}
+                resizeMode="contain"
+              />
+            )}
             <Text
               style={[
                 styles.statusText,
@@ -537,6 +545,11 @@ const styles = StyleSheet.create({
   statusIcon: {
     width: 24.367 * scaleX,
     height: 25.434 * scaleX,
+    marginRight: 8 * scaleX,
+  },
+  statusIconDirty: {
+    width: 40 * scaleX,
+    height: 40 * scaleX,
     marginRight: 8 * scaleX,
   },
   statusText: {
