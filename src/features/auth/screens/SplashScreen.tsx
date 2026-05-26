@@ -42,7 +42,7 @@ export default function SplashScreen() {
       {/* Centered content block (positioned to match Figma). */}
       <View style={styles.logoTitleGroup}>
         <Image
-          source={require('../../assets/logos/header-logo.png')}
+          source={require('../../../../assets/logos/header-logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />

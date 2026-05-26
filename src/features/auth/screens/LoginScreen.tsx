@@ -66,7 +66,7 @@ export default function LoginScreen() {
       {/* Header Section (Group 208) */}
       {/* Logo (Group 207) - x=35, y=85, 34.673×32.711px */}
       <Image 
-        source={require('../../assets/logos/header-logo.png')} 
+        source={require('../../../../assets/logos/header-logo.png')} 
         style={styles.headerLogo}
         resizeMode="contain"
       />
@@ -94,7 +94,7 @@ export default function LoginScreen() {
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
       <Image 
-            source={require('../../assets/icons/dropdown-arrow.png')} 
+            source={require('../../../../assets/icons/dropdown-arrow.png')} 
             style={[
               styles.dropdownArrow,
               showLanguageDropdown && styles.dropdownArrowOpen
@@ -204,7 +204,7 @@ export default function LoginScreen() {
       
         {/* Recover Password Arrow - vertically and horizontally centered with text */}
       <Image 
-          source={require('../../assets/icons/recover-arrow.png')} 
+          source={require('../../../../assets/icons/recover-arrow.png')} 
         style={styles.recoverArrow}
         resizeMode="contain"
       />
@@ -216,14 +216,14 @@ export default function LoginScreen() {
       <View style={styles.customerServiceContainer}>
         {/* Logo Icon (Group 207) - x=95, y=852, 42.07×39.689px */}
         <Image 
-          source={require('../../assets/logos/customer-service-logo.png')} 
+          source={require('../../../../assets/logos/customer-service-logo.png')} 
           style={styles.customerServiceLogo}
           resizeMode="contain"
         />
         
         {/* Phone Icon (Vector) - x=109.07, y=864.99, 20×20px */}
         <Image 
-          source={require('../../assets/icons/phone-icon.png')} 
+          source={require('../../../../assets/icons/phone-icon.png')} 
           style={styles.phoneIcon}
           resizeMode="contain"
         />
