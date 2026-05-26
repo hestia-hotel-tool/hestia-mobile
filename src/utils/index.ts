@@ -1,11 +1,2 @@
-/**
- * Utility functions index
- * Central export point for all utility functions
- */
-
-export * from './scaling';
-export * from './formatting';
-export * from './validation';
-export * from './stayoverLinen';
-export * from './encoding';
-
+/** Shim: moved to @shared/utils/index. Will be removed in phase 6. */
+export * from '@shared/utils/index';
