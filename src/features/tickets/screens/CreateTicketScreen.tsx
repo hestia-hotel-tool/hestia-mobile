@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { typography } from '../theme';
+import { typography } from '@shared/theme';
 import {
   CREATE_TICKET_HEADER,
   CREATE_TICKET_CONTENT,
@@ -28,7 +28,7 @@ import {
   CREATE_TICKET_TYPOGRAPHY,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
-import { getDepartments } from '../services/departments';
+import { getDepartments } from '@/services/departments';
 import type { RootStackParamList } from '@app/navigation/types';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<
@@ -239,7 +239,7 @@ export default function CreateTicketScreen() {
         const top = layout.rowTopStart + row * layout.rowGap;
         const labelTop = top + layout.labelOffset;
         const iconInfo = DEPARTMENT_NAME_TO_ICON[dept.name] ?? {
-          icon: require('../../assets/icons/reception.png'),
+          icon: require('../../../../assets/icons/reception.png'),
           noTint: false,
         };
         return {
@@ -292,7 +292,7 @@ export default function CreateTicketScreen() {
             activeOpacity={0.7}
           >
             <Image
-              source={require('../../assets/icons/back-arrow.png')}
+              source={require('../../../../assets/icons/back-arrow.png')}
               style={styles.backArrow}
               resizeMode="contain"
             />

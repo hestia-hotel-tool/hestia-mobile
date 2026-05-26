@@ -17,16 +17,16 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText }
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { useToast } from '../contexts/ToastContext';
-import { typography } from '../theme';
+import { useToast } from '@shared/contexts/ToastContext';
+import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
 import { getUsersByDepartmentId } from '@features/account';
-import type { User } from '../types';
+import type { User } from '@/types';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
-import TicketStaffSelectorModal from '../components/tickets/TicketStaffSelectorModal';
+import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { getDepartments } from '../services/departments';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { getDepartments } from '@/services/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -344,7 +344,7 @@ export default function CreateTicketFormScreen() {
       <View style={[styles.header, isPublicArea && styles.headerPublicArea]}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
           <Image
-            source={require('../../assets/icons/back-arrow.png')}
+            source={require('../../../../assets/icons/back-arrow.png')}
             style={[styles.backArrow, isPublicArea && styles.backArrowPublicArea]}
             resizeMode="contain"
           />
@@ -457,7 +457,7 @@ export default function CreateTicketFormScreen() {
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Image
-                  source={require('../../assets/icons/dropdown-arrow.png')}
+                  source={require('../../../../assets/icons/dropdown-arrow.png')}
                   style={[styles.dropdownArrow, showFrequentCasesDropdown && styles.dropdownArrowOpen]}
                   resizeMode="contain"
                 />
@@ -553,7 +553,7 @@ export default function CreateTicketFormScreen() {
               </Text>
             </View>
             <Image
-              source={require('../../assets/icons/dropdown-arrow.png')}
+              source={require('../../../../assets/icons/dropdown-arrow.png')}
               style={[styles.dropdownArrow, showPriorityDropdown && styles.dropdownArrowOpen]}
               resizeMode="contain"
             />
@@ -613,7 +613,7 @@ export default function CreateTicketFormScreen() {
         <View style={styles.section}>
           {pictures.length === 0 ? (
             <TouchableOpacity style={styles.addPhotoContainer} onPress={handleAddPicture} activeOpacity={0.7}>
-              <Image source={require('../../assets/icons/add-photos.png')} style={styles.addPhotoIcon} resizeMode="contain" />
+              <Image source={require('../../../../assets/icons/add-photos.png')} style={styles.addPhotoIcon} resizeMode="contain" />
               <Text style={styles.addPhotoTitle}>Add Photo</Text>
               <Text style={styles.addPhotoSubtitle}>Add photos of the item and our AI will do the rest</Text>
             </TouchableOpacity>
@@ -632,7 +632,7 @@ export default function CreateTicketFormScreen() {
                 </View>
               ))}
               <TouchableOpacity style={styles.addPhotoGridItem} onPress={handleAddPicture} activeOpacity={0.7}>
-                <Image source={require('../../assets/icons/add-photos.png')} style={styles.addPhotoGridIcon} resizeMode="contain" />
+                <Image source={require('../../../../assets/icons/add-photos.png')} style={styles.addPhotoGridIcon} resizeMode="contain" />
                 <Text style={styles.addPhotoGridTitle}>Add Photo</Text>
               </TouchableOpacity>
             </View>

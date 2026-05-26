@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { typography } from '../../theme';
-import { scaleX } from '../../constants/ticketsStyles';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/ticketsStyles';
 import {
   TICKETS_TABS,
   TICKETS_COLORS,
   TICKETS_TYPOGRAPHY,
-} from '../../constants/ticketsStyles';
-import type { TicketTab } from '../../types/tickets.types';
+} from '../constants/ticketsStyles';
+import type { TicketTab } from '../types/tickets.types';
 
 interface TicketsTabsProps {
   selectedTab: TicketTab;

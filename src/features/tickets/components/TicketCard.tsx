@@ -1,11 +1,11 @@
 import React, { useMemo, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import {
   scaleX,
-} from '../../constants/ticketsStyles';
-import { TicketData } from '../../types/tickets.types';
-import { formatDueAtCalendarLabel } from '../../utils/ticketDue';
+} from '../constants/ticketsStyles';
+import { TicketData } from '../types/tickets.types';
+import { formatDueAtCalendarLabel } from '@shared/utils/ticketDue';
 
 export type TicketStatusAnchorLayout = { x: number; y: number; width: number; height: number };
 
@@ -126,7 +126,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
                 <Text style={styles.ofoPillLabel}>OFT</Text>
               </View>
               <Image
-                source={require('../../../assets/icons/dropdown-arrow.png')}
+                source={require('../../../../assets/icons/dropdown-arrow.png')}
                 style={[styles.statusChevron, styles.statusChevronOfo]}
                 resizeMode="contain"
               />
@@ -136,8 +136,8 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
               <Image
                 source={
                   ticket.status === 'done'
-                    ? require('../../../assets/icons/done.png')
-                    : require('../../../assets/icons/unsolved.png')
+                    ? require('../../../../assets/icons/done.png')
+                    : require('../../../../assets/icons/unsolved.png')
                 }
                 style={[
                   styles.statusIcon,
@@ -146,7 +146,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
                 resizeMode="contain"
               />
               <Image
-                source={require('../../../assets/icons/dropdown-arrow.png')}
+                source={require('../../../../assets/icons/dropdown-arrow.png')}
                 style={[styles.statusChevron, isDone ? styles.statusChevronDone : styles.statusChevronOpen]}
                 resizeMode="contain"
               />
@@ -191,7 +191,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
         </View>
 
         <Image
-          source={require('../../../assets/icons/arrow-forward.png')}
+          source={require('../../../../assets/icons/arrow-forward.png')}
           style={[styles.footerArrow, styles.footerArrowReversed]}
           resizeMode="contain"
         />

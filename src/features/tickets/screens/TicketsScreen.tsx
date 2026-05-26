@@ -17,14 +17,14 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@app/navigation/types';
-import BottomTabBar from '../components/navigation/BottomTabBar';
-import { LoadingOverlay } from '../components/shared/LoadingOverlay';
-import TicketsHeader from '../components/tickets/TicketsHeader';
-import TicketsTabs from '../components/tickets/TicketsTabs';
-import TicketCard from '../components/tickets/TicketCard';
-import EmptyTicketsState from '../components/tickets/EmptyTicketsState';
-import type { TicketStatusAnchorLayout } from '../components/tickets/TicketCard';
-import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
+import BottomTabBar from '@app/components/BottomTabBar';
+import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
+import TicketsHeader from '../components/TicketsHeader';
+import TicketsTabs from '../components/TicketsTabs';
+import TicketCard from '../components/TicketCard';
+import EmptyTicketsState from '../components/EmptyTicketsState';
+import type { TicketStatusAnchorLayout } from '../components/TicketCard';
+import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
 import { TicketTab, TicketData, TicketsScreenData, TicketStatus } from '../types/tickets.types';
 import {
   TICKETS_HEADER,
@@ -35,14 +35,14 @@ import {
   TICKET_STATUS_POPOVER,
   scaleX,
 } from '../constants/ticketsStyles';
-import { dashboardService } from '../services/dashboard';
+import { dashboardService } from '@/services/dashboard';
 import { updateTicketStatus, updateTicketDueAt } from '../services/tickets';
 import { useAuth } from '@features/auth';
-import { typography } from '../theme';
+import { typography } from '@shared/theme';
 import {
   markAllTicketTagNotificationsRead,
   invalidateNotificationBadges,
-} from '../services/inAppNotifications';
+} from '@/services/inAppNotifications';
 
 /** Change Status popover — height for vertical clamping (expanded when Due time fields visible). Figma ~295 / ~472. */
 const STATUS_POPOVER_HEIGHT_COLLAPSED = 268 * scaleX;
@@ -439,7 +439,7 @@ export default function TicketsScreen() {
               >
                 <View style={[styles.statusCircle, styles.statusCirclePriority]}>
                   <Image
-                    source={require('../../assets/icons/priority-status.png')}
+                    source={require('../../../../assets/icons/priority-status.png')}
                     style={styles.statusCircleIconRush}
                     resizeMode="contain"
                   />
@@ -455,7 +455,7 @@ export default function TicketsScreen() {
               >
                 <View style={[styles.statusCircle, styles.statusCircleUnsolved]}>
                   <Image
-                    source={require('../../assets/icons/unsolved.png')}
+                    source={require('../../../../assets/icons/unsolved.png')}
                     style={styles.statusCircleIconOnDark}
                     resizeMode="contain"
                   />
@@ -471,7 +471,7 @@ export default function TicketsScreen() {
               >
                 <View style={[styles.statusCircle, styles.statusCircleSolved]}>
                   <Image
-                    source={require('../../assets/icons/done.png')}
+                    source={require('../../../../assets/icons/done.png')}
                     style={styles.statusCircleIconSolved}
                     resizeMode="contain"
                   />

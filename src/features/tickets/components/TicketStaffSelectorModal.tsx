@@ -11,8 +11,8 @@ import {
   ActivityIndicator,
   Pressable,
 } from 'react-native';
-import { typography } from '../../theme';
-import type { User } from '../../types';
+import { typography } from '@shared/theme';
+import type { User } from '@/types';
 
 interface TicketStaffSelectorModalProps {
   visible: boolean;

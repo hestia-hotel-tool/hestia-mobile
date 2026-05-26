@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Modal } from 'react-native';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import { BlurView } from 'expo-blur';
 import {
   CREATE_TICKET_MENU,
   CREATE_TICKET_MENU_TYPOGRAPHY,
   CREATE_TICKET_MENU_COLORS,
   scaleX,
-} from '../../constants/createTicketMenuStyles';
+} from '../constants/createTicketMenuStyles';
 
 export type CreateTicketMenuOption = 'newTicket' | 'quickTicket';
 
@@ -80,12 +80,12 @@ export default function CreateTicketMenu({
         {/* Menu Popup */}
         <View style={styles.menuContainer}>
           <MenuItem
-            icon={require('../../../assets/icons/tickets-icon.png')}
+            icon={require('../../../../assets/icons/tickets-icon.png')}
             label="New Ticket"
             onPress={handleNewTicket}
           />
           <MenuItem
-            icon={require('../../../assets/icons/tickets-icon.png')}
+            icon={require('../../../../assets/icons/tickets-icon.png')}
             label="Quick Ticket"
             onPress={handleQuickTicket}
             isLast

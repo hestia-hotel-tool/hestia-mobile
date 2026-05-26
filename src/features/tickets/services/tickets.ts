@@ -1,12 +1,12 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import type { TicketsScreenData, TicketData, TicketStatus } from '../types/tickets.types';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 import { getDepartmentIdByName } from '@features/account';
 import * as FileSystem from 'expo-file-system/legacy';
-import { base64ToArrayBuffer } from '../utils/encoding';
-import { notifyServer } from './notifications';
-import { getMyHotelId } from './tenant';
-import { buildFriendlyRoomHistoryMessage } from './roomHistory';
+import { base64ToArrayBuffer } from '@shared/utils/encoding';
+import { notifyServer } from '@/services/notifications';
+import { getMyHotelId } from '@/services/tenant';
+import { buildFriendlyRoomHistoryMessage } from '@/services/roomHistory';
 
 type TicketsRow = {
   id: string;

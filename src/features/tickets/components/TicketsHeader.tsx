@@ -1,13 +1,13 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, useWindowDimensions, PixelRatio } from 'react-native';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import {
   TICKETS_HEADER,
   TICKETS_COLORS,
   TICKETS_TYPOGRAPHY,
   ticketsScaleX,
   getTicketsCreateButtonTopPx,
-} from '../../constants/ticketsStyles';
+} from '../constants/ticketsStyles';
 
 interface TicketsHeaderProps {
   onBackPress?: () => void;
@@ -32,7 +32,7 @@ export default function TicketsHeader({
           activeOpacity={0.7}
         >
           <Image
-            source={require('../../../assets/icons/back-arrow.png')}
+            source={require('../../../../assets/icons/back-arrow.png')}
             style={styles.backArrow}
             resizeMode="contain"
             tintColor="#607AA1"
@@ -49,7 +49,7 @@ export default function TicketsHeader({
           accessibilityLabel="Create ticket with AI"
         >
           <Image
-            source={require('../../../assets/icons/CreateTicketAI.png')}
+            source={require('../../../../assets/icons/CreateTicketAI.png')}
             style={styles.createTicketAiImage}
             resizeMode="contain"
           />

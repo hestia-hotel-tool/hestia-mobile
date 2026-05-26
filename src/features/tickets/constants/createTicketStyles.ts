@@ -19,7 +19,7 @@ export function createTicketScaleX(windowWidth: number): number {
 
 /** Figma "Create Ticket AI" frame: 152×74 (667:3068 → 3005:59, 1085:2628 → 1107:3855). */
 export const CREATE_TICKET_AI_IMAGE = {
-  source: require('../../assets/icons/CreateTicketAI.png') as number,
+  source: require('../../../../assets/icons/CreateTicketAI.png') as number,
   width: 152,
   height: 74,
 } as const;
@@ -185,16 +185,16 @@ export const DEPARTMENT_GRID_LAYOUT = {
 
 /** Map DB department name to local icon and whether to skip red tint (HSK Portier, In Room Dining). */
 export const DEPARTMENT_NAME_TO_ICON: Record<string, { icon: any; noTint?: boolean }> = {
-  Engineering: { icon: require('../../assets/icons/engineering.png'), noTint: false },
-  'HSK Portier': { icon: require('../../assets/icons/hsk-portier.png'), noTint: true },
-  'In Room Dining': { icon: require('../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  Laundry: { icon: require('../../assets/icons/laundry-icon.png'), noTint: false },
-  Concierge: { icon: require('../../assets/icons/concierge.png'), noTint: false },
-  Reception: { icon: require('../../assets/icons/reception.png'), noTint: false },
-  IT: { icon: require('../../assets/icons/it.png'), noTint: false },
-  'Front Office': { icon: require('../../assets/icons/reception.png'), noTint: false },
-  'Food and Beverage': { icon: require('../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  'Executive Administration': { icon: require('../../assets/icons/reception.png'), noTint: false },
+  Engineering: { icon: require('../../../../assets/icons/engineering.png'), noTint: false },
+  'HSK Portier': { icon: require('../../../../assets/icons/hsk-portier.png'), noTint: true },
+  'In Room Dining': { icon: require('../../../../assets/icons/in-room-dining-icon.png'), noTint: true },
+  Laundry: { icon: require('../../../../assets/icons/laundry-icon.png'), noTint: false },
+  Concierge: { icon: require('../../../../assets/icons/concierge.png'), noTint: false },
+  Reception: { icon: require('../../../../assets/icons/reception.png'), noTint: false },
+  IT: { icon: require('../../../../assets/icons/it.png'), noTint: false },
+  'Front Office': { icon: require('../../../../assets/icons/reception.png'), noTint: false },
+  'Food and Beverage': { icon: require('../../../../assets/icons/in-room-dining-icon.png'), noTint: true },
+  'Executive Administration': { icon: require('../../../../assets/icons/reception.png'), noTint: false },
 };
 
 // AI Button Styles

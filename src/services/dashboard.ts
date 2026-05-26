@@ -5,11 +5,11 @@
 
 import type { HomeScreenData } from '../types/home.types';
 import type { AllRoomsScreenData } from '../types/allRooms.types';
-import type { TicketsScreenData } from '../types/tickets.types';
+import type { TicketsScreenData } from '@features/tickets';
 import type { ChatItemData } from '../components/chat/ChatItem';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomStateUpdate } from './rooms';
-import { getTicketsData as getTicketsDataFromSupabase } from './tickets';
+import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets';
 import type { StaffInfo } from '../types/allRooms.types';
 import { getShiftFromTime } from '../utils/shiftUtils';
 import { getToast } from '../utils/toast';

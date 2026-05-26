@@ -16,10 +16,10 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { typography } from '../theme';
+import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { GUEST_IMAGES_BUCKET } from '../services/guests';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { GUEST_IMAGES_BUCKET } from '@/services/guests';
 import {
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,
@@ -338,7 +338,7 @@ export default function SelectTicketLocationScreen() {
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
           <Image
-            source={require('../../assets/icons/back-arrow.png')}
+            source={require('../../../../assets/icons/back-arrow.png')}
             style={styles.backArrow}
             resizeMode="contain"
           />
@@ -434,7 +434,7 @@ export default function SelectTicketLocationScreen() {
                     Search room...
                   </Text>
                   <Image
-                    source={require('../../assets/icons/dropdown-arrow.png')}
+                    source={require('../../../../assets/icons/dropdown-arrow.png')}
                     style={[styles.dropdownArrowIcon, showDropdown && styles.dropdownArrowIconOpen]}
                     resizeMode="contain"
                   />
@@ -497,7 +497,7 @@ export default function SelectTicketLocationScreen() {
                                       {room.vip_code && (
                                         <View style={styles.vipBadge}>
                                           <Image
-                                            source={require('../../assets/icons/spear-arrow.png')}
+                                            source={require('../../../../assets/icons/spear-arrow.png')}
                                             style={styles.vipBadgeIcon}
                                             resizeMode="contain"
                                           />
@@ -516,7 +516,7 @@ export default function SelectTicketLocationScreen() {
                                         {room.guest_count !== undefined && (
                                           <>
                                             <Image 
-                                              source={require('../../assets/icons/people-icon.png')} 
+                                              source={require('../../../../assets/icons/people-icon.png')} 
                                               style={styles.guestCountIcon}
                                               resizeMode="contain"
                                             />
@@ -573,7 +573,7 @@ export default function SelectTicketLocationScreen() {
                           {selectedRoom.vip_code && (
                             <View style={styles.vipBadge}>
                               <Image
-                                source={require('../../assets/icons/spear-arrow.png')}
+                                source={require('../../../../assets/icons/spear-arrow.png')}
                                 style={styles.vipBadgeIcon}
                                 resizeMode="contain"
                               />
@@ -592,7 +592,7 @@ export default function SelectTicketLocationScreen() {
                             {selectedRoom.guest_count !== undefined && (
                               <>
                                 <Image
-                                  source={require('../../assets/icons/people-icon.png')}
+                                  source={require('../../../../assets/icons/people-icon.png')}
                                   style={styles.guestCountIcon}
                                   resizeMode="contain"
                                 />
@@ -625,7 +625,7 @@ export default function SelectTicketLocationScreen() {
                 >
                   <View style={styles.publicAreaContent}>
                     <Image
-                      source={require('../../assets/icons/location-pin-icon.png')}
+                      source={require('../../../../assets/icons/location-pin-icon.png')}
                       style={styles.publicAreaIcon}
                       resizeMode="contain"
                     />

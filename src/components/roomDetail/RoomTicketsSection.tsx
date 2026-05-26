@@ -5,10 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '@app/navigation/types';
 import { colors, typography } from '../../theme';
 import { scaleX, CONTENT_AREA } from '../../constants/roomDetailStyles';
-import TicketForm from '../tickets/TicketForm';
-import TicketCard from '../tickets/TicketCard';
-import type { TicketData } from '../../types/tickets.types';
-import { getLatestTicketForRoom } from '../../services/tickets';
+import { TicketForm, TicketCard, getLatestTicketForRoom, type TicketData } from '@features/tickets';
 
 interface RoomTicketsSectionProps {
   roomNumber: string;

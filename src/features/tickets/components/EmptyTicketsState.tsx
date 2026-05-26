@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { typography } from '../../theme';
-import { scaleX } from '../../constants/ticketsStyles';
-import type { TicketTab } from '../../types/tickets.types';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/ticketsStyles';
+import type { TicketTab } from '../types/tickets.types';
 
 interface EmptyTicketsStateProps {
   selectedTab: TicketTab;
@@ -34,7 +34,7 @@ export default function EmptyTicketsState({ selectedTab }: EmptyTicketsStateProp
     <View style={styles.container}>
       <View style={styles.iconContainer}>
         <Image
-          source={require('../../../assets/icons/clip-board.png')}
+          source={require('../../../../assets/icons/clip-board.png')}
           style={styles.icon}
           resizeMode="contain"
         />

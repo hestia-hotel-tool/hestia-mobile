@@ -16,15 +16,15 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { useToast } from '../../contexts/ToastContext';
-import { typography } from '../../theme';
+import { useToast } from '@shared/contexts/ToastContext';
+import { typography } from '@shared/theme';
 import { getUsersByDepartmentId } from '@features/account';
-import type { User } from '../../types';
+import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
-import { createTicket } from '../../services/tickets';
+import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@app/navigation/types';
-import { getDepartments } from '../../services/departments';
-import { DEPARTMENT_NAME_TO_ICON } from '../../constants/createTicketStyles';
+import { getDepartments } from '@/services/departments';
+import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -42,13 +42,13 @@ const FREQUENT_CASES = [
 ];
 
 const FALLBACK_DEPARTMENTS = [
-  { id: 'Engineering', name: 'Engineering', icon: require('../../../assets/icons/engineering.png'), noTint: false },
-  { id: 'HSK Portier', name: 'HSK Portier', icon: require('../../../assets/icons/hsk-portier.png'), noTint: true },
-  { id: 'In Room Dining', name: 'In Room Dining', icon: require('../../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  { id: 'Laundry', name: 'Laundry', icon: require('../../../assets/icons/laundry-icon.png'), noTint: false },
-  { id: 'Concierge', name: 'Concierge', icon: require('../../../assets/icons/concierge.png'), noTint: false },
-  { id: 'Reception', name: 'Reception', icon: require('../../../assets/icons/reception.png'), noTint: false },
-  { id: 'IT', name: 'IT', icon: require('../../../assets/icons/it.png'), noTint: false },
+  { id: 'Engineering', name: 'Engineering', icon: require('../../../../assets/icons/engineering.png'), noTint: false },
+  { id: 'HSK Portier', name: 'HSK Portier', icon: require('../../../../assets/icons/hsk-portier.png'), noTint: true },
+  { id: 'In Room Dining', name: 'In Room Dining', icon: require('../../../../assets/icons/in-room-dining-icon.png'), noTint: true },
+  { id: 'Laundry', name: 'Laundry', icon: require('../../../../assets/icons/laundry-icon.png'), noTint: false },
+  { id: 'Concierge', name: 'Concierge', icon: require('../../../../assets/icons/concierge.png'), noTint: false },
+  { id: 'Reception', name: 'Reception', icon: require('../../../../assets/icons/reception.png'), noTint: false },
+  { id: 'IT', name: 'IT', icon: require('../../../../assets/icons/it.png'), noTint: false },
 ];
 
 type DepartmentUiItem = {
@@ -378,7 +378,7 @@ export default function TicketForm({
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Image
-                  source={require('../../../assets/icons/dropdown-arrow.png')}
+                  source={require('../../../../assets/icons/dropdown-arrow.png')}
                   style={[styles.dropdownArrow, showFrequentCasesDropdown && styles.dropdownArrowOpen]}
                   resizeMode="contain"
                 />
@@ -486,7 +486,7 @@ export default function TicketForm({
               </Text>
             </View>
             <Image
-              source={require('../../../assets/icons/dropdown-arrow.png')}
+              source={require('../../../../assets/icons/dropdown-arrow.png')}
               style={[styles.dropdownArrow, showPriorityDropdown && styles.dropdownArrowOpen]}
               resizeMode="contain"
             />
@@ -546,7 +546,7 @@ export default function TicketForm({
         <View style={styles.section}>
           {pictures.length === 0 ? (
             <TouchableOpacity style={styles.addPhotoContainer} onPress={handleAddPicture} activeOpacity={0.7}>
-              <Image source={require('../../../assets/icons/add-photos.png')} style={styles.addPhotoIcon} resizeMode="contain" />
+              <Image source={require('../../../../assets/icons/add-photos.png')} style={styles.addPhotoIcon} resizeMode="contain" />
               <GradientText text="Add Photo" textStyle={styles.addPhotoTitle} />
               <Text style={styles.addPhotoSubtitle}>Add photos of the item and our AI will do the rest</Text>
             </TouchableOpacity>
@@ -573,7 +573,7 @@ export default function TicketForm({
                         activeOpacity={0.7}
                       >
                         <Image
-                          source={require('../../../assets/icons/add-photos.png')}
+                          source={require('../../../../assets/icons/add-photos.png')}
                           style={styles.addPhotoGridIcon}
                           resizeMode="contain"
                         />
