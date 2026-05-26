@@ -16,7 +16,7 @@ import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
 import { useChatStore } from '../store/useChatStore';
 import { invalidateNotificationBadges } from '../services/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 

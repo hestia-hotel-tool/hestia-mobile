@@ -1,7 +1,7 @@
 /**
  * Global hooks - central export
  */
-export { useAuth } from './useAuth';
+export { useAuth } from '@features/auth';
 export { useUser } from './useUser';
 export type { UseUserResult } from './useUser';
 export { useFetch } from './useFetch';

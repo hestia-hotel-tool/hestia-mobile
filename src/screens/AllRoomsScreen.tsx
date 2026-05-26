@@ -18,7 +18,7 @@ import StatusChangeModal from '../components/allRooms/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import CleanChecklistModal from '../components/allRooms/CleanChecklistModal';
 import type { RootStackParamList, MainTabsParamList } from '@app/navigation/types';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import {
   invalidateNotificationBadges,
   markAllRoomAssignmentNotificationsRead,

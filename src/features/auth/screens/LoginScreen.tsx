@@ -4,9 +4,9 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { RootStackParamList } from '@app/navigation/types';
-import { colors, typography } from '../theme';
-import { useAuth } from '../contexts/AuthContext';
-import { useDesignScale } from '../hooks/useDesignScale';
+import { colors, typography } from '@shared/theme';
+import { useAuth } from '../hooks/useAuth';
+import { useDesignScale } from '@shared/hooks/useDesignScale';
 
 type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
 

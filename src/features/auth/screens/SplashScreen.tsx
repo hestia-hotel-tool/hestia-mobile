@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, Image, ActivityIndicator, useWindowDimensions }
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@app/navigation/types';
-import { colors, typography } from '../theme';
-import { useAuth } from '../contexts/AuthContext';
+import { colors, typography } from '@shared/theme';
+import { useAuth } from '../hooks/useAuth';
 
 type SplashScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 

@@ -1,8 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import SplashScreen from '../../screens/SplashScreen';
-import LoginScreen from '../../screens/LoginScreen';
+import { LoginScreen, SplashScreen } from '@features/auth';
 import HomeScreen from '../../screens/HomeScreen';
 import ChatScreen from '../../screens/ChatScreen';
 import TicketsScreen from '../../screens/TicketsScreen';

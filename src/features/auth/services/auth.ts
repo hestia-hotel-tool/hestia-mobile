@@ -2,7 +2,7 @@
  * Authentication service using Supabase Auth
  */
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import type { Session, AuthError } from '@supabase/supabase-js';
 
 export interface SignInCredentials {

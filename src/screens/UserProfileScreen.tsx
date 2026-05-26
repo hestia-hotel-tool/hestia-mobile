@@ -18,7 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { colors, typography, components } from '../theme';
 import { getInitialsFromFullName } from '../utils/formatting';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import { useToast } from '../contexts/ToastContext';
 import { useMessageModal } from '../contexts/MessageModalContext';
 import { useUserStore } from '../store/useUserStore';

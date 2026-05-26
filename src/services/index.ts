@@ -1,12 +1,11 @@
 /**
  * Services – all data from Supabase
- * auth: Supabase Auth
  * user: profile, avatar, list users (Supabase users table)
  * rooms: rooms + reservations + guests (Supabase)
  * dashboard: screen data aggregation (rooms from Supabase, rest mock until migrated)
+ * (auth moved to @features/auth in phase 4.1)
  */
 
-export * from './auth';
 export * from './user';
 export * from './rooms';
 export * from './guests';

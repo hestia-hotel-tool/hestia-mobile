@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import { getProfile, userProfileFromSession } from '../services/user';
 import type { UserProfile } from '../types/home.types';
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import { useChatStore } from '../store/useChatStore';
 import {
   clearNotificationBadgeInvalidateListeners,

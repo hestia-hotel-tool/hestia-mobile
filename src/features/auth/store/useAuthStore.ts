@@ -6,10 +6,10 @@
 import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { authService } from '../services/auth';
-import { isSupabaseConfigured } from '../lib/supabase';
-import { registerAndSyncPushToken } from '../services/notifications';
-import { clearCachedHotelId, getMyHotelId } from '../services/tenant';
-import { resetTenantScopedStores } from './resetTenantScopedStores';
+import { isSupabaseConfigured } from '@shared/lib/supabase';
+import { registerAndSyncPushToken } from '@/services/notifications';
+import { clearCachedHotelId, getMyHotelId } from '@/services/tenant';
+import { resetTenantScopedStores } from '@/store/resetTenantScopedStores';
 
 interface AuthState {
   session: Session | null;

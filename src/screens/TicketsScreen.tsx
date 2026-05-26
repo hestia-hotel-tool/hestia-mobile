@@ -37,7 +37,7 @@ import {
 } from '../constants/ticketsStyles';
 import { dashboardService } from '../services/dashboard';
 import { updateTicketStatus, updateTicketDueAt } from '../services/tickets';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import { typography } from '../theme';
 import {
   markAllTicketTagNotificationsRead,

@@ -27,7 +27,7 @@ import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/
 import type { LostAndFoundItem } from '../types/lostAndFound.types';
 import type { RootStackParamList } from '@app/navigation/types';
 import { useRoomsStore } from '../store/useRoomsStore';
-import { authService } from '../services/auth';
+import { authService } from '@features/auth';
 import { colors } from '../theme';
 import { getMockHistoryEvents } from '../data/mockHistoryData';
 import { generateHistoryReport } from '../utils/generateHistoryReport';

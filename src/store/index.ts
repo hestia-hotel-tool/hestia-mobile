@@ -1,7 +1,7 @@
 /**
  * Global state (Zustand) – central export
  */
-export { useAuthStore } from './useAuthStore';
+export { useAuthStore } from '@features/auth';
 export { useChatStore } from './useChatStore';
 export { useRoomsStore } from './useRoomsStore';
 export { useUserStore } from './useUserStore';

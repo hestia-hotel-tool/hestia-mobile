@@ -5,7 +5,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BlurView } from 'expo-blur';
 import { colors, typography } from '../theme';
 import BottomTabBar from '../components/navigation/BottomTabBar';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '@features/auth';
 import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
 import { useMessageModal } from '../contexts/MessageModalContext';
 import type { ReturnToTab } from '@app/navigation/types';
