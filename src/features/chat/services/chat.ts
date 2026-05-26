@@ -5,13 +5,13 @@
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { ChatMessage } from '../types';
-import type { ChatItemData } from '../components/chat/ChatItem';
-import { base64ToArrayBuffer } from '../utils/encoding';
-import { notifyServer } from './notifications';
-import { getMyHotelId } from './tenant';
+import type { ChatMessage } from '@/types';
+import type { ChatItemData } from '../components/ChatItem';
+import { base64ToArrayBuffer } from '@shared/utils/encoding';
+import { notifyServer } from '@/services/notifications';
+import { getMyHotelId } from '@/services/tenant';
 
 const MESSAGE_TYPE = 'text'; // DB: text, image, system
 export const CHAT_ATTACHMENTS_BUCKET = 'chat-attachments';

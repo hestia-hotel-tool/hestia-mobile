@@ -1,4 +1,4 @@
-import { ChatItemData } from '../components/chat/ChatItem';
+import { ChatItemData } from '@features/chat';
 
 export const mockChatData: ChatItemData[] = [
   {

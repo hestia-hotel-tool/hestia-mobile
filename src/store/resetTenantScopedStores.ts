@@ -1,4 +1,4 @@
-import { useChatStore } from './useChatStore';
+import { useChatStore } from '@features/chat';
 import { useRoomsStore } from './useRoomsStore';
 import { useUserStore } from '@features/account';
 

@@ -31,10 +31,10 @@ import {
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
 import { RootStackParamList } from '@app/navigation/types';
-import { ChatMessage } from '../types';
-import MessageBubble from '../components/chat/MessageBubble';
-import ChatHeader from '../components/chat/ChatHeader';
-import { colors } from '../theme';
+import { ChatMessage } from '@/types';
+import MessageBubble from '../components/MessageBubble';
+import ChatHeader from '../components/ChatHeader';
+import { colors } from '@shared/theme';
 import { scaleX, CHAT_HEADER, CHAT_HEADER_BAR_HEIGHT } from '../constants/chatStyles';
 import {
   getCurrentUserId,
@@ -54,9 +54,9 @@ import { useChatStore } from '../store/useChatStore';
 import {
   markChatMessageNotificationsReadForChat,
   invalidateNotificationBadges,
-} from '../services/inAppNotifications';
-import { useToast } from '../contexts/ToastContext';
-import { useMessageModal } from '../contexts/MessageModalContext';
+} from '@/services/inAppNotifications';
+import { useToast } from '@shared/contexts/ToastContext';
+import { useMessageModal } from '@shared/contexts/MessageModalContext';
 import { Ionicons } from '@expo/vector-icons';
 
 type ChatDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChatDetail'>;

@@ -3,17 +3,14 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LoginScreen, SplashScreen } from '@features/auth';
 import HomeScreen from '../../screens/HomeScreen';
-import ChatScreen from '../../screens/ChatScreen';
 import { LostAndFoundScreen } from '@features/lost-and-found';
 import { StaffScreen } from '@features/staff';
 import { TicketsScreen, CreateTicketScreen, SelectTicketLocationScreen, CreateTicketFormScreen } from '@features/tickets';
+import { ChatScreen, ChatDetailScreen, NewChatScreen, CreateChatGroupScreen } from '@features/chat';
 import { SettingsScreen, UserProfileScreen } from '@features/account';
 import AllRoomsScreen from '../../screens/AllRoomsScreen';
 import ArrivalDepartureDetailScreen from '../../screens/ArrivalDepartureDetailScreen';
 import RoomDetailScreen from '../../screens/RoomDetailScreen';
-import ChatDetailScreen from '../../screens/ChatDetailScreen';
-import NewChatScreen from '../../screens/NewChatScreen';
-import CreateChatGroupScreen from '../../screens/CreateChatGroupScreen';
 import type { RootStackParamList, MainTabsParamList } from './types';
 import { colors } from '../../theme';
 

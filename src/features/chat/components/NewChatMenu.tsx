@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, Dimensions } from 'react-native';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import { BlurView } from 'expo-blur';
-import { scaleX } from '../../constants/chatStyles';
+import { scaleX } from '../constants/chatStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -73,12 +73,12 @@ export default function NewChatMenu({
         {/* Menu Popup */}
         <View style={styles.menuContainer}>
           <MenuItem
-            icon={require('../../../assets/icons/staff-icon.png')} // Temporary: using staff icon as placeholder for group icon
+            icon={require('../../../../assets/icons/staff-icon.png')} // Temporary: using staff icon as placeholder for group icon
             label="Create Chat Group"
             onPress={handleCreateGroup}
           />
           <MenuItem
-            icon={require('../../../assets/icons/chat-icon.png')} // Temporary: using chat icon as placeholder for new chat icon
+            icon={require('../../../../assets/icons/chat-icon.png')} // Temporary: using chat icon as placeholder for new chat icon
             label="New Chat"
             onPress={handleNewChat}
             isLast

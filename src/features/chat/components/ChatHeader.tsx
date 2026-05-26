@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography, colors } from '../../theme';
+import { typography, colors } from '@shared/theme';
 import {
   CHAT_HEADER,
   SEARCH_BAR,
@@ -10,8 +10,8 @@ import {
   CHAT_ITEM,
   CHAT_HEADER_BAR_HEIGHT,
   scaleX,
-} from '../../constants/chatStyles';
-import SearchInput from '../SearchInput';
+} from '../constants/chatStyles';
+import SearchInput from '@shared/ui/SearchInput';
 
 interface ChatHeaderProps {
   onBackPress?: () => void;
@@ -132,7 +132,7 @@ export default function ChatHeader({
             )
           ) : (
             <Image
-              source={require('../../../assets/icons/back-arrow.png')}
+              source={require('../../../../assets/icons/back-arrow.png')}
               style={styles.backArrow}
               tintColor="#607aa1"
               resizeMode="contain"
@@ -165,7 +165,7 @@ export default function ChatHeader({
               />
               <TouchableOpacity style={styles.searchIconContainer} activeOpacity={0.7}>
                 <Image
-                  source={require('../../../assets/icons/search-icon.png')}
+                  source={require('../../../../assets/icons/search-icon.png')}
                   style={styles.searchIcon}
                   resizeMode="contain"
                 />
@@ -174,7 +174,7 @@ export default function ChatHeader({
             {onFilterPress && (
               <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.7}>
                 <Image
-                  source={require('../../../assets/icons/menu-icon.png')}
+                  source={require('../../../../assets/icons/menu-icon.png')}
                   style={styles.filterIcon}
                   resizeMode="contain"
                 />

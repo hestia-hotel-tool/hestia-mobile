@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, Image, TouchableOpacity, Linking } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { ChatMessage } from '../../types';
-import { scaleX } from '../../constants/chatStyles';
-import { colors } from '../../theme';
+import { ChatMessage } from '@/types';
+import { scaleX } from '../constants/chatStyles';
+import { colors } from '@shared/theme';
 
 const SWIPE_REPLY_THRESHOLD = 50;
 

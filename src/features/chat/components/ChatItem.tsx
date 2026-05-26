@@ -1,12 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import {
   CHAT_ITEM,
   CHAT_COLORS,
   CHAT_TYPOGRAPHY,
   scaleX,
-} from '../../constants/chatStyles';
+} from '../constants/chatStyles';
 
 export interface ChatItemData {
   id: string;

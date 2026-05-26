@@ -24,7 +24,7 @@ export type RootStackParamList = {
     initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
     departmentName?: string;
   };
-  ChatDetail: { chatId: string; chat?: import('../../components/chat/ChatItem').ChatItemData };
+  ChatDetail: { chatId: string; chat?: import('@features/chat').ChatItemData };
   NewChat: undefined;
   CreateChatGroup: undefined;
   TicketDetail: { ticketId: string };

@@ -4,8 +4,8 @@
  */
 
 import { create } from 'zustand';
-import type { ChatMessage } from '../types';
-import type { ChatItemData } from '../components/chat/ChatItem';
+import type { ChatMessage } from '@/types';
+import type { ChatItemData } from '../components/ChatItem';
 import { getChatsForUser, getMessages, sendMessage as sendMessageApi, type SendMessageOptions } from '../services/chat';
 
 interface ChatState {

@@ -17,11 +17,11 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@app/navigation/types';
-import type { User } from '../types';
+import type { User } from '@/types';
 import { getUsers } from '@features/account';
 import { getOrCreateDirectChat, getCurrentUserId } from '../services/chat';
-import { useToast } from '../contexts/ToastContext';
-import { colors } from '../theme';
+import { useToast } from '@shared/contexts/ToastContext';
+import { colors } from '@shared/theme';
 import { scaleX } from '../constants/chatStyles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'NewChat'>;

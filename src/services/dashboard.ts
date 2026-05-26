@@ -6,7 +6,7 @@
 import type { HomeScreenData } from '../types/home.types';
 import type { AllRoomsScreenData } from '../types/allRooms.types';
 import type { TicketsScreenData } from '@features/tickets';
-import type { ChatItemData } from '../components/chat/ChatItem';
+import type { ChatItemData } from '@features/chat';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
 import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomStateUpdate } from './rooms';
 import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets';
