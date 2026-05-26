@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, StyleSheet, KeyboardAvoidingView, Platform, View, Text, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
+import { RootStackParamList } from '@app/navigation/types';
 import { colors, typography } from '../../theme';
 import { scaleX, CONTENT_AREA } from '../../constants/roomDetailStyles';
 import TicketForm from '../tickets/TicketForm';

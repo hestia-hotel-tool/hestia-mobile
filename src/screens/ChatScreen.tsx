@@ -30,7 +30,7 @@ type MainTabsParamList = {
   Settings: undefined;
 };
 
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 
 type ChatScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, 'Chat'>,

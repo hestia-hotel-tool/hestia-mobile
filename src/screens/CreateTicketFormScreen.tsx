@@ -19,7 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../contexts/ToastContext';
 import { typography } from '../theme';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 import { getUsersByDepartmentId } from '../services/user';
 import type { User } from '../types';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';

@@ -29,7 +29,7 @@ import {
   createTicketScaleX,
 } from '../constants/createTicketStyles';
 import { getDepartments } from '../services/departments';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,

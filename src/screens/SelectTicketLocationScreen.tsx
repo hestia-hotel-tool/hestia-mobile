@@ -17,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { typography } from '../theme';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { GUEST_IMAGES_BUCKET } from '../services/guests';
 import {

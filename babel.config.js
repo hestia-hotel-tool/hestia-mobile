@@ -15,7 +15,6 @@ module.exports = function(api) {
             '@shared': './src/shared',
             '@components': './src/components',
             '@screens': './src/screens',
-            '@navigation': './src/navigation',
             '@theme': './src/theme',
             '@utils': './src/utils',
             '@hooks': './src/hooks',

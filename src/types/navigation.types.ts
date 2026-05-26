@@ -3,5 +3,5 @@
  * Re-exported from navigation module for convenience
  */
 
-export type { RootStackParamList, MainTabsParamList } from '../navigation/types';
+export type { RootStackParamList, MainTabsParamList } from '@app/navigation/types';
 

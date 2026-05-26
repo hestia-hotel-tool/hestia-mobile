@@ -18,7 +18,7 @@ import {
   LOST_AND_FOUND_DIVIDER,
   scaleX,
 } from '../constants/lostAndFoundStyles';
-import type { ReturnToTab } from '../navigation/types';
+import type { ReturnToTab } from '@app/navigation/types';
 import { LoadingOverlay } from '../components/shared/LoadingOverlay';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';

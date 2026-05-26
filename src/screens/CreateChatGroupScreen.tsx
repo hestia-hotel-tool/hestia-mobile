@@ -17,7 +17,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 import type { User } from '../types';
 import { getUsers } from '../services/user';
 import { createGroupChat, getCurrentUserId } from '../services/chat';

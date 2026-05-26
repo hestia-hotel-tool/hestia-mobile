@@ -16,7 +16,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '../navigation/types';
+import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@app/navigation/types';
 import BottomTabBar from '../components/navigation/BottomTabBar';
 import { LoadingOverlay } from '../components/shared/LoadingOverlay';
 import TicketsHeader from '../components/tickets/TicketsHeader';

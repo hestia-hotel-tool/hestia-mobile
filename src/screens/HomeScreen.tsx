@@ -18,7 +18,7 @@ import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { LoadingOverlay } from '../components/shared/LoadingOverlay';
 import type { MoreMenuItemId } from '../types/more.types';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 import HomeHeader from '../components/home/HomeHeader';
 import CategoryCard from '../components/home/CategoryCard';
 import EngineeringTicketsOverviewCard from '../components/home/EngineeringTicketsOverviewCard';
@@ -37,7 +37,7 @@ import { dashboardService } from '../services/dashboard';
 import { supabase } from '../lib/supabase';
 import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '../services/rooms';
 
-import type { MainTabsParamList } from '../navigation/types';
+import type { MainTabsParamList } from '@app/navigation/types';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, 'Home'>,

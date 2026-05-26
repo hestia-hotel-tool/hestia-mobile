@@ -22,7 +22,7 @@ import { getUsersByDepartmentId } from '../../services/user';
 import type { User } from '../../types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../../services/tickets';
-import type { RootStackParamList } from '../../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 import { getDepartments } from '../../services/departments';
 import { DEPARTMENT_NAME_TO_ICON } from '../../constants/createTicketStyles';
 

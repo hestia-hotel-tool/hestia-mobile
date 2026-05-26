@@ -8,7 +8,7 @@ import BottomTabBar from '../components/navigation/BottomTabBar';
 import { useAuth } from '../contexts/AuthContext';
 import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
 import { useMessageModal } from '../contexts/MessageModalContext';
-import type { ReturnToTab } from '../navigation/types';
+import type { ReturnToTab } from '@app/navigation/types';
 import { useDesignScale } from '../hooks/useDesignScale';
 
 type MainTabsParamList = {

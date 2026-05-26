@@ -25,7 +25,7 @@ import type { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
 import { STATUS_OPTIONS } from '../types/allRooms.types';
 import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/roomDetail.types';
 import type { LostAndFoundItem } from '../types/lostAndFound.types';
-import type { RootStackParamList } from '../navigation/types';
+import type { RootStackParamList } from '@app/navigation/types';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { authService } from '../services/auth';
 import { colors } from '../theme';
