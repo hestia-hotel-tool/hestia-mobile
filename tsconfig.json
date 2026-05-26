@@ -5,6 +5,9 @@
     "skipLibCheck": true,
     "paths": {
       "@/*": ["./src/*"],
+      "@app/*": ["./src/app/*"],
+      "@features/*": ["./src/features/*"],
+      "@shared/*": ["./src/shared/*"],
       "@components/*": ["./src/components/*"],
       "@screens/*": ["./src/screens/*"],
       "@navigation/*": ["./src/navigation/*"],
