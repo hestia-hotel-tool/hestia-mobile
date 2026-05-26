@@ -19,7 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@app/navigation/types';
 import type { User } from '../types';
-import { getUsers } from '../services/user';
+import { getUsers } from '@features/account';
 import { createGroupChat, getCurrentUserId } from '../services/chat';
 import { useToast } from '../contexts/ToastContext';
 import { colors } from '../theme';

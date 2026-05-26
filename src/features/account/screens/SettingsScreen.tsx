@@ -3,13 +3,13 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BlurView } from 'expo-blur';
-import { colors, typography } from '../theme';
-import BottomTabBar from '../components/navigation/BottomTabBar';
+import { colors, typography } from '@shared/theme';
+import BottomTabBar from '@app/components/BottomTabBar';
 import { useAuth } from '@features/auth';
-import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
-import { useMessageModal } from '../contexts/MessageModalContext';
+import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import { useMessageModal } from '@shared/contexts/MessageModalContext';
 import type { ReturnToTab } from '@app/navigation/types';
-import { useDesignScale } from '../hooks/useDesignScale';
+import { useDesignScale } from '@shared/hooks/useDesignScale';
 
 type MainTabsParamList = {
   Home: undefined;

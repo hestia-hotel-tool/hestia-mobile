@@ -22,7 +22,7 @@ import StaffCard from '../components/staff/StaffCard';
 import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
-import { getUsersByDepartment } from '../services/user';
+import { getUsersByDepartment } from '@features/account';
 import { isSupabaseConfigured } from '../lib/supabase';
 import type { User } from '../types';
 import { fetchStaffRoomStatsForShift } from '../services/staff';

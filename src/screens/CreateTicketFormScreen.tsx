@@ -20,7 +20,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '../contexts/ToastContext';
 import { typography } from '../theme';
 import type { RootStackParamList } from '@app/navigation/types';
-import { getUsersByDepartmentId } from '../services/user';
+import { getUsersByDepartmentId } from '@features/account';
 import type { User } from '../types';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 import TicketStaffSelectorModal from '../components/tickets/TicketStaffSelectorModal';

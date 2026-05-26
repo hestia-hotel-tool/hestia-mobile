@@ -3,11 +3,11 @@
  * Profile, avatar, and user list. All user data from Supabase.
  */
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { base64ToArrayBuffer } from '../utils/encoding';
-import type { UserProfile } from '../types/home.types';
-import type { User } from '../types';
-import { getMyHotelId } from './tenant';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { base64ToArrayBuffer } from '@shared/utils/encoding';
+import type { UserProfile } from '@/types/home.types';
+import type { User } from '@/types';
+import { getMyHotelId } from '@/services/tenant';
 
 export type UserProfileRow = {
   full_name?: string;

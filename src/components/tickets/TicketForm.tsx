@@ -18,7 +18,7 @@ import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useToast } from '../../contexts/ToastContext';
 import { typography } from '../../theme';
-import { getUsersByDepartmentId } from '../../services/user';
+import { getUsersByDepartmentId } from '@features/account';
 import type { User } from '../../types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../../services/tickets';

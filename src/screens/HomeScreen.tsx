@@ -12,8 +12,8 @@ import SearchInput from '../components/SearchInput';
 
 import type { ShiftType } from '../types/home.types';
 import { useAuth } from '@features/auth';
-import { useUserStore } from '../store/useUserStore';
-import { userProfileFromSession } from '../services/user';
+import { useUserStore } from '@features/account';
+import { userProfileFromSession } from '@features/account';
 import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { LoadingOverlay } from '../components/shared/LoadingOverlay';

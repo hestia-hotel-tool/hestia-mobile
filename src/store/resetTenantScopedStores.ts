@@ -1,6 +1,6 @@
 import { useChatStore } from './useChatStore';
 import { useRoomsStore } from './useRoomsStore';
-import { useUserStore } from './useUserStore';
+import { useUserStore } from '@features/account';
 
 /**
  * Clear all cached client state that must never bleed across tenants/users.
