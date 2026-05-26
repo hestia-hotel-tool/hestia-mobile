@@ -19,14 +19,14 @@ import { useMessageModal } from '@shared/contexts/MessageModalContext';
 import { typography } from '@shared/theme';
 import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../constants/lostAndFoundStyles';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
-import { fetchStaffFromSupabase } from '@/services/staff';
+import { fetchStaffFromSupabase } from '@features/staff';
 import { GUEST_IMAGES_BUCKET } from '@/services/guests';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';
 import StatusDropdown, { StatusOption } from './StatusDropdown';
 import StoredLocationDropdown, { StoredLocationOption } from './StoredLocationDropdown';
-import type { StaffMember } from '@/types/staff.types';
+import type { StaffMember } from '@features/staff';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TWO_COL_GAP = 12 * scaleX;

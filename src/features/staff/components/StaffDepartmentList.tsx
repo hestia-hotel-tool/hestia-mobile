@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '../../theme';
-import { scaleX, STAFF_DEPARTMENT_LIST } from '../../constants/staffStyles';
+import { typography } from '@shared/theme';
+import { scaleX, STAFF_DEPARTMENT_LIST } from '../constants/staffStyles';
 import type { DepartmentRowPosition } from './StaffDepartmentStaffPanel';
 
 export type StaffDepartmentId =
@@ -20,13 +20,13 @@ export interface StaffDepartmentItem {
 }
 
 export const STAFF_DEPARTMENTS_LIST: StaffDepartmentItem[] = [
-  { id: 'engineering', name: 'Engineering', icon: require('../../../assets/icons/engineering.png') },
-  { id: 'hskPortier', name: 'HSK Portier', icon: require('../../../assets/icons/hsk-portier.png') },
-  { id: 'inRoomDining', name: 'In Room Dining', icon: require('../../../assets/icons/in-room-dining-icon.png') },
-  { id: 'laundry', name: 'Laundry', icon: require('../../../assets/icons/laundry-icon.png') },
-  { id: 'concierge', name: 'Concierge', icon: require('../../../assets/icons/concierge.png') },
-  { id: 'reception', name: 'Reception', icon: require('../../../assets/icons/reception.png') },
-  { id: 'it', name: 'IT', icon: require('../../../assets/icons/it.png') },
+  { id: 'engineering', name: 'Engineering', icon: require('../../../../assets/icons/engineering.png') },
+  { id: 'hskPortier', name: 'HSK Portier', icon: require('../../../../assets/icons/hsk-portier.png') },
+  { id: 'inRoomDining', name: 'In Room Dining', icon: require('../../../../assets/icons/in-room-dining-icon.png') },
+  { id: 'laundry', name: 'Laundry', icon: require('../../../../assets/icons/laundry-icon.png') },
+  { id: 'concierge', name: 'Concierge', icon: require('../../../../assets/icons/concierge.png') },
+  { id: 'reception', name: 'Reception', icon: require('../../../../assets/icons/reception.png') },
+  { id: 'it', name: 'IT', icon: require('../../../../assets/icons/it.png') },
 ];
 
 const DEPARTMENTS = STAFF_DEPARTMENTS_LIST;

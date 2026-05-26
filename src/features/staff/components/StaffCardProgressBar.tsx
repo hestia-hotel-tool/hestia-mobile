@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
-import { scaleX, STAFF_CARD } from '../../constants/staffStyles';
+import { scaleX, STAFF_CARD } from '../constants/staffStyles';
 
 interface StaffCardProgressBarProps {
   completed: number;

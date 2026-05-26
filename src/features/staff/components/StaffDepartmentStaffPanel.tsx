@@ -20,11 +20,11 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { scaleX, STAFF_DEPARTMENT_PANEL } from '../../constants/staffStyles';
+import { scaleX, STAFF_DEPARTMENT_PANEL } from '../constants/staffStyles';
 import { getUsersByDepartment } from '@features/account';
-import { DEPARTMENT_SLUG_TO_DB_NAME } from '../../constants/createTicketStyles';
-import { typography } from '../../theme';
-import type { User } from '../../types';
+import { DEPARTMENT_SLUG_TO_DB_NAME } from '@/constants/createTicketStyles';
+import { typography } from '@shared/theme';
+import type { User } from '@/types';
 import type { StaffDepartmentId } from './StaffDepartmentList';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

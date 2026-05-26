@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import {
   STAFF_SHIFT_CALENDAR,
   STAFF_SHIFT_DAY_COLORS,
   STAFF_SHIFT_DAY_NEUTRAL,
-} from '../../constants/staffStyles';
+} from '../constants/staffStyles';
 
 const WEEKDAYS = ['Su', 'M', 'T', 'W', 'Th', 'F', 'S'] as const;
 

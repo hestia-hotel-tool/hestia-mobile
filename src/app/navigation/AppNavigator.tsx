@@ -6,7 +6,7 @@ import HomeScreen from '../../screens/HomeScreen';
 import ChatScreen from '../../screens/ChatScreen';
 import TicketsScreen from '../../screens/TicketsScreen';
 import { LostAndFoundScreen } from '@features/lost-and-found';
-import StaffScreen from '../../screens/StaffScreen';
+import { StaffScreen } from '@features/staff';
 import { SettingsScreen, UserProfileScreen } from '@features/account';
 import AllRoomsScreen from '../../screens/AllRoomsScreen';
 import ArrivalDepartureDetailScreen from '../../screens/ArrivalDepartureDetailScreen';

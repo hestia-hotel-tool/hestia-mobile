@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
 import { Modal, View, StyleSheet, TextInput, Keyboard } from 'react-native';
 import { REASSIGN_MODAL, scaleX } from '../../constants/reassignModalStyles';
-import { ReassignTab, StaffMember } from '../../types/staff.types';
+import { ReassignTab, StaffMember } from '@features/staff';
 import ReassignHeader from './ReassignHeader';
 import ReassignTabs from './ReassignTabs';
 import StaffListContainer from './StaffListContainer';
-import { fetchStaffFromSupabase } from '../../services/staff';
+import { fetchStaffFromSupabase } from '@features/staff';
 import { typography } from '../../theme';
 
 interface ReassignModalProps {

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography } from '../../theme';
-import { scaleX, STAFF_TABS } from '../../constants/staffStyles';
-import { StaffTab } from '../../types/staff.types';
+import { typography } from '@shared/theme';
+import { scaleX, STAFF_TABS } from '../constants/staffStyles';
+import { StaffTab } from '../types/staff.types';
 
 interface StaffTabsProps {
   selectedTab: StaffTab;

@@ -11,20 +11,20 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { colors, typography } from '../theme';
-import BottomTabBar from '../components/navigation/BottomTabBar';
-import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
-import StaffHeader from '../components/staff/StaffHeader';
-import StaffTabs from '../components/staff/StaffTabs';
-import { STAFF_DEPARTMENTS_LIST } from '../components/staff/StaffDepartmentList';
-import StaffListRow from '../components/staff/StaffListRow';
-import StaffCard from '../components/staff/StaffCard';
+import { colors, typography } from '@shared/theme';
+import BottomTabBar from '@app/components/BottomTabBar';
+import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import StaffHeader from '../components/StaffHeader';
+import StaffTabs from '../components/StaffTabs';
+import { STAFF_DEPARTMENTS_LIST } from '../components/StaffDepartmentList';
+import StaffListRow from '../components/StaffListRow';
+import StaffCard from '../components/StaffCard';
 import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
 import { getUsersByDepartment } from '@features/account';
-import { isSupabaseConfigured } from '../lib/supabase';
-import type { User } from '../types';
+import { isSupabaseConfigured } from '@shared/lib/supabase';
+import type { User } from '@/types';
 import { fetchStaffRoomStatsForShift } from '../services/staff';
 
 const DESIGN_WIDTH = 440;
@@ -34,7 +34,7 @@ type StaffScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, 'S
 export type StaffDeptChipId = 'hsk' | 'engineering' | 'inRoomDining' | 'laundry' | 'concierge' | 'reception';
 
 const STAFF_DEPT_CHIPS: { id: StaffDeptChipId; name: string; icon: number }[] = [
-  { id: 'hsk', name: 'HSK', icon: require('../../assets/icons/in-progress-icon.png') },
+  { id: 'hsk', name: 'HSK', icon: require('../../../../assets/icons/in-progress-icon.png') },
   ...STAFF_DEPARTMENTS_LIST.filter((d) =>
     ['engineering', 'inRoomDining', 'laundry', 'concierge', 'reception'].includes(d.id)
   ).map((d) => ({
