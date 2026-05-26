@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
-import { typography } from '../../theme';
-import { scaleX } from '../../constants/lostAndFoundStyles';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/lostAndFoundStyles';
 import LostAndFoundTimePickerContainer from './LostAndFoundTimePickerContainer';
 
 interface TimePickerModalProps {

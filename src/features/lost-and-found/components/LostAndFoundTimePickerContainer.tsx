@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { scaleX } from '../../constants/lostAndFoundStyles';
-import TimePickerWheel from '../shared/TimePickerWheel';
-import { typography } from '../../theme';
+import { scaleX } from '../constants/lostAndFoundStyles';
+import TimePickerWheel from '@shared/ui/TimePickerWheel';
+import { typography } from '@shared/theme';
 
 interface LostAndFoundTimePickerContainerProps {
   selectedHour: number; // 0-23

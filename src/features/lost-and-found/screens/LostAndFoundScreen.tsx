@@ -4,13 +4,13 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BottomTabBar from '../components/navigation/BottomTabBar';
-import LostAndFoundHeader from '../components/lostAndFound/LostAndFoundHeader';
-import LostAndFoundTabs from '../components/lostAndFound/LostAndFoundTabs';
-import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/lostAndFound/LostAndFoundItemCard';
-import RegisterLostAndFoundModal from '../components/lostAndFound/RegisterLostAndFoundModal';
-import ItemRegisteredSuccessModal from '../components/lostAndFound/ItemRegisteredSuccessModal';
-import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
+import BottomTabBar from '@app/components/BottomTabBar';
+import LostAndFoundHeader from '../components/LostAndFoundHeader';
+import LostAndFoundTabs from '../components/LostAndFoundTabs';
+import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/LostAndFoundItemCard';
+import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
+import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
+import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
 import {
   LOST_AND_FOUND_SPACING,
@@ -19,13 +19,13 @@ import {
   scaleX,
 } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@app/navigation/types';
-import { LoadingOverlay } from '../components/shared/LoadingOverlay';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
-import { typography } from '../theme';
+import { typography } from '@shared/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { base64ToArrayBuffer } from '../utils/encoding';
-import { getMyHotelId } from '../services/tenant';
+import { base64ToArrayBuffer } from '@shared/utils/encoding';
+import { getMyHotelId } from '@/services/tenant';
 
 type MainTabsParamList = {
   Home: undefined;
@@ -991,7 +991,7 @@ export default function LostAndFoundScreen() {
                     disabled={statusUpdating || !shippingLocation.trim()}
                     onPress={() => saveShippedLocation(shippingLocation)}
                   >
-                    <Image source={require('../../assets/icons/arrow-forward.png')} style={styles.shippedSendIcon} resizeMode="contain" />
+                    <Image source={require('../../../../assets/icons/arrow-forward.png')} style={styles.shippedSendIcon} resizeMode="contain" />
                   </TouchableOpacity>
                 </View>
 
@@ -1009,12 +1009,12 @@ export default function LostAndFoundScreen() {
                             saveShippedLocation(opt);
                           }}
                         >
-                          <Image source={require('../../assets/icons/location-pin-icon.png')} style={styles.shippedOptionIcon} resizeMode="contain" />
+                          <Image source={require('../../../../assets/icons/location-pin-icon.png')} style={styles.shippedOptionIcon} resizeMode="contain" />
                           <Text style={styles.shippedOptionText} numberOfLines={1}>
                             {opt}
                           </Text>
                           {active ? (
-                            <Image source={require('../../assets/icons/tick.png')} style={styles.shippedOptionCheck} resizeMode="contain" />
+                            <Image source={require('../../../../assets/icons/tick.png')} style={styles.shippedOptionCheck} resizeMode="contain" />
                           ) : null}
                         </TouchableOpacity>
                       );
@@ -1033,7 +1033,7 @@ export default function LostAndFoundScreen() {
                     onPress={() => handleStatusSelect('stored')}
                   >
                     <View style={[styles.statusCircle, styles.statusCircleStored, statusModalItem?.status === 'stored' && styles.statusCircleActive]}>
-                      <Image source={require('../../assets/icons/down-arrow.png')} style={styles.statusCircleIcon} resizeMode="contain" />
+                      <Image source={require('../../../../assets/icons/down-arrow.png')} style={styles.statusCircleIcon} resizeMode="contain" />
                     </View>
                     <Text style={styles.statusGridLabel}>Stored</Text>
                   </TouchableOpacity>
@@ -1051,7 +1051,7 @@ export default function LostAndFoundScreen() {
                         (statusModalItem?.status === 'shipped' || statusModalItem?.status === 'returned') && styles.statusCircleActive,
                       ]}
                     >
-                      <Image source={require('../../assets/icons/tick.png')} style={styles.statusCircleIcon} resizeMode="contain" />
+                      <Image source={require('../../../../assets/icons/tick.png')} style={styles.statusCircleIcon} resizeMode="contain" />
                     </View>
                     <Text style={styles.statusGridLabel}>Shipped</Text>
                   </TouchableOpacity>

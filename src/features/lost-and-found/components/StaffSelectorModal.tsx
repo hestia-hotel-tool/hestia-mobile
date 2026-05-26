@@ -10,9 +10,9 @@ import {
   TextInput,
   Pressable,
 } from 'react-native';
-import { typography } from '../../theme';
-import { REGISTER_FORM, scaleX } from '../../constants/lostAndFoundStyles';
-import { StaffMember } from '../../types/staff.types';
+import { typography } from '@shared/theme';
+import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
+import { StaffMember } from '@/types/staff.types';
 
 interface StaffSelectorModalProps {
   visible: boolean;
@@ -32,7 +32,7 @@ const mockStaffForLostAndFound: StaffMember[] = [
     id: '1',
     name: 'Etleva Hoxha',
     department: 'HSK',
-    avatar: require('../../../assets/images/Etleva_Hoxha.png'),
+    avatar: require('../../../../assets/images/Etleva_Hoxha.png'),
     workload: 200,
     maxWorkload: 200,
     onShift: true,
@@ -42,7 +42,7 @@ const mockStaffForLostAndFound: StaffMember[] = [
     id: '2',
     name: 'Stella Kitou',
     department: 'HSK',
-    avatar: require('../../../assets/images/Stella_Kitou.png'),
+    avatar: require('../../../../assets/images/Stella_Kitou.png'),
     workload: 200,
     maxWorkload: 200,
     onShift: true,
@@ -62,7 +62,7 @@ const mockStaffForLostAndFound: StaffMember[] = [
     id: '4',
     name: 'Felix F',
     department: 'F&B',
-    avatar: require('../../../assets/images/Felix_F.png'),
+    avatar: require('../../../../assets/images/Felix_F.png'),
     workload: 180,
     maxWorkload: 200,
     onShift: true,

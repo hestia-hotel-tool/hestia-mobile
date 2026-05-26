@@ -8,8 +8,8 @@ import {
   Dimensions,
   Pressable,
 } from 'react-native';
-import { typography } from '../../theme';
-import { REGISTER_FORM, scaleX } from '../../constants/lostAndFoundStyles';
+import { typography } from '@shared/theme';
+import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 
 export type StoredLocationOption = 'hskOffice' | 'frontDesk' | 'securityOffice' | 'lostAndFoundRoom';
 

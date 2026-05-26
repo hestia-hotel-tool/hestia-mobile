@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { typography } from '../../theme';
 import { scaleX, LOST_AND_FOUND, CONTENT_AREA } from '../../constants/roomDetailStyles';
-import type { LostAndFoundItem } from '../../types/lostAndFound.types';
-import LostAndFoundItemCard from '../lostAndFound/LostAndFoundItemCard';
+import { LostAndFoundItemCard, type LostAndFoundItem } from '@features/lost-and-found';
 
 interface LostAndFoundSectionProps {
   displayType: 'empty' | 'withItems'; // Type of display based on room type

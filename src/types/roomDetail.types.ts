@@ -1,5 +1,5 @@
 import type { RoomCardData, RoomStatus } from './allRooms.types';
-import type { LostAndFoundItem } from './lostAndFound.types';
+import type { LostAndFoundItem } from '@features/lost-and-found';
 
 // Room Type Definitions
 export type RoomType = 'Arrival' | 'Departure' | 'ArrivalDeparture' | 'Stayover' | 'Turndown';

@@ -9,8 +9,8 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import { typography } from '../../theme';
-import { ITEM_REGISTERED_SUCCESS } from '../../constants/lostAndFoundStyles';
+import { typography } from '@shared/theme';
+import { ITEM_REGISTERED_SUCCESS } from '../constants/lostAndFoundStyles';
 
 const DESIGN_WIDTH = 440;
 
@@ -196,13 +196,13 @@ export default function ItemRegisteredSuccessModal({
           <View style={styles.successIconsContainer}>
             {/* Checkmark Icon */}
             <Image
-              source={require('../../../assets/icons/tick-green.png')}
+              source={require('../../../../assets/icons/tick-green.png')}
               style={styles.checkmarkIcon}
               resizeMode="contain"
             />
             {/* Box Icon */}
             <Image
-              source={require('../../../assets/icons/basket-green.png')}
+              source={require('../../../../assets/icons/basket-green.png')}
               style={styles.boxIcon}
               resizeMode="contain"
             />
@@ -231,7 +231,7 @@ export default function ItemRegisteredSuccessModal({
             activeOpacity={0.7}
           >
             <Image
-              source={require('../../../assets/icons/printer.png')}
+              source={require('../../../../assets/icons/printer.png')}
               style={[styles.printerIcon, { tintColor: '#ffffff' }]}
               resizeMode="contain"
             />

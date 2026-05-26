@@ -7,8 +7,8 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native';
-import { typography } from '../../theme';
-import { scaleX } from '../../constants/lostAndFoundStyles';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/lostAndFoundStyles';
 
 interface DatePickerModalProps {
   visible: boolean;

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useToast } from '../../contexts/ToastContext';
-import { typography } from '../../theme';
+import { useToast } from '@shared/contexts/ToastContext';
+import { typography } from '@shared/theme';
 import {
   LOST_AND_FOUND_CARD,
   LOST_AND_FOUND_CONTENT,
@@ -14,8 +14,8 @@ import {
   LOST_AND_FOUND_COLORS,
   LOST_AND_FOUND_TYPOGRAPHY,
   scaleX,
-} from '../../constants/lostAndFoundStyles';
-import { LostAndFoundItem } from '../../types/lostAndFound.types';
+} from '../constants/lostAndFoundStyles';
+import { LostAndFoundItem } from '../types/lostAndFound.types';
 
 export type LostAndFoundStatusAnchorLayout = { x: number; y: number; width: number; height: number };
 
@@ -182,7 +182,7 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
           activeOpacity={0.7}
         >
           <Image
-            source={require('../../../assets/icons/clip-board.png')}
+            source={require('../../../../assets/icons/clip-board.png')}
             style={styles.copyIcon}
             resizeMode="contain"
           />
@@ -223,7 +223,7 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
                       {!!item.guestVipCode && (
                         <View style={styles.foundInVipBadge}>
                           <Image
-                            source={require('../../../assets/icons/spear-arrow.png')}
+                            source={require('../../../../assets/icons/spear-arrow.png')}
                             style={styles.foundInVipBadgeIcon}
                             resizeMode="contain"
                           />
@@ -281,7 +281,7 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
             <View style={styles.publicAreaFoundInSection}>
               <View style={styles.publicAreaFoundInIconTile} aria-hidden>
                 <Image
-                  source={require('../../../assets/icons/public-areea-icon.png')}
+                  source={require('../../../../assets/icons/public-areea-icon.png')}
                   style={styles.publicAreaFoundInIcon}
                   resizeMode="contain"
                 />
@@ -412,8 +412,8 @@ export default function LostAndFoundItemCard({ item, onPress, onStatusPress, sta
               <Image
                 source={
                   item.status === 'shipped' || item.status === 'returned'
-                    ? require('../../../assets/icons/tick.png')
-                    : require('../../../assets/icons/down-arrow.png')
+                    ? require('../../../../assets/icons/tick.png')
+                    : require('../../../../assets/icons/down-arrow.png')
                 }
                 style={[
                   styles.statusIcon,

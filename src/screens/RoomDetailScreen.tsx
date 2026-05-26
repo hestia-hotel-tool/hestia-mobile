@@ -24,7 +24,7 @@ import { getRoomTypeConfig } from '../constants/roomTypeConfigs';
 import type { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
 import { STATUS_OPTIONS } from '../types/allRooms.types';
 import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/roomDetail.types';
-import type { LostAndFoundItem } from '../types/lostAndFound.types';
+import type { LostAndFoundItem } from '@features/lost-and-found';
 import type { RootStackParamList } from '@app/navigation/types';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { authService } from '@features/auth';

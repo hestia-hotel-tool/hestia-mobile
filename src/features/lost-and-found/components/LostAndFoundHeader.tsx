@@ -1,13 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { typography } from '../../theme';
+import { typography } from '@shared/theme';
 import {
   LOST_AND_FOUND_HEADER,
   LOST_AND_FOUND_COLORS,
   LOST_AND_FOUND_TYPOGRAPHY,
   scaleX,
-} from '../../constants/lostAndFoundStyles';
+} from '../constants/lostAndFoundStyles';
 
 interface LostAndFoundHeaderProps {
   onBackPress?: () => void;
@@ -36,7 +36,7 @@ export default function LostAndFoundHeader({
           activeOpacity={0.7}
         >
           <Image
-            source={require('../../../assets/icons/back-arrow.png')}
+            source={require('../../../../assets/icons/back-arrow.png')}
             style={styles.backArrow}
             resizeMode="contain"
             tintColor="#607AA1"

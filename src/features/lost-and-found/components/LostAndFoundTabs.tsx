@@ -1,15 +1,15 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { typography } from '../../theme';
-import { scaleX } from '../../constants/lostAndFoundStyles';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/lostAndFoundStyles';
 import {
   LOST_AND_FOUND_TABS,
   LOST_AND_FOUND_COLORS,
   LOST_AND_FOUND_TYPOGRAPHY,
   LOST_AND_FOUND_DIVIDER,
-} from '../../constants/lostAndFoundStyles';
-import type { LostAndFoundTab } from '../../types/lostAndFound.types';
+} from '../constants/lostAndFoundStyles';
+import type { LostAndFoundTab } from '../types/lostAndFound.types';
 
 interface LostAndFoundTabsProps {
   selectedTab: LostAndFoundTab;
@@ -100,7 +100,7 @@ export default function LostAndFoundTabs({ selectedTab, onTabPress, onSearchPres
         activeOpacity={0.7}
       >
         <Image
-          source={require('../../../assets/icons/search-icon.png')}
+          source={require('../../../../assets/icons/search-icon.png')}
           style={styles.searchIcon}
           resizeMode="contain"
         />

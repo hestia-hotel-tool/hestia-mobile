@@ -14,19 +14,19 @@ import {
 } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
-import { useToast } from '../../contexts/ToastContext';
-import { useMessageModal } from '../../contexts/MessageModalContext';
-import { typography } from '../../theme';
-import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../../constants/lostAndFoundStyles';
-import { supabase, isSupabaseConfigured } from '../../lib/supabase';
-import { fetchStaffFromSupabase } from '../../services/staff';
-import { GUEST_IMAGES_BUCKET } from '../../services/guests';
+import { useToast } from '@shared/contexts/ToastContext';
+import { useMessageModal } from '@shared/contexts/MessageModalContext';
+import { typography } from '@shared/theme';
+import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../constants/lostAndFoundStyles';
+import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { fetchStaffFromSupabase } from '@/services/staff';
+import { GUEST_IMAGES_BUCKET } from '@/services/guests';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';
 import StatusDropdown, { StatusOption } from './StatusDropdown';
 import StoredLocationDropdown, { StoredLocationOption } from './StoredLocationDropdown';
-import type { StaffMember } from '../../types/staff.types';
+import type { StaffMember } from '@/types/staff.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TWO_COL_GAP = 12 * scaleX;
@@ -630,7 +630,7 @@ export default function RegisterLostAndFoundModal({
             activeOpacity={0.7}
           >
             <Image
-              source={require('../../../assets/icons/back-arrow.png')}
+              source={require('../../../../assets/icons/back-arrow.png')}
               style={styles.backArrow}
               resizeMode="contain"
               tintColor="#607AA1"
@@ -785,7 +785,7 @@ export default function RegisterLostAndFoundModal({
                         {roomSearch ? roomSearch : 'Search room...'}
                       </Text>
                       <Image
-                        source={require('../../../assets/icons/dropdown-arrow.png')}
+                        source={require('../../../../assets/icons/dropdown-arrow.png')}
                         style={[styles.dropdownArrowIcon, showRoomDropdown && styles.dropdownArrowIconOpen]}
                         resizeMode="contain"
                       />
@@ -846,7 +846,7 @@ export default function RegisterLostAndFoundModal({
                                           {room.vip_code ? (
                                             <View style={styles.vipBadge}>
                                               <Image
-                                                source={require('../../../assets/icons/spear-arrow.png')}
+                                                source={require('../../../../assets/icons/spear-arrow.png')}
                                                 style={styles.vipBadgeIcon}
                                                 resizeMode="contain"
                                               />
@@ -868,7 +868,7 @@ export default function RegisterLostAndFoundModal({
                                             {typeof room.guest_count === 'number' ? (
                                               <>
                                                 <Image
-                                                  source={require('../../../assets/icons/people-icon.png')}
+                                                  source={require('../../../../assets/icons/people-icon.png')}
                                                   style={styles.guestCountIcon}
                                                   resizeMode="contain"
                                                 />
@@ -921,7 +921,7 @@ export default function RegisterLostAndFoundModal({
                               {selectedRoom.vip_code ? (
                                 <View style={styles.vipBadge}>
                                   <Image
-                                    source={require('../../../assets/icons/spear-arrow.png')}
+                                    source={require('../../../../assets/icons/spear-arrow.png')}
                                     style={styles.vipBadgeIcon}
                                     resizeMode="contain"
                                   />
@@ -943,7 +943,7 @@ export default function RegisterLostAndFoundModal({
                                 {typeof selectedRoom.guest_count === 'number' ? (
                                   <>
                                     <Image
-                                      source={require('../../../assets/icons/people-icon.png')}
+                                      source={require('../../../../assets/icons/people-icon.png')}
                                       style={styles.guestCountIcon}
                                       resizeMode="contain"
                                     />
@@ -977,7 +977,7 @@ export default function RegisterLostAndFoundModal({
                   >
                     <View style={styles.publicAreaContent}>
                       <Image
-                        source={require('../../../assets/icons/location-pin-icon.png')}
+                        source={require('../../../../assets/icons/location-pin-icon.png')}
                         style={styles.publicAreaIcon}
                         resizeMode="contain"
                       />
@@ -1009,7 +1009,7 @@ export default function RegisterLostAndFoundModal({
                     onPress={handleAddPicture}
                   >
                     <Image
-                      source={require('../../../assets/icons/add-photos.png')}
+                      source={require('../../../../assets/icons/add-photos.png')}
                       style={styles.addPhotoIcon}
                       resizeMode="contain"
                     />
@@ -1040,7 +1040,7 @@ export default function RegisterLostAndFoundModal({
                       onPress={handleAddPicture}
                     >
                       <Image
-                        source={require('../../../assets/icons/add-photos.png')}
+                        source={require('../../../../assets/icons/add-photos.png')}
                         style={styles.addPhotoGridIcon}
                         resizeMode="contain"
                       />
@@ -1059,7 +1059,7 @@ export default function RegisterLostAndFoundModal({
               <View style={styles.notesContainer}>
                 <View style={styles.notesLabelContainer}>
                   <Image
-                    source={require('../../../assets/icons/notes-icon.png')}
+                    source={require('../../../../assets/icons/notes-icon.png')}
                     style={styles.notesIcon}
                     resizeMode="contain"
                   />
@@ -1115,7 +1115,7 @@ export default function RegisterLostAndFoundModal({
                   <Text style={styles.step2FieldText}>{getStaffName(foundedBy)}</Text>
                 </View>
                 <Image
-                  source={require('../../../assets/icons/search-icon.png')}
+                  source={require('../../../../assets/icons/search-icon.png')}
                   style={styles.step2SearchIcon}
                   resizeMode="contain"
                 />
@@ -1156,7 +1156,7 @@ export default function RegisterLostAndFoundModal({
                   <Text style={styles.step2FieldText}>{getStaffName(registeredBy)}</Text>
                 </View>
                 <Image
-                  source={require('../../../assets/icons/search-icon.png')}
+                  source={require('../../../../assets/icons/search-icon.png')}
                   style={styles.step2SearchIcon}
                   resizeMode="contain"
                 />
@@ -1191,7 +1191,7 @@ export default function RegisterLostAndFoundModal({
                   <Text style={styles.step2FieldText}>{getStatusLabel(status)}</Text>
                 </View>
                 <Image
-                  source={require('../../../assets/icons/down-arrow.png')}
+                  source={require('../../../../assets/icons/down-arrow.png')}
                   style={styles.step2Chevron}
                   resizeMode="contain"
                 />
@@ -1211,7 +1211,7 @@ export default function RegisterLostAndFoundModal({
               >
                 <Text style={styles.step2FieldText}>{getLocationLabel(storedLocation)}</Text>
                 <Image
-                  source={require('../../../assets/icons/down-arrow.png')}
+                  source={require('../../../../assets/icons/down-arrow.png')}
                   style={styles.step2Chevron}
                   resizeMode="contain"
                 />
@@ -1274,7 +1274,7 @@ export default function RegisterLostAndFoundModal({
                   activeOpacity={0.85}
                 >
                   <Image
-                    source={require('../../../assets/images/wrist-watch.png')}
+                    source={require('../../../../assets/images/wrist-watch.png')}
                     style={styles.step3ItemImage}
                     resizeMode="cover"
                   />
@@ -1303,7 +1303,7 @@ export default function RegisterLostAndFoundModal({
                   activeOpacity={0.7}
                 >
                   <Image
-                    source={require('../../../assets/icons/notes-icon.png')}
+                    source={require('../../../../assets/icons/notes-icon.png')}
                     style={styles.step3EditIconImage}
                     resizeMode="contain"
                   />
@@ -1361,7 +1361,7 @@ export default function RegisterLostAndFoundModal({
                           {selectedRoom?.vip_code ? (
                             <View style={styles.step3FoundInVipBadge}>
                               <Image
-                                source={require('../../../assets/icons/spear-arrow.png')}
+                                source={require('../../../../assets/icons/spear-arrow.png')}
                                 style={styles.step3FoundInVipBadgeIcon}
                                 resizeMode="contain"
                               />
@@ -1386,7 +1386,7 @@ export default function RegisterLostAndFoundModal({
                             {typeof selectedRoom?.guest_count === 'number' ? (
                               <>
                                 <Image
-                                  source={require('../../../assets/icons/people-icon.png')}
+                                  source={require('../../../../assets/icons/people-icon.png')}
                                   style={styles.step3FoundInGuestCountIcon}
                                   resizeMode="contain"
                                 />
@@ -1405,7 +1405,7 @@ export default function RegisterLostAndFoundModal({
                         activeOpacity={0.7}
                       >
                         <Image
-                          source={require('../../../assets/icons/notes-icon.png')}
+                          source={require('../../../../assets/icons/notes-icon.png')}
                           style={styles.step3EditIconImage}
                           resizeMode="contain"
                         />
@@ -1424,7 +1424,7 @@ export default function RegisterLostAndFoundModal({
                         activeOpacity={0.7}
                       >
                         <Image
-                          source={require('../../../assets/icons/notes-icon.png')}
+                          source={require('../../../../assets/icons/notes-icon.png')}
                           style={styles.step3EditIconImage}
                           resizeMode="contain"
                         />
@@ -1467,7 +1467,7 @@ export default function RegisterLostAndFoundModal({
                   activeOpacity={0.7}
                 >
                   <Image
-                    source={require('../../../assets/icons/notes-icon.png')}
+                    source={require('../../../../assets/icons/notes-icon.png')}
                     style={styles.step3EditIconImage}
                     resizeMode="contain"
                   />

@@ -8,8 +8,8 @@ import {
   StyleSheet,
   Pressable,
 } from 'react-native';
-import { typography } from '../../theme';
-import { REGISTER_FORM, scaleX } from '../../constants/lostAndFoundStyles';
+import { typography } from '@shared/theme';
+import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 
 export type StatusOption = 'stored' | 'shipped' | 'discarded';
 
@@ -25,17 +25,17 @@ const statusOptions: { value: StatusOption; label: string; icon: any }[] = [
   {
     value: 'stored',
     label: 'Stored',
-    icon: require('../../../assets/icons/down-arrow.png'), // Yellow circle or down arrow
+    icon: require('../../../../assets/icons/down-arrow.png'), // Yellow circle or down arrow
   },
   {
     value: 'shipped',
     label: 'Shipped',
-    icon: require('../../../assets/icons/tick.png'),
+    icon: require('../../../../assets/icons/tick.png'),
   },
   {
     value: 'discarded',
     label: 'Discarded',
-    icon: require('../../../assets/icons/down-arrow.png'), // Can be updated with trash icon
+    icon: require('../../../../assets/icons/down-arrow.png'), // Can be updated with trash icon
   },
 ];
 
