@@ -29,7 +29,10 @@ import type { User } from '@shared/types';
 import { fetchStaffRoomStatsForShift, fetchStaffTicketStats, type StaffTicketStats } from '../services/staff';
 
 /** Departments whose card shows cleaning stats; everything else shows ticket stats. */
-const CLEANING_DEPARTMENTS = new Set(['HSK Portier', 'Laundry']);
+const CLEANING_DEPARTMENT_NAMES = new Set(['hsk portier', 'laundry', 'housekeeping', 'hsk']);
+function isCleaningDept(name: string): boolean {
+  return CLEANING_DEPARTMENT_NAMES.has(name.trim().toLowerCase());
+}
 
 const DESIGN_WIDTH = 440;
 
@@ -91,7 +94,7 @@ export default function StaffScreen() {
     () => departments.find((d) => d.id === activeDepartmentId)?.name ?? '',
     [departments, activeDepartmentId]
   );
-  const activeStatKind: 'cleaning' | 'tickets' = CLEANING_DEPARTMENTS.has(activeDepartmentName)
+  const activeStatKind: 'cleaning' | 'tickets' = isCleaningDept(activeDepartmentName)
     ? 'cleaning'
     : 'tickets';
 
@@ -127,7 +130,13 @@ export default function StaffScreen() {
         setDepartmentLoading(false);
         return;
       }
-      setActiveDepartmentId((prev) => (prev && chips.some((c) => c.id === prev) ? prev : chips[0].id));
+      // Default to a housekeeping department so the screen opens on the cleaning
+      // card (Assign Room); fall back to the first department otherwise.
+      setActiveDepartmentId((prev) => {
+        if (prev && chips.some((c) => c.id === prev)) return prev;
+        const firstCleaning = chips.find((c) => isCleaningDept(c.name));
+        return (firstCleaning ?? chips[0]).id;
+      });
     })();
     return () => {
       cancelled = true;
