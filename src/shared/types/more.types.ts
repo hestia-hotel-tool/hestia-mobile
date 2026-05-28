@@ -13,7 +13,7 @@ export const MORE_MENU_OPTIONS: MoreMenuOption[] = [
   {
     id: 'lostAndFound',
     label: 'Lost & Found',
-    icon: require('../../assets/icons/lost-found-icon.png'),
+    icon: require('../../../assets/icons/lost-found-icon.png'),
     iconWidth: 64,
     iconHeight: 68,
     navigationTarget: 'LostAndFound',
@@ -21,7 +21,7 @@ export const MORE_MENU_OPTIONS: MoreMenuOption[] = [
   {
     id: 'staff',
     label: 'Staff',
-    icon: require('../../assets/icons/staff-icon.png'),
+    icon: require('../../../assets/icons/staff-icon.png'),
     iconWidth: 56,
     iconHeight: 52,
     navigationTarget: 'Staff',
@@ -29,7 +29,7 @@ export const MORE_MENU_OPTIONS: MoreMenuOption[] = [
   {
     id: 'settings',
     label: 'Settings',
-    icon: require('../../assets/icons/settings-icon.png'),
+    icon: require('../../../assets/icons/settings-icon.png'),
     iconWidth: 56,
     iconHeight: 59,
     navigationTarget: 'Settings',

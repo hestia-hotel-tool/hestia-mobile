@@ -24,7 +24,7 @@ import { scaleX, STAFF_DEPARTMENT_PANEL } from '../constants/staffStyles';
 import { getUsersByDepartment } from '@features/account';
 import { DEPARTMENT_SLUG_TO_DB_NAME } from '@features/tickets';
 import { typography } from '@shared/theme';
-import type { User } from '@/types';
+import type { User } from '@shared/types';
 import type { StaffDepartmentId } from './StaffDepartmentList';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');

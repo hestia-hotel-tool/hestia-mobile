@@ -3,7 +3,7 @@
  * Aggregates data for home, rooms, chat, tickets. Rooms come from Supabase via rooms service.
  */
 
-import type { HomeScreenData } from '@/types/home.types';
+import type { HomeScreenData } from '@features/home';
 import type { AllRoomsScreenData } from '../types/allRooms.types';
 import type { TicketsScreenData } from '@features/tickets';
 import type { ChatItemData } from '@features/chat';

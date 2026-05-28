@@ -69,3 +69,6 @@ web-build/
 /android
 /credentials
 
+
+# Claude Code local settings/transcripts
+.claude/

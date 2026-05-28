@@ -6,7 +6,7 @@ import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
 import type { GuestImageAnchorLayout } from '@shared/ui/GuestProfileImageModal';
 import { FRONT_OFFICE_STATUS_ICONS, STATUS_CONFIGS } from '../../types/allRooms.types';
 import { getStayoverDisplayLabel, showStayoverWithLinenBadge } from '../../utils/stayoverLinen';
-import type { ShiftType } from '@/types/home.types';
+import type { ShiftType } from '@features/home';
 import {
   CARD_DIMENSIONS,
   CARD_COLORS,

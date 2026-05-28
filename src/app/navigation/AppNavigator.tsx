@@ -10,7 +10,7 @@ import { TicketsScreen, CreateTicketScreen, SelectTicketLocationScreen, CreateTi
 import { ChatScreen, ChatDetailScreen, NewChatScreen, CreateChatGroupScreen } from '@features/chat';
 import { SettingsScreen, UserProfileScreen } from '@features/account';
 import type { RootStackParamList, MainTabsParamList } from './types';
-import { colors } from '../../theme';
+import { colors } from '@shared/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabsParamList>();

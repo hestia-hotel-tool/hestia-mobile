@@ -1,11 +1,11 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { colors, typography } from '@shared/theme';
-import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@/constants/homeLayout';
+import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home';
 import { scaleX } from '../../constants/allRoomsStyles';
 import { AMPMToggle } from '@features/home';
 import SearchInput from '@shared/ui/SearchInput';
-import type { ShiftType } from '@/types/home.types';
+import type { ShiftType } from '@features/home';
 
 interface AllRoomsHeaderProps {
   selectedShift: ShiftType;

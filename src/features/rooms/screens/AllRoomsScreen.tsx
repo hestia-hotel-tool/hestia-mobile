@@ -4,7 +4,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { colors } from '@shared/theme';
-import { ShiftType } from '@/types/home.types';
+import { ShiftType } from '@features/home';
 import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
@@ -29,7 +29,7 @@ import {
 } from '../services/rooms';
 import { BlurView } from 'expo-blur';
 import { FilterState, FilterCounts } from '@shared/types/filter.types';
-import type { CategoryName } from '@/types/home.types';
+import type { CategoryName } from '@features/home';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
 import { CARD_DIMENSIONS, CARD_COLORS } from '../constants/allRoomsStyles';

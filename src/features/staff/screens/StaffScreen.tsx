@@ -24,7 +24,7 @@ import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
 import { getUsersByDepartment } from '@features/account';
 import { isSupabaseConfigured } from '@shared/lib/supabase';
-import type { User } from '@/types';
+import type { User } from '@shared/types';
 import { fetchStaffRoomStatsForShift } from '../services/staff';
 
 const DESIGN_WIDTH = 440;

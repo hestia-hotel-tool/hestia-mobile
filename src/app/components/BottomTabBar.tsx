@@ -3,9 +3,9 @@ import { View, StyleSheet, ScrollView, LayoutChangeEvent, NativeSyntheticEvent, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors } from '@shared/theme';
 import TabBarItem from './TabBarItem';
-import { MORE_MENU_OPTIONS } from '@/types/more.types';
+import { MORE_MENU_OPTIONS } from '@shared/types/more.types';
 import { useDesignScale } from '@shared/hooks/useDesignScale';
-import { useBottomTabBadges } from '@/hooks/useBottomTabBadges';
+import { useBottomTabBadges } from '../hooks/useBottomTabBadges';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 

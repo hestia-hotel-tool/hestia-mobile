@@ -1,4 +1,4 @@
-import type { HistoryEvent } from '../types/roomDetail.types';
+import type { HistoryEvent } from '@features/rooms';
 
 export const getMockHistoryEvents = (roomNumber: string): HistoryEvent[] => {
   const now = new Date();

@@ -6,7 +6,7 @@ import { create } from 'zustand';
 import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
 import { dashboardService, type RoomStateUpdate } from '../services/dashboard';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
-import type { ShiftType } from '@/types/home.types';
+import type { ShiftType } from '@features/home';
 import { getShiftFromTime } from '@shared/utils/shiftUtils';
 
 interface RoomsState {

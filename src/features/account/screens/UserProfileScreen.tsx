@@ -23,7 +23,7 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { useMessageModal } from '@shared/contexts/MessageModalContext';
 import { useUserStore } from '../store/useUserStore';
 import { isSupabaseConfigured } from '@shared/lib/supabase';
-import type { UserProfile } from '@/types/home.types';
+import type { UserProfile } from '@features/home';
 import { useDesignScale } from '@shared/hooks/useDesignScale';
 
 type UserProfileRouteParams = {

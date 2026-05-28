@@ -4,7 +4,7 @@
 
 import { create } from 'zustand';
 import { getProfile, userProfileFromSession, updateAvatar } from '../services/user';
-import type { UserProfile } from '@/types/home.types';
+import type { UserProfile } from '@features/home';
 
 interface UserState {
   profile: UserProfile | null;

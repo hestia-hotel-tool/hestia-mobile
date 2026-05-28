@@ -1,4 +1,4 @@
-import { ChatMessage } from '../types';
+import { ChatMessage } from '@shared/types';
 
 // Get today's date
 const today = new Date();

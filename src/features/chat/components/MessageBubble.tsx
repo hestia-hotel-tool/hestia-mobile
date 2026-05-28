@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Platform, Image, TouchableOpacity, Linking } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { ChatMessage } from '@/types';
+import { ChatMessage } from '@shared/types';
 import { scaleX } from '../constants/chatStyles';
 import { colors } from '@shared/theme';
 

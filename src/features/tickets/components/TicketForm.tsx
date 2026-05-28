@@ -19,7 +19,7 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText }
 import { useToast } from '@shared/contexts/ToastContext';
 import { typography } from '@shared/theme';
 import { getUsersByDepartmentId } from '@features/account';
-import type { User } from '@/types';
+import type { User } from '@shared/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@app/navigation/types';

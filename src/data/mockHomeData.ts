@@ -1,4 +1,4 @@
-import { HomeScreenData } from '../types/home.types';
+import { HomeScreenData } from '@features/home';
 
 export const mockHomeData: HomeScreenData = {
   user: {

@@ -17,7 +17,7 @@ import { userProfileFromSession } from '@features/account';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useRoomsStore } from '@features/rooms';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
-import type { MoreMenuItemId } from '@/types/more.types';
+import type { MoreMenuItemId } from '@shared/types/more.types';
 import type { RootStackParamList } from '@app/navigation/types';
 import HomeHeader from '../components/HomeHeader';
 import CategoryCard from '../components/CategoryCard';

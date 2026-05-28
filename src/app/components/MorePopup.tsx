@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Modal, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import MoreMenuItem from './MoreMenuItem';
-import { MORE_MENU_OPTIONS, MoreMenuItemId } from '@/types/more.types';
+import { MORE_MENU_OPTIONS, MoreMenuItemId } from '@shared/types/more.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

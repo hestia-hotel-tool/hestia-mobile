@@ -12,7 +12,7 @@ import {
   Pressable,
 } from 'react-native';
 import { typography } from '@shared/theme';
-import type { User } from '@/types';
+import type { User } from '@shared/types';
 
 interface TicketStaffSelectorModalProps {
   visible: boolean;

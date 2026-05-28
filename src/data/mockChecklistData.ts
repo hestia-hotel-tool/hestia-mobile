@@ -2,7 +2,7 @@
  * Mock Checklist Data
  */
 
-import type { ChecklistCategory, ChecklistData } from '../types/checklist.types';
+import type { ChecklistCategory, ChecklistData } from '@features/rooms';
 
 export const DEFAULT_CHECKLIST_TEMPLATE: ChecklistCategory[] = [
   {

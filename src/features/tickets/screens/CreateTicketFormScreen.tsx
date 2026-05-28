@@ -21,7 +21,7 @@ import { useToast } from '@shared/contexts/ToastContext';
 import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
 import { getUsersByDepartmentId } from '@features/account';
-import type { User } from '@/types';
+import type { User } from '@shared/types';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';

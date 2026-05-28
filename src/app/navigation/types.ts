@@ -3,16 +3,15 @@
  * Centralized navigation types for type safety
  */
 
-import type { RoomType } from '../../types/roomDetail.types';
+import type { RoomType } from '@features/rooms';
 
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Main: undefined;
-  UserProfile: { user: import('../../types/home.types').UserProfile };
+  UserProfile: { user: import('@features/home').UserProfile };
   AllRooms: { showBackButton?: boolean };
-  RoomDetails: { roomId: string };
-  RoomDetail: { 
+  RoomDetail: {
     room?: any; 
     roomType?: RoomType; 
     roomId?: string;
