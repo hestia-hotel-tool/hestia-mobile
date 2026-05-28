@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  dirtyIcon: { width: 16, height: 16, marginRight: 6 },
+  dirtyIcon: { width: 22, height: 22, marginRight: 7 },
   dirtyText: {
     fontSize: 13,
     fontFamily: typography.fontFamily.primary,
