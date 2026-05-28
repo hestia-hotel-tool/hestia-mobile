@@ -1,3 +1,4 @@
+export { default as TimePickerWheel } from './components/TimePickerWheel';
 export { default as AllRoomsScreen } from './screens/AllRoomsScreen';
 export { default as RoomDetailScreen } from './screens/RoomDetailScreen';
 export { default as ArrivalDepartureDetailScreen } from './screens/ArrivalDepartureDetailScreen';

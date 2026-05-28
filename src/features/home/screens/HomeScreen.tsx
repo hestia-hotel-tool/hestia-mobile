@@ -32,7 +32,7 @@ import type { CategorySection } from '../types/home.types';
 import type { RoomCardData } from '@features/rooms';
 import { getShiftFromTime } from '@shared/utils/shiftUtils';
 import { getFloorFromRoomNumber } from '@shared/utils/formatting';
-import { getRecentActivityLogs } from '@/services/activityLogs';
+import { getRecentActivityLogs } from '@shared/lib/activityLogs';
 import { dashboardService } from '@features/rooms';
 import { supabase } from '@shared/lib/supabase';
 import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '@features/rooms';

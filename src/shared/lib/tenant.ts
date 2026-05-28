@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 let cachedHotelId: string | null = null;
 let inflight: Promise<string | null> | null = null;

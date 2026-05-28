@@ -42,7 +42,7 @@ import { typography } from '@shared/theme';
 import {
   markAllTicketTagNotificationsRead,
   invalidateNotificationBadges,
-} from '@/services/inAppNotifications';
+} from '@shared/lib/inAppNotifications';
 
 /** Change Status popover — height for vertical clamping (expanded when Due time fields visible). Figma ~295 / ~472. */
 const STATUS_POPOVER_HEIGHT_COLLAPSED = 268 * scaleX;

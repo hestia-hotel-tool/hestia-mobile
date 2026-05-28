@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { PROMISE_TIME_MODAL, scaleX } from '../../constants/promiseTimeModalStyles';
-import DatePickerWheel from '@shared/ui/DatePickerWheel';
+import DatePickerWheel from '../DatePickerWheel';
 
 interface DatePickerContainerProps {
   selectedDate: Date;

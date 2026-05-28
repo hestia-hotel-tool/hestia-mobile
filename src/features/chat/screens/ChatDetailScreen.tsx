@@ -54,7 +54,7 @@ import { useChatStore } from '../store/useChatStore';
 import {
   markChatMessageNotificationsReadForChat,
   invalidateNotificationBadges,
-} from '@/services/inAppNotifications';
+} from '@shared/lib/inAppNotifications';
 import { useToast } from '@shared/contexts/ToastContext';
 import { useMessageModal } from '@shared/contexts/MessageModalContext';
 import { Ionicons } from '@expo/vector-icons';

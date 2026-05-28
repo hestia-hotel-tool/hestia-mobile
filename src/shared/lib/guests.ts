@@ -3,7 +3,7 @@
  * Guest image upload to Storage and update guests.image_url.
  */
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { base64ToArrayBuffer } from '../utils/encoding';
 import { getMyHotelId } from './tenant';
 

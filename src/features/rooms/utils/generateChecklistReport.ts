@@ -2,8 +2,8 @@ import * as Print from 'expo-print';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
-import { getMessageModal, getToast } from './toast';
-import type { ChecklistData } from '@/types/checklist.types';
+import { getMessageModal, getToast } from '@shared/utils/toast';
+import type { ChecklistData } from '../types/checklist.types';
 
 interface GenerateChecklistReportOptions {
   roomNumber: string;

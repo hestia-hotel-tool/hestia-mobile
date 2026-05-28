@@ -28,7 +28,7 @@ import {
   CREATE_TICKET_TYPOGRAPHY,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
-import { getDepartments } from '@/services/departments';
+import { getDepartments } from '@shared/lib/departments';
 import type { RootStackParamList } from '@app/navigation/types';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<

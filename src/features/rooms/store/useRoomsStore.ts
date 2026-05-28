@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { invalidateNotificationBadges } from '@/services/inAppNotifications';
+import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
 import { dashboardService, type RoomStateUpdate } from '../services/dashboard';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
 import type { ShiftType } from '@/types/home.types';

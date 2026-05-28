@@ -14,7 +14,7 @@ import NotificationItem, { NotificationItemData } from '../components/Notificati
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useChatStore } from '../store/useChatStore';
-import { invalidateNotificationBadges } from '@/services/inAppNotifications';
+import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import { useAuth } from '@features/auth';
 import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';

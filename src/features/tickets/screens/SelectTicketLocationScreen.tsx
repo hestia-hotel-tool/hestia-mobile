@@ -19,7 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
-import { GUEST_IMAGES_BUCKET } from '@/services/guests';
+import { GUEST_IMAGES_BUCKET } from '@shared/lib/guests';
 import {
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,

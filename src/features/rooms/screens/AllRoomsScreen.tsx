@@ -22,7 +22,7 @@ import { useAuth } from '@features/auth';
 import {
   invalidateNotificationBadges,
   markAllRoomAssignmentNotificationsRead,
-} from '@/services/inAppNotifications';
+} from '@shared/lib/inAppNotifications';
 import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
@@ -34,7 +34,7 @@ import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
 import { CARD_DIMENSIONS, CARD_COLORS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@shared/utils/shiftUtils';
-import { getStayoverWithLinen } from '@shared/utils/stayoverLinen';
+import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@shared/utils/formatting';
 
 /** When user taps a status badge or priority badge on Home. */

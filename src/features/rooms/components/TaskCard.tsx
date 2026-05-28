@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '../theme';
-import { scaleX } from '@/constants/roomDetailStyles';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/roomDetailStyles';
 
 interface TaskCardProps {
   title?: string;

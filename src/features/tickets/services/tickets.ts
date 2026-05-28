@@ -4,8 +4,8 @@ import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 import { getDepartmentIdByName } from '@features/account';
 import * as FileSystem from 'expo-file-system/legacy';
 import { base64ToArrayBuffer } from '@shared/utils/encoding';
-import { notifyServer } from '@/services/notifications';
-import { getMyHotelId } from '@/services/tenant';
+import { notifyServer } from '@shared/lib/notifications';
+import { getMyHotelId } from '@shared/lib/tenant';
 import { buildFriendlyRoomHistoryMessage } from '@features/rooms';
 
 type TicketsRow = {

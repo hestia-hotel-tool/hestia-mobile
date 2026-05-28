@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
 import { RETURN_LATER_MODAL, scaleX } from '../../constants/returnLaterModalStyles';
-import TimePickerWheel from '@shared/ui/TimePickerWheel';
+import TimePickerWheel from '../TimePickerWheel';
 
 interface TimePickerContainerProps {
   selectedHour: number; // 0-23

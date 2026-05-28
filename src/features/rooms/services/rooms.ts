@@ -4,9 +4,9 @@
  */
 
 import { supabase } from '@shared/lib/supabase';
-import { invalidateNotificationBadges } from '@/services/inAppNotifications';
-import { notifyServer } from '@/services/notifications';
-import { getMyHotelId } from '@/services/tenant';
+import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
+import { notifyServer } from '@shared/lib/notifications';
+import { getMyHotelId } from '@shared/lib/tenant';
 import type {
   AllRoomsScreenData,
   RoomCardData,

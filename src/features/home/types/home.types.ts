@@ -2,6 +2,10 @@
  * Home Screen Type Definitions
  */
 
+import type { ShiftType } from '@shared/types/shift.types';
+
+export type { ShiftType } from '@shared/types/shift.types';
+
 export interface RoomStatus {
   dirty: number;
   inProgress: number;
@@ -27,8 +31,6 @@ export interface UserProfile {
   avatar?: string; // Optional - when absent, show initials from name
   hasFlag: boolean;
 }
-
-export type ShiftType = 'AM' | 'PM';
 
 export interface HomeScreenData {
   user: UserProfile;

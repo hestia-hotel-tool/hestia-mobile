@@ -10,8 +10,8 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '@/types';
 import type { ChatItemData } from '../components/ChatItem';
 import { base64ToArrayBuffer } from '@shared/utils/encoding';
-import { notifyServer } from '@/services/notifications';
-import { getMyHotelId } from '@/services/tenant';
+import { notifyServer } from '@shared/lib/notifications';
+import { getMyHotelId } from '@shared/lib/tenant';
 
 const MESSAGE_TYPE = 'text'; // DB: text, image, system
 export const CHAT_ATTACHMENTS_BUCKET = 'chat-attachments';

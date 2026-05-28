@@ -1,11 +1,11 @@
 import React, { useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '../theme';
-import { GUEST_INFO, CARD_DIMENSIONS, GUEST_CONTAINER_BG, STATUS_BUTTON } from '@/constants/allRoomsStyles';
-import { normalizedScaleX } from '../utils/responsive';
-import { formatGuestCount, formatDatesOfStay } from '../utils/formatting';
-import type { GuestInfo } from '@/types/allRooms.types';
-import type { GuestImageAnchorLayout } from './GuestProfileImageModal';
+import { typography } from '@shared/theme';
+import { GUEST_INFO, CARD_DIMENSIONS, GUEST_CONTAINER_BG, STATUS_BUTTON } from '../constants/allRoomsStyles';
+import { normalizedScaleX } from '@shared/utils/responsive';
+import { formatGuestCount, formatDatesOfStay } from '@shared/utils/formatting';
+import type { GuestInfo } from '../types/allRooms.types';
+import type { GuestImageAnchorLayout } from '@shared/ui/GuestProfileImageModal';
 
 interface GuestInfoDisplayProps {
   guest: GuestInfo;
@@ -97,20 +97,20 @@ export default function GuestInfoDisplay({
   let guestIconSource;
   if (isArrivalDeparture || category === 'ArrivalDeparture') {
     guestIconSource = isSecondGuest
-      ? require('../../../assets/icons/guest-departure-icon.png')
-      : require('../../../assets/icons/guest-arrival-icon.png');
+      ? require('../../../../assets/icons/guest-departure-icon.png')
+      : require('../../../../assets/icons/guest-arrival-icon.png');
   } else if (isStayover || isNoTask) {
-    guestIconSource = require('../../../assets/icons/stayover-guest_icon.png');
+    guestIconSource = require('../../../../assets/icons/stayover-guest_icon.png');
   } else if (isTurndown) {
-    guestIconSource = require('../../../assets/icons/moon.png');
+    guestIconSource = require('../../../../assets/icons/moon.png');
   } else if (isArrival || guest.timeLabel === 'ETA') {
     // Use arrival icon if category is Arrival OR guest has ETA timeLabel
-    guestIconSource = require('../../../assets/icons/guest-arrival-icon.png');
+    guestIconSource = require('../../../../assets/icons/guest-arrival-icon.png');
   } else if (isDeparture || guest.timeLabel === 'EDT') {
     // Use departure icon if category is Departure OR guest has EDT timeLabel
-    guestIconSource = require('../../../assets/icons/guest-departure-icon.png');
+    guestIconSource = require('../../../../assets/icons/guest-departure-icon.png');
   } else {
-    guestIconSource = require('../../../assets/icons/guest-icon.png');
+    guestIconSource = require('../../../../assets/icons/guest-icon.png');
   }
   
   // Determine container left position - use override if provided, otherwise calculate
@@ -409,7 +409,7 @@ export default function GuestInfoDisplay({
           ]}
         >
           <Image
-            source={require('../../../assets/icons/vacant-chair.png')}
+            source={require('../../../../assets/icons/vacant-chair.png')}
             style={[
               styles.guestIconVacant,
               isPMTheme ? styles.guestIconPM : styles.guestIconNoTint,
@@ -515,11 +515,11 @@ export default function GuestInfoDisplay({
                 <Image
                   source={
                     (isArrival || ((isArrivalDeparture || category === 'ArrivalDeparture') && isFirstGuest))
-                      ? require('../../../assets/icons/arrow-forward.png')
+                      ? require('../../../../assets/icons/arrow-forward.png')
                       : (isDeparture || ((isArrivalDeparture || category === 'ArrivalDeparture') && isSecondGuest))
-                      ? require('../../../assets/icons/departure-spear.png')
+                      ? require('../../../../assets/icons/departure-spear.png')
                       : isStayover
-                      ? require('../../../assets/icons/stayover-guest_icon.png')
+                      ? require('../../../../assets/icons/stayover-guest_icon.png')
                       : guestIconSource
                   }
                   style={isTurndown ? styles.imageBadgeIconNoTint : styles.imageBadgeIcon}
@@ -593,7 +593,7 @@ export default function GuestInfoDisplay({
                   {hasGuestCount && (
                     <>
                       <Image
-                        source={require('../../../assets/icons/people-icon.png')}
+                        source={require('../../../../assets/icons/people-icon.png')}
                         style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM, { marginLeft: 0, marginRight: 4 * normalizedScaleX }]}
                         resizeMode="contain"
                       />
@@ -626,7 +626,7 @@ export default function GuestInfoDisplay({
                   {/* Show guest count inline only if there's time (ETA/EDT) */}
                   {hasTime && countPos && hasGuestCount && (
                     <>
-                      <Image source={require('../../../assets/icons/people-icon.png')} style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM]} resizeMode="contain" />
+                      <Image source={require('../../../../assets/icons/people-icon.png')} style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM]} resizeMode="contain" />
                       <Text style={styles.countTextInline}>{formatGuestCount(guest.guestCount)}</Text>
                     </>
                   )}
@@ -640,7 +640,7 @@ export default function GuestInfoDisplay({
                   /* If no time, show guest count on second line */
                   countPos && hasGuestCount && (
                     <View style={[styles.detailsRowWithCount, styles.detailsRowFlex, { marginTop: infoGap }]}>
-                      <Image source={require('../../../assets/icons/people-icon.png')} style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM]} resizeMode="contain" />
+                      <Image source={require('../../../../assets/icons/people-icon.png')} style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM]} resizeMode="contain" />
                       <Text style={styles.countTextInline}>{formatGuestCount(guest.guestCount)}</Text>
                     </View>
                   )
@@ -658,7 +658,7 @@ export default function GuestInfoDisplay({
                   {/* Guest Count - inline if available */}
                   {hasGuestCount && (
                     <>
-                      <Image source={require('../../../assets/icons/people-icon.png')} style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM, { marginRight: 4 * normalizedScaleX }]} resizeMode="contain" />
+                      <Image source={require('../../../../assets/icons/people-icon.png')} style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM, { marginRight: 4 * normalizedScaleX }]} resizeMode="contain" />
                       <Text style={[styles.countTextInline, { marginRight: shouldSplitTimeToNewLine ? 0 : 8 * normalizedScaleX }]}>
                         {formatGuestCount(guest.guestCount)}
                       </Text>
@@ -713,7 +713,7 @@ export default function GuestInfoDisplay({
             {hasGuestCount && (
               <>
                 <Image
-                  source={require('../../../assets/icons/people-icon.png')}
+                  source={require('../../../../assets/icons/people-icon.png')}
                   style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM, { marginLeft: 0, marginRight: 4 * normalizedScaleX }]}
                   resizeMode="contain"
                 />
@@ -831,7 +831,7 @@ export default function GuestInfoDisplay({
             {hasGuestCount && (
               <>
                 <Image
-                  source={require('../../../assets/icons/people-icon.png')}
+                  source={require('../../../../assets/icons/people-icon.png')}
                   style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM, { marginLeft: 0, marginRight: 4 * normalizedScaleX }]}
                   resizeMode="contain"
                 />
@@ -887,7 +887,7 @@ export default function GuestInfoDisplay({
             {countPos && hasGuestCount && (
               <>
                 <Image
-                  source={require('../../../assets/icons/people-icon.png')}
+                  source={require('../../../../assets/icons/people-icon.png')}
                   style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM]}
                   resizeMode="contain"
                 />
@@ -925,7 +925,7 @@ export default function GuestInfoDisplay({
             {hasGuestCount && (
               <>
                 <Image
-                  source={require('../../../assets/icons/people-icon.png')}
+                  source={require('../../../../assets/icons/people-icon.png')}
                   style={[styles.countIconInline, isPMTheme && styles.countIconInlinePM, { marginRight: 4 * normalizedScaleX }]}
                   resizeMode="contain"
                 />
@@ -996,7 +996,7 @@ export default function GuestInfoDisplay({
       {shouldShowGuestCountBelow && guest.guestCount && guest.guestCount.adults !== undefined && !(timeLeft !== undefined && timeTop !== undefined) ? (
         <>
           <Image
-            source={require('../../../assets/icons/people-icon.png')}
+            source={require('../../../../assets/icons/people-icon.png')}
             style={[
               styles.countIcon,
               isPMTheme && styles.countIconPM,

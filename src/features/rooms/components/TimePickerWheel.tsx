@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { typography } from '../theme';
-import { scaleX } from '@/constants/roomDetailStyles';
+import { typography } from '@shared/theme';
+import { scaleX } from '../constants/roomDetailStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

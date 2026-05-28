@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { scaleX } from '../constants/lostAndFoundStyles';
-import TimePickerWheel from '@shared/ui/TimePickerWheel';
+import { TimePickerWheel } from '@features/rooms';
 import { typography } from '@shared/theme';
 
 interface LostAndFoundTimePickerContainerProps {

@@ -18,13 +18,13 @@ import AppNavigator from './navigation/AppNavigator';
 import { getFullRoomDetails } from '@features/rooms';
 import * as Notifications from 'expo-notifications';
 import { navigationRef } from './navigation/navigationRef';
-import type { PushData } from '../services/notifications';
-import { setupNotificationPresentation } from '../services/notifications';
+import type { PushData } from '@shared/lib/notifications';
+import { setupNotificationPresentation } from '@shared/lib/notifications';
 import {
   incomingAlertDedupeKeyFromPushData,
   presentIncomingNotificationAlert,
   subscribeToIncomingNotificationRows,
-} from '../services/notificationIncoming';
+} from '@shared/lib/notificationIncoming';
 
 function navigateFromPushData(data: Partial<PushData> & Record<string, unknown>) {
   if (!navigationRef.isReady()) return;

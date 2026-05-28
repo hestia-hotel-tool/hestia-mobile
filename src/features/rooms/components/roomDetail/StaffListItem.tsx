@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { typography, colors } from '@shared/theme';
 import { REASSIGN_MODAL, scaleX } from '../../constants/reassignModalStyles';
-import WorkloadProgressBar from '@shared/ui/WorkloadProgressBar';
+import WorkloadProgressBar from '../WorkloadProgressBar';
 
 interface StaffListItemProps {
   staff: {

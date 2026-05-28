@@ -1,7 +1,7 @@
 /**
  * Generate default task text based on room type
  */
-import type { RoomType } from '@/types/roomDetail.types';
+import type { RoomType } from '../types/roomDetail.types';
 
 export function getDefaultTaskText(roomType: RoomType): string {
   switch (roomType) {

@@ -1,7 +1,7 @@
 import { Vibration, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import { getToast } from '../utils/toast';
 import { invalidateNotificationBadges } from './inAppNotifications';
 import type { PushData } from './notifications';

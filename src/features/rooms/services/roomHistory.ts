@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import type { HistoryEvent } from '../types/roomDetail.types';
 import type { TablesInsert } from '@shared/types/supabase';
-import { getActivityLogsForRecord, logActivity } from '@/services/activityLogs';
+import { getActivityLogsForRecord, logActivity } from '@shared/lib/activityLogs';
 
 type RoomHistoryInsert = TablesInsert<'room_history'>;
 

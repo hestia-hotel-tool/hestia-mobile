@@ -9,7 +9,7 @@ import ChecklistFooter from './ChecklistFooter';
 import DownloadReportButton from './DownloadReportButton';
 import type { ChecklistData, ChecklistSubmissionData } from '../../types/checklist.types';
 import { getDefaultChecklist } from '@/data/mockChecklistData';
-import { generateChecklistReport } from '@shared/utils/generateChecklistReport';
+import { generateChecklistReport } from '../../utils/generateChecklistReport';
 
 interface ChecklistSectionProps {
   roomNumber: string;

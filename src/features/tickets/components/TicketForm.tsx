@@ -23,7 +23,7 @@ import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@app/navigation/types';
-import { getDepartments } from '@/services/departments';
+import { getDepartments } from '@shared/lib/departments';
 import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

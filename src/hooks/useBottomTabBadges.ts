@@ -5,7 +5,7 @@ import { useChatStore } from '@features/chat';
 import {
   clearNotificationBadgeInvalidateListeners,
   subscribeNotificationBadgeInvalidate,
-} from '../services/inAppNotifications';
+} from '@shared/lib/inAppNotifications';
 
 if (__DEV__) {
   // Fast Refresh can leave old `fetchNotificationCounts` closures in the listener set

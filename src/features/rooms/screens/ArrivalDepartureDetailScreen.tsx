@@ -28,7 +28,7 @@ import type { RoomDetailData, DetailTab, Note, Task } from '../types/roomDetail.
 import type { RootStackParamList } from '@app/navigation/types';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { authService } from '@features/auth';
-import { showStayoverWithLinenBadge } from '@shared/utils/stayoverLinen';
+import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';
 import { getRoomNotes, addRoomNote } from '../services/rooms';
 
 type ArrivalDepartureDetailScreenNavigationProp = NativeStackNavigationProp<

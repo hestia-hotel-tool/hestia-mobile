@@ -9,8 +9,8 @@
  * - Card height variations
  */
 
-import { RoomTypeConfig } from '@/types/roomDetail.types';
-import { CONTENT_AREA } from '@/constants/roomDetailStyles';
+import { RoomTypeConfig } from '../types/roomDetail.types';
+import { CONTENT_AREA } from '../constants/roomDetailStyles';
 
 export interface CalculatedPositions {
   // Guest Info Section

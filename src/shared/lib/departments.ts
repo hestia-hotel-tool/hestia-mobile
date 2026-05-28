@@ -3,7 +3,7 @@
  * Fetches departments for Create Ticket and Staff screens.
  */
 
-import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from './supabase';
 import type { Tables } from '../types/supabase';
 
 export type DepartmentRow = Tables<'departments'>['Row'];

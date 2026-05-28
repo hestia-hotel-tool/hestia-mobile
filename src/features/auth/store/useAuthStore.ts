@@ -7,8 +7,8 @@ import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { authService } from '../services/auth';
 import { isSupabaseConfigured } from '@shared/lib/supabase';
-import { registerAndSyncPushToken } from '@/services/notifications';
-import { clearCachedHotelId, getMyHotelId } from '@/services/tenant';
+import { registerAndSyncPushToken } from '@shared/lib/notifications';
+import { clearCachedHotelId, getMyHotelId } from '@shared/lib/tenant';
 import { resetTenantScopedStores } from '@/store/resetTenantScopedStores';
 
 interface AuthState {

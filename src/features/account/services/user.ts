@@ -7,7 +7,7 @@ import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import { base64ToArrayBuffer } from '@shared/utils/encoding';
 import type { UserProfile } from '@/types/home.types';
 import type { User } from '@/types';
-import { getMyHotelId } from '@/services/tenant';
+import { getMyHotelId } from '@shared/lib/tenant';
 
 export type UserProfileRow = {
   full_name?: string;

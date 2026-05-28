@@ -20,7 +20,7 @@ import { typography } from '@shared/theme';
 import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../constants/lostAndFoundStyles';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import { fetchStaffFromSupabase } from '@features/staff';
-import { GUEST_IMAGES_BUCKET } from '@/services/guests';
+import { GUEST_IMAGES_BUCKET } from '@shared/lib/guests';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';

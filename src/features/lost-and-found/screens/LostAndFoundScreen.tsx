@@ -25,7 +25,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { typography } from '@shared/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { base64ToArrayBuffer } from '@shared/utils/encoding';
-import { getMyHotelId } from '@/services/tenant';
+import { getMyHotelId } from '@shared/lib/tenant';
 
 type MainTabsParamList = {
   Home: undefined;

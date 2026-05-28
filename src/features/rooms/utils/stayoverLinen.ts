@@ -3,7 +3,7 @@
  * E.g. arrival Monday → Tuesday = day 2 (with linen), Wednesday = day 3 (no linen), Thursday = day 4 (with linen).
  */
 
-import type { RoomCardData } from '@/types/allRooms.types';
+import type { RoomCardData } from '../types/allRooms.types';
 
 /**
  * Parse date string. Supports ISO (YYYY-MM-DD) or DD/MM/YYYY, DD/MM/YY.
