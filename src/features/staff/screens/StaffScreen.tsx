@@ -537,6 +537,7 @@ export default function StaffScreen() {
                           currentTask: stats?.currentRoomNumber
                             ? {
                                 roomNumber: String(stats.currentRoomNumber),
+                                roomId: stats.currentRoomId,
                                 isActive: !stats.isPaused,
                                 startTimeIso: stats.currentRoomStartTimeIso ?? null,
                                 isPaused: !!stats.isPaused,
@@ -563,8 +564,11 @@ export default function StaffScreen() {
                         ) : (
                           <StaffCard
                             staff={staffForCard}
-                            onAssignRoomPress={() => {
-                              // TODO: wire to assign room flow (matches Figma button)
+                            onAssignRoomPress={(s) => {
+                              const roomId = s.currentTask?.roomId;
+                              if (roomId) {
+                                (navigation as any).navigate('RoomDetail', { roomId, initialTab: 'Overview' });
+                              }
                             }}
                           />
                         )

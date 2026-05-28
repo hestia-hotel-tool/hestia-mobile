@@ -55,6 +55,8 @@ export type StaffRoomStats = {
   cleaned: number;
   dirty: number;
   currentRoomNumber?: string;
+  /** rooms.id of the current room — used to open RoomDetail from the card. */
+  currentRoomId?: string;
   /** start_time of the room the attendant is currently on (drives the live timer). */
   currentRoomStartTimeIso?: string | null;
   /** Current room's work_status is 'paused'. */
@@ -132,6 +134,7 @@ export async function fetchStaffRoomStatsForShift(
       const rn = r.rooms?.room_number ? String(r.rooms.room_number) : undefined;
       if (rn && (!prev.currentRoomNumber || (isInProgress && prev.isPaused))) {
         prev.currentRoomNumber = rn;
+        prev.currentRoomId = r.rooms?.id ? String(r.rooms.id) : undefined;
         prev.currentRoomStartTimeIso = r.start_time ?? null;
         prev.isPaused = isPausedRoom;
         prev.pauseReason = isPausedRoom ? (r.pause_reason ?? null) : null;
