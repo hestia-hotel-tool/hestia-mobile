@@ -55,6 +55,12 @@ export type StaffRoomStats = {
   cleaned: number;
   dirty: number;
   currentRoomNumber?: string;
+  /** start_time of the room the attendant is currently on (drives the live timer). */
+  currentRoomStartTimeIso?: string | null;
+  /** Current room's work_status is 'paused'. */
+  isPaused?: boolean;
+  /** pause_reason for the current room when paused. */
+  pauseReason?: string | null;
 };
 
 /**
@@ -74,7 +80,7 @@ export async function fetchStaffRoomStatsForShift(
 
   const { data, error } = await supabase
     .from('room_assignments')
-    .select('user_id, work_status, rooms:rooms(id, room_number, house_keeping_status)')
+    .select('user_id, work_status, start_time, pause_reason, rooms:rooms(id, room_number, house_keeping_status)')
     .eq('shift_id', shiftId)
     .in('user_id', userIds);
 
@@ -86,6 +92,8 @@ export async function fetchStaffRoomStatsForShift(
   type Row = {
     user_id: string;
     work_status: string | null;
+    start_time: string | null;
+    pause_reason: string | null;
     rooms: { id: string; room_number: string; house_keeping_status: string | null } | null;
   };
 
@@ -114,16 +122,96 @@ export async function fetchStaffRoomStatsForShift(
       prev.dirty += 1;
     }
 
-    // Choose a "current" room (prefer assignment work_status == in_progress, else hk == InProgress)
+    // Choose a "current" room: the one the attendant is actively on. Prefer an
+    // in-progress assignment; fall back to a paused one (so the card can show
+    // "paused"). An in-progress room overrides a previously-picked paused room.
     const ws = String(r.work_status ?? '').toLowerCase();
-    if (!prev.currentRoomNumber) {
-      if (ws === 'in_progress' || hk === 'InProgress') {
-        const rn = r.rooms?.room_number ? String(r.rooms.room_number) : undefined;
-        if (rn) prev.currentRoomNumber = rn;
+    const isInProgress = ws === 'in_progress' || hk === 'InProgress';
+    const isPausedRoom = ws === 'paused';
+    if (isInProgress || isPausedRoom) {
+      const rn = r.rooms?.room_number ? String(r.rooms.room_number) : undefined;
+      if (rn && (!prev.currentRoomNumber || (isInProgress && prev.isPaused))) {
+        prev.currentRoomNumber = rn;
+        prev.currentRoomStartTimeIso = r.start_time ?? null;
+        prev.isPaused = isPausedRoom;
+        prev.pauseReason = isPausedRoom ? (r.pause_reason ?? null) : null;
       }
     }
 
     map.set(uid, prev);
+  }
+
+  return map;
+}
+
+export type StaffTicketStats = {
+  /** Tickets assigned to this user that are resolved/closed. */
+  resolved: number;
+  /** Tickets assigned to this user still open. */
+  open: number;
+  /** Mean minutes from created_at to resolved_at across resolved tickets. */
+  avgResolutionMins?: number;
+};
+
+const RESOLVED_TICKET_STATUSES = new Set(['closed', 'resolved', 'done', 'completed']);
+
+/**
+ * Ticket throughput per user (for non-housekeeping departments such as
+ * Engineering/IT). A ticket counts as resolved if it has a resolved_at
+ * timestamp or a terminal status.
+ */
+export async function fetchStaffTicketStats(
+  userIds: string[]
+): Promise<Map<string, StaffTicketStats>> {
+  const map = new Map<string, StaffTicketStats>();
+  if (!isSupabaseConfigured) return map;
+  if (!Array.isArray(userIds) || userIds.length === 0) return map;
+
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('assigned_to_id, status, created_at, resolved_at')
+    .in('assigned_to_id', userIds);
+
+  if (error) {
+    console.warn('[staff] fetchStaffTicketStats failed', error.message);
+    return map;
+  }
+
+  type Row = {
+    assigned_to_id: string | null;
+    status: string | null;
+    created_at: string | null;
+    resolved_at: string | null;
+  };
+
+  const agg = new Map<string, { resolved: number; open: number; totalMins: number; timed: number }>();
+  for (const r of (data ?? []) as Row[]) {
+    const uid = String(r.assigned_to_id ?? '');
+    if (!uid) continue;
+    const a = agg.get(uid) ?? { resolved: 0, open: 0, totalMins: 0, timed: 0 };
+    const isResolved =
+      !!r.resolved_at || RESOLVED_TICKET_STATUSES.has(String(r.status ?? '').trim().toLowerCase());
+    if (isResolved) {
+      a.resolved += 1;
+      if (r.resolved_at && r.created_at) {
+        const mins = (new Date(r.resolved_at).getTime() - new Date(r.created_at).getTime()) / 60000;
+        if (Number.isFinite(mins) && mins >= 0) {
+          a.totalMins += mins;
+          a.timed += 1;
+        }
+      }
+    } else {
+      a.open += 1;
+    }
+    agg.set(uid, a);
+  }
+
+  for (const [uid, a] of agg) {
+    map.set(uid, {
+      resolved: a.resolved,
+      open: a.open,
+      avgResolutionMins: a.timed > 0 ? Math.round(a.totalMins / a.timed) : undefined,
+    });
   }
 
   return map;

@@ -26,8 +26,22 @@ export interface StaffMember {
   };
   currentTask?: {
     roomNumber: string;
-    timer: string; // Format: "00:50:23"
-    isActive: boolean; // If true, timer is red; if false, black
+    timer?: string; // Optional precomputed label; the card derives a live timer from startTimeIso
+    isActive: boolean; // If true, timer is red (in progress); if false, black
+    /** room_assignments.start_time — when cleaning started; drives the live elapsed timer. */
+    startTimeIso?: string | null;
+    /** room_assignments.work_status === 'paused' */
+    isPaused?: boolean;
+    /** room_assignments.pause_reason */
+    pauseReason?: string | null;
+  };
+  /** Which stat panel this staff's card should show (by department kind). */
+  statKind?: 'cleaning' | 'tickets';
+  /** Ticket throughput for non-housekeeping departments (Engineering, IT, etc.). */
+  ticketStats?: {
+    resolved: number;
+    open: number;
+    avgResolutionMins?: number;
   };
 }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography } from '@shared/theme';
 import { scaleX, STAFF_CARD } from '../constants/staffStyles';
@@ -8,6 +8,38 @@ import StaffCardProgressBar from './StaffCardProgressBar';
 interface StaffCardProps {
   staff: StaffMember;
   onAssignRoomPress?: (staff: StaffMember) => void;
+}
+
+function formatElapsed(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+}
+
+/** Live elapsed-since-start timer. Ticks every second while active; freezes when paused. */
+function CleaningTimer({
+  startTimeIso,
+  isPaused,
+  style,
+}: {
+  startTimeIso?: string | null;
+  isPaused?: boolean;
+  style?: any;
+}) {
+  const startMs = startTimeIso ? new Date(startTimeIso).getTime() : NaN;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (isPaused || !Number.isFinite(startMs)) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [isPaused, startMs]);
+
+  if (!Number.isFinite(startMs)) return <Text style={style}>--:--:--</Text>;
+  return <Text style={style}>{formatElapsed(now - startMs)}</Text>;
 }
 
 export default function StaffCard({ staff, onAssignRoomPress }: StaffCardProps) {
@@ -88,7 +120,9 @@ export default function StaffCard({ staff, onAssignRoomPress }: StaffCardProps) 
           </View>
           <View style={styles.currentTaskTextContainer}>
             <Text style={styles.roomText}>Room {staff.currentTask.roomNumber}</Text>
-            <Text
+            <CleaningTimer
+              startTimeIso={staff.currentTask.startTimeIso}
+              isPaused={staff.currentTask.isPaused}
               style={[
                 styles.timer,
                 {
@@ -97,11 +131,16 @@ export default function StaffCard({ staff, onAssignRoomPress }: StaffCardProps) 
                     : STAFF_CARD.currentTask.timer.inactiveColor,
                 },
               ]}
-            >
-              {staff.currentTask.timer}
-            </Text>
+            />
+            {staff.currentTask.isPaused && staff.currentTask.pauseReason ? (
+              <Text style={styles.pauseReason} numberOfLines={1}>
+                {staff.currentTask.pauseReason}
+              </Text>
+            ) : null}
           </View>
-          <Text style={styles.currentPillLabel}>Current</Text>
+          <Text style={styles.currentPillLabel}>
+            {staff.currentTask.isPaused ? 'Paused' : 'Current'}
+          </Text>
         </View>
       )}
 
@@ -250,6 +289,14 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.regular as any,
     marginTop: 2 * scaleX,
     lineHeight: STAFF_CARD.currentTask.timer.fontSize * scaleX * 1.2,
+  },
+  pauseReason: {
+    fontSize: 9 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: typography.fontWeights.regular as any,
+    color: '#b25b00',
+    marginTop: 1 * scaleX,
+    maxWidth: 120 * scaleX,
   },
   assignRoomButton: {
     position: 'absolute',

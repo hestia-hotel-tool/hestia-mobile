@@ -18,6 +18,7 @@ import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
 import StaffListRow from '../components/StaffListRow';
 import StaffCard from '../components/StaffCard';
+import StaffTicketCard from '../components/StaffTicketCard';
 import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
@@ -25,7 +26,10 @@ import { getUsersByDepartmentId } from '@features/account';
 import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
 import { isSupabaseConfigured } from '@shared/lib/supabase';
 import type { User } from '@shared/types';
-import { fetchStaffRoomStatsForShift } from '../services/staff';
+import { fetchStaffRoomStatsForShift, fetchStaffTicketStats, type StaffTicketStats } from '../services/staff';
+
+/** Departments whose card shows cleaning stats; everything else shows ticket stats. */
+const CLEANING_DEPARTMENTS = new Set(['HSK Portier', 'Laundry']);
 
 const DESIGN_WIDTH = 440;
 
@@ -81,6 +85,15 @@ export default function StaffScreen() {
   const [activeDepartmentId, setActiveDepartmentId] = useState<string>('');
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   const [staffStatsById, setStaffStatsById] = useState<Map<string, any>>(new Map());
+  const [staffTicketStatsById, setStaffTicketStatsById] = useState<Map<string, StaffTicketStats>>(new Map());
+
+  const activeDepartmentName = useMemo(
+    () => departments.find((d) => d.id === activeDepartmentId)?.name ?? '',
+    [departments, activeDepartmentId]
+  );
+  const activeStatKind: 'cleaning' | 'tickets' = CLEANING_DEPARTMENTS.has(activeDepartmentName)
+    ? 'cleaning'
+    : 'tickets';
 
   const toggleStaffExpand = (id: string) => {
     setExpandedStaffId((prev) => (prev === id ? null : id));
@@ -154,22 +167,42 @@ export default function StaffScreen() {
     };
   }, [activeDepartmentId]);
 
-  // Load staff room stats for AM/PM tabs (housekeeping staff focus).
+  // Load per-staff stats for AM/PM tabs. Cleaning departments (HSK Portier,
+  // Laundry) load room-assignment stats for the shift; all other departments
+  // load ticket throughput.
   useEffect(() => {
     let cancelled = false;
-    const shift = selectedTab === 'pm' ? 'PM' : 'AM';
     if (selectedTab === 'shifts') {
       setStaffStatsById(new Map());
+      setStaffTicketStatsById(new Map());
       return;
     }
     const ids = departmentStaff.map((s) => s.id).filter(Boolean);
-    void fetchStaffRoomStatsForShift(ids, shift).then((map) => {
-      if (!cancelled) setStaffStatsById(map);
-    });
+    if (ids.length === 0) {
+      setStaffStatsById(new Map());
+      setStaffTicketStatsById(new Map());
+      return;
+    }
+    if (activeStatKind === 'cleaning') {
+      const shift = selectedTab === 'pm' ? 'PM' : 'AM';
+      void fetchStaffRoomStatsForShift(ids, shift).then((map) => {
+        if (!cancelled) {
+          setStaffStatsById(map);
+          setStaffTicketStatsById(new Map());
+        }
+      });
+    } else {
+      void fetchStaffTicketStats(ids).then((map) => {
+        if (!cancelled) {
+          setStaffTicketStatsById(map);
+          setStaffStatsById(new Map());
+        }
+      });
+    }
     return () => {
       cancelled = true;
     };
-  }, [selectedTab, departmentStaff]);
+  }, [selectedTab, departmentStaff, activeStatKind]);
 
   // Sync activeTab with current route
   useFocusEffect(
@@ -483,11 +516,15 @@ export default function StaffScreen() {
                 displayedStaff.map((staff) => {
                   const chip = departments.find((c) => c.id === activeDepartmentId);
                   const dept = staff.department ?? chip?.name ?? 'Staff';
+                  const isCardTab = selectedTab === 'am' || selectedTab === 'pm';
                   const stats = staffStatsById.get(staff.id);
-                  const staffForCard: StaffMember =
-                    selectedTab === 'am' || selectedTab === 'pm'
+                  const ticketStats = staffTicketStatsById.get(staff.id);
+                  const staffForCard: StaffMember = !isCardTab
+                    ? staff
+                    : activeStatKind === 'cleaning'
                       ? {
                           ...staff,
+                          statKind: 'cleaning',
                           taskStats: {
                             inProgress: stats?.inProgress ?? 0,
                             cleaned: stats?.cleaned ?? 0,
@@ -498,19 +535,37 @@ export default function StaffScreen() {
                             total: stats?.total ?? 0,
                           },
                           currentTask: stats?.currentRoomNumber
-                            ? { roomNumber: String(stats.currentRoomNumber), timer: '00:00:00', isActive: false }
+                            ? {
+                                roomNumber: String(stats.currentRoomNumber),
+                                isActive: !stats.isPaused,
+                                startTimeIso: stats.currentRoomStartTimeIso ?? null,
+                                isPaused: !!stats.isPaused,
+                                pauseReason: stats.pauseReason ?? null,
+                              }
                             : undefined,
                         }
-                      : staff;
+                      : {
+                          ...staff,
+                          statKind: 'tickets',
+                          ticketStats: {
+                            resolved: ticketStats?.resolved ?? 0,
+                            open: ticketStats?.open ?? 0,
+                            avgResolutionMins: ticketStats?.avgResolutionMins,
+                          },
+                        };
                   return (
                     <View key={staff.id}>
-                      {(selectedTab === 'am' || selectedTab === 'pm') ? (
-                        <StaffCard
-                          staff={staffForCard}
-                          onAssignRoomPress={() => {
-                            // TODO: wire to assign room flow (matches Figma button)
-                          }}
-                        />
+                      {isCardTab ? (
+                        staffForCard.statKind === 'tickets' ? (
+                          <StaffTicketCard staff={staffForCard} />
+                        ) : (
+                          <StaffCard
+                            staff={staffForCard}
+                            onAssignRoomPress={() => {
+                              // TODO: wire to assign room flow (matches Figma button)
+                            }}
+                          />
+                        )
                       ) : (
                         <StaffListRow
                           staffId={staff.id}
