@@ -13,8 +13,8 @@ import { BlurView } from 'expo-blur';
 import { colors, typography } from '@shared/theme';
 import SeeRoomsButton from '@shared/ui/SeeRoomsButton';
 import { FilterState, FilterCounts } from '@shared/types/filter.types';
-import { useHomeFilters } from '@/hooks/useHomeFilters';
-import FilterRow from '@/components/home/FilterRow';
+import { useHomeFilters } from '@features/home';
+import { FilterRow } from '@features/home';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

@@ -1,40 +1,40 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Text } from 'react-native';
-import { useDesignScale } from '../hooks/useDesignScale';
+import { useDesignScale } from '@shared/hooks/useDesignScale';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import { CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { BlurView } from 'expo-blur';
-import { colors } from '../theme';
-import SearchInput from '../components/SearchInput';
+import { colors } from '@shared/theme';
+import SearchInput from '@shared/ui/SearchInput';
 
 import type { ShiftType } from '../types/home.types';
 import { useAuth } from '@features/auth';
 import { useUserStore } from '@features/account';
 import { userProfileFromSession } from '@features/account';
-import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
+import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
 import { useRoomsStore } from '@features/rooms';
-import { LoadingOverlay } from '../components/shared/LoadingOverlay';
-import type { MoreMenuItemId } from '../types/more.types';
+import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
+import type { MoreMenuItemId } from '@/types/more.types';
 import type { RootStackParamList } from '@app/navigation/types';
-import HomeHeader from '../components/home/HomeHeader';
-import CategoryCard from '../components/home/CategoryCard';
-import EngineeringTicketsOverviewCard from '../components/home/EngineeringTicketsOverviewCard';
-import EngineeringRecentActivityItem from '../components/home/EngineeringRecentActivityItem';
-import HskPortierTasksOverviewCard from '../components/home/HskPortierTasksOverviewCard';
-import HskPortierCategoryListCard from '../components/home/HskPortierCategoryListCard';
-import BottomTabBar from '../components/navigation/BottomTabBar';
-import HomeFilterModal from '../components/home/HomeFilterModal';
-import { FilterState, FilterCounts } from '../types/filter.types';
+import HomeHeader from '../components/HomeHeader';
+import CategoryCard from '../components/CategoryCard';
+import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOverviewCard';
+import EngineeringRecentActivityItem from '../components/EngineeringRecentActivityItem';
+import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
+import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
+import BottomTabBar from '@app/components/BottomTabBar';
+import HomeFilterModal from '../components/HomeFilterModal';
+import { FilterState, FilterCounts } from '@shared/types/filter.types';
 import type { CategorySection } from '../types/home.types';
-import type { RoomCardData } from '../types/allRooms.types';
-import { getShiftFromTime } from '../utils/shiftUtils';
-import { getFloorFromRoomNumber } from '../utils/formatting';
-import { getRecentActivityLogs } from '../services/activityLogs';
+import type { RoomCardData } from '@features/rooms';
+import { getShiftFromTime } from '@shared/utils/shiftUtils';
+import { getFloorFromRoomNumber } from '@shared/utils/formatting';
+import { getRecentActivityLogs } from '@/services/activityLogs';
 import { dashboardService } from '@features/rooms';
-import { supabase } from '../lib/supabase';
+import { supabase } from '@shared/lib/supabase';
 import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '@features/rooms';
 
 import type { MainTabsParamList } from '@app/navigation/types';
@@ -440,31 +440,31 @@ export default function HomeScreen() {
     const departures = workingRooms.filter((r) => r.frontOfficeStatus === 'Departure' || r.frontOfficeStatus === 'Arrival/Departure').length;
     const arrivals = workingRooms.filter((r) => r.frontOfficeStatus === 'Arrival' || r.frontOfficeStatus === 'Arrival/Departure').length;
     const baseRows = [
-      { label: 'Flagged', count: flagged, icon: require('../../assets/icons/flag.png'), circleBg: '#ffebeb', iconTint: '#f92424' },
+      { label: 'Flagged', count: flagged, icon: require('../../../../assets/icons/flag.png'), circleBg: '#ffebeb', iconTint: '#f92424' },
       {
         label: 'Stayover',
         count: stayover,
-        icon: require('../../assets/icons/rooms-icon.png'),
+        icon: require('../../../../assets/icons/rooms-icon.png'),
         circleBg: '#4a91fc',
         iconTint: '#ffffff',
       },
       {
         label: 'Turndowns',
         count: turndown,
-        icon: require('../../assets/icons/moon.png'),
+        icon: require('../../../../assets/icons/moon.png'),
         circleBg: '#7c3aed',
       },
       {
         label: 'Departures',
         count: departures,
-        icon: require('../../assets/icons/spear-arrow.png'),
+        icon: require('../../../../assets/icons/spear-arrow.png'),
         circleBg: '#ffebeb',
         iconTint: '#f92424',
       },
       {
         label: 'Arrivals',
         count: arrivals,
-        icon: require('../../assets/icons/spear-arrow.png'),
+        icon: require('../../../../assets/icons/spear-arrow.png'),
         circleBg: '#daf4e8',
         iconTint: '#41d541',
         flipIconHorizontal: true,
@@ -1103,7 +1103,7 @@ export default function HomeScreen() {
                 activeOpacity={0.7}
               >
                 <Image
-                  source={require('../../assets/icons/search-icon.png')}
+                  source={require('../../../../assets/icons/search-icon.png')}
                   style={[
                     styles.searchIcon,
                     homeData.selectedShift === 'PM' && styles.searchIconPM
@@ -1141,7 +1141,7 @@ export default function HomeScreen() {
               activeOpacity={0.7}
             >
               <Image
-                source={require('../../assets/icons/menu-icon.png')}
+                source={require('../../../../assets/icons/menu-icon.png')}
                 style={[
                   styles.filterIcon,
                   homeData.selectedShift === 'PM' && styles.filterIconPM

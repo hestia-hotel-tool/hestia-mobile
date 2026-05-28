@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { colors, typography } from '@shared/theme';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@/constants/homeLayout';
 import { scaleX } from '../../constants/allRoomsStyles';
-import AMPMToggle from '@/components/home/AMPMToggle';
+import { AMPMToggle } from '@features/home';
 import SearchInput from '@shared/ui/SearchInput';
 import type { ShiftType } from '@/types/home.types';
 

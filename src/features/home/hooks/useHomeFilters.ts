@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { FilterState, FilterCounts } from '../types/filter.types';
+import { FilterState, FilterCounts } from '@shared/types/filter.types';
 
 const defaultFilterState: FilterState = {
   roomStates: {

@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { colors, typography } from '../../theme';
+import { colors, typography } from '@shared/theme';
 import FilterRow from './FilterRow';
-import { FilterOption } from '../../types/filter.types';
+import { FilterOption } from '@shared/types/filter.types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

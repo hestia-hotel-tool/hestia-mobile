@@ -6,6 +6,6 @@ export { useUser } from '@features/account';
 export type { UseUserResult } from '@features/account';
 export { useFetch } from './useFetch';
 export type { UseFetchResult } from './useFetch';
-export { useHomeFilters } from './useHomeFilters';
+export { useHomeFilters } from '@features/home';
 export { useDesignScale } from './useDesignScale';
 export { useScale } from './useScale';

@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import type { CategorySection, ShiftType, RoomStatus } from '../../types/home.types';
-import { colors, typography } from '../../theme';
+import type { CategorySection, ShiftType, RoomStatus } from '../types/home.types';
+import { colors, typography } from '@shared/theme';
 import { Dimensions } from 'react-native';
-import { normalizedScaleX, scaleX } from '../../utils/responsive';
+import { normalizedScaleX, scaleX } from '@shared/utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -40,7 +40,7 @@ const STATUS_CONFIG: Record<
   dirty: {
     color: '#f92424',
     // Use the same asset as Change Status modal for iOS parity.
-    icon: require('../../../assets/icons/dirty-status.png'),
+    icon: require('../../../../assets/icons/dirty-status.png'),
     label: 'Dirty',
     // Slightly larger so glyph matches in-progress / cleaned / inspected on screen.
     iconWidth: 40,
@@ -48,17 +48,17 @@ const STATUS_CONFIG: Record<
   },
   inProgress: {
     color: '#f0be1b',
-    icon: require('../../../assets/icons/in-progress-icon.png'),
+    icon: require('../../../../assets/icons/in-progress-icon.png'),
     label: 'In Progress',
   },
   cleaned: {
     color: '#4a91fc',
-    icon: require('../../../assets/icons/cleaned-icon.png'),
+    icon: require('../../../../assets/icons/cleaned-icon.png'),
     label: 'Cleaned',
   },
   inspected: {
     color: '#41d541',
-    icon: require('../../../assets/icons/inspected-icon.png'),
+    icon: require('../../../../assets/icons/inspected-icon.png'),
     label: 'Inspected',
   },
 };

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { typography } from '../../theme';
-import { useDesignScale } from '../../hooks/useDesignScale';
+import { typography } from '@shared/theme';
+import { useDesignScale } from '@shared/hooks/useDesignScale';
 
 type Props = {
   total: number;
@@ -52,7 +52,7 @@ export default function EngineeringTicketsOverviewCard({
           <View style={styles.bubbleWrap}>
             <View style={[styles.bubbleFill, { backgroundColor: '#ffebeb' }]} />
             <Image
-              source={require('../../../assets/icons/priority-status.png')}
+              source={require('../../../../assets/icons/priority-status.png')}
               style={styles.bubbleIconPriority}
               resizeMode="contain"
             />
@@ -71,7 +71,7 @@ export default function EngineeringTicketsOverviewCard({
           <View style={styles.bubbleWrap}>
             <View style={[styles.bubbleFill, { backgroundColor: '#f92424' }]} />
             <Image
-              source={require('../../../assets/icons/unsolved.png')}
+              source={require('../../../../assets/icons/unsolved.png')}
               style={[styles.bubbleIconOnDark, styles.bubbleIconUnsolved]}
               resizeMode="contain"
             />
@@ -90,7 +90,7 @@ export default function EngineeringTicketsOverviewCard({
           <View style={styles.bubbleWrap}>
             <View style={[styles.bubbleFill, { backgroundColor: '#41d541' }]} />
             <Image
-              source={require('../../../assets/icons/done.png')}
+              source={require('../../../../assets/icons/done.png')}
               style={[styles.bubbleIconOnDark, styles.bubbleIconSolved]}
               resizeMode="contain"
             />

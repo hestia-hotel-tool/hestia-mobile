@@ -9,15 +9,15 @@ import {
   Image,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { colors, typography } from '../../theme';
+import { colors, typography } from '@shared/theme';
 import FilterSection from './FilterSection';
 import FilterCheckbox from './FilterCheckbox';
-import SeeRoomsButton from '../shared/SeeRoomsButton';
-import { FilterState, FilterCounts, FilterOption } from '../../types/filter.types';
-import { getFloorLabel } from '../../utils/formatting';
-import { ShiftType } from '../../types/home.types';
-import { useHomeFilters } from '../../hooks/useHomeFilters';
-import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../../constants/homeLayout';
+import SeeRoomsButton from '@shared/ui/SeeRoomsButton';
+import { FilterState, FilterCounts, FilterOption } from '@shared/types/filter.types';
+import { getFloorLabel } from '@shared/utils/formatting';
+import { ShiftType } from '../types/home.types';
+import { useHomeFilters } from '../hooks/useHomeFilters';
+import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -193,7 +193,7 @@ export default function HomeFilterModal({
           id: 'dirty',
           label: 'Dirty',
           // Use the same dirty icon as Home screen status badges for consistency
-          icon: require('../../../assets/icons/dirty-icon.png'),
+          icon: require('../../../../assets/icons/dirty-icon.png'),
           iconColor: '#f92424',
           count: safeFilterCounts.roomStates.dirty || 0,
           selected: filters.roomStates.dirty || false,
@@ -202,7 +202,7 @@ export default function HomeFilterModal({
         {
           id: 'inProgress',
           label: 'In Progress',
-          icon: require('../../../assets/icons/in-progress-icon.png'),
+          icon: require('../../../../assets/icons/in-progress-icon.png'),
           iconColor: '#f0be1b',
           count: safeFilterCounts.roomStates.inProgress || 0,
           selected: filters.roomStates.inProgress || false,
@@ -211,7 +211,7 @@ export default function HomeFilterModal({
         {
           id: 'cleaned',
           label: 'Cleaned',
-          icon: require('../../../assets/icons/cleaned-state-icon.png'),
+          icon: require('../../../../assets/icons/cleaned-state-icon.png'),
           iconColor: '#4a91fc',
           count: safeFilterCounts.roomStates.cleaned || 0,
           selected: filters.roomStates.cleaned || false,
@@ -220,7 +220,7 @@ export default function HomeFilterModal({
         {
           id: 'inspected',
           label: 'Inspected',
-          icon: require('../../../assets/icons/inspected-state-icon.png'),
+          icon: require('../../../../assets/icons/inspected-state-icon.png'),
           iconColor: '#41d541',
           count: safeFilterCounts.roomStates.inspected || 0,
           selected: filters.roomStates.inspected || false,
@@ -229,7 +229,7 @@ export default function HomeFilterModal({
         {
           id: 'priority',
           label: 'Priority',
-          icon: require('../../../assets/icons/priority-status.png'),
+          icon: require('../../../../assets/icons/priority-status.png'),
           iconColor: undefined, // No tint color - icon has its own colors
           count: safeFilterCounts.roomStates.priority || 0,
           selected: filters.roomStates.priority || false,
@@ -243,7 +243,7 @@ export default function HomeFilterModal({
         extras.push({
           id: 'paused',
           label: 'Paused',
-          icon: require('../../../assets/icons/paused-filter-icon.png'),
+          icon: require('../../../../assets/icons/paused-filter-icon.png'),
           iconColor: '#f0be1b',
           count: safeFilterCounts.roomStates.paused || 0,
           selected: !!filters.roomStates.paused,
@@ -254,7 +254,7 @@ export default function HomeFilterModal({
         extras.push({
           id: 'returnLater',
           label: 'Return Later',
-          icon: require('../../../assets/icons/return-later.png'),
+          icon: require('../../../../assets/icons/return-later.png'),
           iconColor: '#5a759d',
           count: safeFilterCounts.roomStates.returnLater || 0,
           selected: !!filters.roomStates.returnLater,
@@ -265,7 +265,7 @@ export default function HomeFilterModal({
         extras.push({
           id: 'refused',
           label: 'Refuse Service',
-          icon: require('../../../assets/icons/refuse-service.png'),
+          icon: require('../../../../assets/icons/refuse-service.png'),
           iconColor: '#5a759d',
           count: safeFilterCounts.roomStates.refused || 0,
           selected: !!filters.roomStates.refused,
@@ -286,7 +286,7 @@ export default function HomeFilterModal({
         {
           id: 'arrivals',
           label: 'Arrivals',
-          icon: require('../../../assets/icons/guest-arrival-icon.png'),
+          icon: require('../../../../assets/icons/guest-arrival-icon.png'),
           iconColor: '#41d541',
           count: safeFilterCounts.guests.arrivals || 0,
           selected: filters.guests.arrivals || false,
@@ -295,7 +295,7 @@ export default function HomeFilterModal({
         {
           id: 'departures',
           label: 'Departures',
-          icon: require('../../../assets/icons/guest-departure-icon.png'),
+          icon: require('../../../../assets/icons/guest-departure-icon.png'),
           iconColor: '#f92424',
           count: safeFilterCounts.guests.departures || 0,
           selected: filters.guests.departures || false,
@@ -304,7 +304,7 @@ export default function HomeFilterModal({
         {
           id: 'turnDown',
           label: 'Turn Down',
-          icon: require('../../../assets/icons/turndown-icon.png'),
+          icon: require('../../../../assets/icons/turndown-icon.png'),
           iconColor: '#4a91fc',
           count: safeFilterCounts.guests.turnDown || 0,
           selected: filters.guests.turnDown || false,
@@ -313,7 +313,7 @@ export default function HomeFilterModal({
         {
           id: 'stayOver',
           label: 'StayOver',
-          icon: require('../../../assets/icons/rooms-icon.png'),
+          icon: require('../../../../assets/icons/rooms-icon.png'),
           iconColor: '#1e1e1e',
           count: safeFilterCounts.guests.stayOver || 0,
           selected: filters.guests.stayOver || false,
@@ -474,7 +474,7 @@ export default function HomeFilterModal({
             activeOpacity={0.7}
           >
             <Image
-              source={require('../../../assets/icons/menu-icon.png')}
+              source={require('../../../../assets/icons/menu-icon.png')}
               style={styles.filterIconImage}
               resizeMode="contain"
             />
@@ -610,7 +610,7 @@ export default function HomeFilterModal({
                           Go to Results
                         </Text>
                         <Image
-                          source={require('../../../assets/icons/spear-arrow.png')}
+                          source={require('../../../../assets/icons/spear-arrow.png')}
                           style={[
                             styles.arrowIcon,
                             !hasActiveFilters && styles.arrowIconDisabled,
@@ -641,7 +641,7 @@ export default function HomeFilterModal({
                       >
                         <View style={styles.resetIconCircle}>
                           <Image
-                            source={require('../../../assets/icons/menu-icon.png')}
+                            source={require('../../../../assets/icons/menu-icon.png')}
                             style={styles.resetIcon}
                             resizeMode="contain"
                             tintColor="#ffffff"

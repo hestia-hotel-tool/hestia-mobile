@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { colors, typography } from '../../theme';
-import { normalizedScaleX } from '../../utils/responsive';
+import { colors, typography } from '@shared/theme';
+import { normalizedScaleX } from '@shared/utils/responsive';
 
 // Calculate responsive dimensions – slightly smaller than original Figma to feel less heavy
 const BASE_CIRCLE_SIZE = 44; // was ~50px before

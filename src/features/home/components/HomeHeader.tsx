@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
-import { UserProfile, ShiftType } from '../../types/home.types';
-import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../../constants/homeLayout';
-import { colors, typography } from '../../theme';
-import { getInitialsFromFullName } from '../../utils/formatting';
+import { UserProfile, ShiftType } from '../types/home.types';
+import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
+import { colors, typography } from '@shared/theme';
+import { getInitialsFromFullName } from '@shared/utils/formatting';
 import AMPMToggle from './AMPMToggle';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -63,7 +63,7 @@ export default function HomeHeader({
             <View style={styles.flagContainer}>
               <View style={styles.flagCircle}>
                 <Image
-                  source={require('../../../assets/icons/flag-icon.png')}
+                  source={require('../../../../assets/icons/flag-icon.png')}
                   style={styles.flagIcon}
                   resizeMode="contain"
                 />

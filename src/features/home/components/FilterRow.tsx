@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-import { colors, typography } from '../../theme';
+import { colors, typography } from '@shared/theme';
 import FilterCheckbox from './FilterCheckbox';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

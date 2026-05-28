@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '../../theme';
-import { normalizedScaleX } from '../../utils/responsive';
+import { typography } from '@shared/theme';
+import { normalizedScaleX } from '@shared/utils/responsive';
 
 interface PriorityBadgeProps {
   count: number;
@@ -15,7 +15,7 @@ export default function PriorityBadge({ count, onPress }: PriorityBadgeProps) {
     <Wrapper style={styles.container} onPress={onPress} activeOpacity={0.7}>
       <View style={styles.iconContainer}>
         <Image
-          source={require('../../../assets/icons/prioirty-icon.png')}
+          source={require('../../../../assets/icons/prioirty-icon.png')}
           style={styles.icon}
           resizeMode="contain"
         />

@@ -3,7 +3,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LoginScreen, SplashScreen } from '@features/auth';
 import { AllRoomsScreen, RoomDetailScreen, ArrivalDepartureDetailScreen } from '@features/rooms';
-import HomeScreen from '../../screens/HomeScreen';
+import { HomeScreen } from '@features/home';
 import { LostAndFoundScreen } from '@features/lost-and-found';
 import { StaffScreen } from '@features/staff';
 import { TicketsScreen, CreateTicketScreen, SelectTicketLocationScreen, CreateTicketFormScreen } from '@features/tickets';

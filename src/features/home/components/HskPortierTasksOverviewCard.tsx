@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
-import { typography } from '../../theme';
-import { useDesignScale } from '../../hooks/useDesignScale';
+import { typography } from '@shared/theme';
+import { useDesignScale } from '@shared/hooks/useDesignScale';
 
 export default function HskPortierTasksOverviewCard({
   total,
@@ -69,7 +69,7 @@ export default function HskPortierTasksOverviewCard({
         >
           <View style={styles.priorityCircle}>
             <Image
-              source={require('../../../assets/icons/priority-status.png')}
+              source={require('../../../../assets/icons/priority-status.png')}
               style={styles.priorityIcon}
               resizeMode="contain"
             />
@@ -87,7 +87,7 @@ export default function HskPortierTasksOverviewCard({
           label="Dirty"
           count={dirty}
           bg="#f92424"
-          icon={require('../../../assets/icons/dirty-status.png')}
+          icon={require('../../../../assets/icons/dirty-status.png')}
           iconStyle={styles.iconDirty}
           onPress={onStatusPress ? () => onStatusPress('dirty') : undefined}
         />
@@ -95,7 +95,7 @@ export default function HskPortierTasksOverviewCard({
           label="In Progress"
           count={inProgress}
           bg="#f0be1b"
-          icon={require('../../../assets/icons/in-progress-icon.png')}
+          icon={require('../../../../assets/icons/in-progress-icon.png')}
           iconStyle={styles.iconDefault}
           onPress={onStatusPress ? () => onStatusPress('inProgress') : undefined}
         />
@@ -103,7 +103,7 @@ export default function HskPortierTasksOverviewCard({
           label="Cleaned"
           count={cleaned}
           bg="#4a91fc"
-          icon={require('../../../assets/icons/cleaned-icon.png')}
+          icon={require('../../../../assets/icons/cleaned-icon.png')}
           iconStyle={styles.iconDefault}
           onPress={onStatusPress ? () => onStatusPress('cleaned') : undefined}
         />
@@ -111,7 +111,7 @@ export default function HskPortierTasksOverviewCard({
           label="Inspected"
           count={inspected}
           bg="#41d541"
-          icon={require('../../../assets/icons/inspected-icon.png')}
+          icon={require('../../../../assets/icons/inspected-icon.png')}
           iconStyle={styles.iconDefault}
           onPress={onStatusPress ? () => onStatusPress('inspected') : undefined}
         />
@@ -132,7 +132,7 @@ export default function HskPortierTasksOverviewCard({
         <View style={styles.pausedPill}>
           <View style={styles.pausedIconCircle}>
             <Image
-              source={require('../../../assets/icons/in-progress-icon.png')}
+              source={require('../../../../assets/icons/in-progress-icon.png')}
               style={styles.pausedIcon}
               resizeMode="contain"
             />
@@ -151,7 +151,7 @@ export default function HskPortierTasksOverviewCard({
             activeOpacity={latestPill.type === 'paused' && onResumePause ? 0.85 : 1}
             disabled={!(latestPill.type === 'paused' && onResumePause && latestPill.roomId)}
           >
-            <Image source={require('../../../assets/icons/pause.png')} style={styles.pausedRightIcon} resizeMode="contain" />
+            <Image source={require('../../../../assets/icons/pause.png')} style={styles.pausedRightIcon} resizeMode="contain" />
             <Text style={styles.pausedRightText}>
               {latestPill.type === 'paused' ? 'Paused' : latestPill.type === 'returnLater' ? 'Return Later' : 'Refused'}
             </Text>

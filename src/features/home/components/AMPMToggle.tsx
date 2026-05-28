@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
-import { ShiftType } from '../../types/home.types';
-import { colors, typography } from '../../theme';
+import { ShiftType } from '../types/home.types';
+import { colors, typography } from '@shared/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -25,7 +25,7 @@ export default function AMPMToggle({ selected, onToggle }: AMPMToggleProps) {
         <TouchableOpacity style={styles.button} onPress={() => onToggle('PM')} activeOpacity={0.7}>
           <View style={styles.pmContainer}>
             <Image
-              source={require('../../../assets/icons/moon.png')}
+              source={require('../../../../assets/icons/moon.png')}
               style={styles.moonIcon}
               resizeMode="contain"
             />
