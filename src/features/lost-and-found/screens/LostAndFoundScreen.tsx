@@ -10,7 +10,7 @@ import LostAndFoundTabs from '../components/LostAndFoundTabs';
 import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/LostAndFoundItemCard';
 import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
 import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
-import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import { useAIChatOverlay } from '@features/ai-agent';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
 import {
   LOST_AND_FOUND_SPACING,

@@ -13,7 +13,7 @@ import { AuthProvider } from './providers/AuthProvider';
 import { useAuth } from '@features/auth';
 import { ToastProvider } from '../contexts/ToastContext';
 import { MessageModalProvider } from '../contexts/MessageModalContext';
-import { AIChatOverlayProvider } from '../contexts/AIChatOverlayContext';
+import { AIChatOverlayProvider } from '@features/ai-agent';
 import AppNavigator from './navigation/AppNavigator';
 import { getFullRoomDetails } from '@features/rooms';
 import * as Notifications from 'expo-notifications';

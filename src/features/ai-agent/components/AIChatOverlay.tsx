@@ -20,10 +20,10 @@ import {
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
-import { colors, typography } from '../../theme';
-import { useToast } from '../../contexts/ToastContext';
-import { transcribeAndRespond, sendTextToAgent } from '../../services/aiAgent';
-import { useDesignScale } from '../../hooks/useDesignScale';
+import { colors, typography } from '@shared/theme';
+import { useToast } from '@shared/contexts/ToastContext';
+import { transcribeAndRespond, sendTextToAgent } from '../services/aiAgent';
+import { useDesignScale } from '@shared/hooks/useDesignScale';
 
 export interface AIChatMessage {
   role: 'user' | 'assistant';
@@ -189,7 +189,7 @@ export default function AIChatOverlay({ visible, onClose }: AIChatOverlayProps) 
             {/* Header row: Hestia AI icon top left, close top right (as in Figma) */}
             <View style={styles.header}>
               <Image
-                source={require('../../../assets/icons/ai-chat-icon.png')}
+                source={require('../../../../assets/icons/ai-chat-icon.png')}
                 style={[styles.hestiaIcon, { width: hestiaIconW, height: hestiaIconH }]}
                 resizeMode="contain"
               />

@@ -9,7 +9,7 @@ import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
-import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import { useAIChatOverlay } from '@features/ai-agent';
 import { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import RoomCard from '../components/allRooms/RoomCard';

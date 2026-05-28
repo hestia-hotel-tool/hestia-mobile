@@ -24,7 +24,7 @@ import TicketsTabs from '../components/TicketsTabs';
 import TicketCard from '../components/TicketCard';
 import EmptyTicketsState from '../components/EmptyTicketsState';
 import type { TicketStatusAnchorLayout } from '../components/TicketCard';
-import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import { useAIChatOverlay } from '@features/ai-agent';
 import { TicketTab, TicketData, TicketsScreenData, TicketStatus } from '../types/tickets.types';
 import {
   TICKETS_HEADER,

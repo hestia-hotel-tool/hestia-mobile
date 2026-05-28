@@ -12,7 +12,7 @@ import ChatHeader from '../components/ChatHeader';
 import ChatItem, { ChatItemData } from '../components/ChatItem';
 import NotificationItem, { NotificationItemData } from '../components/NotificationItem';
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
-import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import { useAIChatOverlay } from '@features/ai-agent';
 import { useChatStore } from '../store/useChatStore';
 import { invalidateNotificationBadges } from '@/services/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';

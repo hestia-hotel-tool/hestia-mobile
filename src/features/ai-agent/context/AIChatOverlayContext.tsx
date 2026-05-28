@@ -3,7 +3,7 @@
  */
 
 import React, { createContext, useCallback, useContext, useState } from 'react';
-import AIChatOverlay from '../components/ai/AIChatOverlay';
+import AIChatOverlay from '../components/AIChatOverlay';
 
 interface AIChatOverlayContextType {
   open: () => void;

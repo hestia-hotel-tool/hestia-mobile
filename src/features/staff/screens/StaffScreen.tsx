@@ -13,7 +13,7 @@ import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/nativ
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { colors, typography } from '@shared/theme';
 import BottomTabBar from '@app/components/BottomTabBar';
-import { useAIChatOverlay } from '@/contexts/AIChatOverlayContext';
+import { useAIChatOverlay } from '@features/ai-agent';
 import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
 import { STAFF_DEPARTMENTS_LIST } from '../components/StaffDepartmentList';
