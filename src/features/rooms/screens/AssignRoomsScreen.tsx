@@ -12,7 +12,7 @@ import {
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, typography } from '@shared/theme';
+import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
 import { fetchAllRooms, assignRoomToStaff } from '../services/rooms';
 import type { RoomCardData } from '../types/allRooms.types';
@@ -181,7 +181,7 @@ export default function AssignRoomsScreen() {
                   <Text style={styles.roomType}>{typeLabel(room.frontOfficeStatus)}</Text>
                 </View>
                 <View style={styles.dirtyPill}>
-                  <Image source={require('../../../../assets/icons/dirty-status.png')} style={styles.dirtyIcon} resizeMode="contain" />
+                  <Image source={require('../../../../assets/icons/dirty-icon.png')} style={styles.dirtyIcon} resizeMode="contain" />
                   <Text style={styles.dirtyText}>Dirty</Text>
                 </View>
               </TouchableOpacity>
