@@ -181,7 +181,7 @@ export default function AssignRoomsScreen() {
                   <Text style={styles.roomType}>{typeLabel(room.frontOfficeStatus)}</Text>
                 </View>
                 <View style={styles.dirtyPill}>
-                  <Image source={require('../../../../assets/icons/dirty-icon.png')} style={styles.dirtyIcon} resizeMode="contain" />
+                  <Image source={require('../../../../assets/icons/dirty-status.png')} style={styles.dirtyIcon} resizeMode="contain" />
                   <Text style={styles.dirtyText}>Dirty</Text>
                 </View>
               </TouchableOpacity>
@@ -330,7 +330,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 9,
   },
-  dirtyIcon: { width: 14, height: 14, tintColor: '#ffffff', marginRight: 6 },
+  dirtyIcon: { width: 16, height: 16, marginRight: 6 },
   dirtyText: {
     fontSize: 13,
     fontFamily: typography.fontFamily.primary,
