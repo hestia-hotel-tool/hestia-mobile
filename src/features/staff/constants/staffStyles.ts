@@ -103,7 +103,7 @@ export const STAFF_CARD = {
   width: 401,
   height: {
     standard: 156,
-    compact: 131, // For cards without current task
+    compact: 152, // For cards without current task — tall enough that the bottom button clears the stats row
   },
   borderRadius: 9,
   backgroundColor: '#f9fafc',
