@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
   dirtyPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#e23b3b',
+    backgroundColor: '#f92424', // matches the dirty-status icon's red so it blends seamlessly
     borderRadius: 18,
     paddingHorizontal: 14,
     paddingVertical: 9,
