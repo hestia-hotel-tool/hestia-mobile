@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography } from '@shared/theme';
 import { scaleX, STAFF_CARD } from '../constants/staffStyles';
 import { StaffMember } from '../types/staff.types';
+import StaffCardProgressBar from './StaffCardProgressBar';
+import ElapsedTimer from './ElapsedTimer';
 
 interface StaffTicketCardProps {
   staff: StaffMember;
+  onViewPress?: (staff: StaffMember) => void;
 }
 
 function formatMins(mins?: number): string {
@@ -16,14 +19,23 @@ function formatMins(mins?: number): string {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-/** Staff card variant for ticket-driven departments (Engineering, IT, etc.). */
-export default function StaffTicketCard({ staff }: StaffTicketCardProps) {
+/**
+ * Staff card for ticket-driven departments (Engineering, IT, ...). Mirrors the
+ * housekeeping StaffCard layout: resolved/total ratio + progress bar, an
+ * Open/Resolved/Avg stat row, and a "current" pill for the ticket in progress.
+ */
+export default function StaffTicketCard({ staff, onViewPress }: StaffTicketCardProps) {
   const resolved = staff.ticketStats?.resolved ?? 0;
   const open = staff.ticketStats?.open ?? 0;
+  const total = staff.ticketStats?.total ?? 0;
   const avg = formatMins(staff.ticketStats?.avgResolutionMins);
+  const current = staff.ticketStats?.currentTicket;
+  const hasCurrent = !!current;
+  const cardHeight = hasCurrent ? STAFF_CARD.height.standard : STAFF_CARD.height.compact;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { height: cardHeight * scaleX }]}>
+      {/* Avatar */}
       <View style={styles.avatarContainer}>
         {staff.avatar ? (
           <Image source={staff.avatar} style={styles.avatar} resizeMode="cover" />
@@ -34,29 +46,66 @@ export default function StaffTicketCard({ staff }: StaffTicketCardProps) {
         ) : null}
       </View>
 
+      {/* Name */}
       <Text style={styles.name} numberOfLines={1} ellipsizeMode="tail">
         {staff.name}
       </Text>
-      {staff.role ? (
-        <Text style={styles.role} numberOfLines={1}>
-          {staff.role}
-        </Text>
-      ) : null}
 
-      <View style={styles.statsRow}>
-        <View style={styles.statBlock}>
-          <Text style={styles.statValue}>{resolved}</Text>
-          <Text style={[styles.statLabel, styles.resolvedLabel]}>Resolved</Text>
-        </View>
-        <View style={styles.statBlock}>
-          <Text style={styles.statValue}>{open}</Text>
-          <Text style={[styles.statLabel, styles.openLabel]}>Open</Text>
-        </View>
-        <View style={styles.statBlock}>
-          <Text style={styles.statValue}>{avg}</Text>
-          <Text style={styles.statLabel}>Avg time</Text>
-        </View>
+      {/* Resolved / total ratio */}
+      <Text style={styles.progressRatio}>
+        {resolved}/{total}
+      </Text>
+
+      {/* Progress bar (resolved of total) */}
+      <View style={styles.progressBarContainer}>
+        <StaffCardProgressBar completed={resolved} total={total} />
       </View>
+
+      {/* Stat row */}
+      <View style={styles.taskStatsContainer}>
+        <Text style={styles.taskStat}>
+          <Text style={styles.taskStatLabel}>Open. </Text>
+          <Text style={styles.taskStatValue}>{open}</Text>
+        </Text>
+        <Text style={[styles.taskStat, styles.taskStatResolved]}>
+          <Text style={styles.taskStatLabel}>Resolved. </Text>
+          <Text style={styles.taskStatValue}>{resolved}</Text>
+        </Text>
+        <Text style={[styles.taskStat, styles.taskStatAvg]}>
+          <Text style={styles.taskStatLabel}>Avg. </Text>
+          <Text style={styles.taskStatValue}>{avg}</Text>
+        </Text>
+      </View>
+
+      {/* Current ticket pill */}
+      {hasCurrent && current && (
+        <View style={styles.currentTaskContainer}>
+          <View style={styles.currentTaskCircle}>
+            <Image
+              source={require('../../../../assets/icons/in-progress-icon.png')}
+              style={styles.taskIcon}
+              resizeMode="contain"
+            />
+          </View>
+          <View style={styles.currentTaskTextContainer}>
+            <Text style={styles.ticketTitle} numberOfLines={1}>
+              {current.title}
+            </Text>
+            <ElapsedTimer startTimeIso={current.startTimeIso} style={styles.timer} />
+          </View>
+          <Text style={styles.currentPillLabel}>Current</Text>
+        </View>
+      )}
+
+      {/* View */}
+      <TouchableOpacity
+        style={styles.viewButton}
+        onPress={onViewPress ? () => onViewPress(staff) : undefined}
+        activeOpacity={onViewPress ? 0.85 : 1}
+        disabled={!onViewPress}
+      >
+        <Text style={styles.viewText}>View</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -64,14 +113,13 @@ export default function StaffTicketCard({ staff }: StaffTicketCardProps) {
 const styles = StyleSheet.create({
   container: {
     width: STAFF_CARD.width * scaleX,
-    minHeight: STAFF_CARD.height.compact * scaleX,
     backgroundColor: STAFF_CARD.backgroundColor,
     borderWidth: STAFF_CARD.borderWidth * scaleX,
     borderColor: STAFF_CARD.borderColor,
     borderRadius: STAFF_CARD.borderRadius * scaleX,
     marginHorizontal: STAFF_CARD.marginHorizontal * scaleX,
     marginBottom: STAFF_CARD.marginBottom * scaleX,
-    paddingBottom: 16 * scaleX,
+    position: 'relative',
   },
   avatarContainer: {
     position: 'absolute',
@@ -106,43 +154,117 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: typography.fontWeights.bold as any,
     color: STAFF_CARD.name.color,
-    maxWidth: (STAFF_CARD.width - STAFF_CARD.name.left - 20) * scaleX,
+    maxWidth: (STAFF_CARD.width - STAFF_CARD.name.left - STAFF_CARD.progressRatio.right - 20) * scaleX,
+    zIndex: 1,
   },
-  role: {
+  progressRatio: {
     position: 'absolute',
-    left: STAFF_CARD.name.left * scaleX,
-    top: (STAFF_CARD.name.top + 20) * scaleX,
-    fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.regular as any,
-    color: '#8a8a8a',
-    maxWidth: (STAFF_CARD.width - STAFF_CARD.name.left - 20) * scaleX,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    marginTop: (STAFF_CARD.avatar.top + STAFF_CARD.avatar.height + 14) * scaleX,
-    marginLeft: STAFF_CARD.name.left * scaleX,
-  },
-  statBlock: {
-    marginRight: 28 * scaleX,
-  },
-  statValue: {
-    fontSize: 18 * scaleX,
+    right: STAFF_CARD.progressRatio.right * scaleX,
+    top: STAFF_CARD.progressRatio.top * scaleX,
+    fontSize: STAFF_CARD.progressRatio.fontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: typography.fontWeights.bold as any,
-    color: '#2b2b2b',
+    color: STAFF_CARD.progressRatio.color,
   },
-  statLabel: {
-    fontSize: 10 * scaleX,
+  progressBarContainer: {
+    position: 'absolute',
+    left: STAFF_CARD.progressBar.left * scaleX,
+    top: STAFF_CARD.progressBar.top * scaleX,
+  },
+  taskStatsContainer: {
+    position: 'absolute',
+    left: 0,
+    top: STAFF_CARD.taskStats.top * scaleX,
+    width: '100%',
+  },
+  taskStat: {
+    position: 'absolute',
+    left: STAFF_CARD.taskStats.inProgress.left * scaleX,
+    fontSize: STAFF_CARD.taskStats.fontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.regular as any,
-    color: '#8a8a8a',
-    marginTop: 2 * scaleX,
+    fontWeight: typography.fontWeights.light as any,
+    color: STAFF_CARD.taskStats.color,
   },
-  resolvedLabel: {
+  taskStatResolved: {
+    left: STAFF_CARD.taskStats.cleaned.left * scaleX,
     color: '#2e9e5b',
   },
-  openLabel: {
-    color: '#c98a00',
+  taskStatAvg: {
+    left: STAFF_CARD.taskStats.dirty.left * scaleX,
+  },
+  taskStatLabel: {
+    fontWeight: typography.fontWeights.light as any,
+  },
+  taskStatValue: {
+    fontWeight: typography.fontWeights.bold as any,
+  },
+  currentTaskContainer: {
+    position: 'absolute',
+    left: STAFF_CARD.currentTask.circle.left * scaleX,
+    top: STAFF_CARD.currentTask.top * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#faf3da',
+    borderRadius: 41 * scaleX,
+    paddingRight: 14 * scaleX,
+  },
+  currentTaskCircle: {
+    width: STAFF_CARD.currentTask.circle.width * scaleX,
+    height: STAFF_CARD.currentTask.circle.height * scaleX,
+    borderRadius: STAFF_CARD.currentTask.circle.borderRadius * scaleX,
+    backgroundColor: STAFF_CARD.currentTask.circle.backgroundColor,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  taskIcon: {
+    width: STAFF_CARD.currentTask.bellIcon.width * scaleX,
+    height: STAFF_CARD.currentTask.bellIcon.height * scaleX,
+  },
+  currentTaskTextContainer: {
+    marginLeft: 10 * scaleX,
+    justifyContent: 'center',
+    maxWidth: 150 * scaleX,
+  },
+  ticketTitle: {
+    fontSize: STAFF_CARD.currentTask.roomText.fontSize * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: typography.fontWeights.bold as any,
+    color: STAFF_CARD.currentTask.roomText.color,
+    lineHeight: STAFF_CARD.currentTask.roomText.fontSize * scaleX * 1.2,
+  },
+  timer: {
+    fontSize: STAFF_CARD.currentTask.timer.fontSize * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: typography.fontWeights.regular as any,
+    color: STAFF_CARD.currentTask.timer.inactiveColor,
+    marginTop: 2 * scaleX,
+    lineHeight: STAFF_CARD.currentTask.timer.fontSize * scaleX * 1.2,
+  },
+  currentPillLabel: {
+    marginLeft: 12 * scaleX,
+    fontSize: 9 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: typography.fontWeights.regular as any,
+    color: '#000000',
+    alignSelf: 'flex-start',
+    marginTop: 4 * scaleX,
+  },
+  viewButton: {
+    position: 'absolute',
+    right: 17 * scaleX,
+    bottom: 16 * scaleX,
+    width: 119 * scaleX,
+    height: 44 * scaleX,
+    borderRadius: 41 * scaleX,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  viewText: {
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: typography.fontWeights.regular as any,
+    color: '#5a759d',
+    includeFontPadding: false,
   },
 });

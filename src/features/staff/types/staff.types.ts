@@ -41,7 +41,9 @@ export interface StaffMember {
   ticketStats?: {
     resolved: number;
     open: number;
+    total: number;
     avgResolutionMins?: number;
+    currentTicket?: { title: string; startTimeIso: string | null };
   };
 }
 

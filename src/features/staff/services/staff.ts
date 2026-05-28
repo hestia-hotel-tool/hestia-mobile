@@ -149,8 +149,12 @@ export type StaffTicketStats = {
   resolved: number;
   /** Tickets assigned to this user still open. */
   open: number;
+  /** resolved + open. */
+  total: number;
   /** Mean minutes from created_at to resolved_at across resolved tickets. */
   avgResolutionMins?: number;
+  /** The most recent still-open ticket — drives the "current" pill + timer. */
+  currentTicket?: { title: string; startTimeIso: string | null };
 };
 
 const RESOLVED_TICKET_STATUSES = new Set(['closed', 'resolved', 'done', 'completed']);
@@ -169,7 +173,7 @@ export async function fetchStaffTicketStats(
 
   const { data, error } = await supabase
     .from('tickets')
-    .select('assigned_to_id, status, created_at, resolved_at')
+    .select('assigned_to_id, title, status, created_at, resolved_at')
     .in('assigned_to_id', userIds);
 
   if (error) {
@@ -179,12 +183,21 @@ export async function fetchStaffTicketStats(
 
   type Row = {
     assigned_to_id: string | null;
+    title: string | null;
     status: string | null;
     created_at: string | null;
     resolved_at: string | null;
   };
 
-  const agg = new Map<string, { resolved: number; open: number; totalMins: number; timed: number }>();
+  type Agg = {
+    resolved: number;
+    open: number;
+    totalMins: number;
+    timed: number;
+    current?: { title: string; startTimeIso: string | null; createdMs: number };
+  };
+
+  const agg = new Map<string, Agg>();
   for (const r of (data ?? []) as Row[]) {
     const uid = String(r.assigned_to_id ?? '');
     if (!uid) continue;
@@ -202,6 +215,15 @@ export async function fetchStaffTicketStats(
       }
     } else {
       a.open += 1;
+      // "Current" = the most recently created still-open ticket.
+      const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
+      if (!a.current || createdMs > a.current.createdMs) {
+        a.current = {
+          title: r.title?.trim() || 'Untitled ticket',
+          startTimeIso: r.created_at ?? null,
+          createdMs,
+        };
+      }
     }
     agg.set(uid, a);
   }
@@ -210,7 +232,9 @@ export async function fetchStaffTicketStats(
     map.set(uid, {
       resolved: a.resolved,
       open: a.open,
+      total: a.resolved + a.open,
       avgResolutionMins: a.timed > 0 ? Math.round(a.totalMins / a.timed) : undefined,
+      currentTicket: a.current ? { title: a.current.title, startTimeIso: a.current.startTimeIso } : undefined,
     });
   }
 

@@ -550,7 +550,9 @@ export default function StaffScreen() {
                           ticketStats: {
                             resolved: ticketStats?.resolved ?? 0,
                             open: ticketStats?.open ?? 0,
+                            total: ticketStats?.total ?? 0,
                             avgResolutionMins: ticketStats?.avgResolutionMins,
+                            currentTicket: ticketStats?.currentTicket,
                           },
                         };
                   return (
