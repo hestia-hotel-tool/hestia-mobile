@@ -22,7 +22,7 @@ import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
 import { getUsersByDepartmentId } from '@features/account';
 import type { User } from '@shared/types';
-import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
+import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';

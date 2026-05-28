@@ -16,13 +16,13 @@ import BottomTabBar from '@app/components/BottomTabBar';
 import { useAIChatOverlay } from '@features/ai-agent';
 import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
-import { STAFF_DEPARTMENTS_LIST } from '../components/StaffDepartmentList';
 import StaffListRow from '../components/StaffListRow';
 import StaffCard from '../components/StaffCard';
 import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
-import { getUsersByDepartment } from '@features/account';
+import { getUsersByDepartmentId } from '@features/account';
+import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
 import { isSupabaseConfigured } from '@shared/lib/supabase';
 import type { User } from '@shared/types';
 import { fetchStaffRoomStatsForShift } from '../services/staff';
@@ -31,28 +31,18 @@ const DESIGN_WIDTH = 440;
 
 type StaffScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, 'Staff'>;
 
-export type StaffDeptChipId = 'hsk' | 'engineering' | 'inRoomDining' | 'laundry' | 'concierge' | 'reception';
+/**
+ * A department chip, sourced dynamically from the DB `departments` table (same
+ * source the Tickets feature uses), so Staff and Tickets always share the exact
+ * same department set. Icon comes from the shared DEPARTMENT_NAME_TO_ICON map.
+ */
+interface DepartmentChip {
+  id: string; // departments.id (UUID)
+  name: string; // departments.name
+  icon: any;
+}
 
-const STAFF_DEPT_CHIPS: { id: StaffDeptChipId; name: string; icon: number }[] = [
-  { id: 'hsk', name: 'HSK', icon: require('../../../../assets/icons/in-progress-icon.png') },
-  ...STAFF_DEPARTMENTS_LIST.filter((d) =>
-    ['engineering', 'inRoomDining', 'laundry', 'concierge', 'reception'].includes(d.id)
-  ).map((d) => ({
-    id: d.id as Exclude<StaffDeptChipId, 'hsk'>,
-    name: d.name,
-    icon: d.icon,
-  })),
-];
-
-/** DB `departments.name` for getUsersByDepartment */
-const STAFF_DEPT_DB_NAME: Record<StaffDeptChipId, string> = {
-  hsk: 'HSK Portier',
-  engineering: 'Engineering',
-  inRoomDining: 'In Room Dining',
-  laundry: 'Laundry',
-  concierge: 'Concierge',
-  reception: 'Reception',
-};
+const FALLBACK_DEPT_ICON = require('../../../../assets/icons/in-progress-icon.png');
 
 function mapUserToStaffMember(u: User): StaffMember {
   const name = u.name ?? 'Staff';
@@ -87,7 +77,8 @@ export default function StaffScreen() {
   const [departmentError, setDepartmentError] = useState<string | null>(null);
   const [searchExpanded, setSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeDepartmentId, setActiveDepartmentId] = useState<StaffDeptChipId>('hsk');
+  const [departments, setDepartments] = useState<DepartmentChip[]>([]);
+  const [activeDepartmentId, setActiveDepartmentId] = useState<string>('');
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   const [staffStatsById, setStaffStatsById] = useState<Map<string, any>>(new Map());
 
@@ -95,11 +86,48 @@ export default function StaffScreen() {
     setExpandedStaffId((prev) => (prev === id ? null : id));
   };
 
+  // Load the department list from the DB (same source as Tickets) so the chips
+  // and the Tickets department picker always match.
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!isSupabaseConfigured) {
+        if (!cancelled) setDepartmentError('Supabase is not configured.');
+        if (!cancelled) setDepartmentLoading(false);
+        return;
+      }
+      const { data, error } = await getDepartments();
+      if (cancelled) return;
+      if (error) {
+        setDepartmentError('Could not load departments');
+        setDepartmentLoading(false);
+        return;
+      }
+      const chips: DepartmentChip[] = data.map((d) => ({
+        id: d.id,
+        name: d.name,
+        icon: DEPARTMENT_NAME_TO_ICON[d.name]?.icon ?? FALLBACK_DEPT_ICON,
+      }));
+      setDepartments(chips);
+      if (chips.length === 0) {
+        setDepartmentStaff([]);
+        setDepartmentLoading(false);
+        return;
+      }
+      setActiveDepartmentId((prev) => (prev && chips.some((c) => c.id === prev) ? prev : chips[0].id));
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Load the staff for the active department, scoped by department_id (UUID) —
+  // precise, no name-matching fallback to all users.
+  useEffect(() => {
+    if (!activeDepartmentId) return;
     setExpandedStaffId(null);
     let cancelled = false;
     (async () => {
-      const dbName = STAFF_DEPT_DB_NAME[activeDepartmentId];
       setDepartmentLoading(true);
       setDepartmentError(null);
       if (!isSupabaseConfigured) {
@@ -108,7 +136,7 @@ export default function StaffScreen() {
         return;
       }
       try {
-        const res = await getUsersByDepartment(dbName, { limit: 100 });
+        const res = await getUsersByDepartmentId(activeDepartmentId, { limit: 100 });
         if (!cancelled) {
           setDepartmentStaff(res.data.map(mapUserToStaffMember));
         }
@@ -219,10 +247,10 @@ export default function StaffScreen() {
   }, [selectedTab, departmentStaff]);
 
   const sectionTitle = useMemo(() => {
-    const chip = STAFF_DEPT_CHIPS.find((c) => c.id === activeDepartmentId);
-    const label = chip?.name ?? 'HSK';
+    const chip = departments.find((c) => c.id === activeDepartmentId);
+    const label = chip?.name ?? 'Staff';
     return `${label} Staff and Shifts`;
-  }, [activeDepartmentId]);
+  }, [activeDepartmentId, departments]);
 
   const styles = StyleSheet.create({
     container: {
@@ -365,8 +393,8 @@ export default function StaffScreen() {
                 <View style={styles.searchSection}>
                   <Text style={styles.searchSectionTitle}>Staff</Text>
                   {filteredStaffForSearch.map((staff) => {
-                    const chip = STAFF_DEPT_CHIPS.find((c) => c.id === activeDepartmentId);
-                    const dept = staff.department ?? chip?.name ?? 'HSK';
+                    const chip = departments.find((c) => c.id === activeDepartmentId);
+                    const dept = staff.department ?? chip?.name ?? 'Staff';
                     return (
                       <View key={staff.id}>
                         <StaffListRow
@@ -395,7 +423,7 @@ export default function StaffScreen() {
                   showsHorizontalScrollIndicator={false}
                   contentContainerStyle={styles.deptScroller}
                 >
-                  {STAFF_DEPT_CHIPS.map((dept) => {
+                  {departments.map((dept) => {
                     const active = activeDepartmentId === dept.id;
                     return (
                       <TouchableOpacity
@@ -453,8 +481,8 @@ export default function StaffScreen() {
                 <Text style={styles.searchEmptyText}>No staff in this department</Text>
               ) : (
                 displayedStaff.map((staff) => {
-                  const chip = STAFF_DEPT_CHIPS.find((c) => c.id === activeDepartmentId);
-                  const dept = staff.department ?? chip?.name ?? 'HSK';
+                  const chip = departments.find((c) => c.id === activeDepartmentId);
+                  const dept = staff.department ?? chip?.name ?? 'Staff';
                   const stats = staffStatsById.get(staff.id);
                   const staffForCard: StaffMember =
                     selectedTab === 'am' || selectedTab === 'pm'

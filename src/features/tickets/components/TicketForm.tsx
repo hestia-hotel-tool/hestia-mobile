@@ -24,7 +24,7 @@ import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@app/navigation/types';
 import { getDepartments } from '@shared/lib/departments';
-import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
+import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

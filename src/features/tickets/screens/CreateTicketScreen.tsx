@@ -19,7 +19,6 @@ import {
   CREATE_TICKET_CONTENT,
   DEPARTMENT_GRID,
   DEPARTMENT_GRID_LAYOUT,
-  DEPARTMENT_NAME_TO_ICON,
   CREATE_TICKET_AI_BUTTON,
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,
@@ -28,7 +27,7 @@ import {
   CREATE_TICKET_TYPOGRAPHY,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
-import { getDepartments } from '@shared/lib/departments';
+import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
 import type { RootStackParamList } from '@app/navigation/types';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<

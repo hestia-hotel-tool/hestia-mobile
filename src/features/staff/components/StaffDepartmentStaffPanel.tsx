@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { scaleX, STAFF_DEPARTMENT_PANEL } from '../constants/staffStyles';
 import { getUsersByDepartment } from '@features/account';
-import { DEPARTMENT_SLUG_TO_DB_NAME } from '@features/tickets';
+import { DEPARTMENT_SLUG_TO_DB_NAME } from '@shared/lib/departments';
 import { typography } from '@shared/theme';
 import type { User } from '@shared/types';
 import type { StaffDepartmentId } from './StaffDepartmentList';

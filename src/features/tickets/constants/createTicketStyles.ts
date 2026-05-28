@@ -162,17 +162,6 @@ export const DEPARTMENT_GRID = {
   },
 } as const;
 
-/** Map frontend department slug to DB department name (for API and staff filtering). */
-export const DEPARTMENT_SLUG_TO_DB_NAME: Record<string, string> = {
-  engineering: 'Engineering',
-  hskPortier: 'HSK Portier',
-  inRoomDining: 'In Room Dining',
-  laundry: 'Laundry',
-  concierge: 'Concierge',
-  reception: 'Reception',
-  it: 'IT',
-};
-
 /** Grid layout for dynamic department list (Figma node 1085-2628): 3 columns, same spacing as fixed grid. */
 export const DEPARTMENT_GRID_LAYOUT = {
   colLeft: [50, 184, 332] as const,
@@ -181,20 +170,6 @@ export const DEPARTMENT_GRID_LAYOUT = {
   labelOffset: 68,
   iconSize: 55.482,
   maxLabelWidth: 120,
-};
-
-/** Map DB department name to local icon and whether to skip red tint (HSK Portier, In Room Dining). */
-export const DEPARTMENT_NAME_TO_ICON: Record<string, { icon: any; noTint?: boolean }> = {
-  Engineering: { icon: require('../../../../assets/icons/engineering.png'), noTint: false },
-  'HSK Portier': { icon: require('../../../../assets/icons/hsk-portier.png'), noTint: true },
-  'In Room Dining': { icon: require('../../../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  Laundry: { icon: require('../../../../assets/icons/laundry-icon.png'), noTint: false },
-  Concierge: { icon: require('../../../../assets/icons/concierge.png'), noTint: false },
-  Reception: { icon: require('../../../../assets/icons/reception.png'), noTint: false },
-  IT: { icon: require('../../../../assets/icons/it.png'), noTint: false },
-  'Front Office': { icon: require('../../../../assets/icons/reception.png'), noTint: false },
-  'Food and Beverage': { icon: require('../../../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  'Executive Administration': { icon: require('../../../../assets/icons/reception.png'), noTint: false },
 };
 
 // AI Button Styles

@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import type { TicketsScreenData, TicketData, TicketStatus } from '../types/tickets.types';
-import { DEPARTMENT_NAME_TO_ICON } from '../constants/createTicketStyles';
+import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
 import { getDepartmentIdByName } from '@features/account';
 import * as FileSystem from 'expo-file-system/legacy';
 import { base64ToArrayBuffer } from '@shared/utils/encoding';
