@@ -24,7 +24,7 @@ const TYPE_ICON: Record<string, any> = {
   Arrival: require('../../../../assets/icons/arrival-icon.png'),
   Departure: require('../../../../assets/icons/departure-icon.png'),
   'Arrival/Departure': require('../../../../assets/icons/arrival-departure-icon.png'),
-  Stayover: require('../../../../assets/icons/stayover-guest-icon.png'),
+  Stayover: require('../../../../assets/icons/stayover-guest_icon.png'),
   Turndown: require('../../../../assets/icons/turndown-icon.png'),
 };
 
