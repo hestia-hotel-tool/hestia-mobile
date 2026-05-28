@@ -23,6 +23,7 @@ export type RootStackParamList = {
     initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
     departmentName?: string;
   };
+  AssignRooms: { staffId: string; staffName: string; shift: 'AM' | 'PM' };
   ChatDetail: { chatId: string; chat?: import('@features/chat').ChatItemData };
   NewChat: undefined;
   CreateChatGroup: undefined;

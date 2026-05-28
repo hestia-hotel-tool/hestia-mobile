@@ -2,7 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { LoginScreen, SplashScreen } from '@features/auth';
-import { AllRoomsScreen, RoomDetailScreen, ArrivalDepartureDetailScreen } from '@features/rooms';
+import { AllRoomsScreen, RoomDetailScreen, ArrivalDepartureDetailScreen, AssignRoomsScreen } from '@features/rooms';
 import { HomeScreen } from '@features/home';
 import { LostAndFoundScreen } from '@features/lost-and-found';
 import { StaffScreen } from '@features/staff';
@@ -93,6 +93,7 @@ export default function AppNavigator() {
       <Stack.Screen name="CreateTicket" component={CreateTicketScreen} />
       <Stack.Screen name="SelectTicketLocation" component={SelectTicketLocationScreen} />
       <Stack.Screen name="CreateTicketForm" component={CreateTicketFormScreen} />
+      <Stack.Screen name="AssignRooms" component={AssignRoomsScreen} options={{ animation: 'slide_from_right' }} />
     </Stack.Navigator>
   );
 }

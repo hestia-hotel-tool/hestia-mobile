@@ -89,6 +89,7 @@ export default function StaffScreen() {
   const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
   const [staffStatsById, setStaffStatsById] = useState<Map<string, any>>(new Map());
   const [staffTicketStatsById, setStaffTicketStatsById] = useState<Map<string, StaffTicketStats>>(new Map());
+  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
 
   const activeDepartmentName = useMemo(
     () => departments.find((d) => d.id === activeDepartmentId)?.name ?? '',
@@ -211,7 +212,7 @@ export default function StaffScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedTab, departmentStaff, activeStatKind]);
+  }, [selectedTab, departmentStaff, activeStatKind, statsRefreshKey]);
 
   // Sync activeTab with current route
   useFocusEffect(
@@ -220,6 +221,8 @@ export default function StaffScreen() {
       if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
         setActiveTab(routeName);
       }
+      // Refresh per-staff stats when returning to the screen (e.g. after assigning rooms).
+      setStatsRefreshKey((k) => k + 1);
     }, [route.name])
   );
 
@@ -574,10 +577,12 @@ export default function StaffScreen() {
                           <StaffCard
                             staff={staffForCard}
                             onAssignRoomPress={(s) => {
-                              const roomId = s.currentTask?.roomId;
-                              if (roomId) {
-                                (navigation as any).navigate('RoomDetail', { roomId, initialTab: 'Overview' });
-                              }
+                              const shift = selectedTab === 'pm' ? 'PM' : 'AM';
+                              (navigation as any).navigate('AssignRooms', {
+                                staffId: s.id,
+                                staffName: s.name,
+                                shift,
+                              });
                             }}
                           />
                         )
