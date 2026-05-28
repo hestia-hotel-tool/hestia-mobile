@@ -15,7 +15,7 @@ import { useAuth } from '@features/auth';
 import { useUserStore } from '@features/account';
 import { userProfileFromSession } from '@features/account';
 import { useAIChatOverlay } from '../contexts/AIChatOverlayContext';
-import { useRoomsStore } from '../store/useRoomsStore';
+import { useRoomsStore } from '@features/rooms';
 import { LoadingOverlay } from '../components/shared/LoadingOverlay';
 import type { MoreMenuItemId } from '../types/more.types';
 import type { RootStackParamList } from '@app/navigation/types';
@@ -33,9 +33,9 @@ import type { RoomCardData } from '../types/allRooms.types';
 import { getShiftFromTime } from '../utils/shiftUtils';
 import { getFloorFromRoomNumber } from '../utils/formatting';
 import { getRecentActivityLogs } from '../services/activityLogs';
-import { dashboardService } from '../services/dashboard';
+import { dashboardService } from '@features/rooms';
 import { supabase } from '../lib/supabase';
-import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '../services/rooms';
+import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '@features/rooms';
 
 import type { MainTabsParamList } from '@app/navigation/types';
 

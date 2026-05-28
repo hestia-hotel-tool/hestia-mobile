@@ -1,5 +1,5 @@
 import { useChatStore } from '@features/chat';
-import { useRoomsStore } from './useRoomsStore';
+import { useRoomsStore } from '@features/rooms';
 import { useUserStore } from '@features/account';
 
 /**

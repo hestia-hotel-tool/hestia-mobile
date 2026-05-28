@@ -1,10 +1,7 @@
 /**
- * Services – all data from Supabase
- * rooms: rooms + reservations + guests (Supabase)
- * dashboard: screen data aggregation (rooms from Supabase, rest mock until migrated)
- * (auth moved to @features/auth in phase 4.1; user moved to @features/account in phase 4.2)
+ * Cross-cutting services still living at src/services/ (to be relocated in phase 5).
+ * (auth -> @features/auth, user -> @features/account, tickets -> @features/tickets,
+ *  chat -> @features/chat, rooms/roomHistory/dashboard -> @features/rooms)
  */
 
-export * from './rooms';
 export * from './guests';
-export * from './dashboard';

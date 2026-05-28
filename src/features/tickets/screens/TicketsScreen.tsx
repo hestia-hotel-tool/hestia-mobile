@@ -35,7 +35,7 @@ import {
   TICKET_STATUS_POPOVER,
   scaleX,
 } from '../constants/ticketsStyles';
-import { dashboardService } from '@/services/dashboard';
+import { dashboardService } from '@features/rooms';
 import { updateTicketStatus, updateTicketDueAt } from '../services/tickets';
 import { useAuth } from '@features/auth';
 import { typography } from '@shared/theme';

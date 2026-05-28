@@ -15,7 +15,7 @@ import { ToastProvider } from '../contexts/ToastContext';
 import { MessageModalProvider } from '../contexts/MessageModalContext';
 import { AIChatOverlayProvider } from '../contexts/AIChatOverlayContext';
 import AppNavigator from './navigation/AppNavigator';
-import { getFullRoomDetails } from '../services/rooms';
+import { getFullRoomDetails } from '@features/rooms';
 import * as Notifications from 'expo-notifications';
 import { navigationRef } from './navigation/navigationRef';
 import type { PushData } from '../services/notifications';

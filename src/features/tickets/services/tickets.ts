@@ -6,7 +6,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { base64ToArrayBuffer } from '@shared/utils/encoding';
 import { notifyServer } from '@/services/notifications';
 import { getMyHotelId } from '@/services/tenant';
-import { buildFriendlyRoomHistoryMessage } from '@/services/roomHistory';
+import { buildFriendlyRoomHistoryMessage } from '@features/rooms';
 
 type TicketsRow = {
   id: string;
