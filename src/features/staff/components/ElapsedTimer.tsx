@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Text } from 'react-native';
+import { Text, View } from 'react-native';
 
 function formatElapsed(ms: number): string {
   const total = Math.max(0, Math.floor(ms / 1000));
@@ -57,6 +57,12 @@ export default function ElapsedTimer({
   if (remaining >= 0) {
     return <Text style={style}>{formatElapsed(remaining)}</Text>;
   }
-  // Overtime — extra time used past the room's credit, in red.
-  return <Text style={[style, { color: overtimeColor }]}>{`+${formatElapsed(-remaining)}`}</Text>;
+  // Credit used up: countdown stays at 00:00:00 and the extra time used ticks
+  // up in red to the right.
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+      <Text style={style}>00:00:00</Text>
+      <Text style={[style, { color: overtimeColor, marginLeft: 6 }]}>{`+${formatElapsed(-remaining)}`}</Text>
+    </View>
+  );
 }
