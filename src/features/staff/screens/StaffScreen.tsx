@@ -550,6 +550,7 @@ export default function StaffScreen() {
                             ? {
                                 roomNumber: String(stats.currentRoomNumber),
                                 roomId: stats.currentRoomId,
+                                creditMins: stats.currentRoomCreditMins,
                                 isActive: !stats.isPaused,
                                 startTimeIso: stats.currentRoomStartTimeIso ?? null,
                                 isPaused: !!stats.isPaused,

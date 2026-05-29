@@ -28,6 +28,8 @@ export interface StaffMember {
     roomNumber: string;
     /** rooms.id — opens RoomDetail when the card's button is pressed. */
     roomId?: string;
+    /** rooms.credit (allotted clean minutes) — the live timer counts down from this. */
+    creditMins?: number;
     timer?: string; // Optional precomputed label; the card derives a live timer from startTimeIso
     isActive: boolean; // If true, timer is red (in progress); if false, black
     /** room_assignments.start_time — when cleaning started; drives the live elapsed timer. */

@@ -59,6 +59,8 @@ export type StaffRoomStats = {
   currentRoomId?: string;
   /** start_time of the room the attendant is currently on (drives the live timer). */
   currentRoomStartTimeIso?: string | null;
+  /** rooms.credit (allotted clean minutes) for the current room — drives the countdown. */
+  currentRoomCreditMins?: number;
   /** Current room's work_status is 'paused'. */
   isPaused?: boolean;
   /** pause_reason for the current room when paused. */
@@ -82,7 +84,7 @@ export async function fetchStaffRoomStatsForShift(
 
   const { data, error } = await supabase
     .from('room_assignments')
-    .select('user_id, work_status, start_time, pause_reason, rooms:rooms(id, room_number, house_keeping_status)')
+    .select('user_id, work_status, start_time, pause_reason, rooms:rooms(id, room_number, house_keeping_status, credit)')
     .eq('shift_id', shiftId)
     .in('user_id', userIds);
 
@@ -96,7 +98,7 @@ export async function fetchStaffRoomStatsForShift(
     work_status: string | null;
     start_time: string | null;
     pause_reason: string | null;
-    rooms: { id: string; room_number: string; house_keeping_status: string | null } | null;
+    rooms: { id: string; room_number: string; house_keeping_status: string | null; credit: number | null } | null;
   };
 
   const rows = (data ?? []) as Row[];
@@ -136,6 +138,8 @@ export async function fetchStaffRoomStatsForShift(
         prev.currentRoomNumber = rn;
         prev.currentRoomId = r.rooms?.id ? String(r.rooms.id) : undefined;
         prev.currentRoomStartTimeIso = r.start_time ?? null;
+        prev.currentRoomCreditMins =
+          typeof r.rooms?.credit === 'number' ? r.rooms.credit : undefined;
         prev.isPaused = isPausedRoom;
         prev.pauseReason = isPausedRoom ? (r.pause_reason ?? null) : null;
       }

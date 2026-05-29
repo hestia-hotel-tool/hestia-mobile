@@ -11,15 +11,21 @@ function formatElapsed(ms: number): string {
 }
 
 interface ElapsedTimerProps {
-  /** ISO timestamp the timer counts up from. */
+  /** ISO timestamp the timer measures from (start of work). */
   startTimeIso?: string | null;
   /** When true, the timer freezes (no ticking). */
   paused?: boolean;
+  /**
+   * When set, the timer counts DOWN from this many minutes (the room's allotted
+   * clean credit), i.e. remaining = credit − elapsed. When omitted, it counts
+   * UP (elapsed since startTimeIso). Clamps at 00:00:00 once credit is used up.
+   */
+  countdownFromMins?: number | null;
   style?: any;
 }
 
-/** Live HH:MM:SS elapsed timer. Ticks every second unless paused. */
-export default function ElapsedTimer({ startTimeIso, paused, style }: ElapsedTimerProps) {
+/** Live HH:MM:SS timer. Counts down from credit when given, else counts up. Ticks every second unless paused. */
+export default function ElapsedTimer({ startTimeIso, paused, countdownFromMins, style }: ElapsedTimerProps) {
   const startMs = startTimeIso ? new Date(startTimeIso).getTime() : NaN;
   const [now, setNow] = useState(() => Date.now());
 
@@ -30,5 +36,11 @@ export default function ElapsedTimer({ startTimeIso, paused, style }: ElapsedTim
   }, [paused, startMs]);
 
   if (!Number.isFinite(startMs)) return <Text style={style}>--:--:--</Text>;
-  return <Text style={style}>{formatElapsed(now - startMs)}</Text>;
+
+  const elapsed = now - startMs;
+  const ms =
+    countdownFromMins != null && Number.isFinite(countdownFromMins)
+      ? countdownFromMins * 60000 - elapsed
+      : elapsed;
+  return <Text style={style}>{formatElapsed(ms)}</Text>;
 }

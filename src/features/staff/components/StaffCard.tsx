@@ -92,6 +92,7 @@ export default function StaffCard({ staff, onAssignRoomPress }: StaffCardProps) 
             <ElapsedTimer
               startTimeIso={staff.currentTask.startTimeIso}
               paused={staff.currentTask.isPaused}
+              countdownFromMins={staff.currentTask.creditMins}
               style={[
                 styles.timer,
                 {
