@@ -742,6 +742,17 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
     } catch (e) {
       console.warn('[updateRoom] could not stamp room_assignments start_time', e);
     }
+  } else if (updates.house_keeping_status === 'Cleaned' || updates.house_keeping_status === 'Inspected') {
+    // Room finished — clear the in-progress state so the staff card stops the
+    // countdown and no longer treats this as the attendant's current room.
+    try {
+      await supabase
+        .from('room_assignments')
+        .update({ work_status: 'completed', end_time: new Date().toISOString() })
+        .eq('room_id', roomId);
+    } catch (e) {
+      console.warn('[updateRoom] could not mark room_assignments completed', e);
+    }
   }
 }
 
