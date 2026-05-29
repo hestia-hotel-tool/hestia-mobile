@@ -84,7 +84,7 @@ export async function fetchStaffRoomStatsForShift(
 
   const { data, error } = await supabase
     .from('room_assignments')
-    .select('user_id, work_status, start_time, pause_reason, rooms:rooms(id, room_number, house_keeping_status, credit)')
+    .select('user_id, work_status, start_time, created_at, pause_reason, rooms:rooms(id, room_number, house_keeping_status, credit)')
     .eq('shift_id', shiftId)
     .in('user_id', userIds);
 
@@ -97,6 +97,7 @@ export async function fetchStaffRoomStatsForShift(
     user_id: string;
     work_status: string | null;
     start_time: string | null;
+    created_at: string | null;
     pause_reason: string | null;
     rooms: { id: string; room_number: string; house_keeping_status: string | null; credit: number | null } | null;
   };
@@ -137,7 +138,9 @@ export async function fetchStaffRoomStatsForShift(
       if (rn && (!prev.currentRoomNumber || (isInProgress && prev.isPaused))) {
         prev.currentRoomNumber = rn;
         prev.currentRoomId = r.rooms?.id ? String(r.rooms.id) : undefined;
-        prev.currentRoomStartTimeIso = r.start_time ?? null;
+        // start_time is the cleaning-start; fall back to the assignment's
+        // created_at so the timer still runs when start_time isn't recorded.
+        prev.currentRoomStartTimeIso = r.start_time ?? r.created_at ?? null;
         prev.currentRoomCreditMins =
           typeof r.rooms?.credit === 'number' ? r.rooms.credit : undefined;
         prev.isPaused = isPausedRoom;
