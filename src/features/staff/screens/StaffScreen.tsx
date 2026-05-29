@@ -23,7 +23,7 @@ import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
 import { getUsersByDepartmentId } from '@features/account';
-import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
+import { getDepartments, DEPARTMENT_NAME_TO_ICON, sortDepartmentsByDisplayOrder } from '@shared/lib/departments';
 import { isSupabaseConfigured } from '@shared/lib/supabase';
 import type { User } from '@shared/types';
 import { fetchStaffRoomStatsForShift, fetchStaffTicketStats, type StaffTicketStats } from '../services/staff';
@@ -120,11 +120,13 @@ export default function StaffScreen() {
         setDepartmentLoading(false);
         return;
       }
-      const chips: DepartmentChip[] = data.map((d) => ({
-        id: d.id,
-        name: d.name,
-        icon: DEPARTMENT_NAME_TO_ICON[d.name]?.icon ?? FALLBACK_DEPT_ICON,
-      }));
+      const chips: DepartmentChip[] = sortDepartmentsByDisplayOrder(
+        data.map((d) => ({
+          id: d.id,
+          name: d.name,
+          icon: DEPARTMENT_NAME_TO_ICON[d.name]?.icon ?? FALLBACK_DEPT_ICON,
+        }))
+      );
       setDepartments(chips);
       if (chips.length === 0) {
         setDepartmentStaff([]);

@@ -40,6 +40,25 @@ export const DEPARTMENT_NAME_TO_ICON: Record<string, { icon: any; noTint?: boole
   'Executive Administration': { icon: require('../../../assets/icons/reception.png'), noTint: false },
 };
 
+/**
+ * Preferred display order for department lists (Staff chips, Tickets picker):
+ * Housekeeping, Engineering, Front Office, then everything else alphabetically.
+ */
+const DEPARTMENT_DISPLAY_ORDER = ['HSK Portier', 'Engineering', 'Front Office'];
+
+export function sortDepartmentsByDisplayOrder<T extends { name: string }>(items: T[]): T[] {
+  const rank = (name: string) => {
+    const i = DEPARTMENT_DISPLAY_ORDER.indexOf(name);
+    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+  };
+  return [...items].sort((a, b) => {
+    const ra = rank(a.name);
+    const rb = rank(b.name);
+    if (ra !== rb) return ra - rb;
+    return a.name.localeCompare(b.name);
+  });
+}
+
 export interface GetDepartmentsResponse {
   data: DepartmentRow[];
   error: Error | null;
