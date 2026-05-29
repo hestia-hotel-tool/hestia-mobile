@@ -725,6 +725,24 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
     }
   }
   if (result.error) throw result.error;
+
+  // When a room moves to In Progress, stamp the assignment so the staff card's
+  // credit countdown starts from this moment. start_time is set only once (so a
+  // pause→resume keeps the original start); work_status reflects the transition.
+  // Best-effort — never block the room status update on this.
+  if (updates.house_keeping_status === 'InProgress') {
+    try {
+      const startedAt = new Date().toISOString();
+      await supabase.from('room_assignments').update({ work_status: 'in_progress' }).eq('room_id', roomId);
+      await supabase
+        .from('room_assignments')
+        .update({ start_time: startedAt })
+        .eq('room_id', roomId)
+        .is('start_time', null);
+    } catch (e) {
+      console.warn('[updateRoom] could not stamp room_assignments start_time', e);
+    }
+  }
 }
 
 /**
