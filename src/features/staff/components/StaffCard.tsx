@@ -220,6 +220,11 @@ const styles = StyleSheet.create({
     top: STAFF_CARD.currentTask.top * scaleX,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#faf3da',
+    borderRadius: 41 * scaleX,
+    paddingVertical: 6 * scaleX,
+    paddingLeft: 4 * scaleX,
+    paddingRight: 14 * scaleX,
   },
   currentTaskCircle: {
     width: STAFF_CARD.currentTask.circle.width * scaleX,
