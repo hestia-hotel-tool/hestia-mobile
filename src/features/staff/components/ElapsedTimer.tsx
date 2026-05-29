@@ -18,14 +18,23 @@ interface ElapsedTimerProps {
   /**
    * When set, the timer counts DOWN from this many minutes (the room's allotted
    * clean credit), i.e. remaining = credit − elapsed. When omitted, it counts
-   * UP (elapsed since startTimeIso). Clamps at 00:00:00 once credit is used up.
+   * UP (elapsed since startTimeIso). Once credit is used up it flips to
+   * overtime: "+MM:SS" of extra time, shown in overtimeColor.
    */
   countdownFromMins?: number | null;
+  /** Color used when a countdown goes into overtime. */
+  overtimeColor?: string;
   style?: any;
 }
 
-/** Live HH:MM:SS timer. Counts down from credit when given, else counts up. Ticks every second unless paused. */
-export default function ElapsedTimer({ startTimeIso, paused, countdownFromMins, style }: ElapsedTimerProps) {
+/** Live HH:MM:SS timer. Counts down from credit when given (with red overtime), else counts up. */
+export default function ElapsedTimer({
+  startTimeIso,
+  paused,
+  countdownFromMins,
+  overtimeColor = '#f92424',
+  style,
+}: ElapsedTimerProps) {
   const startMs = startTimeIso ? new Date(startTimeIso).getTime() : NaN;
   const [now, setNow] = useState(() => Date.now());
 
@@ -38,9 +47,16 @@ export default function ElapsedTimer({ startTimeIso, paused, countdownFromMins, 
   if (!Number.isFinite(startMs)) return <Text style={style}>--:--:--</Text>;
 
   const elapsed = now - startMs;
-  const ms =
-    countdownFromMins != null && Number.isFinite(countdownFromMins)
-      ? countdownFromMins * 60000 - elapsed
-      : elapsed;
-  return <Text style={style}>{formatElapsed(ms)}</Text>;
+  const isCountdown = countdownFromMins != null && Number.isFinite(countdownFromMins);
+
+  if (!isCountdown) {
+    return <Text style={style}>{formatElapsed(elapsed)}</Text>;
+  }
+
+  const remaining = (countdownFromMins as number) * 60000 - elapsed;
+  if (remaining >= 0) {
+    return <Text style={style}>{formatElapsed(remaining)}</Text>;
+  }
+  // Overtime — extra time used past the room's credit, in red.
+  return <Text style={[style, { color: overtimeColor }]}>{`+${formatElapsed(-remaining)}`}</Text>;
 }
