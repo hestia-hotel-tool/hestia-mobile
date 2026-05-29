@@ -42,18 +42,22 @@ export const DEPARTMENT_NAME_TO_ICON: Record<string, { icon: any; noTint?: boole
 
 /**
  * Preferred display order for department lists (Staff chips, Tickets picker):
- * Housekeeping, Engineering, Front Office, then everything else alphabetically.
+ * Housekeeping first, then Engineering, then Front Office, then everything else
+ * alphabetically. Matched by keyword so it works whether the DB names it
+ * "Housekeeping" or "HSK Portier".
  */
-const DEPARTMENT_DISPLAY_ORDER = ['HSK Portier', 'Engineering', 'Front Office'];
+function departmentRank(name: string): number {
+  const n = name.trim().toLowerCase();
+  if (n.includes('housekeeping') || n.includes('hsk')) return 0;
+  if (n.includes('engineering')) return 1;
+  if (n.includes('front office')) return 2;
+  return Number.MAX_SAFE_INTEGER;
+}
 
 export function sortDepartmentsByDisplayOrder<T extends { name: string }>(items: T[]): T[] {
-  const rank = (name: string) => {
-    const i = DEPARTMENT_DISPLAY_ORDER.indexOf(name);
-    return i === -1 ? Number.MAX_SAFE_INTEGER : i;
-  };
   return [...items].sort((a, b) => {
-    const ra = rank(a.name);
-    const rb = rank(b.name);
+    const ra = departmentRank(a.name);
+    const rb = departmentRank(b.name);
     if (ra !== rb) return ra - rb;
     return a.name.localeCompare(b.name);
   });
