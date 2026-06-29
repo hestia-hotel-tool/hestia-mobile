@@ -64,6 +64,10 @@ web-build/
 # Environment variables (contains secrets)
 .env
 .env.local
+.env.development
+.env.development.local
+.env.production
+.env.production.local
 
 /ios
 /android

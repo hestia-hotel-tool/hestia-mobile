@@ -5,22 +5,10 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const path = require('path');
-
-try {
-  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-} catch (_) {
-  try {
-    const fs = require('fs');
-    const envPath = path.resolve(__dirname, '../.env');
-    if (fs.existsSync(envPath)) {
-      fs.readFileSync(envPath, 'utf8').split('\n').forEach(line => {
-        const m = line.match(/^([^#=]+)=(.*)$/);
-        if (m) process.env[m[1].trim()] = m[2].trim().replace(/^["']|["']$/g, '');
-      });
-    }
-  } catch (__) {}
-}
+// Loads .env.<APP_ENV> then .env (see scripts/loadEnv.js). Default DB is
+// development; use `APP_ENV=production npm run seed:departments`.
+const { appEnv } = require('./loadEnv');
+console.log(`[seedDepartments] target environment: ${appEnv}`);
 
 const DEPARTMENTS = [
   { name: 'Engineering', description: 'Maintenance, repairs, and facility operations' },

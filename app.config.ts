@@ -73,6 +73,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       eas: {
         projectId: EAS_PROJECT_ID,
       },
+      // Exposed to the JS runtime (process.env.APP_ENV is NOT inlined into the
+      // app bundle). Read via Constants.expoConfig.extra.appEnv for debugging /
+      // env-aware UI. Supabase credentials come from EXPO_PUBLIC_* env vars.
+      appEnv,
     },
     owner: OWNER,
     updates: {
