@@ -14,8 +14,9 @@ import {
   PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from 'expo-router';
+import { RouteProp } from 'expo-router/react-navigation';
+import { NativeStackNavigationProp } from 'expo-router';
 import { typography } from '@shared/theme';
 import type { RootStackParamList } from '@app/navigation/types';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';

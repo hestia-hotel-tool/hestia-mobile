@@ -19,8 +19,9 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation, RouteProp, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, useNavigation, useFocusEffect } from 'expo-router';
+import { RouteProp } from 'expo-router/react-navigation';
+import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import {
@@ -1033,7 +1034,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   mentionBannerBlurBg: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   mentionBannerRow: {
     position: 'relative',
@@ -1087,7 +1088,7 @@ const styles = StyleSheet.create({
     marginTop: 2 * scaleX,
   },
   messagesLoadingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(255,255,255,0.55)',

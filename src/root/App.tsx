@@ -6,7 +6,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationIndependentTree } from "expo-router/react-navigation";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './providers/AuthProvider';
@@ -80,7 +80,7 @@ export default function App() {
 
   useEffect(() => {
     // Surface full JS error stacks in Metro logs (helps when RedBox doesn't print stack).
-    const anyGlobal: any = global as any;
+    const anyGlobal: any = (typeof window !== 'undefined' ? window : globalThis) as any;
     const ErrorUtils = anyGlobal?.ErrorUtils;
     if (!ErrorUtils?.getGlobalHandler || !ErrorUtils?.setGlobalHandler) return;
     const prev = ErrorUtils.getGlobalHandler();
@@ -133,12 +133,14 @@ export default function App() {
           <ToastProvider>
             <NotificationExperience />
             <MessageModalProvider>
-              <NavigationContainer ref={navigationRef} onReady={() => setNavigationReady(true)}>
-                <AIChatOverlayProvider>
-                  <StatusBar style="auto" />
-                  <AppNavigator />
-                </AIChatOverlayProvider>
-              </NavigationContainer>
+              <NavigationIndependentTree>
+                <NavigationContainer ref={navigationRef} onReady={() => setNavigationReady(true)}>
+                  <AIChatOverlayProvider>
+                    <StatusBar style="auto" />
+                    <AppNavigator />
+                  </AIChatOverlayProvider>
+                </NavigationContainer>
+              </NavigationIndependentTree>
             </MessageModalProvider>
           </ToastProvider>
         </AuthProvider>

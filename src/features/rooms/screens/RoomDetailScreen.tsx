@@ -6,8 +6,8 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, useNavigation } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
 import StatusChangeModal from '../components/allRooms/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
@@ -980,7 +980,7 @@ export default function RoomDetailScreen() {
   return (
     <View style={{ flex: 1 }}>
       {isUpdating && (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }]}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }]}>
           <ActivityIndicator size="large" color={colors.primary.main} />
         </View>
       )}

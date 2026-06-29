@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { CompositeNavigationProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { BottomTabNavigationProp } from 'expo-router/js-tabs';
+import { NativeStackNavigationProp } from 'expo-router';
+import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BlurView } from 'expo-blur';
 import { typography } from '@shared/theme';
 import BottomTabBar from '@app/components/BottomTabBar';
@@ -378,7 +378,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   blurOverlayDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
 });

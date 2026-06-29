@@ -11,8 +11,8 @@ import {
   Platform,
   PixelRatio,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
 import { typography } from '@shared/theme';
 import {
   CREATE_TICKET_HEADER,

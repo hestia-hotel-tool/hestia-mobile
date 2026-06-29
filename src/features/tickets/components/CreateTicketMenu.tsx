@@ -113,10 +113,10 @@ const styles = StyleSheet.create({
     backgroundColor: CREATE_TICKET_MENU.backdrop.backgroundColor,
   },
   blurOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   blurDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: CREATE_TICKET_MENU_COLORS.blurDarkener,
   },
   menuContainer: {

@@ -1,8 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, KeyboardAvoidingView, Platform } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
+import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@shared/theme';
 import { ShiftType } from '@features/home';
 import { type RoomStateUpdate } from '../services/dashboard';
@@ -1108,7 +1108,7 @@ function buildAllRoomsStyles(scaleX: number) {
     zIndex: 1,
   },
   blurOverlayDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
   emptyStateCard: {

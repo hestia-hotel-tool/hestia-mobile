@@ -14,8 +14,8 @@ import {
   Image,
   TextInput,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@app/navigation/types';
 import type { User } from '@shared/types';

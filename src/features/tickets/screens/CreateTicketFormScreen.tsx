@@ -14,8 +14,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute } from 'expo-router';
+import { RouteProp } from 'expo-router/react-navigation';
+import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@shared/contexts/ToastContext';
 import { typography } from '@shared/theme';

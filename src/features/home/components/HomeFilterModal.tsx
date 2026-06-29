@@ -666,11 +666,11 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   blurDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
   backdropTouchable: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'transparent',
   },
   modalContent: {

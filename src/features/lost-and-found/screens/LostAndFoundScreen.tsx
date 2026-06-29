@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, Modal, TouchableOpacity, Text, Pressable, useWindowDimensions, Image, TextInput } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { BottomTabNavigationProp } from "expo-router/js-tabs";
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomTabBar from '@app/components/BottomTabBar';
@@ -1104,7 +1104,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   blurOverlayDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
   statusModalOverlay: {

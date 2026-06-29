@@ -13,9 +13,9 @@ import {
   TextInput,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { BottomTabNavigationProp } from 'expo-router/js-tabs';
+import { NativeStackNavigationProp } from 'expo-router';
 import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@app/navigation/types';
 import BottomTabBar from '@app/components/BottomTabBar';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
@@ -621,7 +621,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   blurOverlayDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
   statusModalOverlay: {

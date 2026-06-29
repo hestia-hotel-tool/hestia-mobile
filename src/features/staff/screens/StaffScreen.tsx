@@ -9,8 +9,8 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
 import { colors, typography } from '@shared/theme';
 import BottomTabBar from '@app/components/BottomTabBar';
 import { useAIChatOverlay } from '@features/ai-agent';

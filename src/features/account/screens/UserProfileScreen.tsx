@@ -13,7 +13,8 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute } from 'expo-router';
+import { RouteProp } from 'expo-router/react-navigation';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { colors, typography, components } from '@shared/theme';

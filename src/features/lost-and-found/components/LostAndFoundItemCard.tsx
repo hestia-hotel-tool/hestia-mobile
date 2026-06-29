@@ -739,7 +739,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#e5e7eb',
   },
   imageLoadingPlaceholder: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: '#cbd5e1',
   },
   itemImage: {

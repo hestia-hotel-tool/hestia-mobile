@@ -111,9 +111,8 @@ function DepartmentRow({
         </View>
         <View ref={labelRef} style={styles.labelWrap} collapsable={false}>
           <Text
-            style={[styles.label, isActive && styles.labelActive]}
+            style={[styles.label, isActive && styles.labelActive, { textAlign: STAFF_DEPARTMENT_LIST.label.textAlign as 'left' | 'center' | 'right' | 'auto' | 'justify' }]}
             numberOfLines={2}
-            textAlign={STAFF_DEPARTMENT_LIST.label.textAlign}
           >
             {department.name}
           </Text>

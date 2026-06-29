@@ -2,10 +2,10 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Text } from 'react-native';
 import { useDesignScale } from '@shared/hooks/useDesignScale';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { CompositeNavigationProp } from '@react-navigation/native';
-import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { CompositeNavigationProp } from 'expo-router/react-navigation';
+import { BottomTabNavigationProp } from 'expo-router/js-tabs';
+import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { colors } from '@shared/theme';
 import SearchInput from '@shared/ui/SearchInput';
@@ -1313,7 +1313,7 @@ function buildHomeScreenStyles(scaleX: number) {
     tintColor: colors.primary.main,
   },
   blurOverlayDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
 });

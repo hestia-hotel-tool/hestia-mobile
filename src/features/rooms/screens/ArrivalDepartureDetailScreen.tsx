@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useRoute, useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useRoute, useNavigation } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
 import { colors, typography } from '@shared/theme';
 import { scaleX, ROOM_DETAIL_HEADER, DETAIL_TABS, CONTENT_AREA, ASSIGNED_TASK_CARD } from '../constants/roomDetailStyles';
 import RoomDetailHeader from '../components/roomDetail/RoomDetailHeader';
@@ -464,7 +464,7 @@ export default function ArrivalDepartureDetailScreen() {
   return (
     <View style={styles.container}>
       {isUpdating && (
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }]}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(255,255,255,0.6)', justifyContent: 'center', alignItems: 'center', zIndex: 1000 }]}>
           <ActivityIndicator size="large" color={colors.primary.main} />
         </View>
       )}

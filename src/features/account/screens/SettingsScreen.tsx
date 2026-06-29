@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { colors, typography } from '@shared/theme';
 import BottomTabBar from '@app/components/BottomTabBar';
@@ -120,11 +120,11 @@ function buildSettingsStyles(scaleX: number) {
     paddingBottom: 152 * scaleX,
   },
   contentBlurOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
   },
   blurOverlayDarkener: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
   title: {

@@ -36,11 +36,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     icon,
     scheme,
     assetBundlePatterns: ["**/*"],
-    splash: {
-      image: "./assets/app/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#FFFFFF",
-    },
     ios: {
       supportsTablet: true,
       bundleIdentifier,
@@ -59,11 +54,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: "#FFFFFF",
       },
       package: packageName,
-      splash: {
-        image: "./assets/app/splash.png",
-        resizeMode: "contain",
-        backgroundColor: "#FFFFFF",
-      },
       softwareKeyboardLayoutMode: "resize",
     },
     web: {
@@ -87,6 +77,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     },
     plugins: [
       "expo-font",
+      "expo-asset",
+      "expo-router",
+      "expo-audio",
+      "expo-image",
+      "expo-sharing",
+      "expo-splash-screen",
+      "expo-status-bar",
       [
         "expo-notifications",
         {
