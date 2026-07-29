@@ -25,7 +25,7 @@ import ViewTaskModal from '../components/roomDetail/ViewTaskModal';
 import type { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
 import { STATUS_OPTIONS } from '../types/allRooms.types';
 import type { RoomDetailData, DetailTab, Note, Task } from '../types/roomDetail.types';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { authService } from '@features/auth';
 import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';

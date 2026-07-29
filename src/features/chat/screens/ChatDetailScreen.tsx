@@ -31,7 +31,7 @@ import {
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
-import { RootStackParamList } from '@app/navigation/types';
+import { RootStackParamList } from '@/types/navigation';
 import { ChatMessage } from '@shared/types';
 import MessageBubble from '../components/MessageBubble';
 import ChatHeader from '../components/ChatHeader';

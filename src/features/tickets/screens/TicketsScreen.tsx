@@ -16,8 +16,8 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
-import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@app/navigation/types';
-import BottomTabBar from '@app/components/BottomTabBar';
+import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@/types/navigation';
+import BottomTabBar from '@/components/BottomTabBar';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
 import TicketsTabs from '../components/TicketsTabs';

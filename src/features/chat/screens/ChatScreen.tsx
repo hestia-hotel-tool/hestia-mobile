@@ -6,7 +6,7 @@ import { NativeStackNavigationProp } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BlurView } from 'expo-blur';
 import { typography } from '@shared/theme';
-import BottomTabBar from '@app/components/BottomTabBar';
+import BottomTabBar from '@/components/BottomTabBar';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
 import ChatHeader from '../components/ChatHeader';
 import ChatItem, { ChatItemData } from '../components/ChatItem';
@@ -30,7 +30,7 @@ type MainTabsParamList = {
   Settings: undefined;
 };
 
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 
 type ChatScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, 'Chat'>,

@@ -3,13 +3,13 @@
  * Centralized navigation types for type safety
  */
 
-import type { RoomType } from '@features/rooms';
+import type { RoomType } from '@features/rooms/types/roomDetail.types';
 
 export type RootStackParamList = {
   Splash: undefined;
   Login: undefined;
   Main: undefined;
-  UserProfile: { user: import('@features/home').UserProfile };
+  UserProfile: { user: import('@features/home/types/home.types').UserProfile };
   AllRooms: { showBackButton?: boolean };
   RoomDetail: {
     room?: any; 
@@ -24,7 +24,7 @@ export type RootStackParamList = {
     departmentName?: string;
   };
   AssignRooms: { staffId: string; staffName: string; shift: 'AM' | 'PM' };
-  ChatDetail: { chatId: string; chat?: import('@features/chat').ChatItemData };
+  ChatDetail: { chatId: string; chat?: import('@features/chat/components/ChatItem').ChatItemData };
   NewChat: undefined;
   CreateChatGroup: undefined;
   TicketDetail: { ticketId: string };

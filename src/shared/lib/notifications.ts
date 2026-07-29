@@ -35,7 +35,6 @@ async function ensureAndroidChannel() {
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250, 120, 250],
     enableVibrate: true,
-    sound: 'default',
     showBadge: true,
   });
 }

@@ -17,7 +17,7 @@ import {
 import { useNavigation } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import type { User } from '@shared/types';
 import { getUsers } from '@features/account';
 import { createGroupChat, getCurrentUserId } from '../services/chat';

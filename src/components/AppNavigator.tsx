@@ -9,7 +9,7 @@ import { StaffScreen } from '@features/staff';
 import { TicketsScreen, CreateTicketScreen, SelectTicketLocationScreen, CreateTicketFormScreen } from '@features/tickets';
 import { ChatScreen, ChatDetailScreen, NewChatScreen, CreateChatGroupScreen } from '@features/chat';
 import { SettingsScreen, UserProfileScreen } from '@features/account';
-import type { RootStackParamList, MainTabsParamList } from './types';
+import type { RootStackParamList, MainTabsParamList } from '../types/navigation';
 import { colors } from '@shared/theme';
 
 const Stack = createStackNavigator<RootStackParamList>();

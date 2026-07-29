@@ -83,23 +83,24 @@ Do not install or use new libraries without user approval.
 Use this structure unless there is a strong reason to change it:
 
 ```txt
-app/
-  (auth)/
-  (tabs)/
-    (home)/
-    (chats)/
-    (rooms)/
-    (tickets)/
-    (lost_and_found)/
-    (staff)/
-components/
-constants/
-hooks/
-lib/
-store/
-types/
-assets/
-```
+src/
+    app/
+        (auth)/
+        (tabs)/
+            (home)/
+            (chats)/
+            (rooms)/
+            (tickets)/
+            (lost_and_found)/
+            (staff)/
+    components/
+    constants/
+    hooks/
+    lib/
+    store/
+    types/
+    assets/
+    ```
 
 ### app/
 

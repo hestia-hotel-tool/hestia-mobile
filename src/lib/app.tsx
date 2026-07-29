@@ -9,15 +9,15 @@ import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer, NavigationIndependentTree } from "expo-router/react-navigation";
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { AuthProvider } from './providers/AuthProvider';
+import { AuthProvider } from '../components/AuthProvider';
 import { useAuth } from '@features/auth';
 import { ToastProvider } from '@shared/contexts/ToastContext';
 import { MessageModalProvider } from '@shared/contexts/MessageModalContext';
 import { AIChatOverlayProvider } from '@features/ai-agent';
-import AppNavigator from './navigation/AppNavigator';
+import AppNavigator from '../components/AppNavigator';
 import { getFullRoomDetails } from '@features/rooms';
 import * as Notifications from 'expo-notifications';
-import { navigationRef } from './navigation/navigationRef';
+import { navigationRef } from './navigationRef';
 import type { PushData } from '@shared/lib/notifications';
 import { setupNotificationPresentation } from '@shared/lib/notifications';
 import {

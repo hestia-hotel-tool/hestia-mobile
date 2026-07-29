@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView,
 import { useNavigation } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import { colors, typography } from '@shared/theme';
 import { useAuth } from '../hooks/useAuth';
 import { useDesignScale } from '@shared/hooks/useDesignScale';

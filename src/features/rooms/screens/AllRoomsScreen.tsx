@@ -13,11 +13,11 @@ import { useAIChatOverlay } from '@features/ai-agent';
 import { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import RoomCard from '../components/allRooms/RoomCard';
-import BottomTabBar from '@app/components/BottomTabBar';
+import BottomTabBar from '@/components/BottomTabBar';
 import StatusChangeModal from '../components/allRooms/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import CleanChecklistModal from '../components/allRooms/CleanChecklistModal';
-import type { RootStackParamList, MainTabsParamList } from '@app/navigation/types';
+import type { RootStackParamList, MainTabsParamList } from '@/types/navigation';
 import { useAuth } from '@features/auth';
 import {
   invalidateNotificationBadges,

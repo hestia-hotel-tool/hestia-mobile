@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import { colors, typography } from '@shared/theme';
 import { useAuth } from '../hooks/useAuth';
 

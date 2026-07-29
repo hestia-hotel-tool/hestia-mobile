@@ -4,7 +4,7 @@ import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
 import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BottomTabBar from '@app/components/BottomTabBar';
+import BottomTabBar from '@/components/BottomTabBar';
 import LostAndFoundHeader from '../components/LostAndFoundHeader';
 import LostAndFoundTabs from '../components/LostAndFoundTabs';
 import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/LostAndFoundItemCard';
@@ -18,7 +18,7 @@ import {
   LOST_AND_FOUND_DIVIDER,
   scaleX,
 } from '../constants/lostAndFoundStyles';
-import type { ReturnToTab } from '@app/navigation/types';
+import type { ReturnToTab } from '@/types/navigation';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';

@@ -18,7 +18,7 @@ import { useNavigation, useRoute } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import { NativeStackNavigationProp } from 'expo-router';
 import { typography } from '@shared/theme';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
 import { GUEST_IMAGES_BUCKET } from '@shared/lib/guests';
 import {

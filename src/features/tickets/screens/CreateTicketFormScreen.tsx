@@ -20,7 +20,7 @@ import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@shared/contexts/ToastContext';
 import { typography } from '@shared/theme';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account';
 import type { User } from '@shared/types';
 import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';

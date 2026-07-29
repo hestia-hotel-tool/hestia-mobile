@@ -25,19 +25,12 @@ import { getUsersByDepartment } from '@features/account';
 import { DEPARTMENT_SLUG_TO_DB_NAME } from '@shared/lib/departments';
 import { typography } from '@shared/theme';
 import type { User } from '@shared/types';
-import type { StaffDepartmentId } from './StaffDepartmentList';
+import type { StaffDepartmentId, DepartmentRowPosition } from './staffDepartment.types';
+
+export type { DepartmentRowPosition } from './staffDepartment.types';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const PANEL_WIDTH = STAFF_DEPARTMENT_PANEL.width * scaleX;
-
-export interface DepartmentRowPosition {
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  /** When set, triangle points at the department name (label below icon). */
-  namePosition?: { x: number; y: number; width: number; height: number };
-}
 
 interface StaffDepartmentStaffPanelProps {
   visible: boolean;

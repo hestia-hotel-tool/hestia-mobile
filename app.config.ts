@@ -1,9 +1,9 @@
 import { ConfigContext, ExpoConfig } from "expo/config";
-import { version } from "./package.json";
 
 const EAS_PROJECT_ID = "812d1d0f-dd1e-4634-9ebc-c3a124ab1aa5";
 const PROJECT_SLUG = "hestia";
 const OWNER = "wallice-dev";
+const VERSION = "1.0.1";
 
 const APP_NAME = "Hestia";
 const BUNDLE_IDENTIFIER = "com.hestiahotels.app";
@@ -29,7 +29,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name,
-    version,
+    version: VERSION,
     slug: PROJECT_SLUG,
     orientation: "portrait",
     userInterfaceStyle: "light",
@@ -78,7 +78,12 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     plugins: [
       "expo-font",
       "expo-asset",
-      "expo-router",
+      [
+        "expo-router",
+        {
+          root: "./app",
+        },
+      ],
       "expo-audio",
       "expo-image",
       "expo-sharing",

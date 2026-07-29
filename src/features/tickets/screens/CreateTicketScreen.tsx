@@ -28,7 +28,7 @@ import {
   createTicketScaleX,
 } from '../constants/createTicketStyles';
 import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,

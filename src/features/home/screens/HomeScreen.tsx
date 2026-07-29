@@ -18,14 +18,14 @@ import { useAIChatOverlay } from '@features/ai-agent';
 import { useRoomsStore } from '@features/rooms';
 import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
 import type { MoreMenuItemId } from '@shared/types/more.types';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import HomeHeader from '../components/HomeHeader';
 import CategoryCard from '../components/CategoryCard';
 import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOverviewCard';
 import EngineeringRecentActivityItem from '../components/EngineeringRecentActivityItem';
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
-import BottomTabBar from '@app/components/BottomTabBar';
+import BottomTabBar from '@/components/BottomTabBar';
 import HomeFilterModal from '../components/HomeFilterModal';
 import { FilterState, FilterCounts } from '@shared/types/filter.types';
 import type { CategorySection } from '../types/home.types';
@@ -37,7 +37,7 @@ import { dashboardService } from '@features/rooms';
 import { supabase } from '@shared/lib/supabase';
 import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '@features/rooms';
 
-import type { MainTabsParamList } from '@app/navigation/types';
+import type { MainTabsParamList } from '@/types/navigation';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, 'Home'>,

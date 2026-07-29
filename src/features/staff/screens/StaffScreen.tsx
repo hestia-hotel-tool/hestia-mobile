@@ -12,7 +12,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { colors, typography } from '@shared/theme';
-import BottomTabBar from '@app/components/BottomTabBar';
+import BottomTabBar from '@/components/BottomTabBar';
 import { useAIChatOverlay } from '@features/ai-agent';
 import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
@@ -21,7 +21,7 @@ import StaffCard from '../components/StaffCard';
 import StaffTicketCard from '../components/StaffTicketCard';
 import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
-import type { MainTabsParamList, ReturnToTab } from '@app/navigation/types';
+import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account';
 import { getDepartments, DEPARTMENT_NAME_TO_ICON, sortDepartmentsByDisplayOrder } from '@shared/lib/departments';
 import { isSupabaseConfigured } from '@shared/lib/supabase';

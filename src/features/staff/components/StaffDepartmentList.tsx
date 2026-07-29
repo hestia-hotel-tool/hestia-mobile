@@ -2,16 +2,9 @@ import React, { useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography } from '@shared/theme';
 import { scaleX, STAFF_DEPARTMENT_LIST } from '../constants/staffStyles';
-import type { DepartmentRowPosition } from './StaffDepartmentStaffPanel';
+import type { StaffDepartmentId, DepartmentRowPosition } from './staffDepartment.types';
 
-export type StaffDepartmentId =
-  | 'engineering'
-  | 'hskPortier'
-  | 'inRoomDining'
-  | 'laundry'
-  | 'concierge'
-  | 'reception'
-  | 'it';
+export type { StaffDepartmentId } from './staffDepartment.types';
 
 export interface StaffDepartmentItem {
   id: StaffDepartmentId;

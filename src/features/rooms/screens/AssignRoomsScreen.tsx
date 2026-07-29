@@ -14,7 +14,7 @@ import { RouteProp } from 'expo-router/react-navigation';
 import { NativeStackNavigationProp } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '@shared/theme';
-import type { RootStackParamList } from '@app/navigation/types';
+import type { RootStackParamList } from '@/types/navigation';
 import { fetchAllRooms, assignRoomToStaff } from '../services/rooms';
 import type { RoomCardData } from '../types/allRooms.types';
 
