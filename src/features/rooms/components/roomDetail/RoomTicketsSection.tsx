@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, KeyboardAvoidingView, Platform, View, Text, Act
 import { useNavigation } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { RootStackParamList } from '@/types/navigation';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { scaleX, CONTENT_AREA } from '../../constants/roomDetailStyles';
 import { TicketForm, TicketCard, getLatestTicketForRoom, type TicketData } from '@features/tickets';
 

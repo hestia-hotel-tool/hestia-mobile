@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
-import { typography, colors } from '@shared/theme';
+import { typography, colors } from '@/theme';
 import { REASSIGN_MODAL, scaleX } from '../../constants/reassignModalStyles';
 import WorkloadProgressBar from '../WorkloadProgressBar';
 

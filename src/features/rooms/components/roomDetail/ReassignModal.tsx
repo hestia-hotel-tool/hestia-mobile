@@ -6,7 +6,7 @@ import ReassignHeader from './ReassignHeader';
 import ReassignTabs from './ReassignTabs';
 import StaffListContainer from './StaffListContainer';
 import { fetchStaffFromSupabase } from '@features/staff';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 
 interface ReassignModalProps {
   visible: boolean;

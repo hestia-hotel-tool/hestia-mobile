@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { CHECKLIST_SECTION, scaleX } from '../../constants/checklistStyles';
 import ChecklistItem from './ChecklistItem';
 import type { ChecklistCategory as ChecklistCategoryType } from '../../types/checklist.types';

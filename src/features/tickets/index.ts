@@ -7,4 +7,4 @@ export type { TicketStatusAnchorLayout } from './components/TicketCard';
 export { default as TicketForm } from './components/TicketForm';
 export * from './services/tickets';
 export * from './types/tickets.types';
-export { DEPARTMENT_NAME_TO_ICON, DEPARTMENT_SLUG_TO_DB_NAME } from '@shared/lib/departments';
+export { DEPARTMENT_NAME_TO_ICON, DEPARTMENT_SLUG_TO_DB_NAME } from '@/lib/departments';

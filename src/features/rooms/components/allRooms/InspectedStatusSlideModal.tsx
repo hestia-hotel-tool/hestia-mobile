@@ -38,6 +38,7 @@ interface InspectedStatusSlideModalProps {
   visible: boolean;
   onClose: () => void;
   onComplete: () => void;
+  onReject?: () => void;
   buttonPosition?: { x: number; y: number; width: number; height: number } | null;
   headerHeight?: number;
   showTriangle?: boolean;
@@ -47,11 +48,13 @@ export default function InspectedStatusSlideModal({
   visible,
   onClose,
   onComplete,
+  onReject,
   buttonPosition = null,
   headerHeight = 217,
   showTriangle = true,
 }: InspectedStatusSlideModalProps) {
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
+  const [resultStep, setResultStep] = useState<'slide' | 'result'>('slide');
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const thumbPosition = useRef(new Animated.Value(0)).current;
@@ -93,7 +96,7 @@ export default function InspectedStatusSlideModal({
               toValue: maxX,
               duration: 150,
               useNativeDriver: true,
-            }).start(() => closeModal(onComplete));
+            }).start(() => setResultStep('result'));
           } else {
             Animated.spring(thumbPosition, {
               toValue: 0,
@@ -154,6 +157,7 @@ export default function InspectedStatusSlideModal({
     if (visible) {
       isCompletingRef.current = false;
       setCheckedItems({});
+      setResultStep('slide');
       thumbPosition.setValue(0);
       Animated.parallel([
         Animated.timing(slideAnim, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -268,17 +272,42 @@ export default function InspectedStatusSlideModal({
                   <Text style={styles.optionalLabel}>Add Notes</Text>
                 </TouchableOpacity>
               </ScrollView>
-                <View style={styles.slideSection}>
-                  <View
-                    style={[styles.slideTrack, !allChecked && styles.slideTrackDisabled]}
-                    {...panResponder.panHandlers}
-                  >
-                    <Animated.View style={[styles.slideThumb, { transform: [{ translateX: thumbPosition }] }]}>
-                      <Ionicons name="checkmark-circle" size={28 * scaleX} color="#41d541" />
-                    </Animated.View>
-                    <Text style={[styles.slideLabel, !allChecked && styles.slideLabelDisabled]}>Slide to complete</Text>
+                {resultStep === 'slide' ? (
+                  <View style={styles.slideSection}>
+                    <View
+                      style={[styles.slideTrack, !allChecked && styles.slideTrackDisabled]}
+                      {...panResponder.panHandlers}
+                    >
+                      <Animated.View style={[styles.slideThumb, { transform: [{ translateX: thumbPosition }] }]}>
+                        <Ionicons name="checkmark-circle" size={28 * scaleX} color="#41d541" />
+                      </Animated.View>
+                      <Text style={[styles.slideLabel, !allChecked && styles.slideLabelDisabled]}>Slide to complete</Text>
+                    </View>
                   </View>
-                </View>
+                ) : (
+                  <View style={styles.resultSection}>
+                    <Text style={styles.resultTitle}>Inspection Result</Text>
+                    <View style={styles.resultButtons}>
+                      <TouchableOpacity
+                        style={[styles.resultButton, styles.resultButtonApprove]}
+                        onPress={() => closeModal(onComplete)}
+                      >
+                        <Ionicons name="checkmark-circle" size={24 * scaleX} color="#ffffff" />
+                        <Text style={styles.resultButtonText}>Approve</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.resultButton, styles.resultButtonReject]}
+                        onPress={() => {
+                          closeModal();
+                          onReject?.();
+                        }}
+                      >
+                        <Ionicons name="close-circle" size={24 * scaleX} color="#ffffff" />
+                        <Text style={styles.resultButtonText}>Reject</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
             </View>
           </Animated.View>
         </BlurView>
@@ -448,6 +477,41 @@ const styles = StyleSheet.create({
   },
   slideSection: {
     marginTop: 24 * scaleX,
+  },
+  resultSection: {
+    marginTop: 24 * scaleX,
+    alignItems: 'center',
+  },
+  resultTitle: {
+    fontSize: 18 * scaleX,
+    fontWeight: '700',
+    color: '#334866',
+    marginBottom: 16 * scaleX,
+  },
+  resultButtons: {
+    flexDirection: 'row',
+    gap: 12 * scaleX,
+  },
+  resultButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8 * scaleX,
+    paddingVertical: 14 * scaleX,
+    paddingHorizontal: 24 * scaleX,
+    borderRadius: 12 * scaleX,
+    minWidth: 120 * scaleX,
+    justifyContent: 'center',
+  },
+  resultButtonApprove: {
+    backgroundColor: '#41d541',
+  },
+  resultButtonReject: {
+    backgroundColor: '#f92424',
+  },
+  resultButtonText: {
+    fontSize: 16 * scaleX,
+    fontWeight: '600',
+    color: '#ffffff',
   },
   slideTrack: {
     height: 56 * scaleX,

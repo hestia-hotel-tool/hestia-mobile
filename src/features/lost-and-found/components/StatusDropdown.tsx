@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Pressable,
 } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 
 export type StatusOption = 'stored' | 'shipped' | 'discarded';

@@ -5,35 +5,36 @@ import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BlurView } from 'expo-blur';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import BottomTabBar from '@/components/BottomTabBar';
-import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 import ChatHeader from '../components/ChatHeader';
 import ChatItem, { ChatItemData } from '../components/ChatItem';
 import NotificationItem, { NotificationItemData } from '../components/NotificationItem';
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useChatStore } from '../store/useChatStore';
-import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@features/auth';
+import { useUserStore } from '@features/account/store/useUserStore';
 import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 type MainTabsParamList = {
-  Home: undefined;
-  Rooms: undefined;
-  Chat: undefined;
-  Tickets: undefined;
-  LostAndFound: undefined;
-  Staff: undefined;
-  Settings: undefined;
+  '(home)/index': undefined;
+  '(rooms)/index': undefined;
+  '(chats)/index': undefined;
+  '(tickets)/index': undefined;
+  '(lost_and_found)/index': undefined;
+  '(staff)/index': undefined;
+  '(settings)/index': undefined;
 };
 
-import type { RootStackParamList } from '@/types/navigation';
+import type { RootStackParamList, ReturnToTab } from '@/types/navigation';
 
 type ChatScreenNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabsParamList, 'Chat'>,
+  BottomTabNavigationProp<MainTabsParamList, '(chats)/index'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
@@ -42,6 +43,7 @@ export default function ChatScreen() {
   const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
+  const userProfile = useUserStore((s) => s.profile);
   const [activeTab, setActiveTab] = useState('Chat');
   const [showNewChatMenu, setShowNewChatMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -191,23 +193,23 @@ export default function ChatScreen() {
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab = (route.name as string) as 'Home' | 'Rooms' | 'Chat' | 'Tickets' | 'LostAndFound' | 'Staff' | 'Settings';
+    const returnToTab: ReturnToTab = route.name as ReturnToTab;
     if (tab === 'Home') {
-      navigation.navigate('Home' as any);
+      navigation.navigate('(home)/index' as any);
     } else if (tab === 'Rooms') {
-      navigation.navigate('Rooms' as any, {
+      navigation.navigate('(rooms)/index' as any, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
     } else if (tab === 'Chat') {
-      navigation.navigate('Chat' as any);
+      navigation.navigate('(chats)/index' as any);
     } else if (tab === 'Tickets') {
-      navigation.navigate('Tickets' as any);
+      navigation.navigate('(tickets)/index' as any);
     } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('LostAndFound', { returnToTab });
+      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
     } else if (tab === 'Staff') {
-      (navigation as any).navigate('Staff', { returnToTab });
+      (navigation as any).navigate('(staff)/index', { returnToTab });
     } else if (tab === 'Settings') {
-      (navigation as any).navigate('Settings', { returnToTab });
+      (navigation as any).navigate('(settings)/index', { returnToTab });
     }
   };
 
@@ -216,7 +218,7 @@ export default function ChatScreen() {
   };
 
   const handleChatPress = (chat: ChatItemData) => {
-    navigation.navigate('ChatDetail', { chatId: chat.id, chat });
+    navigation.navigate('chat/[chatId]', { chatId: chat.id, chat });
   };
 
   const handleBackPress = () => {
@@ -235,10 +237,10 @@ export default function ChatScreen() {
     setShowNewChatMenu(false);
     switch (option) {
       case 'createGroup':
-        (navigation as any).navigate('CreateChatGroup');
+        (navigation as any).navigate('create-chat-group/index');
         break;
       case 'newChat':
-        (navigation as any).navigate('NewChat');
+        (navigation as any).navigate('new-chat/index');
         break;
     }
   };
@@ -295,7 +297,7 @@ export default function ChatScreen() {
                   pillTextColor: '#ffffff',
                 }
               }
-              onPress={() => navigation.navigate('Rooms' as any)}
+              onPress={() => navigation.navigate('(rooms)/index' as any)}
             />
 
             <Text style={styles.sectionTitle}>Chats</Text>
@@ -327,7 +329,7 @@ export default function ChatScreen() {
       />
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
 
       {/* New Chat Menu */}
       <NewChatMenu

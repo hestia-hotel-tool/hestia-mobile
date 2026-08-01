@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, useWindowDimensions, PixelRatio } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import {
   TICKETS_HEADER,
   TICKETS_COLORS,

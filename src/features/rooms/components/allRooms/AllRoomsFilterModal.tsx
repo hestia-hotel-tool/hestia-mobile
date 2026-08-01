@@ -10,9 +10,9 @@ import {
   ScrollView,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { colors, typography } from '@shared/theme';
-import SeeRoomsButton from '@shared/ui/SeeRoomsButton';
-import { FilterState, FilterCounts } from '@shared/types/filter.types';
+import { colors, typography } from '@/theme';
+import SeeRoomsButton from '@/components/SeeRoomsButton';
+import { FilterState, FilterCounts } from '@/types/filter.types';
 import { useHomeFilters } from '@features/home';
 import { FilterRow } from '@features/home';
 

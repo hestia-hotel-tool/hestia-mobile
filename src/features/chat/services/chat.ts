@@ -5,13 +5,13 @@
  */
 
 import * as FileSystem from 'expo-file-system/legacy';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import type { ChatMessage } from '@shared/types';
+import type { ChatMessage } from '@/types';
 import type { ChatItemData } from '../components/ChatItem';
-import { base64ToArrayBuffer } from '@shared/utils/encoding';
-import { notifyServer } from '@shared/lib/notifications';
-import { getMyHotelId } from '@shared/lib/tenant';
+import { base64ToArrayBuffer } from '@/utils/encoding';
+import { notifyServer } from '@/lib/notifications';
+import { getMyHotelId } from '@/lib/tenant';
 
 const MESSAGE_TYPE = 'text'; // DB: text, image, system
 export const CHAT_ATTACHMENTS_BUCKET = 'chat-attachments';
@@ -299,7 +299,7 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
   }
 
   const result: (ChatItemData & { lastMessageAt: string })[] = [];
-  for (const chat of chats as ChatRow[]) {
+  for (const chat of chats as unknown as ChatRow[]) {
     const lastMsg = lastByChatId.get(chat.id);
     const lastMessageText = lastMsg?.content ?? '';
     const lastMessageAt = lastMsg?.created_at ?? '';
@@ -348,7 +348,7 @@ export async function getChatById(chatId: string): Promise<{ id: string; name: s
     .eq('id', chatId)
     .single();
   if (error || !data) return null;
-  const row = data as { id: string; name: string | null; type: string; created_by_id: string };
+  const row = data as unknown as { id: string; name: string | null; type: string; created_by_id: string };
   return { id: row.id, name: row.name ?? null, type: row.type, created_by_id: row.created_by_id };
 }
 
@@ -384,7 +384,7 @@ export async function updateGroupChat(chatId: string, updates: { name: string })
   const role = await getMyRoleInChat(chatId);
   if (role !== 'admin') return false;
   const name = typeof updates.name === 'string' && updates.name.trim() ? updates.name.trim() : (chatRow.name ?? '');
-  const { error } = await supabase.from('chats').update({ name }).eq('id', chatId);
+  const { error } = await supabase.from('chats').update({ name } as any).eq('id', chatId);
   return !error;
 }
 
@@ -423,7 +423,7 @@ export async function getGroupParticipants(chatId: string): Promise<GroupPartici
     .select('user_id, role, users(full_name, avatar_url)')
     .eq('chat_id', chatId);
   if (error || !data) return [];
-  const rows = data as Array<{
+  const rows = data as unknown as Array<{
     user_id: string;
     role: string;
     users: { full_name: string | null; avatar_url: string | null } | null;
@@ -452,7 +452,7 @@ export async function setParticipantRole(
   if (!chatRow || chatRow.type !== 'group' || chatRow.created_by_id !== userId) return false;
   const { error } = await supabase
     .from('chat_participants')
-    .update({ role })
+    .update({ role } as any)
     .eq('chat_id', chatId)
     .eq('user_id', participantUserId);
   return !error;
@@ -479,7 +479,7 @@ export async function getMessages(chatId: string): Promise<ChatMessage[]> {
     console.warn('[Chat] getMessages error:', error.message, error.code, error.details);
     return [];
   }
-  const rows = (data ?? []) as MessageRow[];
+  const rows = (data ?? []) as unknown as MessageRow[];
 
   const replyIds = [...new Set(rows.map((r) => r.reply_to_id).filter(Boolean) as string[])];
   const taggedIds = [...new Set(rows.map((r) => r.tagged_user_id).filter(Boolean) as string[])];
@@ -550,12 +550,12 @@ export async function sendMessage(
 
   const { data: inserted, error } = await supabase
     .from('messages')
-    .insert(insertPayload)
+    .insert(insertPayload as any)
     .select('id, chat_id, sender_id, type, content, created_at, reply_to_id, tagged_user_id')
     .single();
 
   if (error) throw error;
-  const row = inserted as MessageRow & { users?: null };
+  const row = inserted as unknown as MessageRow & { users?: null };
 
   // Fire-and-forget push notifications to other participants.
   // Server will create in-app notification rows and dispatch Expo push.

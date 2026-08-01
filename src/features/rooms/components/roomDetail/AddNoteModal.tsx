@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 
 interface AddNoteModalProps {

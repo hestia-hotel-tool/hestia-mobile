@@ -2,8 +2,8 @@ import React, { useState, useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { GUEST_INFO as ROOM_DETAIL_GUEST_INFO, scaleX } from '../../constants/roomDetailStyles';
 import { GUEST_INFO } from '../../constants/allRoomsStyles';
-import { formatGuestCount, formatDatesOfStay } from '@shared/utils/formatting';
-import GuestProfileImageModal, { type GuestImageAnchorLayout } from '@shared/ui/GuestProfileImageModal';
+import { formatGuestCount, formatDatesOfStay } from '@/utils/formatting';
+import GuestProfileImageModal, { type GuestImageAnchorLayout } from '@/components/GuestProfileImageModal';
 import type { GuestInfo } from '../../types/allRooms.types';
 
 export type GuestInfoCardCategory = 'Arrival' | 'Departure' | 'Stayover' | 'Turndown';

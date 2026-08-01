@@ -1,14 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Image, ScrollView, Platform, ActivityIndicator } from 'react-native';
-import { useNavigation } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { RootStackParamList } from '@/types/navigation';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { useAuth } from '../hooks/useAuth';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
-
-type LoginScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Login'>;
+import { useDesignScale } from '@/hooks/useDesignScale';
 
 const LANGUAGES = [
   { code: 'EN', name: 'English' },
@@ -20,7 +16,6 @@ const LANGUAGES = [
 export default function LoginScreen() {
   const { scaleX, height: windowHeight } = useDesignScale();
   const styles = useMemo(() => buildLoginStyles(scaleX, windowHeight), [scaleX, windowHeight]);
-  const navigation = useNavigation<LoginScreenNavigationProp>();
   const insets = useSafeAreaInsets();
   const { signIn } = useAuth();
   const [email, setEmail] = useState('');
@@ -44,7 +39,7 @@ export default function LoginScreen() {
         setError(signInError.message ?? 'Invalid email or password.');
         return;
       }
-      navigation.replace('Main');
+      router.replace('/(tabs)/(home)');
     } catch (err) {
       console.error('[Login] signIn unexpected error:', err);
       setError(err instanceof Error ? err.message : 'An unexpected error occurred.');

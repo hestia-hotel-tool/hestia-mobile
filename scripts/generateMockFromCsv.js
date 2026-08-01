@@ -1,5 +1,5 @@
 /**
- * Generates src/data/mockAllRoomsData.ts from operational-data.csv [AM] and pm-operational-data.csv [PM].
+ * Generates src/mocks/mockAllRoomsData.ts from operational-data.csv [AM] and pm-operational-data.csv [PM].
  * Run: node scripts/generateMockFromCsv.js
  * Reads both CSVs and outputs { rooms, roomsPM } so switching to PM shows PM rooms.
  */
@@ -10,7 +10,7 @@ const path = require('path');
 const projectRoot = path.join(__dirname, '..');
 const csvPathAM = path.join(projectRoot, 'data', 'operational-data.csv');
 const csvPathPM = path.join(projectRoot, 'data', 'pm-operational-data.csv');
-const outPath = path.join(projectRoot, 'src', 'data', 'mockAllRoomsData.ts');
+const outPath = path.join(projectRoot, 'src', 'mocks', 'mockAllRoomsData.ts');
 
 function parseCSVLine(line) {
   const result = [];
@@ -328,7 +328,7 @@ const tsContent = `/**
  * Regenerate with: node scripts/generateMockFromCsv.js
  */
 
-import type { RoomCardData } from '../types/allRooms.types';
+import type { RoomCardData } from '@features/rooms';
 
 export const mockAllRoomsData: {
   selectedShift: 'AM';

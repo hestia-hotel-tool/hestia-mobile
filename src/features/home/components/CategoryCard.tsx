@@ -1,9 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import type { CategorySection, ShiftType, RoomStatus } from '../types/home.types';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { Dimensions } from 'react-native';
-import { normalizedScaleX, scaleX } from '@shared/utils/responsive';
+import { normalizedScaleX, scaleX } from '@/utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

@@ -1,4 +1,4 @@
-import { ShiftType } from '@shared/types/shift.types';
+import { ShiftType } from '@/types/shift.types';
 
 /**
  * Determines the shift based on current time

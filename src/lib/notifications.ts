@@ -99,7 +99,7 @@ export async function registerAndSyncPushToken(): Promise<{ token: string | null
   const device_name = Device.deviceName ?? null;
 
   // Prefer SECURITY DEFINER RPC so the same Expo token can move between accounts without RLS blocking the merge.
-  const rpcResult = await supabase.rpc('register_expo_push_token', {
+  const rpcResult = await (supabase as any).rpc('register_expo_push_token', {
     p_expo_push_token: token,
     p_device_os: device_os,
     p_device_name: device_name,

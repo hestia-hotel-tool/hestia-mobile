@@ -9,7 +9,7 @@ import {
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { ITEM_REGISTERED_SUCCESS } from '../constants/lostAndFoundStyles';
 
 const DESIGN_WIDTH = 440;

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX as defaultScaleX, STAFF_SHIFT_CALENDAR } from '../constants/staffStyles';
 import StaffShiftMonthCalendar from './StaffShiftMonthCalendar';
 

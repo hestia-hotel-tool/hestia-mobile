@@ -1,19 +1,14 @@
 import React, { useEffect, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
-import { useNavigation } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
-import type { RootStackParamList } from '@/types/navigation';
-import { colors, typography } from '@shared/theme';
+import { router } from 'expo-router';
+import { colors, typography } from '@/theme';
 import { useAuth } from '../hooks/useAuth';
-
-type SplashScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 
 const DESIGN_WIDTH = 440;
 const DESIGN_HEIGHT = 956;
 const MIN_SPLASH_DURATION_MS = 2000;
 
 export default function SplashScreen() {
-  const navigation = useNavigation<SplashScreenNavigationProp>();
   const { session, hotelId, error, isLoading } = useAuth();
   const { width, height } = useWindowDimensions();
   const scale = useMemo(
@@ -28,14 +23,14 @@ export default function SplashScreen() {
 
     const timer = setTimeout(() => {
       if (session) {
-        navigation.replace('Main');
+        router.replace('/(tabs)/(home)');
       } else {
-        navigation.replace('Login');
+        router.replace('/(auth)/login');
       }
     }, MIN_SPLASH_DURATION_MS);
 
     return () => clearTimeout(timer);
-  }, [isLoading, session, hotelId, error, navigation]);
+  }, [isLoading, session, hotelId, error]);
 
   return (
     <View style={styles.container}>

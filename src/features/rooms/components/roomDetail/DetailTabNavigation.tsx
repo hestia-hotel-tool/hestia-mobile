@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, DETAIL_TABS } from '../../constants/roomDetailStyles';
 import type { DetailTab } from '../../types/roomDetail.types';
 

@@ -3,11 +3,11 @@
  */
 
 import { create } from 'zustand';
-import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
+import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
 import { dashboardService, type RoomStateUpdate } from '../services/dashboard';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
 import type { ShiftType } from '@features/home';
-import { getShiftFromTime } from '@shared/utils/shiftUtils';
+import { getShiftFromTime } from '@/utils/shiftUtils';
 
 interface RoomsState {
   data: AllRoomsScreenData | null;

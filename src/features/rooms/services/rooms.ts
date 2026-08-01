@@ -3,10 +3,10 @@
  * Fetches rooms with reservations and guests; updates room state.
  */
 
-import { supabase } from '@shared/lib/supabase';
-import { invalidateNotificationBadges } from '@shared/lib/inAppNotifications';
-import { notifyServer } from '@shared/lib/notifications';
-import { getMyHotelId } from '@shared/lib/tenant';
+import { supabase } from '@/lib/supabase';
+import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
+import { notifyServer } from '@/lib/notifications';
+import { getMyHotelId } from '@/lib/tenant';
 import type {
   AllRoomsScreenData,
   RoomCardData,

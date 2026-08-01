@@ -6,7 +6,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRoute, useNavigation } from 'expo-router';
+import { useRoute, useNavigation, router } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
 import StatusChangeModal from '../components/allRooms/StatusChangeModal';
@@ -28,19 +28,20 @@ import type { LostAndFoundItem } from '@features/lost-and-found';
 import type { RootStackParamList } from '@/types/navigation';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { authService } from '@features/auth';
-import { colors } from '@shared/theme';
-import { getMockHistoryEvents } from '@/data/mockHistoryData';
+import { notifyServer } from '@/lib/notifications';
+import { colors } from '@/theme';
+import { getMockHistoryEvents } from '@/mocks/mockHistoryData';
 import { generateHistoryReport } from '../utils/generateHistoryReport';
 import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';
 import { getDefaultTaskText } from '../utils/defaultTasks';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
 import { fetchStaffFromSupabase } from '@features/staff';
-import { supabase } from '@shared/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { buildFriendlyRoomHistoryMessage, getRoomHistoryEvents, logRoomHistoryEvent } from '../services/roomHistory';
 
 type RoomDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'RoomDetail'
+  'room/[roomId]'
 >;
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -490,7 +491,7 @@ export default function RoomDetailScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      navigation.navigate('AllRooms' as any, {} as any);
+      router.navigate('/(tabs)/(rooms)');
     }
   };
 
@@ -786,16 +787,14 @@ export default function RoomDetailScreen() {
   };
 
   const handleAddPhotos = () => {
-    navigation.navigate('Main' as any, {
-      screen: 'LostAndFound',
-      params: { openRegisterModal: true, preselectedRoomId: room.id },
+    navigation.navigate('(tabs)/(lost_and_found)' as any, {
+      openRegisterModal: true,
+      preselectedRoomId: room.id,
     } as any);
   };
 
   const handleLostAndFoundTitlePress = () => {
-    navigation.navigate('Main' as any, {
-      screen: 'LostAndFound',
-    } as any);
+    navigation.navigate('(tabs)/(lost_and_found)' as any, {});
   };
 
   const handleLostAndFoundItemPress = (item: LostAndFoundItem) => {
@@ -1069,6 +1068,22 @@ export default function RoomDetailScreen() {
           handleStatusSelect('Inspected');
           setShowInspectedModal(false);
           setButtonPositionForInspection(null);
+        }}
+        onReject={() => {
+          setShowInspectedModal(false);
+          setButtonPositionForInspection(null);
+          updateRoom(room.id, { house_keeping_status: 'Dirty' }).catch((e) =>
+            console.warn('[RoomDetailScreen] Failed to reject room', e)
+          );
+          const assignedUserId = room.roomAttendantAssigned?.userId ?? localRoom.roomAttendantAssigned?.userId;
+          if (assignedUserId) {
+            notifyServer({
+              type: 'room_assignment',
+              roomId: room.id,
+              shiftId: shift,
+              assignedUserId,
+            }).catch(() => {});
+          }
         }}
         buttonPosition={buttonPositionForInspection}
         headerHeight={232}

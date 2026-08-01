@@ -1,2 +1,1 @@
-import App from '../src/lib/app';
-export default App;
+export { default } from '@features/auth/screens/SplashScreen';

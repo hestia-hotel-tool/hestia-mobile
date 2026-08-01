@@ -14,20 +14,20 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { useNavigation, useRoute } from 'expo-router';
+import { useNavigation, useRoute, useRouter } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
-import { useToast } from '@shared/contexts/ToastContext';
-import { typography } from '@shared/theme';
+import { useToast } from '@/contexts/ToastContext';
+import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account';
-import type { User } from '@shared/types';
-import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
+import type { User } from '@/types';
+import { DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
-import { getDepartments } from '@shared/lib/departments';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getDepartments } from '@/lib/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -79,10 +79,10 @@ const descriptionAiBadgeStyles = StyleSheet.create({
   measureWrap: { alignItems: 'center', justifyContent: 'center' },
 });
 
-type CreateTicketFormScreenRouteProp = RouteProp<RootStackParamList, 'CreateTicketForm'>;
+type CreateTicketFormScreenRouteProp = RouteProp<RootStackParamList, 'create-ticket-form/index'>;
 type CreateTicketFormScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'CreateTicketForm'
+  'create-ticket-form/index'
 >;
 
 type Priority = 'high' | 'medium' | 'low';
@@ -99,6 +99,7 @@ type DepartmentUiItem = { id: string; name: string; icon: any; noTint?: boolean 
 
 export default function CreateTicketFormScreen() {
   const navigation = useNavigation<CreateTicketFormScreenNavigationProp>();
+  const router = useRouter();
   const route = useRoute<CreateTicketFormScreenRouteProp>();
   const paramDepartmentName = route.params?.departmentName ?? 'Engineering';
   const paramRoomId = route.params?.roomId;
@@ -222,7 +223,7 @@ export default function CreateTicketFormScreen() {
   }, [departments, selectedDepartmentId, paramDepartmentName]);
 
   const handleChangeLocation = () => {
-    navigation.navigate('SelectTicketLocation', { departmentName: selectedDepartmentName || paramDepartmentName } as any);
+    navigation.navigate('select-ticket-location/index', { departmentName: selectedDepartmentName || paramDepartmentName } as any);
   };
 
   // Load department staff
@@ -327,10 +328,7 @@ export default function CreateTicketFormScreen() {
       });
 
       toast.show('Ticket created successfully', { type: 'success', title: 'Success' });
-      navigation.navigate('Main', {
-        screen: 'Tickets',
-        params: { initialTab: 'all' },
-      } as any);
+      router.replace('/(tabs)/(tickets)');
     } catch (error) {
       console.warn('Failed to create ticket', error);
       toast.show('Failed to create ticket. Please try again.', { type: 'error' });
@@ -1090,8 +1088,6 @@ const styles = StyleSheet.create({
     fontSize: 19 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    background: 'linear-gradient(to right, #ff46a3, #4a91fc)',
-    backgroundClip: 'text',
     color: '#ff46a3',
     marginBottom: 8 * scaleX,
     textAlign: 'center',

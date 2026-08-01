@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, Image, StyleSheet, Platform, Pressable } from 'react-native';
-import { colors, typography } from '@shared/theme';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
+import { colors, typography } from '@/theme';
+import { useDesignScale } from '@/hooks/useDesignScale';
 
 interface TabBarItemProps {
   icon: any;

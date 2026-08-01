@@ -22,9 +22,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { scaleX, STAFF_DEPARTMENT_PANEL } from '../constants/staffStyles';
 import { getUsersByDepartment } from '@features/account';
-import { DEPARTMENT_SLUG_TO_DB_NAME } from '@shared/lib/departments';
-import { typography } from '@shared/theme';
-import type { User } from '@shared/types';
+import { DEPARTMENT_SLUG_TO_DB_NAME } from '@/lib/departments';
+import { typography } from '@/theme';
+import type { User } from '@/types';
 import type { StaffDepartmentId, DepartmentRowPosition } from './staffDepartment.types';
 
 export type { DepartmentRowPosition } from './staffDepartment.types';

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import {
   STAFF_SHIFT_CALENDAR,
   STAFF_SHIFT_DAY_COLORS,

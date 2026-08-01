@@ -1,14 +1,14 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Text } from 'react-native';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
+import { useDesignScale } from '@/hooks/useDesignScale';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { colors } from '@shared/theme';
-import SearchInput from '@shared/ui/SearchInput';
+import { colors } from '@/theme';
+import SearchInput from '@/components/SearchInput';
 
 import type { ShiftType } from '../types/home.types';
 import { useAuth } from '@features/auth';
@@ -16,9 +16,9 @@ import { useUserStore } from '@features/account';
 import { userProfileFromSession } from '@features/account';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useRoomsStore } from '@features/rooms';
-import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
-import type { MoreMenuItemId } from '@shared/types/more.types';
-import type { RootStackParamList } from '@/types/navigation';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
+import type { MoreMenuItemId } from '@/types/more.types';
+import type { RootStackParamList, ReturnToTab } from '@/types/navigation';
 import HomeHeader from '../components/HomeHeader';
 import CategoryCard from '../components/CategoryCard';
 import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOverviewCard';
@@ -26,21 +26,22 @@ import EngineeringRecentActivityItem from '../components/EngineeringRecentActivi
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
 import BottomTabBar from '@/components/BottomTabBar';
+import { isTabAllowed } from '@/config/rolePermissions';
 import HomeFilterModal from '../components/HomeFilterModal';
-import { FilterState, FilterCounts } from '@shared/types/filter.types';
+import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategorySection } from '../types/home.types';
 import type { RoomCardData } from '@features/rooms';
-import { getShiftFromTime } from '@shared/utils/shiftUtils';
-import { getFloorFromRoomNumber } from '@shared/utils/formatting';
-import { getRecentActivityLogs } from '@shared/lib/activityLogs';
+import { getShiftFromTime } from '@/utils/shiftUtils';
+import { getFloorFromRoomNumber } from '@/utils/formatting';
+import { getRecentActivityLogs } from '@/lib/activityLogs';
 import { dashboardService } from '@features/rooms';
-import { supabase } from '@shared/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '@features/rooms';
 
 import type { MainTabsParamList } from '@/types/navigation';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
-  BottomTabNavigationProp<MainTabsParamList, 'Home'>,
+  BottomTabNavigationProp<MainTabsParamList, '(home)/index'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
 
@@ -92,11 +93,11 @@ export default function HomeScreen() {
     [session?.user]
   );
   useEffect(() => {
-    if (session?.user) fetchProfile(session.user.id, sessionFallback);
-  }, [session?.user?.id, fetchProfile]);
+      if (session?.user && sessionFallback) fetchProfile(session.user.id, sessionFallback);
+    }, [session?.user?.id, sessionFallback, fetchProfile]);
   useFocusEffect(
     React.useCallback(() => {
-      if (session?.user) fetchProfile(session.user.id, sessionFallback);
+      if (session?.user && sessionFallback) fetchProfile(session.user.id, sessionFallback);
     }, [session?.user?.id, sessionFallback, fetchProfile])
   );
 
@@ -228,7 +229,7 @@ export default function HomeScreen() {
         .filter((x: any) => x.roomLabel && x.message)
         .slice(0, 2);
 
-      setEngineeringRecent(items);
+      setEngineeringRecent(items as any);
     } catch (e) {
       console.warn('[HomeScreen] Failed to load engineering recent activity', e);
     }
@@ -423,15 +424,14 @@ export default function HomeScreen() {
       inspected,
       priority,
       progressText,
-      latestPill: latest?.roomLabel
-        ? {
-            type: latest.type,
-            roomId: latest.roomId,
-            roomLabel: latest.roomLabel,
-            timeIso: latest.timeIso,
-            subText: latest.subText,
-          }
-        : undefined,
+        latestPill: latest?.roomLabel
+          ? {
+              type: latest.type,
+              roomLabel: latest.roomLabel,
+              timeIso: latest.timeIso,
+              subText: latest.subText,
+            }
+          : undefined,
     });
 
     const flagged = workingRooms.filter((r) => !!r.flagged).length;
@@ -504,12 +504,11 @@ export default function HomeScreen() {
   };
 
   const handleBellPress = () => {
-    // TODO: Implement notifications
-    console.log('Bell pressed');
+    navigation.navigate('(chats)/index' as any);
   };
 
   const handleProfilePress = () => {
-    navigation.navigate('UserProfile', { user: safeUser });
+    navigation.navigate('user-profile/index', { user: safeUser });
   };
 
   const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
@@ -517,25 +516,30 @@ export default function HomeScreen() {
       openAIChatOverlay();
       return;
     }
+    if (tab !== 'Home' && !isTabAllowed(tab, profile?.role)) {
+      navigation.navigate('(home)/index' as any);
+      setActiveTab('Home');
+      return;
+    }
     setActiveTab(tab); // Update immediately
-    const returnToTab = (route.name as string) as 'Home' | 'Rooms' | 'Chat' | 'Tickets' | 'LostAndFound' | 'Staff' | 'Settings';
+    const returnToTab: ReturnToTab = '(home)/index';
     // Navigate to the respective screen
     if (tab === 'Home') {
-      navigation.navigate('Home' as any);
+      navigation.navigate('(home)/index' as any);
     } else if (tab === 'Rooms') {
-      navigation.navigate('Rooms' as any, {
+      navigation.navigate('(rooms)/index' as any, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
     } else if (tab === 'Chat') {
-      navigation.navigate('Chat' as any);
+      navigation.navigate('(chats)/index' as any);
     } else if (tab === 'Tickets') {
-      navigation.navigate('Tickets' as any);
+      navigation.navigate('(tickets)/index' as any);
     } else if (tab === 'LostAndFound') {
-      navigation.navigate('LostAndFound', { returnToTab });
+      navigation.navigate('(lost_and_found)/index', { returnToTab });
     } else if (tab === 'Staff') {
-      navigation.navigate('Staff', { returnToTab });
+      navigation.navigate('(staff)/index', { returnToTab });
     } else if (tab === 'Settings') {
-      navigation.navigate('Settings', { returnToTab });
+      navigation.navigate('(settings)/index', { returnToTab });
     }
   };
 
@@ -547,7 +551,7 @@ export default function HomeScreen() {
     const uid = session?.user?.id;
     const hasAssignedRooms =
       !!uid && Array.isArray(sourceRooms) && sourceRooms.some((r) => String(r.roomAttendantAssigned?.userId ?? '') === String(uid));
-    navigation.navigate('AllRooms', {
+    navigation.navigate('(rooms)/index', {
       showBackButton: true,
       filters: activeFilters,
       categoryFilter: { category: category.name },
@@ -565,7 +569,7 @@ export default function HomeScreen() {
     const uid = session?.user?.id;
     const hasAssignedRooms =
       !!uid && Array.isArray(sourceRooms) && sourceRooms.some((r) => String(r.roomAttendantAssigned?.userId ?? '') === String(uid));
-    navigation.navigate('AllRooms', {
+    navigation.navigate('(rooms)/index', {
       showBackButton: true,
       filters: activeFilters,
       categoryFilter: { category: category.name, roomState },
@@ -583,7 +587,7 @@ export default function HomeScreen() {
     const uid = session?.user?.id;
     const hasAssignedRooms =
       !!uid && Array.isArray(sourceRooms) && sourceRooms.some((r) => String(r.roomAttendantAssigned?.userId ?? '') === String(uid));
-    navigation.navigate('AllRooms', {
+    navigation.navigate('(rooms)/index', {
       showBackButton: true,
       filters: activeFilters,
       categoryFilter: { category: category.name, roomState: 'priority' },
@@ -886,7 +890,7 @@ export default function HomeScreen() {
                     solved={engineeringCounts.solved}
                     outOfOrder={engineeringCounts.outOfOrder}
                     onPressPriority={() => {
-                      navigation.navigate('Tickets' as any, {
+                      navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
                         category: 'engineering',
@@ -894,7 +898,7 @@ export default function HomeScreen() {
                       });
                     }}
                     onPressUnsolved={() => {
-                      navigation.navigate('Tickets' as any, {
+                      navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
                         category: 'engineering',
@@ -902,7 +906,7 @@ export default function HomeScreen() {
                       });
                     }}
                     onPressSolved={() => {
-                      navigation.navigate('Tickets' as any, {
+                      navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
                         category: 'engineering',
@@ -910,7 +914,7 @@ export default function HomeScreen() {
                       });
                     }}
                     onPressOutOfOrder={() => {
-                      navigation.navigate('Tickets' as any, {
+                      navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
                         category: 'engineering',
@@ -991,7 +995,7 @@ export default function HomeScreen() {
                       }),
                       roomStates: { ...baseRoomStates, ...(activeFilters?.roomStates ?? {}), priority: true },
                     };
-                    navigation.navigate('AllRooms', {
+                    navigation.navigate('(rooms)/index', {
                       showBackButton: true,
                       filters: nextFilters,
                       selectedShift: homeData.selectedShift,
@@ -1031,7 +1035,7 @@ export default function HomeScreen() {
                       }),
                       roomStates: { ...baseRoomStates, ...(activeFilters?.roomStates ?? {}), [roomState]: true },
                     };
-                    navigation.navigate('AllRooms', {
+                    navigation.navigate('(rooms)/index', {
                       showBackButton: true,
                       filters: nextFilters,
                       selectedShift: homeData.selectedShift,
@@ -1054,7 +1058,7 @@ export default function HomeScreen() {
                               : row.label === 'Turndowns'
                                 ? 'Turndown'
                                 : row.label;
-                    navigation.navigate('AllRooms', {
+                    navigation.navigate('(rooms)/index', {
                       showBackButton: true,
                       categoryFilter: { category },
                       // Use the UI-selected shift; AllRooms will apply the "PM behaves like AM during AM hours" rule internally.
@@ -1154,7 +1158,7 @@ export default function HomeScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={profile?.role} />
 
       {/* Filter Modal */}
       <HomeFilterModal

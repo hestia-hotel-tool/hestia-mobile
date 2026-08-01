@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, TextInput } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { CHECKLIST_SECTION, scaleX } from '../../constants/checklistStyles';
 import type { ChecklistItem as ChecklistItemType } from '../../types/checklist.types';
 

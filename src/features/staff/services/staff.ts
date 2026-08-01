@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { StaffMember } from '../types/staff.types';
 
 async function getShiftIdByName(shiftName: 'AM' | 'PM'): Promise<string | null> {

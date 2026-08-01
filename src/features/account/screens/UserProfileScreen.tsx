@@ -17,15 +17,15 @@ import { useNavigation, useRoute } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { colors, typography, components } from '@shared/theme';
-import { getInitialsFromFullName } from '@shared/utils/formatting';
+import { colors, typography, components } from '@/theme';
+import { getInitialsFromFullName } from '@/utils/formatting';
 import { useAuth } from '@features/auth';
-import { useToast } from '@shared/contexts/ToastContext';
-import { useMessageModal } from '@shared/contexts/MessageModalContext';
+import { useToast } from '@/contexts/ToastContext';
+import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useUserStore } from '../store/useUserStore';
-import { isSupabaseConfigured } from '@shared/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import type { UserProfile } from '@features/home';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
+import { useDesignScale } from '@/hooks/useDesignScale';
 
 type UserProfileRouteParams = {
   UserProfile: { user: UserProfile };

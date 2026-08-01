@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, Dimensions } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { BlurView } from 'expo-blur';
 import { scaleX } from '../constants/chatStyles';
 

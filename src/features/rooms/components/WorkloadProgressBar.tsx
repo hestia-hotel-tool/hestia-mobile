@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { REASSIGN_MODAL, scaleX } from '../constants/reassignModalStyles';
 
 interface WorkloadProgressBarProps {

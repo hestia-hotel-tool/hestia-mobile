@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, ASSIGNED_TO } from '../../constants/roomDetailStyles';
 
 export type AssignedStaffInfo = {

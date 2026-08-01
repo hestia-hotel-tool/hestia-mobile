@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, TASK_SECTION, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import TaskItem from './TaskItem';
 import type { Task } from '../../types/roomDetail.types';

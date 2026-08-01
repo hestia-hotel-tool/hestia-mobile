@@ -9,12 +9,12 @@ import {
   Image,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import FilterSection from './FilterSection';
 import FilterCheckbox from './FilterCheckbox';
-import SeeRoomsButton from '@shared/ui/SeeRoomsButton';
-import { FilterState, FilterCounts, FilterOption } from '@shared/types/filter.types';
-import { getFloorLabel } from '@shared/utils/formatting';
+import SeeRoomsButton from '@/components/SeeRoomsButton';
+import { FilterState, FilterCounts, FilterOption } from '@/types/filter.types';
+import { getFloorLabel } from '@/utils/formatting';
 import { ShiftType } from '../types/home.types';
 import { useHomeFilters } from '../hooks/useHomeFilters';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';

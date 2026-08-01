@@ -1,9 +1,9 @@
 import React, { forwardRef, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { scaleX } from '../../constants/allRoomsStyles';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
-import type { GuestImageAnchorLayout } from '@shared/ui/GuestProfileImageModal';
+import type { GuestImageAnchorLayout } from '@/components/GuestProfileImageModal';
 import { FRONT_OFFICE_STATUS_ICONS, STATUS_CONFIGS } from '../../types/allRooms.types';
 import { getStayoverDisplayLabel, showStayoverWithLinenBadge } from '../../utils/stayoverLinen';
 import type { ShiftType } from '@features/home';
@@ -19,7 +19,7 @@ import {
   CONTENT_OFFSET_TOP,
 } from '../../constants/allRoomsStyles';
 import GuestInfoSection from './GuestInfoSection';
-import GuestProfileImageModal from '@shared/ui/GuestProfileImageModal';
+import GuestProfileImageModal from '@/components/GuestProfileImageModal';
 import StaffSection from './StaffSection';
 import StatusButton from './StatusButton';
 import NotesSection from './NotesSection';

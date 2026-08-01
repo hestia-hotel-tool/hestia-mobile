@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as string,
+    fontWeight: typography.fontWeights.bold as any,
     fontSize: 17 * scaleX,
     color: colors.text.primary,
     marginBottom: 8,
@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.regular as string,
+    fontWeight: typography.fontWeights.regular as any,
     fontSize: 14 * scaleX,
     color: colors.text.secondary,
     marginBottom: 20 * scaleX,
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as string,
+    fontWeight: typography.fontWeights.semibold as any,
     fontSize: 16 * scaleX,
     color: colors.text.white,
   },

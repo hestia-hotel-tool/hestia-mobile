@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import { useNavigation } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import {
   CREATE_TICKET_HEADER,
   CREATE_TICKET_CONTENT,
@@ -27,12 +27,12 @@ import {
   CREATE_TICKET_TYPOGRAPHY,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
-import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
+import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
 import type { RootStackParamList } from '@/types/navigation';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'CreateTicket'
+  'create-ticket/index'
 >;
 
 /** Display item for one department from Supabase with grid position and icon. */
@@ -265,7 +265,7 @@ export default function CreateTicketScreen() {
   };
 
   const handleDepartmentPress = (department: DepartmentDisplayItem) => {
-    navigation.navigate('SelectTicketLocation', {
+    navigation.navigate('select-ticket-location/index', {
       departmentName: department.name,
     });
   };

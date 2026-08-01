@@ -23,7 +23,7 @@ export async function logActivity(input: {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData?.session?.user?.id ?? null;
 
-  const { error } = await supabase.from('activity_logs').insert({
+  const { error } = await (supabase as any).from('activity_logs').insert({
     user_id: userId,
     action,
     table_name: input.tableName,
@@ -52,7 +52,7 @@ export async function getActivityLogsForRecord(input: {
   if (!isSupabaseConfigured) return [];
   if (!input.recordId || !isValidUUID(input.recordId)) return [];
 
-  const { data, error } = await supabase
+  const { data, error } = await (supabase as any)
     .from('activity_logs')
     .select('id, action, created_at, user_id, users(full_name, avatar_url)')
     .eq('table_name', input.tableName)
@@ -85,7 +85,7 @@ export async function getRecentActivityLogs(input: {
 > {
   if (!isSupabaseConfigured) return [];
 
-  let q = supabase
+  let q = (supabase as any)
     .from('activity_logs')
     .select('id, action, created_at, user_id, record_id, users(full_name, avatar_url)')
     .eq('table_name', input.tableName)

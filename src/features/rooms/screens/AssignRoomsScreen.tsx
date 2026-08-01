@@ -13,13 +13,13 @@ import { useNavigation, useRoute } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import { NativeStackNavigationProp } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { fetchAllRooms, assignRoomToStaff } from '../services/rooms';
 import type { RoomCardData } from '../types/allRooms.types';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'AssignRooms'>;
-type Rt = RouteProp<RootStackParamList, 'AssignRooms'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'assign-rooms/index'>;
+type Rt = RouteProp<RootStackParamList, 'assign-rooms/index'>;
 
 const TYPE_ICON: Record<string, any> = {
   Arrival: require('../../../../assets/icons/arrival-icon.png'),

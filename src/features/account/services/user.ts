@@ -3,11 +3,11 @@
  * Profile, avatar, and user list. All user data from Supabase.
  */
 
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
-import { base64ToArrayBuffer } from '@shared/utils/encoding';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { base64ToArrayBuffer } from '@/utils/encoding';
 import type { UserProfile } from '@features/home';
-import type { User } from '@shared/types';
-import { getMyHotelId } from '@shared/lib/tenant';
+import type { User } from '@/types';
+import { getMyHotelId } from '@/lib/tenant';
 
 export type UserProfileRow = {
   full_name?: string;
@@ -120,7 +120,7 @@ async function ensureCurrentUserProfileOnce(): Promise<void> {
   didAttemptBootstrapProfile = true;
   try {
     // Creates/repairs public.users row for auth.uid() (migration: 20260415110000...)
-    await supabase.rpc('ensure_current_user_profile');
+    await (supabase as any).rpc('ensure_current_user_profile');
   } catch {
     // ignore: older DBs may not have the function yet
   }

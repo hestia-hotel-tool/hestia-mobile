@@ -9,7 +9,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native';
-import { colors } from '@shared/theme';
+import { colors } from '@/theme';
 import { scaleX, CONTENT_AREA, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import { getRoomTypeConfig } from '../../constants/roomTypeConfigs';
 import RoomDetailHeader from './RoomDetailHeader';

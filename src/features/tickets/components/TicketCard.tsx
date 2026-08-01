@@ -1,11 +1,11 @@
-import React, { useMemo, useRef } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, Dimensions } from 'react-native';
+import { typography } from '@/theme';
 import {
   scaleX,
 } from '../constants/ticketsStyles';
 import { TicketData } from '../types/tickets.types';
-import { formatDueAtCalendarLabel } from '@shared/utils/ticketDue';
+import { formatDueAtCalendarLabel } from '@/utils/ticketDue';
 
 export type TicketStatusAnchorLayout = { x: number; y: number; width: number; height: number };
 
@@ -13,9 +13,12 @@ interface TicketCardProps {
   ticket: TicketData;
   onPress?: () => void;
   onStatusPress?: (anchor?: TicketStatusAnchorLayout) => void;
+  onAssigneePress?: () => void;
 }
 
-export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCardProps) {
+export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneePress }: TicketCardProps) {
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+
   const getInitials = (name: string) => {
     const parts = (name || '').trim().split(/\s+/).filter(Boolean);
     if (parts.length === 0) return '?';
@@ -159,13 +162,23 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
 
       {hasImages && (
         <View style={styles.imagesRow}>
-          {ticket.images.slice(0, 3).map((uri, idx) => (
-            <View key={`${uri}-${idx}`} style={styles.imageThumbWrap}>
-              <Image source={{ uri }} style={styles.imageThumb} resizeMode="cover" />
-            </View>
+          {(ticket.images ?? []).slice(0, 3).map((uri, idx) => (
+            <TouchableOpacity key={`${uri}-${idx}`} activeOpacity={0.7} onPress={() => setPreviewImage(uri)}>
+              <View style={styles.imageThumbWrap}>
+                <Image source={{ uri }} style={styles.imageThumb} resizeMode="cover" />
+              </View>
+            </TouchableOpacity>
           ))}
         </View>
       )}
+
+      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
+        <TouchableOpacity style={styles.previewOverlay} activeOpacity={1} onPress={() => setPreviewImage(null)}>
+          {previewImage && (
+            <Image source={{ uri: previewImage }} style={styles.previewImage} resizeMode="contain" />
+          )}
+        </TouchableOpacity>
+      </Modal>
 
       <View style={styles.footerRow}>
         <View style={styles.footerPerson}>
@@ -196,7 +209,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
           resizeMode="contain"
         />
 
-        <View style={styles.footerPerson}>
+        <TouchableOpacity style={styles.footerPerson} onPress={onAssigneePress} activeOpacity={0.7}>
           {ticket.assignedTo?.avatar ? (
             <Image
               source={typeof ticket.assignedTo.avatar === 'string' ? { uri: ticket.assignedTo.avatar } : ticket.assignedTo.avatar}
@@ -218,7 +231,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress }: TicketCar
               {ticket.assignedTo?.departmentName ?? (ticket.assignedTo?.name ? '—' : 'Select staff')}
             </Text>
           </View>
-        </View>
+        </TouchableOpacity>
       </View>
     </TouchableOpacity>
   );
@@ -437,15 +450,25 @@ const styles = StyleSheet.create({
     marginBottom: 8 * scaleX,
   },
   imageThumbWrap: {
-    width: 78 * scaleX,
-    height: 78 * scaleX,
-    borderRadius: 5 * scaleX,
+    width: 120 * scaleX,
+    height: 120 * scaleX,
+    borderRadius: 8 * scaleX,
     overflow: 'hidden',
     backgroundColor: '#e6e6e6',
   },
   imageThumb: {
     width: '100%',
     height: '100%',
+  },
+  previewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: Dimensions.get('window').width - 40,
+    height: Dimensions.get('window').height - 120,
   },
   footerPerson: {
     flexDirection: 'row',

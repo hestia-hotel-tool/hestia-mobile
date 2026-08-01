@@ -20,10 +20,10 @@ import {
   setAudioModeAsync,
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
-import { colors, typography } from '@shared/theme';
-import { useToast } from '@shared/contexts/ToastContext';
+import { colors, typography } from '@/theme';
+import { useToast } from '@/contexts/ToastContext';
 import { transcribeAndRespond, sendTextToAgent } from '../services/aiAgent';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
+import { useDesignScale } from '@/hooks/useDesignScale';
 
 export interface AIChatMessage {
   role: 'user' | 'assistant';

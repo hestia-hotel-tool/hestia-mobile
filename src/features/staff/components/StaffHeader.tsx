@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, STAFF_HEADER } from '../constants/staffStyles';
 
 interface StaffHeaderProps {

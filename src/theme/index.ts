@@ -1,5 +1,5 @@
 // @ts-ignore - JSON import
-import designSystem from '../../../design-system.json';
+import designSystem from '../../design-system.json';
 
 export type DesignSystem = typeof designSystem;
 

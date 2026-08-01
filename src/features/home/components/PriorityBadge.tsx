@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '@shared/theme';
-import { normalizedScaleX } from '@shared/utils/responsive';
+import { typography } from '@/theme';
+import { normalizedScaleX } from '@/utils/responsive';
 
 interface PriorityBadgeProps {
   count: number;

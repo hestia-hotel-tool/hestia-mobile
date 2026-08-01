@@ -47,6 +47,7 @@ export interface TicketData {
   createdById?: string;
   /** Current session user appears in ticket_tags for this ticket. */
   viewerIsTagged?: boolean;
+  priority?: 'urgent' | 'medium' | 'notUrgent';
   status: TicketStatus;
   locationIcon?: any; // Map pin icon
 }

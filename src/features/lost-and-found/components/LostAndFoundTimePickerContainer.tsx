@@ -2,7 +2,7 @@ import React from 'react';
 import { View, StyleSheet, Text } from 'react-native';
 import { scaleX } from '../constants/lostAndFoundStyles';
 import { TimePickerWheel } from '@features/rooms';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 
 interface LostAndFoundTimePickerContainerProps {
   selectedHour: number; // 0-23

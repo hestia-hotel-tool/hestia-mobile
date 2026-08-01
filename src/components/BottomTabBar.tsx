@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, LayoutChangeEvent, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors } from '@shared/theme';
+import { colors } from '@/theme';
 import TabBarItem from './TabBarItem';
-import { MORE_MENU_OPTIONS } from '@shared/types/more.types';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
+import { MORE_MENU_OPTIONS } from '@/types/more.types';
+import { useDesignScale } from '@/hooks/useDesignScale';
 import { useBottomTabBadges } from '../hooks/useBottomTabBadges';
+import { getAllowedTabs, isTabAllowed } from '@/config/rolePermissions';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 
@@ -13,6 +14,7 @@ interface BottomTabBarProps {
   activeTab: string;
   onTabPress: (tab: string, options?: TabPressOptions) => void;
   onMorePress?: () => void;
+  role?: string | null;
 }
 
 const MAIN_TABS = [
@@ -55,24 +57,27 @@ const MAIN_TABS = [
   },
 ];
 
-export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: BottomTabBarProps) {
+export default function BottomTabBar({ activeTab, onTabPress, onMorePress, role }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
 
   const tabs = useMemo(
-    () => [
-      ...MAIN_TABS,
-      ...MORE_MENU_OPTIONS.map((option) => ({
-        id: option.navigationTarget,
-        icon: option.icon,
-        label: option.label,
-        iconWidth: option.iconWidth,
-        iconHeight: option.iconHeight,
-      })),
-    ],
-    []
+    () => {
+      const all = [
+        ...MAIN_TABS,
+        ...MORE_MENU_OPTIONS.map((option) => ({
+          id: option.navigationTarget,
+          icon: option.icon,
+          label: option.label,
+          iconWidth: option.iconWidth,
+          iconHeight: option.iconHeight,
+        })),
+      ];
+      return role ? all.filter((t) => isTabAllowed(t.id, role)) : all;
+    },
+    [role]
   );
 
   const scrollRef = useRef<ScrollView | null>(null);

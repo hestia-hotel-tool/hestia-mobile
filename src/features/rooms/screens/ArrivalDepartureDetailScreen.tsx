@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { useRoute, useNavigation } from 'expo-router';
+import { useRoute, useNavigation, router } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { scaleX, ROOM_DETAIL_HEADER, DETAIL_TABS, CONTENT_AREA, ASSIGNED_TASK_CARD } from '../constants/roomDetailStyles';
 import RoomDetailHeader from '../components/roomDetail/RoomDetailHeader';
 import DetailTabNavigation from '../components/roomDetail/DetailTabNavigation';
@@ -33,7 +33,7 @@ import { getRoomNotes, addRoomNote } from '../services/rooms';
 
 type ArrivalDepartureDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'ArrivalDepartureDetail'
+  'arrival-departure/[id]'
 >;
 
 export default function ArrivalDepartureDetailScreen() {
@@ -168,7 +168,7 @@ export default function ArrivalDepartureDetailScreen() {
       navigation.goBack();
     } else {
       // Fallback: navigate to AllRooms if can't go back
-      navigation.navigate('AllRooms' as any, {} as any);
+      router.navigate('/(tabs)/(rooms)');
     }
   };
 
@@ -401,17 +401,15 @@ export default function ArrivalDepartureDetailScreen() {
 
   const handleAddPhotos = () => {
     // Navigate to Lost and Found screen and open the register modal
-    navigation.navigate('Main' as any, {
-      screen: 'LostAndFound',
-      params: { openRegisterModal: true, preselectedRoomId: localRoom?.id },
+    navigation.navigate('(tabs)/(lost_and_found)' as any, {
+      openRegisterModal: true,
+      preselectedRoomId: localRoom?.id,
     } as any);
   };
 
   const handleLostAndFoundTitlePress = () => {
     // Navigate to Lost and Found screen
-    navigation.navigate('Main' as any, {
-      screen: 'LostAndFound',
-    } as any);
+    navigation.navigate('(tabs)/(lost_and_found)' as any, {});
   };
 
   const handleReassign = () => {
@@ -425,19 +423,17 @@ export default function ArrivalDepartureDetailScreen() {
     if (staffId) {
       setAssignedStaff({
         id: staffId,
-        name: selectedStaff.name,
-        avatar: selectedStaff.avatar,
-        initials: selectedStaff.initials,
-        department: selectedStaff.department, // Include department
-        // Generate color for initial circle based on name if no avatarColor
-        avatarColor: selectedStaff.avatarColor || (() => {
+        name: staffId,
+        initials: staffId.slice(0, 2).toUpperCase(),
+        department: '',
+        avatarColor: (() => {
           const colors = ['#ff4dd8', '#5a759d', '#607aa1', '#f0be1b'];
-          const index = selectedStaff.name.charCodeAt(0) % colors.length;
+          const index = staffId.charCodeAt(0) % colors.length;
           return colors[index];
         })(),
       });
       // TODO: Update room assignment in backend/API
-      console.log('Room assigned to:', selectedStaff.name);
+      console.log('Room assigned to:', staffId);
     }
     setShowReassignModal(false);
   };
@@ -517,7 +513,7 @@ export default function ArrivalDepartureDetailScreen() {
           <TouchableOpacity
             style={styles.createTicketButton}
             onPress={() => {
-              navigation.navigate('CreateTicketForm', {
+              navigation.navigate('create-ticket-form/index', {
                 roomId: room.id,
                 roomNumber: room.roomNumber,
                 departmentName: departmentName,

@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Animated, ActivityIndicator } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { useToast } from '@shared/contexts/ToastContext';
-import { typography } from '@shared/theme';
+import { useToast } from '@/contexts/ToastContext';
+import { typography } from '@/theme';
 import {
   LOST_AND_FOUND_CARD,
   LOST_AND_FOUND_CONTENT,

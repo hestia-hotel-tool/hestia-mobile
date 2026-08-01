@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { typography, colors } from '@shared/theme';
+import { typography, colors } from '@/theme';
 import {
   CHAT_HEADER,
   SEARCH_BAR,
@@ -11,7 +11,7 @@ import {
   CHAT_HEADER_BAR_HEIGHT,
   scaleX,
 } from '../constants/chatStyles';
-import SearchInput from '@shared/ui/SearchInput';
+import SearchInput from '@/components/SearchInput';
 
 interface ChatHeaderProps {
   onBackPress?: () => void;

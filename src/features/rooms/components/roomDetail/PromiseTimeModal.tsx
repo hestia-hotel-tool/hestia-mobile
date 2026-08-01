@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
-import { useMessageModal } from '@shared/contexts/MessageModalContext';
+import { useMessageModal } from '@/contexts/MessageModalContext';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
 import TimeSuggestionButton from './TimeSuggestionButton';
 

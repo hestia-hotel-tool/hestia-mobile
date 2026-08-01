@@ -1,11 +1,11 @@
 import React, { useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { GUEST_INFO, CARD_DIMENSIONS, GUEST_CONTAINER_BG, STATUS_BUTTON } from '../constants/allRoomsStyles';
-import { normalizedScaleX } from '@shared/utils/responsive';
-import { formatGuestCount, formatDatesOfStay } from '@shared/utils/formatting';
+import { normalizedScaleX } from '@/utils/responsive';
+import { formatGuestCount, formatDatesOfStay } from '@/utils/formatting';
 import type { GuestInfo } from '../types/allRooms.types';
-import type { GuestImageAnchorLayout } from '@shared/ui/GuestProfileImageModal';
+import type { GuestImageAnchorLayout } from '@/components/GuestProfileImageModal';
 
 interface GuestInfoDisplayProps {
   guest: GuestInfo;

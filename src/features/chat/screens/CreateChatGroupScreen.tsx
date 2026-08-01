@@ -18,14 +18,14 @@ import { useNavigation } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/types/navigation';
-import type { User } from '@shared/types';
+import type { User } from '@/types';
 import { getUsers } from '@features/account';
 import { createGroupChat, getCurrentUserId } from '../services/chat';
-import { useToast } from '@shared/contexts/ToastContext';
-import { colors } from '@shared/theme';
+import { useToast } from '@/contexts/ToastContext';
+import { colors } from '@/theme';
 import { scaleX } from '../constants/chatStyles';
 
-type Nav = NativeStackNavigationProp<RootStackParamList, 'CreateChatGroup'>;
+type Nav = NativeStackNavigationProp<RootStackParamList, 'create-chat-group/index'>;
 
 export default function CreateChatGroupScreen() {
   const navigation = useNavigation<Nav>();
@@ -88,7 +88,7 @@ export default function CreateChatGroupScreen() {
     try {
       const chatId = await createGroupChat(Array.from(selectedIds), nameTrimmed);
       if (chatId) {
-        navigation.replace('ChatDetail', {
+        navigation.replace('chat/[chatId]', {
           chatId,
           chat: {
             id: chatId,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Modal } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { BlurView } from 'expo-blur';
 import {
   CREATE_TICKET_MENU,

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
 
 export type NotificationItemData = {

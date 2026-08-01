@@ -17,10 +17,10 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import { NativeStackNavigationProp } from 'expo-router';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
-import { GUEST_IMAGES_BUCKET } from '@shared/lib/guests';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { GUEST_IMAGES_BUCKET } from '@/lib/guests';
 import {
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,
@@ -28,10 +28,10 @@ import {
   createTicketScaleX,
 } from '../constants/createTicketStyles';
 
-type SelectTicketLocationScreenRouteProp = RouteProp<RootStackParamList, 'SelectTicketLocation'>;
+type SelectTicketLocationScreenRouteProp = RouteProp<RootStackParamList, 'select-ticket-location/index'>;
 type SelectTicketLocationScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
-  'SelectTicketLocation'
+  'select-ticket-location/index'
 >;
 
 interface RoomData {
@@ -300,7 +300,7 @@ export default function SelectTicketLocationScreen() {
         roomGuests[0];
 
       // Navigate to ticket form with room + guest info (as before).
-      navigation.navigate('CreateTicketForm', {
+      navigation.navigate('create-ticket-form/index', {
         departmentName,
         roomId: selectedRoom.id,
         roomNumber: selectedRoom.room_number,
@@ -314,7 +314,7 @@ export default function SelectTicketLocationScreen() {
         isPublicArea: false,
       });
     } else if (locationType === 'publicArea' && selectedPublicArea) {
-      navigation.navigate('CreateTicketForm', {
+      navigation.navigate('create-ticket-form/index', {
         departmentName,
         isPublicArea: true,
         publicAreaName: selectedPublicArea,

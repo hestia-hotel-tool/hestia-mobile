@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { NotesInfo } from '../../types/allRooms.types';
 import { scaleX, NOTES_SECTION } from '../../constants/allRoomsStyles';
 

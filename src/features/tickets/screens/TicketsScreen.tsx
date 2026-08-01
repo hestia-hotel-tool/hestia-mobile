@@ -16,9 +16,9 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
-import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@/types/navigation';
+import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp, ReturnToTab } from '@/types/navigation';
 import BottomTabBar from '@/components/BottomTabBar';
-import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
 import TicketsTabs from '../components/TicketsTabs';
 import TicketCard from '../components/TicketCard';
@@ -36,13 +36,17 @@ import {
   scaleX,
 } from '../constants/ticketsStyles';
 import { dashboardService } from '@features/rooms';
-import { updateTicketStatus, updateTicketDueAt } from '../services/tickets';
+import { updateTicketStatus, updateTicketDueAt, updateTicketPriority, updateTicketAssignee } from '../services/tickets';
+import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
+import { getUsersByDepartment } from '@features/account/services/user';
 import { useAuth } from '@features/auth';
-import { typography } from '@shared/theme';
+import { useUserStore } from '@features/account/store/useUserStore';
+import type { User } from '@/types';
+import { typography } from '@/theme';
 import {
   markAllTicketTagNotificationsRead,
   invalidateNotificationBadges,
-} from '@shared/lib/inAppNotifications';
+} from '@/lib/inAppNotifications';
 
 /** Change Status popover — height for vertical clamping (expanded when Due time fields visible). Figma ~295 / ~472. */
 const STATUS_POPOVER_HEIGHT_COLLAPSED = 268 * scaleX;
@@ -55,7 +59,7 @@ const DUE_DATE_BOX_W = 175 * scaleX;
 const DUE_FIELDS_GAP = 37 * scaleX;
 
 type MainTabsParamList = MainTabsParamListFromApp & {
-  Tickets:
+  '(tickets)/index':
     | {
         initialTab?: TicketTab;
         /** If true, only show tickets assignedTo the signed-in user (stricter than myTickets). */
@@ -68,7 +72,7 @@ type MainTabsParamList = MainTabsParamListFromApp & {
     | undefined;
 };
 
-type TicketsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, 'Tickets'>;
+type TicketsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(tickets)/index'>;
 type StackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function TicketsScreen() {
@@ -77,6 +81,7 @@ export default function TicketsScreen() {
   const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
+  const userProfile = useUserStore((s) => s.profile);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const [activeTab, setActiveTab] = useState('Tickets');
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
@@ -91,6 +96,9 @@ export default function TicketsScreen() {
   const [dueDay, setDueDay] = useState('');
   const [dueMonth, setDueMonth] = useState('');
   const [statusAnchor, setStatusAnchor] = useState<TicketStatusAnchorLayout | null>(null);
+  const [assigneeModalTicket, setAssigneeModalTicket] = useState<TicketData | null>(null);
+  const [departmentStaff, setDepartmentStaff] = useState<User[]>([]);
+  const [assigneeStaffLoading, setAssigneeStaffLoading] = useState(false);
 
   const dueYearDisplay = React.useMemo(() => new Date().getFullYear(), []);
 
@@ -170,23 +178,23 @@ export default function TicketsScreen() {
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab = (route.name as string) as 'Home' | 'Rooms' | 'Chat' | 'Tickets' | 'LostAndFound' | 'Staff' | 'Settings';
+    const returnToTab: ReturnToTab = route.name as ReturnToTab;
     if (tab === 'Home') {
-      navigation.navigate('Home' as any);
+      navigation.navigate('(home)/index' as any);
     } else if (tab === 'Rooms') {
-      navigation.navigate('Rooms' as any, {
+      navigation.navigate('(rooms)/index' as any, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
     } else if (tab === 'Chat') {
-      navigation.navigate('Chat' as any);
+      navigation.navigate('(chats)/index' as any);
     } else if (tab === 'Tickets') {
-      navigation.navigate('Tickets' as any);
+      navigation.navigate('(tickets)/index' as any);
     } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('LostAndFound', { returnToTab });
+      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
     } else if (tab === 'Staff') {
-      (navigation as any).navigate('Staff', { returnToTab });
+      (navigation as any).navigate('(staff)/index', { returnToTab });
     } else if (tab === 'Settings') {
-      (navigation as any).navigate('Settings', { returnToTab });
+      (navigation as any).navigate('(settings)/index', { returnToTab });
     }
   };
 
@@ -195,7 +203,7 @@ export default function TicketsScreen() {
   };
 
   const handleCreatePress = () => {
-    stackNavigation.navigate('CreateTicket');
+    stackNavigation.navigate('create-ticket/index');
   };
 
   const handleTabChange = (tab: TicketTab) => {
@@ -207,6 +215,34 @@ export default function TicketsScreen() {
     // TODO: Navigate to ticket detail screen
     console.log('Ticket pressed:', ticket.id);
     // navigation.navigate('TicketDetail', { ticketId: ticket.id });
+  };
+
+  const handleAssigneePress = async (ticket: TicketData) => {
+    const deptName = ticket.category;
+    if (!deptName) return;
+    setAssigneeStaffLoading(true);
+    setAssigneeModalTicket(ticket);
+    try {
+      const res = await getUsersByDepartment(deptName, { limit: 100 });
+      setDepartmentStaff(res.data);
+    } catch (e) {
+      console.warn('[TicketsScreen] Failed to load staff for department', deptName, e);
+      setDepartmentStaff([]);
+    } finally {
+      setAssigneeStaffLoading(false);
+    }
+  };
+
+  const handleAssigneeSelect = async (staffIds: string[]) => {
+    const ticket = assigneeModalTicket;
+    if (!ticket) return;
+    const assignedToId = staffIds.length > 0 ? staffIds[0] : null;
+    try {
+      await updateTicketAssignee(ticket.id, assignedToId);
+      await loadTickets(selectedTab, { silent: true });
+    } catch (e) {
+      console.warn('[TicketsScreen] Failed to assign ticket', e);
+    }
   };
 
   const handleStatusPress = (ticket: TicketData, anchor?: TicketStatusAnchorLayout) => {
@@ -323,7 +359,7 @@ export default function TicketsScreen() {
     }
     if (statusFilter) {
       if (statusFilter === 'priority') {
-        if (String((ticket as any)?.priority ?? '').toLowerCase() !== 'urgent') return false;
+        if (ticket.priority !== 'urgent') return false;
       } else {
         if (ticket.status !== statusFilter) return false;
       }
@@ -380,6 +416,7 @@ export default function TicketsScreen() {
                   ticket={ticket}
                   onPress={() => handleTicketPress(ticket)}
                   onStatusPress={(anchor) => handleStatusPress(ticket, anchor)}
+                  onAssigneePress={() => handleAssigneePress(ticket)}
                 />
               </React.Fragment>
             ))
@@ -433,8 +470,17 @@ export default function TicketsScreen() {
                 activeOpacity={0.8}
                 disabled={statusUpdating}
                 onPress={() => {
-                  // Ticket priority is not yet wired from this UI in backend.
-                  // Keep UI parity with Figma without mutating server state.
+                  if (!statusMenuTicket || statusUpdating) return;
+                  const newPriority = statusMenuTicket.priority === 'urgent' ? 'notUrgent' : 'urgent';
+                  setStatusUpdating(true);
+                  updateTicketPriority(statusMenuTicket.id, newPriority).then(() => {
+                    setStatusMenuTicket(null);
+                    loadTickets(selectedTab);
+                  }).catch((e) => {
+                    console.warn('[TicketsScreen] Failed to update priority', e);
+                  }).finally(() => {
+                    setStatusUpdating(false);
+                  });
                 }}
               >
                 <View style={[styles.statusCircle, styles.statusCirclePriority]}>
@@ -574,6 +620,16 @@ export default function TicketsScreen() {
         </View>
       </Modal>
 
+      <TicketStaffSelectorModal
+        visible={!!assigneeModalTicket}
+        onClose={() => setAssigneeModalTicket(null)}
+        onSelect={handleAssigneeSelect}
+        staff={departmentStaff}
+        selectedStaffIds={assigneeModalTicket?.assignedToId ? [assigneeModalTicket.assignedToId] : []}
+        departmentName={assigneeModalTicket?.category ?? ''}
+        loading={assigneeStaffLoading}
+      />
+
       {/* Header - Fixed at top */}
       <TicketsHeader
         onBackPress={handleBackPress}
@@ -584,7 +640,7 @@ export default function TicketsScreen() {
       <TicketsTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
 
       {/* Bottom Navigation */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
     </View>
   );
 }

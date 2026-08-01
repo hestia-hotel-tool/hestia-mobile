@@ -1,6 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { RETURN_LATER_MODAL, scaleX } from '../../constants/returnLaterModalStyles';
 
 interface TimeSuggestionButtonProps {

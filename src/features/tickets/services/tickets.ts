@@ -1,11 +1,11 @@
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { TicketsScreenData, TicketData, TicketStatus } from '../types/tickets.types';
-import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
+import { DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
 import { getDepartmentIdByName } from '@features/account';
 import * as FileSystem from 'expo-file-system/legacy';
-import { base64ToArrayBuffer } from '@shared/utils/encoding';
-import { notifyServer } from '@shared/lib/notifications';
-import { getMyHotelId } from '@shared/lib/tenant';
+import { base64ToArrayBuffer } from '@/utils/encoding';
+import { notifyServer } from '@/lib/notifications';
+import { getMyHotelId } from '@/lib/tenant';
 import { buildFriendlyRoomHistoryMessage } from '@features/rooms';
 
 type TicketsRow = {
@@ -136,6 +136,7 @@ function mapRowToTicketData(
   const guest = row.room_id ? guestByRoomId.get(row.room_id) : undefined;
   const images = imagesByTicketId.get(row.id);
   const dueAtIso = row.due_at ?? null;
+  const priority = row.priority as 'urgent' | 'medium' | 'notUrgent' | null | undefined;
 
   /** Relative “mins” line is superseded by calendar due line on the card when `due_at` is set. */
   const dueTimeDisplay =
@@ -173,6 +174,7 @@ function mapRowToTicketData(
     assignedToId: row.assigned_to_id,
     createdById: row.created_by_id,
     viewerIsTagged: taggedTicketIds.has(row.id),
+    priority: priority ?? undefined,
   };
 }
 
@@ -360,7 +362,7 @@ export async function getLatestTicketForRoom(roomId: string): Promise<TicketData
 
   if (error || !data) return null;
   // For the single-room call, we can skip guest hydration for now.
-  return mapRowToTicketData(data as TicketsRow, new Map(), new Map(), Date.now(), new Set());
+  return mapRowToTicketData(data as unknown as TicketsRow, new Map(), new Map(), Date.now(), new Set());
 }
 
 export type CreateTicketInput = {
@@ -527,10 +529,22 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
   }
 }
 
+export async function updateTicketPriority(ticketId: string, priority: 'urgent' | 'medium' | 'notUrgent'): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase.from('tickets').update({ priority }).eq('id', ticketId);
+  if (error) throw error;
+}
+
+export async function updateTicketAssignee(ticketId: string, assignedToId: string | null): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const { error } = await supabase.from('tickets').update({ assigned_to_id: assignedToId }).eq('id', ticketId);
+  if (error) throw error;
+}
+
 /** Persist due time from Change Status modal (nullable clears). */
 export async function updateTicketDueAt(ticketId: string, dueAtIso: string | null): Promise<void> {
   if (!isSupabaseConfigured) return;
-  const { error } = await supabase.from('tickets').update({ due_at: dueAtIso }).eq('id', ticketId);
+  const { error } = await supabase.from('tickets').update({ due_at: dueAtIso } as any).eq('id', ticketId);
   if (error) throw error;
 }
 

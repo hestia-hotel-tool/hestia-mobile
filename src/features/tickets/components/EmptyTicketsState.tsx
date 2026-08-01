@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX } from '../constants/ticketsStyles';
 import type { TicketTab } from '../types/tickets.types';
 

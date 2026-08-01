@@ -4,7 +4,7 @@ import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { RoomStatus, StatusChangeOption, STATUS_OPTIONS, STATUS_CONFIGS, RoomCardData } from '../../types/allRooms.types';
 import { STATUS_BUTTON, CARD_DIMENSIONS, scaleX } from '../../constants/allRoomsStyles';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import StatusOptionItem from './StatusOptionItem';
 
 /** Option ids that map to a single room status; hide the one that matches currentStatus */

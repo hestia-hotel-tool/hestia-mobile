@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import {
   LOST_AND_FOUND_HEADER,
   LOST_AND_FOUND_COLORS,

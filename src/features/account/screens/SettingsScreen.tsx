@@ -3,25 +3,16 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import BottomTabBar from '@/components/BottomTabBar';
 import { useAuth } from '@features/auth';
+import { useUserStore } from '@features/account/store/useUserStore';
 import { useAIChatOverlay } from '@features/ai-agent';
-import { useMessageModal } from '@shared/contexts/MessageModalContext';
-import type { ReturnToTab } from '@/types/navigation';
-import { useDesignScale } from '@shared/hooks/useDesignScale';
+import { useMessageModal } from '@/contexts/MessageModalContext';
+import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
+import { useDesignScale } from '@/hooks/useDesignScale';
 
-type MainTabsParamList = {
-  Home: undefined;
-  Rooms: undefined;
-  Chat: undefined;
-  Tickets: undefined;
-  LostAndFound: undefined;
-  Staff: undefined;
-  Settings: undefined;
-};
-
-type SettingsScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, 'Settings'>;
+type SettingsScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, '(settings)/index'>;
 
 export default function SettingsScreen() {
   const { scaleX } = useDesignScale();
@@ -30,6 +21,7 @@ export default function SettingsScreen() {
   const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const { signOut } = useAuth();
+  const userProfile = useUserStore((s) => s.profile);
   const [activeTab, setActiveTab] = useState('Settings');
 
   const messageModal = useMessageModal();
@@ -68,14 +60,25 @@ export default function SettingsScreen() {
       return;
     }
     setActiveTab(tab); // Update immediately
+    const returnToTab: ReturnToTab = '(settings)/index';
     if (tab === 'Rooms') {
-      navigation.navigate('Rooms', {
+      navigation.navigate('(rooms)/index', {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
       return;
     }
-    if (tab === 'Home' || tab === 'Chat' || tab === 'Tickets' || tab === 'LostAndFound' || tab === 'Staff' || tab === 'Settings') {
-      navigation.navigate(tab as keyof MainTabsParamList);
+    if (tab === 'Home') {
+      navigation.navigate('(home)/index');
+    } else if (tab === 'Chat') {
+      navigation.navigate('(chats)/index');
+    } else if (tab === 'Tickets') {
+      navigation.navigate('(tickets)/index');
+    } else if (tab === 'LostAndFound') {
+      navigation.navigate('(lost_and_found)/index', { returnToTab });
+    } else if (tab === 'Staff') {
+      navigation.navigate('(staff)/index', { returnToTab });
+    } else if (tab === 'Settings') {
+      navigation.navigate('(settings)/index', { returnToTab });
     }
   };
 
@@ -83,7 +86,7 @@ export default function SettingsScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? 'Home';
+      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
       navigation.navigate(returnToTab as keyof MainTabsParamList);
     }
   };
@@ -102,7 +105,7 @@ export default function SettingsScreen() {
         
       </View>
       
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
     </View>
   );
 }

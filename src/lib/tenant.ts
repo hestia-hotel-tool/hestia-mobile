@@ -22,7 +22,7 @@ export async function getMyHotelId(): Promise<string | null> {
 
     if (error || !row?.hotel_id) {
       try {
-        await supabase.rpc('ensure_current_user_profile');
+        await (supabase as any).rpc('ensure_current_user_profile');
       } catch {
         // ignore and fall through
       }

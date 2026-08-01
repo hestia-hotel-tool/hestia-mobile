@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import { RoomStatus, StaffInfo } from '../../types/allRooms.types';
 import type { ShiftType } from '@features/home';
 import { scaleX, STAFF_SECTION } from '../../constants/allRoomsStyles';

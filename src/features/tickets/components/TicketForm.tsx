@@ -12,19 +12,19 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRouter } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { useToast } from '@shared/contexts/ToastContext';
-import { typography } from '@shared/theme';
+import { useToast } from '@/contexts/ToastContext';
+import { typography } from '@/theme';
 import { getUsersByDepartmentId } from '@features/account';
-import type { User } from '@shared/types';
+import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@/types/navigation';
-import { getDepartments } from '@shared/lib/departments';
-import { DEPARTMENT_NAME_TO_ICON } from '@shared/lib/departments';
+import { getDepartments } from '@/lib/departments';
+import { DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -123,6 +123,7 @@ export default function TicketForm({
   onSubmitSuccess,
 }: TicketFormProps) {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const router = useRouter();
   const toast = useToast();
 
   // Form state
@@ -307,10 +308,7 @@ export default function TicketForm({
       onSubmitSuccess?.();
 
       // Redirect to All tickets tab
-      navigation.navigate('Main', {
-        screen: 'Tickets',
-        params: { initialTab: 'all' },
-      } as any);
+      router.replace('/(tabs)/(tickets)');
     } catch (error) {
       console.warn('Failed to create ticket', error);
       toast.show('Failed to create ticket. Please try again.', { type: 'error' });

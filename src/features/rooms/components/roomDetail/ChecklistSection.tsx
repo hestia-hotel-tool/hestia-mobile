@@ -1,14 +1,14 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
-import { useToast } from '@shared/contexts/ToastContext';
-import { typography } from '@shared/theme';
+import { useToast } from '@/contexts/ToastContext';
+import { typography } from '@/theme';
 import { CHECKLIST_SECTION, scaleX } from '../../constants/checklistStyles';
 import { CONTENT_AREA } from '../../constants/roomDetailStyles';
 import ChecklistCategory from './ChecklistCategory';
 import ChecklistFooter from './ChecklistFooter';
 import DownloadReportButton from './DownloadReportButton';
 import type { ChecklistData, ChecklistSubmissionData } from '../../types/checklist.types';
-import { getDefaultChecklist } from '@/data/mockChecklistData';
+import { getDefaultChecklist } from '@/mocks/mockChecklistData';
 import { generateChecklistReport } from '../../utils/generateChecklistReport';
 
 interface ChecklistSectionProps {
@@ -30,7 +30,7 @@ export default function ChecklistSection({
 }: ChecklistSectionProps) {
   const toast = useToast();
   // Get current user from auth context
-  const currentUser = { id: 'user-1', name: 'Staff Member', initials: 'SM' };
+  const currentUser = { id: 'user-1', name: 'Staff Member', initials: 'SM', avatar: '' };
 
   // Format current date and time
   const formatDate = (date: Date): string => {

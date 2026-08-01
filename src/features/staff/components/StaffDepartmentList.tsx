@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, STAFF_DEPARTMENT_LIST } from '../constants/staffStyles';
 import type { StaffDepartmentId, DepartmentRowPosition } from './staffDepartment.types';
 

@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
-import { colors, typography } from '@shared/theme';
+import { colors, typography } from '@/theme';
 import BottomTabBar from '@/components/BottomTabBar';
 import { useAIChatOverlay } from '@features/ai-agent';
+import { useUserStore } from '@features/account/store/useUserStore';
 import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
 import StaffListRow from '../components/StaffListRow';
@@ -23,9 +24,9 @@ import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account';
-import { getDepartments, DEPARTMENT_NAME_TO_ICON, sortDepartmentsByDisplayOrder } from '@shared/lib/departments';
-import { isSupabaseConfigured } from '@shared/lib/supabase';
-import type { User } from '@shared/types';
+import { getDepartments, DEPARTMENT_NAME_TO_ICON, sortDepartmentsByDisplayOrder } from '@/lib/departments';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import type { User } from '@/types';
 import { fetchStaffRoomStatsForShift, fetchStaffTicketStats, type StaffTicketStats } from '../services/staff';
 
 /** Departments whose card shows cleaning stats; everything else shows ticket stats. */
@@ -36,7 +37,7 @@ function isCleaningDept(name: string): boolean {
 
 const DESIGN_WIDTH = 440;
 
-type StaffScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, 'Staff'>;
+type StaffScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, '(staff)/index'>;
 
 /**
  * A department chip, sourced dynamically from the DB `departments` table (same
@@ -74,6 +75,7 @@ export default function StaffScreen() {
   const navigation = useNavigation<StaffScreenNavigationProp>();
   const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
+  const userProfile = useUserStore((s) => s.profile);
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
   
@@ -234,14 +236,24 @@ export default function StaffScreen() {
       return;
     }
     setActiveTab(tab); // Update immediately
-    if (tab === 'Rooms') {
-      navigation.navigate('Rooms', {
-        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-      });
-      return;
-    }
-    if (tab === 'Home' || tab === 'Chat' || tab === 'Tickets' || tab === 'LostAndFound' || tab === 'Staff' || tab === 'Settings') {
-      navigation.navigate(tab as keyof MainTabsParamList);
+    const tabRoute: Partial<Record<string, keyof MainTabsParamList>> = {
+      Home: '(home)/index',
+      Rooms: '(rooms)/index',
+      Chat: '(chats)/index',
+      Tickets: '(tickets)/index',
+      LostAndFound: '(lost_and_found)/index',
+      Staff: '(staff)/index',
+      Settings: '(settings)/index',
+    };
+    const routeName = tabRoute[tab];
+    if (routeName) {
+      if (tab === 'Rooms') {
+        (navigation as any).navigate(routeName, {
+          prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
+        });
+      } else {
+        (navigation as any).navigate(routeName);
+      }
     }
   };
 
@@ -249,7 +261,7 @@ export default function StaffScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? 'Home';
+      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
       navigation.navigate(returnToTab as keyof MainTabsParamList);
     }
   };
@@ -581,7 +593,7 @@ export default function StaffScreen() {
                             staff={staffForCard}
                             onAssignRoomPress={(s) => {
                               const shift = selectedTab === 'pm' ? 'PM' : 'AM';
-                              (navigation as any).navigate('AssignRooms', {
+                              (navigation as any).navigate('assign-rooms/index', {
                                 staffId: s.id,
                                 staffName: s.name,
                                 shift,
@@ -613,7 +625,7 @@ export default function StaffScreen() {
 
       </View>
 
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
     </View>
   );
 }

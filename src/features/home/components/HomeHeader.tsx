@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, Image, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { UserProfile, ShiftType } from '../types/home.types';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
-import { colors, typography } from '@shared/theme';
-import { getInitialsFromFullName } from '@shared/utils/formatting';
+import { colors, typography } from '@/theme';
+import { getInitialsFromFullName } from '@/utils/formatting';
 import AMPMToggle from './AMPMToggle';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -88,6 +88,13 @@ export default function HomeHeader({
           </Text>
         </View>
       </ProfileWrapper>
+
+      {/* Bell / Notifications */}
+      <TouchableOpacity style={styles.bellContainer} onPress={onBellPress} activeOpacity={0.7}>
+        <View style={styles.bellCircle}>
+          <Text style={styles.bellIcon}>!</Text>
+        </View>
+      </TouchableOpacity>
 
       {/* AM/PM Toggle */}
       <View style={styles.toggleContainer}>
@@ -185,6 +192,25 @@ const styles = StyleSheet.create({
     fontSize: 11 * scaleX,
     fontStyle: 'normal',
     fontWeight: '300',
+  },
+  bellContainer: {
+    position: 'absolute',
+    right: 63 * scaleX,
+    top: 22 * scaleX,
+    zIndex: 101,
+  },
+  bellCircle: {
+    width: 36 * scaleX,
+    height: 36 * scaleX,
+    borderRadius: 18 * scaleX,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bellIcon: {
+    fontSize: 18 * scaleX,
+    fontWeight: '600',
+    color: '#5a759d',
   },
   toggleContainer: {
     position: 'absolute',

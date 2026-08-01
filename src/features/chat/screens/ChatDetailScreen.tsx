@@ -32,10 +32,10 @@ import {
   requestRecordingPermissionsAsync,
 } from 'expo-audio';
 import { RootStackParamList } from '@/types/navigation';
-import { ChatMessage } from '@shared/types';
+import { ChatMessage } from '@/types';
 import MessageBubble from '../components/MessageBubble';
 import ChatHeader from '../components/ChatHeader';
-import { colors } from '@shared/theme';
+import { colors } from '@/theme';
 import { scaleX, CHAT_HEADER, CHAT_HEADER_BAR_HEIGHT } from '../constants/chatStyles';
 import {
   getCurrentUserId,
@@ -55,12 +55,12 @@ import { useChatStore } from '../store/useChatStore';
 import {
   markChatMessageNotificationsReadForChat,
   invalidateNotificationBadges,
-} from '@shared/lib/inAppNotifications';
-import { useToast } from '@shared/contexts/ToastContext';
-import { useMessageModal } from '@shared/contexts/MessageModalContext';
+} from '@/lib/inAppNotifications';
+import { useToast } from '@/contexts/ToastContext';
+import { useMessageModal } from '@/contexts/MessageModalContext';
 import { Ionicons } from '@expo/vector-icons';
 
-type ChatDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChatDetail'>;
+type ChatDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'chat/[chatId]'>;
 
 /**
  * WhatsApp-style @ compose: active while typing after `@` at a word boundary until a trailing
@@ -82,7 +82,7 @@ function getActiveMention(text: string): { start: number; query: string } | null
 }
 
 export default function ChatDetailScreen() {
-  const route = useRoute<RouteProp<RootStackParamList, 'ChatDetail'>>();
+  const route = useRoute<RouteProp<RootStackParamList, 'chat/[chatId]'>>();
   const navigation = useNavigation<ChatDetailScreenNavigationProp>();
   const { chatId, chat: chatParam } = route.params;
   const scrollViewRef = useRef<ScrollView>(null);

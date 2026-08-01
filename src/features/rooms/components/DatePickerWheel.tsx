@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, TextStyle } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX } from '../constants/roomDetailStyles';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

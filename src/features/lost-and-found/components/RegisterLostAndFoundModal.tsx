@@ -14,13 +14,13 @@ import {
 } from 'react-native';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import * as ImagePicker from 'expo-image-picker';
-import { useToast } from '@shared/contexts/ToastContext';
-import { useMessageModal } from '@shared/contexts/MessageModalContext';
-import { typography } from '@shared/theme';
+import { useToast } from '@/contexts/ToastContext';
+import { useMessageModal } from '@/contexts/MessageModalContext';
+import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../constants/lostAndFoundStyles';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStaffFromSupabase } from '@features/staff';
-import { GUEST_IMAGES_BUCKET } from '@shared/lib/guests';
+import { GUEST_IMAGES_BUCKET } from '@/lib/guests';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';

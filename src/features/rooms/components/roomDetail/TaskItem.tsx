@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 import type { Task } from '../../types/roomDetail.types';
 

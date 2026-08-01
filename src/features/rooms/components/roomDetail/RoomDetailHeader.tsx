@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, ROOM_DETAIL_HEADER } from '../../constants/roomDetailStyles';
 import { STATUS_CONFIGS } from '../../types/allRooms.types';
 import type { RoomStatus } from '../../types/allRooms.types';

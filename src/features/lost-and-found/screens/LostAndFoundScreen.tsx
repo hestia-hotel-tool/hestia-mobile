@@ -11,6 +11,7 @@ import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../co
 import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
 import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
 import { useAIChatOverlay } from '@features/ai-agent';
+import { useUserStore } from '@features/account/store/useUserStore';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
 import {
   LOST_AND_FOUND_SPACING,
@@ -19,31 +20,32 @@ import {
   scaleX,
 } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@/types/navigation';
-import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import * as FileSystem from 'expo-file-system/legacy';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { base64ToArrayBuffer } from '@shared/utils/encoding';
-import { getMyHotelId } from '@shared/lib/tenant';
+import { base64ToArrayBuffer } from '@/utils/encoding';
+import { getMyHotelId } from '@/lib/tenant';
 
 type MainTabsParamList = {
-  Home: undefined;
-  Rooms: undefined;
-  Chat: undefined;
-  Tickets: undefined;
-  LostAndFound: undefined;
-  Staff: undefined;
-  Settings: undefined;
+  '(home)/index': undefined;
+  '(rooms)/index': undefined;
+  '(chats)/index': undefined;
+  '(tickets)/index': undefined;
+  '(lost_and_found)/index': undefined;
+  '(staff)/index': undefined;
+  '(settings)/index': undefined;
 };
 
-type LostAndFoundScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, 'LostAndFound'>;
+type LostAndFoundScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(lost_and_found)/index'>;
 
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
+  const userProfile = useUserStore((s) => s.profile);
   const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
   const [activeTab, setActiveTab] = useState('LostAndFound');
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
@@ -368,23 +370,23 @@ export default function LostAndFoundScreen() {
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab = (route.name as string) as 'Home' | 'Rooms' | 'Chat' | 'Tickets' | 'LostAndFound' | 'Staff' | 'Settings';
+    const returnToTab: ReturnToTab = route.name as ReturnToTab;
     if (tab === 'Home') {
-      navigation.navigate('Home' as any);
+      navigation.navigate('(home)/index' as any);
     } else if (tab === 'Rooms') {
-      navigation.navigate('Rooms' as any, {
+      navigation.navigate('(rooms)/index' as any, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
     } else if (tab === 'Chat') {
-      navigation.navigate('Chat' as any);
+      navigation.navigate('(chats)/index' as any);
     } else if (tab === 'Tickets') {
-      navigation.navigate('Tickets' as any);
+      navigation.navigate('(tickets)/index' as any);
     } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('LostAndFound', { returnToTab });
+      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
     } else if (tab === 'Staff') {
-      (navigation as any).navigate('Staff', { returnToTab });
+      (navigation as any).navigate('(staff)/index', { returnToTab });
     } else if (tab === 'Settings') {
-      (navigation as any).navigate('Settings', { returnToTab });
+      (navigation as any).navigate('(settings)/index', { returnToTab });
     }
   };
 
@@ -392,7 +394,7 @@ export default function LostAndFoundScreen() {
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
-      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? 'Home';
+      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
       navigation.navigate(returnToTab as keyof MainTabsParamList);
     }
   };
@@ -920,7 +922,7 @@ export default function LostAndFoundScreen() {
       <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
 
       {/* Bottom Navigation */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
 
       {/* Register Modal */}
       <RegisterLostAndFoundModal

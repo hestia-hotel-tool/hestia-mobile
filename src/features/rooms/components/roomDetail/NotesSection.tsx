@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, NOTES_SECTION } from '../../constants/roomDetailStyles';
 import NoteItem from './NoteItem';
 import type { Note } from '../../types/roomDetail.types';

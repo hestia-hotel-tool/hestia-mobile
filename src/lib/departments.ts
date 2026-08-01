@@ -6,7 +6,7 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 import type { Tables } from '../types/supabase';
 
-export type DepartmentRow = Tables<'departments'>['Row'];
+export type DepartmentRow = Tables<'departments'>;
 
 /**
  * Shared department display config — single source of truth for both the
@@ -28,16 +28,16 @@ export const DEPARTMENT_SLUG_TO_DB_NAME: Record<string, string> = {
 
 /** Map DB department name to local icon and whether to skip red tint (HSK Portier, In Room Dining). */
 export const DEPARTMENT_NAME_TO_ICON: Record<string, { icon: any; noTint?: boolean }> = {
-  Engineering: { icon: require('../../../assets/icons/engineering.png'), noTint: false },
-  'HSK Portier': { icon: require('../../../assets/icons/hsk-portier.png'), noTint: true },
-  'In Room Dining': { icon: require('../../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  Laundry: { icon: require('../../../assets/icons/laundry-icon.png'), noTint: false },
-  Concierge: { icon: require('../../../assets/icons/concierge.png'), noTint: false },
-  Reception: { icon: require('../../../assets/icons/reception.png'), noTint: false },
-  IT: { icon: require('../../../assets/icons/it.png'), noTint: false },
-  'Front Office': { icon: require('../../../assets/icons/reception.png'), noTint: false },
-  'Food and Beverage': { icon: require('../../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  'Executive Administration': { icon: require('../../../assets/icons/reception.png'), noTint: false },
+  Engineering: { icon: require('../../assets/icons/engineering.png'), noTint: false },
+  'HSK Portier': { icon: require('../../assets/icons/hsk-portier.png'), noTint: true },
+  'In Room Dining': { icon: require('../../assets/icons/in-room-dining-icon.png'), noTint: true },
+  Laundry: { icon: require('../../assets/icons/laundry-icon.png'), noTint: false },
+  Concierge: { icon: require('../../assets/icons/concierge.png'), noTint: false },
+  Reception: { icon: require('../../assets/icons/reception.png'), noTint: false },
+  IT: { icon: require('../../assets/icons/it.png'), noTint: false },
+  'Front Office': { icon: require('../../assets/icons/reception.png'), noTint: false },
+  'Food and Beverage': { icon: require('../../assets/icons/in-room-dining-icon.png'), noTint: true },
+  'Executive Administration': { icon: require('../../assets/icons/reception.png'), noTint: false },
 };
 
 /**

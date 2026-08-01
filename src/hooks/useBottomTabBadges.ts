@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { supabase, isSupabaseConfigured } from '@shared/lib/supabase';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@features/auth';
 import { useChatStore } from '@features/chat';
 import {
   clearNotificationBadgeInvalidateListeners,
   subscribeNotificationBadgeInvalidate,
-} from '@shared/lib/inAppNotifications';
+} from '@/lib/inAppNotifications';
 
 if (__DEV__) {
   // Fast Refresh can leave old `fetchNotificationCounts` closures in the listener set

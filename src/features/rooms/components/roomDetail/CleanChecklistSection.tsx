@@ -17,7 +17,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { CHECKLIST_SECTION, CLEAN_CHECKLIST, scaleX } from '../../constants/checklistStyles';
 import { CONTENT_AREA } from '../../constants/roomDetailStyles';
 

@@ -11,8 +11,6 @@ module.exports = function(api) {
           alias: {
             '@': './src',
             '@features': './src/features',
-            '@shared': './src/shared',
-            '@data': './src/data',
           },
         },
       ],

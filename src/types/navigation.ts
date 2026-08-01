@@ -1,39 +1,31 @@
-/**
- * Navigation type definitions
- * Centralized navigation types for type safety
- */
-
 import type { RoomType } from '@features/rooms/types/roomDetail.types';
 
 export type RootStackParamList = {
-  Splash: undefined;
-  Login: undefined;
-  Main: undefined;
-  UserProfile: { user: import('@features/home/types/home.types').UserProfile };
-  AllRooms: { showBackButton?: boolean };
-  RoomDetail: {
-    room?: any; 
-    roomType?: RoomType; 
+  index: undefined;
+  '(auth)/login': undefined;
+  '(tabs)': undefined;
+  'room/[roomId]': {
+    room?: any;
+    roomType?: RoomType;
     roomId?: string;
     initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
     departmentName?: string;
   };
-  ArrivalDepartureDetail: { 
-    room: any; 
+  'arrival-departure/[id]': {
+    room: any;
     initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
     departmentName?: string;
   };
-  AssignRooms: { staffId: string; staffName: string; shift: 'AM' | 'PM' };
-  ChatDetail: { chatId: string; chat?: import('@features/chat/components/ChatItem').ChatItemData };
-  NewChat: undefined;
-  CreateChatGroup: undefined;
-  TicketDetail: { ticketId: string };
-  CreateTicket: undefined;
-  SelectTicketLocation: { departmentName: string };
-  CreateTicketForm: { 
-    departmentId?: string; 
-    departmentName?: string; 
-    roomId?: string; 
+  'assign-rooms/index': { staffId: string; staffName: string; shift: 'AM' | 'PM' };
+  'chat/[chatId]': { chatId: string; chat?: import('@features/chat/components/ChatItem').ChatItemData };
+  'new-chat/index': undefined;
+  'create-chat-group/index': undefined;
+  'create-ticket/index': undefined;
+  'select-ticket-location/index': { departmentName: string };
+  'create-ticket-form/index': {
+    departmentId?: string;
+    departmentName?: string;
+    roomId?: string;
     roomNumber?: string;
     guestId?: string;
     guestName?: string;
@@ -45,22 +37,28 @@ export type RootStackParamList = {
     isPublicArea?: boolean;
     publicAreaName?: string;
   };
+  'user-profile/index': { user: import('@features/home/types/home.types').UserProfile };
 };
 
-/** Tab/screen to return to when back is pressed */
-export type ReturnToTab = 'Home' | 'Rooms' | 'Chat' | 'Tickets' | 'LostAndFound' | 'Staff' | 'Settings';
+export type ReturnToTab =
+  | '(home)/index'
+  | '(rooms)/index'
+  | '(chats)/index'
+  | '(tickets)/index'
+  | '(lost_and_found)/index'
+  | '(staff)/index'
+  | '(settings)/index';
 
 export type MainTabsParamList = {
-  Home: undefined;
-  /** When true (tab opened via Rooms badge), list shows only this user’s assigned rooms, newest assignment first. */
-  Rooms: { prioritizeMyAssignedRooms?: boolean } | undefined;
-  Chat: undefined;
-  Tickets: undefined;
-  LostAndFound: {
+  '(home)/index': undefined;
+  '(rooms)/index': { prioritizeMyAssignedRooms?: boolean } | undefined;
+  '(chats)/index': undefined;
+  '(tickets)/index': undefined;
+  '(lost_and_found)/index': {
     openRegisterModal?: boolean;
     returnToTab?: ReturnToTab;
     preselectedRoomId?: string;
   } | undefined;
-  Staff: { returnToTab?: ReturnToTab } | undefined;
-  Settings: { returnToTab?: ReturnToTab } | undefined;
+  '(staff)/index': { returnToTab?: ReturnToTab } | undefined;
+  '(settings)/index': { returnToTab?: ReturnToTab } | undefined;
 };

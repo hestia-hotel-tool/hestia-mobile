@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
-import { colors } from '@shared/theme';
-import { normalizedScaleX } from '@shared/utils/responsive';
+import { colors } from '@/theme';
+import { normalizedScaleX } from '@/utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

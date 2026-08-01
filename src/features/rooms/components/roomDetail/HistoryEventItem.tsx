@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, HISTORY_SECTION } from '../../constants/roomDetailStyles';
 import type { HistoryEvent } from '../../types/roomDetail.types';
 

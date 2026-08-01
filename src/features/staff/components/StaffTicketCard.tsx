@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, STAFF_CARD } from '../constants/staffStyles';
 import { StaffMember } from '../types/staff.types';
 import StaffCardProgressBar from './StaffCardProgressBar';

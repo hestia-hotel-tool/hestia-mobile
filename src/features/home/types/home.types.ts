@@ -2,9 +2,9 @@
  * Home Screen Type Definitions
  */
 
-import type { ShiftType } from '@shared/types/shift.types';
+import type { ShiftType } from '@/types/shift.types';
 
-export type { ShiftType } from '@shared/types/shift.types';
+export type { ShiftType } from '@/types/shift.types';
 
 export interface RoomStatus {
   dirty: number;

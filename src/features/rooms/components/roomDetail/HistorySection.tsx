@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { typography } from '@shared/theme';
+import { typography } from '@/theme';
 import { scaleX, HISTORY_SECTION } from '../../constants/roomDetailStyles';
 import type { HistoryEvent, HistoryGroup } from '../../types/roomDetail.types';
 import DownloadReportButton from './DownloadReportButton';

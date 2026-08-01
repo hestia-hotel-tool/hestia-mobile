@@ -3,12 +3,12 @@ import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
-import { colors } from '@shared/theme';
+import { colors } from '@/theme';
 import { ShiftType } from '@features/home';
 import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
-import { LoadingOverlay } from '@shared/ui/LoadingOverlay';
+import { LoadingOverlay } from '@/components/LoadingOverlay';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
@@ -17,25 +17,27 @@ import BottomTabBar from '@/components/BottomTabBar';
 import StatusChangeModal from '../components/allRooms/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import CleanChecklistModal from '../components/allRooms/CleanChecklistModal';
-import type { RootStackParamList, MainTabsParamList } from '@/types/navigation';
+import type { RootStackParamList, MainTabsParamList, ReturnToTab } from '@/types/navigation';
 import { useAuth } from '@features/auth';
 import {
   invalidateNotificationBadges,
   markAllRoomAssignmentNotificationsRead,
-} from '@shared/lib/inAppNotifications';
+} from '@/lib/inAppNotifications';
+import { notifyServer } from '@/lib/notifications';
+import { useUserStore } from '@features/account/store/useUserStore';
 import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
 } from '../services/rooms';
 import { BlurView } from 'expo-blur';
-import { FilterState, FilterCounts } from '@shared/types/filter.types';
+import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategoryName } from '@features/home';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
 import { CARD_DIMENSIONS, CARD_COLORS } from '../constants/allRoomsStyles';
-import { getShiftFromTime } from '@shared/utils/shiftUtils';
+import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
-import { getFloorFromRoomNumber } from '@shared/utils/formatting';
+import { getFloorFromRoomNumber } from '@/utils/formatting';
 
 /** When user taps a status badge or priority badge on Home. */
 export type CategoryFilterParam = {
@@ -45,12 +47,13 @@ export type CategoryFilterParam = {
 
 const DESIGN_WIDTH = 440;
 
-type AllRoomsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, 'Rooms'> &
+type AllRoomsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(rooms)/index'> &
   NativeStackNavigationProp<RootStackParamList>;
 
 export default function AllRoomsScreen() {
   const navigation = useNavigation<AllRoomsScreenNavigationProp>();
   const { session } = useAuth();
+  const userProfile = useUserStore((s) => s.profile);
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
@@ -368,7 +371,7 @@ export default function AllRoomsScreen() {
 
   const handleGoToHomeWithFilters = (appliedFilters: FilterState) => {
     setShowFilterModal(false);
-    navigation.navigate('Home' as any, { filters: appliedFilters } as any);
+    navigation.navigate('(home)/index' as any, { filters: appliedFilters } as any);
   };
 
   const handleAdvanceFilter = () => {
@@ -404,7 +407,7 @@ export default function AllRoomsScreen() {
     const roomType = mapCategoryToRoomType(room.frontOfficeStatus);
     
     // Navigate to Room Detail; pass roomId so screen can fetch full details via getRoomDetailsById
-    navigation.navigate('RoomDetail', { room, roomType, roomId: room.id } as any);
+    navigation.navigate('room/[roomId]', { room, roomType, roomId: room.id } as any);
   };
 
   const handleStatusPress = (room: RoomCardData) => {
@@ -614,24 +617,23 @@ export default function AllRoomsScreen() {
       return;
     }
     setActiveTab(tab); // Update immediately
-    const currentScreen = (route.params as any)?.showBackButton ? 'Rooms' : (route.name as string);
-    const returnToTab = currentScreen as 'Home' | 'Rooms' | 'Chat' | 'Tickets' | 'LostAndFound' | 'Staff' | 'Settings';
+    const returnToTab: ReturnToTab = (route.params as any)?.showBackButton ? '(rooms)/index' : (route.name as ReturnToTab);
     if (tab === 'Home') {
-      navigation.navigate('Home' as any);
+      navigation.navigate('(home)/index' as any);
     } else if (tab === 'Rooms') {
-      navigation.navigate('Rooms' as any, {
+      navigation.navigate('(rooms)/index' as any, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
     } else if (tab === 'Chat') {
-      navigation.navigate('Chat' as any);
+      navigation.navigate('(chats)/index' as any);
     } else if (tab === 'Tickets') {
-      navigation.navigate('Tickets' as any);
+      navigation.navigate('(tickets)/index' as any);
     } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('LostAndFound', { returnToTab });
+      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
     } else if (tab === 'Staff') {
-      (navigation as any).navigate('Staff', { returnToTab });
+      (navigation as any).navigate('(staff)/index', { returnToTab });
     } else if (tab === 'Settings') {
-      (navigation as any).navigate('Settings', { returnToTab });
+      (navigation as any).navigate('(settings)/index', { returnToTab });
     }
   };
 
@@ -941,7 +943,7 @@ export default function AllRoomsScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
 
       {/* Status Change Modal */}
       <StatusChangeModal
@@ -1009,6 +1011,21 @@ export default function AllRoomsScreen() {
           }
         }}
         onComplete={() => handleStatusSelect('Inspected', roomForInspection)}
+        onReject={() => {
+          if (!roomForInspection) return;
+          updateRoom(roomForInspection.id, { house_keeping_status: 'Dirty' }).catch((e) =>
+            console.warn('[AllRoomsScreen] Failed to reject room', e)
+          );
+          const assignedUserId = roomForInspection.roomAttendantAssigned?.userId;
+          if (assignedUserId) {
+            notifyServer({
+              type: 'room_assignment',
+              roomId: roomForInspection.id,
+              shiftId: displayData.selectedShift ?? 'AM',
+              assignedUserId,
+            }).catch(() => {});
+          }
+        }}
         buttonPosition={buttonPositionForInspection}
         headerHeight={217}
         showTriangle={true}
