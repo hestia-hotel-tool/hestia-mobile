@@ -31,7 +31,9 @@ export default function TabBarItem({
   const styles = useMemo(() => buildTabBarItemStyles(ns), [ns]);
 
   const finalOpacity = iconOpacity !== undefined ? iconOpacity : 1;
-  const activeColor = '#FF46A3';
+  const activeColor = colors.text.pink;
+  const inactiveColor = colors.primary.main;
+  const iconColor = active ? activeColor : inactiveColor;
   const labelNumberOfLines = 1;
   const iconStyle = iconWidth && iconHeight
     ? ([
@@ -39,15 +41,14 @@ export default function TabBarItem({
           width: Math.round(iconWidth * ns),
           height: Math.round(iconHeight * ns),
           opacity: finalOpacity,
+          tintColor: iconColor,
           ...(iconOffsetX ? { transform: [{ translateX: iconOffsetX * ns }] } : null),
         },
-        active ? { tintColor: activeColor } : null,
-      ].filter(Boolean) as any)
+      ] as any)
     : ([
         styles.icon,
-        { opacity: finalOpacity },
+        { opacity: finalOpacity, tintColor: iconColor },
         iconOffsetX ? { transform: [{ translateX: iconOffsetX * ns }] } : null,
-        active ? { tintColor: activeColor } : null,
       ].filter(Boolean) as any);
 
   return (
@@ -138,7 +139,7 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
       zIndex: 10,
     },
     badge: {
-      backgroundColor: '#FF46A3',
+      backgroundColor: colors.text.pink,
       borderRadius: Math.round(10.2275 * ns),
       minWidth: Math.round(20.455 * ns),
       height: Math.round(20.455 * ns),
@@ -174,7 +175,7 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
     labelActive: {
       fontFamily: Platform.OS === 'ios' ? 'Helvetica' : typography.fontFamily.primary,
       fontWeight: '700' as any,
-      color: '#FF46A3',
+      color: colors.text.pink,
       includeFontPadding: false,
     },
   });

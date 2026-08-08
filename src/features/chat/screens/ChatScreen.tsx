@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { useNavigation, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
@@ -31,7 +31,7 @@ type MainTabsParamList = {
   '(settings)/index': undefined;
 };
 
-import type { RootStackParamList, ReturnToTab } from '@/types/navigation';
+import type { RootStackParamList } from '@/types/navigation';
 
 type ChatScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, '(chats)/index'>,
@@ -40,7 +40,6 @@ type ChatScreenNavigationProp = CompositeNavigationProp<
 
 export default function ChatScreen() {
   const navigation = useNavigation<ChatScreenNavigationProp>();
-  const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
@@ -187,30 +186,12 @@ export default function ChatScreen() {
     }, [loadChats, loadTopNotification])
   );
 
-  const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
+  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     if (tab === 'AIHome') {
       openAIChatOverlay();
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab: ReturnToTab = route.name as ReturnToTab;
-    if (tab === 'Home') {
-      navigation.navigate('(home)/index' as any);
-    } else if (tab === 'Rooms') {
-      navigation.navigate('(rooms)/index' as any, {
-        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-      });
-    } else if (tab === 'Chat') {
-      navigation.navigate('(chats)/index' as any);
-    } else if (tab === 'Tickets') {
-      navigation.navigate('(tickets)/index' as any);
-    } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
-    } else if (tab === 'Staff') {
-      (navigation as any).navigate('(staff)/index', { returnToTab });
-    } else if (tab === 'Settings') {
-      (navigation as any).navigate('(settings)/index', { returnToTab });
-    }
   };
 
   const handleSearch = (text: string) => {

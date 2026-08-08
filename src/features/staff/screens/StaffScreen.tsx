@@ -230,31 +230,12 @@ export default function StaffScreen() {
     }, [route.name])
   );
 
-  const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
+  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     if (tab === 'AIHome') {
       openAIChatOverlay();
       return;
     }
     setActiveTab(tab); // Update immediately
-    const tabRoute: Partial<Record<string, keyof MainTabsParamList>> = {
-      Home: '(home)/index',
-      Rooms: '(rooms)/index',
-      Chat: '(chats)/index',
-      Tickets: '(tickets)/index',
-      LostAndFound: '(lost_and_found)/index',
-      Staff: '(staff)/index',
-      Settings: '(settings)/index',
-    };
-    const routeName = tabRoute[tab];
-    if (routeName) {
-      if (tab === 'Rooms') {
-        (navigation as any).navigate(routeName, {
-          prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-        });
-      } else {
-        (navigation as any).navigate(routeName);
-      }
-    }
   };
 
   const handleBack = () => {

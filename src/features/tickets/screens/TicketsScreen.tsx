@@ -16,7 +16,7 @@ import {
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
-import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp, ReturnToTab } from '@/types/navigation';
+import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@/types/navigation';
 import BottomTabBar from '@/components/BottomTabBar';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
@@ -172,30 +172,12 @@ export default function TicketsScreen() {
     }, [route, loadTickets])
   );
 
-  const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
+  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     if (tab === 'AIHome') {
       openAIChatOverlay();
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab: ReturnToTab = route.name as ReturnToTab;
-    if (tab === 'Home') {
-      navigation.navigate('(home)/index' as any);
-    } else if (tab === 'Rooms') {
-      navigation.navigate('(rooms)/index' as any, {
-        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-      });
-    } else if (tab === 'Chat') {
-      navigation.navigate('(chats)/index' as any);
-    } else if (tab === 'Tickets') {
-      navigation.navigate('(tickets)/index' as any);
-    } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
-    } else if (tab === 'Staff') {
-      (navigation as any).navigate('(staff)/index', { returnToTab });
-    } else if (tab === 'Settings') {
-      (navigation as any).navigate('(settings)/index', { returnToTab });
-    }
   };
 
   const handleBackPress = () => {

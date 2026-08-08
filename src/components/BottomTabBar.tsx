@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, LayoutChangeEvent, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from 'expo-router';
 import { colors } from '@/theme';
 import TabBarItem from './TabBarItem';
 import { MORE_MENU_OPTIONS } from '@/types/more.types';
+import type { ReturnToTab } from '@/types/navigation';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { useBottomTabBadges } from '../hooks/useBottomTabBadges';
 import { getAllowedTabs, isTabAllowed } from '@/config/rolePermissions';
@@ -12,10 +14,32 @@ export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 
 interface BottomTabBarProps {
   activeTab: string;
-  onTabPress: (tab: string, options?: TabPressOptions) => void;
+  onTabPress?: (tab: string, options?: TabPressOptions) => void;
   onMorePress?: () => void;
   role?: string | null;
 }
+
+/** Registered expo-router route name for each tab's screen. */
+const TAB_ROUTE_NAMES: Record<string, string> = {
+  Home: '(home)/index',
+  Rooms: '(rooms)/index',
+  Chat: '(chats)/index',
+  Tickets: '(tickets)/index',
+  LostAndFound: '(lost_and_found)/index',
+  Staff: '(staff)/index',
+  Settings: '(settings)/index',
+};
+
+/** Route name used as the `returnToTab` param, keyed by the currently active tab. */
+const TAB_RETURN_ROUTE: Record<string, ReturnToTab> = {
+  Home: '(home)/index',
+  Rooms: '(rooms)/index',
+  Chat: '(chats)/index',
+  Tickets: '(tickets)/index',
+  LostAndFound: '(lost_and_found)/index',
+  Staff: '(staff)/index',
+  Settings: '(settings)/index',
+};
 
 const MAIN_TABS = [
   {
@@ -59,6 +83,7 @@ const MAIN_TABS = [
 
 export default function BottomTabBar({ activeTab, onTabPress, onMorePress, role }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const navigation = useNavigation();
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
@@ -93,6 +118,28 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress, role 
 
   const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
     scrollXRef.current = e.nativeEvent.contentOffset.x;
+  };
+
+  const handleTabPress = (tabId: string, options?: TabPressOptions) => {
+    // AI Home is not a navigable route - let the screen handle it (opens the AI overlay).
+    if (tabId === 'AIHome') {
+      onTabPress?.(tabId);
+      return;
+    }
+    onTabPress?.(tabId, options);
+    const routeName = TAB_ROUTE_NAMES[tabId];
+    if (!routeName) return;
+    if (tabId === 'Rooms') {
+      (navigation as any).navigate(routeName, {
+        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
+      });
+    } else if (tabId === 'LostAndFound' || tabId === 'Staff' || tabId === 'Settings') {
+      (navigation as any).navigate(routeName, {
+        returnToTab: TAB_RETURN_ROUTE[activeTab] ?? '(home)/index',
+      });
+    } else {
+      (navigation as any).navigate(routeName);
+    }
   };
 
   useEffect(() => {
@@ -163,7 +210,7 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress, role 
                       : undefined
               }
               onPress={() =>
-                onTabPress(
+                handleTabPress(
                   tab.id,
                   tab.id === 'Rooms' && roomsAssignmentCount > 0 ? { fromRoomsAssignmentBadge: true } : undefined
                 )

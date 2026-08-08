@@ -54,32 +54,12 @@ export default function SettingsScreen() {
     }, [route.name])
   );
 
-  const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
+  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     if (tab === 'AIHome') {
       openAIChatOverlay();
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab: ReturnToTab = '(settings)/index';
-    if (tab === 'Rooms') {
-      navigation.navigate('(rooms)/index', {
-        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-      });
-      return;
-    }
-    if (tab === 'Home') {
-      navigation.navigate('(home)/index');
-    } else if (tab === 'Chat') {
-      navigation.navigate('(chats)/index');
-    } else if (tab === 'Tickets') {
-      navigation.navigate('(tickets)/index');
-    } else if (tab === 'LostAndFound') {
-      navigation.navigate('(lost_and_found)/index', { returnToTab });
-    } else if (tab === 'Staff') {
-      navigation.navigate('(staff)/index', { returnToTab });
-    } else if (tab === 'Settings') {
-      navigation.navigate('(settings)/index', { returnToTab });
-    }
   };
 
   const handleBack = () => {

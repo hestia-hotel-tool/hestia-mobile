@@ -18,7 +18,7 @@ import { useAIChatOverlay } from '@features/ai-agent';
 import { useRoomsStore } from '@features/rooms';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
 import type { MoreMenuItemId } from '@/types/more.types';
-import type { RootStackParamList, ReturnToTab } from '@/types/navigation';
+import type { RootStackParamList } from '@/types/navigation';
 import HomeHeader from '../components/HomeHeader';
 import CategoryCard from '../components/CategoryCard';
 import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOverviewCard';
@@ -26,7 +26,6 @@ import EngineeringRecentActivityItem from '../components/EngineeringRecentActivi
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
 import BottomTabBar from '@/components/BottomTabBar';
-import { isTabAllowed } from '@/config/rolePermissions';
 import HomeFilterModal from '../components/HomeFilterModal';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategorySection } from '../types/home.types';
@@ -511,36 +510,12 @@ export default function HomeScreen() {
     navigation.navigate('user-profile/index', { user: safeUser });
   };
 
-  const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
+  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     if (tab === 'AIHome') {
       openAIChatOverlay();
       return;
     }
-    if (tab !== 'Home' && !isTabAllowed(tab, profile?.role)) {
-      navigation.navigate('(home)/index' as any);
-      setActiveTab('Home');
-      return;
-    }
     setActiveTab(tab); // Update immediately
-    const returnToTab: ReturnToTab = '(home)/index';
-    // Navigate to the respective screen
-    if (tab === 'Home') {
-      navigation.navigate('(home)/index' as any);
-    } else if (tab === 'Rooms') {
-      navigation.navigate('(rooms)/index' as any, {
-        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-      });
-    } else if (tab === 'Chat') {
-      navigation.navigate('(chats)/index' as any);
-    } else if (tab === 'Tickets') {
-      navigation.navigate('(tickets)/index' as any);
-    } else if (tab === 'LostAndFound') {
-      navigation.navigate('(lost_and_found)/index', { returnToTab });
-    } else if (tab === 'Staff') {
-      navigation.navigate('(staff)/index', { returnToTab });
-    } else if (tab === 'Settings') {
-      navigation.navigate('(settings)/index', { returnToTab });
-    }
   };
 
   const handleCategoryPress = (category: CategorySection) => {

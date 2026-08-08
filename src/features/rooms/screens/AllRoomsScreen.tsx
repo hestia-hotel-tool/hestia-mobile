@@ -17,7 +17,7 @@ import BottomTabBar from '@/components/BottomTabBar';
 import StatusChangeModal from '../components/allRooms/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import CleanChecklistModal from '../components/allRooms/CleanChecklistModal';
-import type { RootStackParamList, MainTabsParamList, ReturnToTab } from '@/types/navigation';
+import type { RootStackParamList, MainTabsParamList } from '@/types/navigation';
 import { useAuth } from '@features/auth';
 import {
   invalidateNotificationBadges,
@@ -611,30 +611,12 @@ export default function AllRoomsScreen() {
     }, [route.name])
   );
 
-  const handleTabPress = (tab: string, options?: { fromRoomsAssignmentBadge?: boolean }) => {
+  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     if (tab === 'AIHome') {
       openAIChatOverlay();
       return;
     }
     setActiveTab(tab); // Update immediately
-    const returnToTab: ReturnToTab = (route.params as any)?.showBackButton ? '(rooms)/index' : (route.name as ReturnToTab);
-    if (tab === 'Home') {
-      navigation.navigate('(home)/index' as any);
-    } else if (tab === 'Rooms') {
-      navigation.navigate('(rooms)/index' as any, {
-        prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
-      });
-    } else if (tab === 'Chat') {
-      navigation.navigate('(chats)/index' as any);
-    } else if (tab === 'Tickets') {
-      navigation.navigate('(tickets)/index' as any);
-    } else if (tab === 'LostAndFound') {
-      (navigation as any).navigate('(lost_and_found)/index', { returnToTab });
-    } else if (tab === 'Staff') {
-      (navigation as any).navigate('(staff)/index', { returnToTab });
-    } else if (tab === 'Settings') {
-      (navigation as any).navigate('(settings)/index', { returnToTab });
-    }
   };
 
   const onRefresh = React.useCallback(() => {
