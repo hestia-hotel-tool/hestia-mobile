@@ -1,54 +1,32 @@
+/**
+ * @deprecated — use `@/domain/rbac` instead.
+ *
+ * Compatibility shim for the legacy tab-gating helpers. Kept so existing
+ * consumers (e.g. BottomTabBar) keep working during the migration to
+ * permission-driven RBAC. New code should use `usePermissions()` / `<Can/>`.
+ */
+import {
+  getPermissionSet,
+  getPermissionsForRole,
+  TAB_PERMISSION,
+} from '@/domain/rbac';
+import type { Permission } from '@/domain/rbac';
+
 export const ALL_TABS = ['Home', 'Rooms', 'Chat', 'Tickets', 'LostAndFound', 'Staff', 'Settings'] as const;
 export type TabId = (typeof ALL_TABS)[number];
 
-type RoleCategory = 'admin' | 'housekeeping' | 'housekeepingSupervisor' | 'engineering' | 'frontOffice' | 'night';
-
-const ROLE_CATEGORY_MAP: Record<string, RoleCategory> = {
-  'General Manager': 'admin',
-  'Hotel Manager': 'admin',
-  'IT Administrator': 'admin',
-  'Executive Housekeeper': 'housekeepingSupervisor',
-  'Housekeeping Manager': 'housekeepingSupervisor',
-  'Assistant Housekeeping Manager': 'housekeepingSupervisor',
-  'Senior Supervisor': 'housekeepingSupervisor',
-  'Supervisor': 'housekeepingSupervisor',
-  'Coordinator': 'housekeepingSupervisor',
-  'Housekeeping Room Attendant': 'housekeeping',
-  'Housekeeping Portier / Houseman': 'housekeeping',
-  'Housekeeping Laundry Attendant': 'housekeeping',
-  'Housekeeping Public Area Attendant': 'housekeeping',
-  'Director of Engineering': 'engineering',
-  'Engineering Supervisor': 'engineering',
-  'Shift Engineer': 'engineering',
-  'Director of Rooms': 'frontOffice',
-  'Assistant Director of Rooms': 'frontOffice',
-  'Director of Front Office': 'frontOffice',
-  'Front Office Manager': 'frontOffice',
-  'Front Office Supervisor': 'frontOffice',
-  'Front Office Agent': 'frontOffice',
-  'Front Office Trainee': 'frontOffice',
-  'Night Manager': 'night',
-  'Night Auditor': 'night',
-  'Night Agent': 'night',
-};
-
-const CATEGORY_TABS: Record<RoleCategory, TabId[]> = {
-  admin: ['Home', 'Rooms', 'Chat', 'Tickets', 'LostAndFound', 'Staff', 'Settings'],
-  housekeepingSupervisor: ['Home', 'Rooms', 'Chat', 'Tickets', 'LostAndFound', 'Staff', 'Settings'],
-  housekeeping: ['Home', 'Rooms', 'Chat', 'Tickets'],
-  engineering: ['Home', 'Chat', 'Tickets', 'LostAndFound'],
-  frontOffice: ['Home', 'Chat', 'Tickets', 'LostAndFound'],
-  night: ['Home', 'Chat', 'Tickets', 'LostAndFound'],
-};
-
 export function getAllowedTabs(roleName: string | undefined | null): TabId[] {
-  if (!roleName) return ['Home', 'Chat'];
-  const category = ROLE_CATEGORY_MAP[roleName];
-  if (!category) return ['Home', 'Chat'];
-  return CATEGORY_TABS[category];
+  return getPermissionsForRole(roleName).reduce<TabId[]>((acc, permission) => {
+    const tab = Object.entries(TAB_PERMISSION).find(
+      ([, perm]) => perm === permission
+    )?.[0] as TabId | undefined;
+    if (tab && !acc.includes(tab)) acc.push(tab);
+    return acc;
+  }, []);
 }
 
 export function isTabAllowed(tabId: string, roleName: string | undefined | null): boolean {
-  const allowed = getAllowedTabs(roleName);
-  return allowed.includes(tabId as TabId);
+  const permission: Permission | undefined = TAB_PERMISSION[tabId];
+  if (!permission) return true;
+  return getPermissionSet(roleName).has(permission);
 }

@@ -5,11 +5,9 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
-import { AuthProvider } from '@/components/AuthProvider';
-import { ToastProvider } from '@/contexts/ToastContext';
-import { MessageModalProvider } from '@/contexts/MessageModalContext';
-import { AIChatOverlayProvider } from '@features/ai-agent';
+import { AppProviders } from '@/providers/AppProviders';
 import { useAuth } from '@features/auth';
+import '../src/global.css';
 import {
   incomingAlertDedupeKeyFromPushData,
   presentIncomingNotificationAlert,
@@ -112,31 +110,25 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <AuthProvider>
-          <ToastProvider>
-            <NotificationExperience />
-            <MessageModalProvider>
-              <AIChatOverlayProvider>
-                <StatusBar style="auto" />
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-                  <Stack.Screen name="room/[roomId]" />
-                  <Stack.Screen name="chat/[chatId]" />
-                  <Stack.Screen name="arrival-departure/[id]" />
-                  <Stack.Screen name="assign-rooms" />
-                  <Stack.Screen name="new-chat" />
-                  <Stack.Screen name="create-chat-group" />
-                  <Stack.Screen name="user-profile" />
-                  <Stack.Screen name="create-ticket" />
-                  <Stack.Screen name="select-ticket-location" />
-                  <Stack.Screen name="create-ticket-form" />
-                </Stack>
-              </AIChatOverlayProvider>
-            </MessageModalProvider>
-          </ToastProvider>
-        </AuthProvider>
+        <AppProviders>
+          <NotificationExperience />
+          <StatusBar style="auto" />
+          <Stack screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="index" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+            <Stack.Screen name="room/[roomId]" />
+            <Stack.Screen name="chat/[chatId]" />
+            <Stack.Screen name="arrival-departure/[id]" />
+            <Stack.Screen name="assign-rooms" />
+            <Stack.Screen name="new-chat" />
+            <Stack.Screen name="create-chat-group" />
+            <Stack.Screen name="user-profile" />
+            <Stack.Screen name="create-ticket" />
+            <Stack.Screen name="select-ticket-location" />
+            <Stack.Screen name="create-ticket-form" />
+          </Stack>
+        </AppProviders>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

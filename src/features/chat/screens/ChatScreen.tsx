@@ -310,7 +310,7 @@ export default function ChatScreen() {
       />
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
 
       {/* New Chat Menu */}
       <NewChatMenu

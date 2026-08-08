@@ -85,7 +85,7 @@ export default function SettingsScreen() {
         
       </View>
       
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
     </View>
   );
 }

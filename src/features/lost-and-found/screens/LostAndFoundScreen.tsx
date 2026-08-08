@@ -904,7 +904,7 @@ export default function LostAndFoundScreen() {
       <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
 
       {/* Bottom Navigation */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
 
       {/* Register Modal */}
       <RegisterLostAndFoundModal

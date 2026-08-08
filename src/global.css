@@ -1,0 +1,92 @@
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/preflight.css" layer(base);
+@import "tailwindcss/utilities.css";
+
+/* ---------------------------------------------------------------------------
+   Hestia design tokens → Tailwind theme utilities.
+   Single source of truth remains design-system.json (repo root, loaded via
+   src/theme). Keep these colors in sync when design-system.json changes.
+   --------------------------------------------------------------------------- */
+
+@layer theme {
+  @theme {
+    /* Brand colors */
+    --color-primary: #5a759d;
+    --color-primary-light: #607aa1;
+    --color-primary-dark: #334866;
+
+    /* Room status */
+    --color-status-dirty: #f92424;
+    --color-status-in-progress: #f0be1b;
+    --color-status-cleaned: #4a91fc;
+    --color-status-inspected: #41d541;
+    --color-status-priority: #ffebeb;
+
+    /* Backgrounds */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #eef0f6;
+    --color-bg-tertiary: #f1f6fc;
+    --color-bg-card: #f9fafc;
+    --color-bg-header: #e4eefe;
+
+    /* Text */
+    --color-text-primary: #1e1e1e;
+    --color-text-secondary: #334866;
+    --color-text-tertiary: #a0a0a0;
+    --color-text-light: #b1afaf;
+    --color-text-accent: #5a759d;
+    --color-text-pink: #ff46a3;
+
+    /* Borders */
+    --color-border-light: #dbdbdb;
+    --color-border-medium: #e3e3e3;
+    --color-border-dark: #e6e6e6;
+
+    /* Badges */
+    --color-badge-eta: #e9f7e9;
+    --color-badge-etd: #ffe3e3;
+    --color-badge-group: #ffebeb;
+
+    /* Radius (design-system.json) */
+    --radius-sm: 6px;
+    --radius-md: 9px;
+    --radius-lg: 10px;
+    --radius-xl: 12px;
+    --radius-2xl: 17px;
+    --radius-3xl: 31px;
+    --radius-4xl: 37px;
+    --radius-5xl: 41px;
+
+    /* Type scale (design-system.json fontSizes) */
+    --text-hestia-xs: 11px;
+    --text-hestia-sm: 12px;
+    --text-hestia-base: 13px;
+    --text-hestia-md: 14px;
+    --text-hestia-lg: 15px;
+    --text-hestia-xl: 16px;
+    --text-hestia-2xl: 17px;
+    --text-hestia-3xl: 18px;
+    --text-hestia-4xl: 20px;
+    --text-hestia-7xl: 24px;
+    --text-hestia-8xl: 34px;
+  }
+}
+
+/* Platform-specific font families */
+@media android {
+  :root {
+    --font-mono: monospace;
+    --font-rounded: normal;
+    --font-serif: serif;
+    --font-sans: normal;
+  }
+}
+
+@media ios {
+  :root {
+    --font-mono: ui-monospace;
+    --font-serif: ui-serif;
+    --font-sans: system-ui;
+    --font-rounded: ui-rounded;
+  }
+}

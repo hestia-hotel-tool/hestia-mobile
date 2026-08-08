@@ -1133,7 +1133,7 @@ export default function HomeScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={profile?.role} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
 
       {/* Filter Modal */}
       <HomeFilterModal

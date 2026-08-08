@@ -8,7 +8,7 @@ import { MORE_MENU_OPTIONS } from '@/types/more.types';
 import type { ReturnToTab } from '@/types/navigation';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { useBottomTabBadges } from '../hooks/useBottomTabBadges';
-import { getAllowedTabs, isTabAllowed } from '@/config/rolePermissions';
+import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 
@@ -16,7 +16,6 @@ interface BottomTabBarProps {
   activeTab: string;
   onTabPress?: (tab: string, options?: TabPressOptions) => void;
   onMorePress?: () => void;
-  role?: string | null;
 }
 
 /** Registered expo-router route name for each tab's screen. */
@@ -81,12 +80,13 @@ const MAIN_TABS = [
   },
 ];
 
-export default function BottomTabBar({ activeTab, onTabPress, onMorePress, role }: BottomTabBarProps) {
+export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
+  const { can } = usePermissions();
 
   const tabs = useMemo(
     () => {
@@ -100,9 +100,13 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress, role 
           iconHeight: option.iconHeight,
         })),
       ];
-      return role ? all.filter((t) => isTabAllowed(t.id, role)) : all;
+      // RBAC: only show tabs the user's role has permission to view.
+      return all.filter((t) => {
+        const permission = TAB_PERMISSION[t.id];
+        return !permission || can(permission);
+      });
     },
-    [role]
+    [can]
   );
 
   const scrollRef = useRef<ScrollView | null>(null);

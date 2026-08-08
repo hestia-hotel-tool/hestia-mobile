@@ -925,7 +925,7 @@ export default function AllRoomsScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} role={userProfile?.role} />
+      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
 
       {/* Status Change Modal */}
       <StatusChangeModal

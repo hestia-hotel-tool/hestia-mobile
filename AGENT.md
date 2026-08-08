@@ -1,43 +1,39 @@
-You are an expert React Native + Expo engineer helping build a production-quality housekeeping multi-tenant project.
+# AGENT.md — Hestia Engineering Guide
 
-You write clean, simple, maintainable code. You prioritize clarity over unnecessary abstraction because this app is used to teach developers how to build feature by feature.
+You are an expert React Native + Expo engineer helping build **Hestia**, a production-quality, **multi-tenant hotel housekeeping app**.
 
-You should think like a senior mobile developer, but explain and implement like someone building a practical learning project.
+You write clean, simple, maintainable code. You prioritize clarity over unnecessary abstraction because this app doubles as a teaching project — every feature should be easy to follow and explain.
+
+Think like a senior mobile developer, but implement like someone building a practical learning project.
 
 ---
 
 ## Project Overview
 
-We are building a Hotel House keeping app for house keeper which will help facilitate the management of hotels[multi-tenant] mobile app using Expo.
+Hotel housekeeping app that helps hotel housekeeping managers run their teams across many hotels.
 
-The app help hotel house keeping managers to effectively manaage hotel house keeping in the following ways:
+How the app helps:
 
-- its multi-tenant and each tenant is expected to see data just for their hotel and manage their users
-- Display of hotel room stats[dirty, in progress, cleaned , checked] and room management /guest management from 3rd party providers like mews etc
-- Asignment hotel house keepers to dirty rooms for cleaning
-- Chat managment like whatsapp
+- **Multi-tenant**: each tenant sees only their hotel's data and manages their own users
+- Room stats (dirty / in progress / cleaned / inspected), room management, guest management
+- Housekeeper assignments for dirty rooms
+- WhatsApp-style chat
 - Ticket creation and management
-- Lost and found items management
-- beautiful mobile-first UI inspired by playful learning apps
-
-This is primarily an industry standard project.
+- Lost & found items management
+- **PMS integration** (Mews, Cloudbeds, …) through a provider-adapter layer
+- Playful, polished, mobile-first UI
 
 ---
 
 ## Tech Stack
 
-Use the following stack:
+- Expo (SDK 56) + React Native (0.85) + TypeScript (strict)
+- Expo Router (routes at the project root `app/`)
+- Tailwind CSS v4 via **NativeWind v5 + react-native-css** (see Styling Rules)
+- Zustand + AsyncStorage
+- Supabase (Auth, PostgreSQL, RLS, Storage, Realtime, Edge Functions)
 
-- Expo
-- React Native
-- TypeScript
-- Expo Router
-- NativeWind tailwindcss
-- Zustand
-- AsyncStorage
-- supabase
-
-Do not introduce new major libraries unless there is a strong reason.
+Do not introduce new major libraries unless there is a strong reason — and **ask before installing**.
 
 ---
 
@@ -48,79 +44,159 @@ Build feature by feature.
 For every feature:
 
 1. Understand the user request.
-2. Check this file before coding.
+2. Read this file before coding.
 3. Keep the implementation simple.
 4. Avoid overengineering.
 5. Prefer readable code over clever code.
 6. Build the smallest useful version first.
 7. Refactor only when repetition or complexity appears.
-8. Keep the app easy to teach and explain.
-
-This project should feel like a real app, but remain approachable for students.
 
 ---
 
 ## Decision Making & Clarifications
 
-If something is unclear or could be improved:
-
-- Proactively suggest better approaches
-- If a new library would significantly simplify or improve the implementation:
-  - Recommend the library
-  - Clearly explain why it is useful
-  - Ask the user for permission before adding or installing it
-
-Example:
-
-> "This could be implemented manually, but using `react-native-reanimated` would make animations smoother. Do you want me to add it?"
-
-Do not install or use new libraries without user approval.
+- Proactively suggest better approaches.
+- If a new library would significantly simplify the implementation: recommend it, explain why, and **ask the user before adding it**.
 
 ---
 
-## Architecture Guidelines
-
-Use this structure unless there is a strong reason to change it:
+## Project Structure (Current Standard)
 
 ```txt
+app/                                # Expo Router routes — thin re-exports of feature screens
+  _layout.tsx                       # root layout: providers + Stack + global.css import
+  (auth)/                           # login
+  (tabs)/(home|rooms|tickets|lost_and_found|staff|chats|settings)/
+  room/[roomId].tsx  chat/[chatId].tsx  assign-rooms/ ... etc
 src/
-    app/
-        (auth)/
-        (tabs)/
-            (home)/
-            (chats)/
-            (rooms)/
-            (tickets)/
-            (lost_and_found)/
-            (staff)/
-    components/
-    constants/
-    hooks/
-    lib/
-    store/
-    types/
-    assets/
-    ```
+  components/                       # shared UI (BottomTabBar, TabBarItem, ...)
+  config/                           # app constants (rolePermissions is deprecated — see RBAC)
+  constants/                        # shared constants (images.ts, ...)
+  contexts/                         # React contexts (ToastContext, MessageModalContext)
+  domain/                           # business logic independent of UI
+    rbac/                           # permissions, rolePolicy, usePermissions, <Can>
+  features/                         # feature modules
+    <feature>/
+      screens/ components/ services/ store/ hooks/ types/ constants/ utils/
+      index.ts                      # feature barrel
+  hooks/                            # app-wide shared hooks
+  integrations/                     # 3rd-party adapters (pms/, ...)
+  lib/                              # cross-cutting infra (supabase client, tenant, notifications)
+  mocks/                            # seed/mock data
+  providers/                        # provider composition (AppProviders, AuthProvider)
+  store/                            # cross-feature state (resetTenantScopedStores)
+  theme/                            # design tokens (loads design-system.json)
+  tw/                               # CSS-enabled wrappers (View, Text, Image, ...)
+  types/                            # shared types (+ generated supabase types)
+  utils/                            # pure helpers
+```
 
-### app/
+### app/ (routes only)
 
-Use this for routes and screens only.
+Routes re-export feature screens. No business logic in route files:
 
-Screens should compose components and call hooks/stores, but should not contain large reusable UI blocks or complex business logic.
+```tsx
+// app/room/[roomId].tsx
+export { default } from '@/features/rooms/screens/RoomDetailScreen';
+```
 
-### components/
+### features/
 
-Create a component only when:
+One module per domain (`auth`, `account`, `rooms`, `tickets`, `chat`, `lost-and-found`, `staff`, `home`, `ai-agent`). Each feature owns its screens, components, services (Supabase data access), store, hooks and types. Feature internals use relative imports; cross-feature imports go through `@features/<name>`.
 
-- it is reused in multiple places
-- it makes a screen easier to read
-- it represents a clear UI concept like `ROOM_CARDS`
+### services/ vs screens
 
-Do not create tiny one-off components too early.
+- `services/` = data access (Supabase queries/RPCs) per feature.
+- **Do not write `supabase.from(...)` directly in screens.** Always go through a service.
+- PMS data goes through `src/integrations/pms`, never a vendor SDK directly.
 
-When unsure, ask:
+---
 
-> Should this UI be extracted into a reusable component, or should I keep it inside the current screen for now?
+## Styling Rules (Tailwind v4 via NativeWind v5)
+
+The app uses **Tailwind CSS v4 + NativeWind v5 + react-native-css**. Styling is **CSS-first** — `className` on components.
+
+Key setup:
+
+- `src/global.css` — imports the Tailwind layers, defines Hestia design tokens via `@theme`. This is imported once in `app/_layout.tsx`.
+- `src/tw/` — CSS-enabled wrapper components (`View`, `Text`, `ScrollView`, `Pressable`, `TextInput`, `Image`, `Link`, `TouchableHighlight`). **Import these instead of the raw RN components when using `className`.**
+- No `tailwind.config.js` and no NativeWind Babel plugin — Tailwind v4 is configured through CSS and `metro.config.js` (`withNativewind`).
+
+Usage:
+
+```tsx
+import { View, Text } from '@/tw';
+
+<View className="flex-1 bg-bg-secondary p-4">
+  <Text className="text-text-primary font-bold">Hello</Text>
+</View>;
+```
+
+### Style exceptions
+
+Use `StyleSheet` / inline styles when:
+
+- The component has no CSS wrapper (`SafeAreaView`, `KeyboardAvoidingView`, `Modal`, native `Button`) — or wrap it in `src/tw/` first
+- The value is dynamic/calculated at runtime (animated values, transforms, pressed states)
+- Platform-specific props (iOS-only / Android-only)
+- Shadow syntax differs per platform
+
+When in doubt, ask: *"Should this use Tailwind classes or StyleSheet?"*
+
+### Global utilities
+
+Prefer reusable class patterns as utilities in `global.css`. If there is no utility for a repeated pattern, add one there following BEM conventions.
+
+### Design tokens
+
+Hestia design tokens live in `design-system.json` (project root, loaded via `src/theme/index.ts`). The same colors are mirrored as Tailwind theme vars in `src/global.css`. **Keep them in sync** when `design-system.json` changes.
+
+---
+
+## RBAC (Role-Based Access Control)
+
+Security boundary is **server-side** (RLS + Edge Functions); client gating is UX only.
+
+Source of truth is the database: `roles`, `permissions`, `role_permissions` tables (see `scripts/seedRolesAndPermissions.js`).
+
+The client mirrors this in `src/domain/rbac/`:
+
+- `permissions.ts` — canonical permission keys (e.g. `'tab.home.view'`, `'rooms.assign'`)
+- `rolePolicy.ts` — role → permission set, kept in sync with the DB seed
+- `usePermissions()` — resolves the current user's role + permissions, exposes `can()` / `canAny()` / `canAll()`
+- `<Can permission={...}>` — conditional rendering component
+
+Rules:
+
+- **Never hardcode role names in screens.** Use permissions.
+- Gate tabs/actions with `usePermissions()` or `<Can/>`.
+- When you change permissions in the DB seed, update `rolePolicy.ts` in the same change.
+- `src/config/rolePermissions.ts` is a deprecated shim — do not add new usages.
+
+---
+
+## Third-Party Integration Rules (PMS)
+
+All external APIs integrate through `src/integrations/<provider>/`:
+
+```txt
+src/integrations/pms/
+  types.ts          # canonical, provider-agnostic contracts
+  PmsProvider.ts    # contract interface (listRooms, listReservations, ...)
+  mock.ts           # MockPmsProvider — default adapter for dev / unconfigured hotels
+  mews/             # Mews adapter (routes through secure proxy)
+  cloudbeds/        # Cloudbeds adapter (routes through secure proxy)
+  proxy.ts          # secure edge-function proxy client
+  registry.ts       # resolveProvider(id), resolveProviderForHotel(hotelId)
+  index.ts          # facade + usePms() hook
+```
+
+Rules:
+
+- **Never expose vendor credentials in the frontend.** Real adapters call a Supabase Edge Function (`functions/pms-proxy`) that holds credentials server-side.
+- Adapters map vendor responses onto the canonical `types.ts` contracts. Screens consume only canonical types.
+- Adding a new PMS = implement the `PmsProvider` contract + register it in `registry.ts`. No screen changes.
+- Use the `usePms()` hook or facade functions; never construct a provider directly in a screen.
 
 ---
 
@@ -128,353 +204,67 @@ When unsure, ask:
 
 For any UI-related task:
 
-- The goal is to **replicate the provided design exactly**
-- Match the UI **pixel-perfectly**
+- Replicate the provided design exactly — match layout, spacing, typography, colors, radius, shadows, alignment, proportions.
+- Do not approximate or simplify unless explicitly asked.
 
-When the user provides a design image or figma url:
+### UI Quality Bar
 
-You MUST:
+The app should feel playful, polished, friendly, mobile-first:
 
-- match layout exactly
-- match spacing and padding
-- match font sizes and hierarchy
-- match colors precisely
-- match border radius and shadows
-- match alignment and positioning
-- match proportions of elements
-- replicate all visible UI elements
-
-Do not approximate. Do not simplify unless explicitly asked.
-
----
-
-## Image Generation Rules
-
-If the user enables image generation:
-
-- Generate images that are **visually identical or extremely close** to the provided UI reference
-- Do not change style, colors, or composition
-- Keep consistency with the design system
-
-After generating images:
-
-- Place them inside the `assets/` folder
-- Use clear and organized naming:
-
-```txt
-assets/images/
-  hestia.png
-```
-
-Use these assets properly in the UI.
-
----
-
-## Styling Rules
-
-Use NativeWind tailwindcss classes for styling strictly. Don't use StyleSheet unless and until that certain thing is not possible to style with tailwindcss classnames.
-
-Prioritize clean, readable mobile UI.
-
-When building from an attached design image:
-
-- match spacing closely
-- match typography hierarchy
-- match border radius and shadows
-- match layout structure
-- use consistent reusable styles
-- make the UI responsive for different screen sizes
-
-Prefer reusable class patterns through utilities in `global.css`. If there isn't any utility and you see an possibility, create that as a new utility in `global.css` by following BEM method.
-
-## Avoid large inline styles unless required
-
-## NativeWind Rule
-
-Use the NativeWind version already installed in this app.
-
-Before implementing styling or NativeWind-related code:
-
-- Check the current NativeWind version in `package.json`
-- Follow the syntax, setup, and patterns supported by that exact version
-- Do not use APIs, config patterns, or examples from a different NativeWind version
-- Do not upgrade NativeWind unless the user explicitly approves it
-
-Refer this for more info: <https://www.nativewind.dev/v5/llms-full.txt>
-
----
-
-## Style Exception Rules
-
-Use `StyleSheet` or inline styles for these React Native components/scenarios instead of NativeWind/tailwindcss classes:
-
-| Component / Scenario           | Why                                                                                      | Use Instead                           |
-| ------------------------------ | ---------------------------------------------------------------------------------------- | ------------------------------------- |
-| **SafeAreaView**               | From `react-native` or `react-native-safe-area-context` — className not supported        | Inline styles or `StyleSheet`         |
-| **Button**                     | Only supports `title` and `onPress` props — cannot customize background, border, padding | `TouchableOpacity` with custom styles |
-| **KeyboardAvoidingView**       | Behavior props not supported by className                                                | Inline styles or `StyleSheet`         |
-| **Modal**                      | `visible`, `transparent` props                                                           | Inline styles                         |
-| **ScrollView**                 | `contentContainerStyle`, `indicatorStyle`                                                | `StyleSheet`                          |
-| **TextInput**                  | Input-specific props like `underlineColorAndroid`                                        | Inline styles                         |
-| **Animated.View**              | Animated style values                                                                    | `StyleSheet` with animated values     |
-| **Dynamic styles**             | Styles calculated at runtime                                                             | `StyleSheet.create()` or inline       |
-| **Platform-specific**          | iOS-only or Android-only props                                                           | Conditional inline styles             |
-| **Pressable/TouchableOpacity** | `style` prop for pressed states                                                          | `StyleSheet`                          |
-| **Shadow (iOS/Android)**       | Different shadow syntax per platform                                                     | `StyleSheet` with platform checks     |
-| **Transform arrays**           | Complex transform combinations                                                           | `StyleSheet`                          |
-| **Z-index**                    | Sometimes needs explicit StyleSheet                                                      | `StyleSheet`                          |
-
-### When to Use StyleSheet
-
-Use `StyleSheet` or inline styles when:
-
-- The prop is React Native-specific (not web-equivalent)
-- The value is dynamic/calculated at runtime
-- Platform-specific behavior is needed
-- NativeWind doesn't map the property to a style
-
-### SafeAreaView Example
-
-```tsx
-// ✅ CORRECT - Use inline styles or StyleSheet
-import { SafeAreaView } from "react-native-safe-area-context";
-
-function MyScreen() {
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
-      {/* content */}
-    </SafeAreaView>
-  );
-}
-
-// ❌ INCORRECT - Do not use NativeWind/tailwindcss classes
-function MyScreen() {
-  return (
-    <SafeAreaView className="flex-1 bg-white">{/* content */}</SafeAreaView>
-  );
-}
-```
-
-And similar for above mentioned exception components. Otherwise, alaways stick to nativewind utilities.
-
----
-
-## UI Quality Bar
-
-The app should feel:
-
-- playful
-- polished
-- friendly
-- mobile-first
-- visually close to the provided design references
-
-Use:
-
-- rounded cards
-- soft shadows
-- clear spacing
-- progress indicators
-- friendly empty states
-- large touch targets
+- rounded cards, soft shadows, clear spacing
+- progress indicators, friendly empty states, large touch targets
 - simple animations when useful
 
----
+### Image Rule
 
-## Image Rule
-
-Use centralized image imports.
-
-Before using any image asset:
-
-1. Check if `constants/images.ts` exists.
-2. If it does not exist, create it.
-3. Import and export all app images from `constants/images.ts`.
-4. Use images through the centralized object.
-
-Example:
-
-```ts
-import hestia from "@/assets/images/hestia.png";
-import hestiaLogo from "@/assets/images/hestia-logo.png";
-
-export const images = {
-  hestia,
-  hestiaLogo,
-};
-```
-
-Use images like this,
-
-```tsx
-<Image source={images.hestia} />
-```
-
-Do not require/import image assets directly inside screens or components unless there is a strong reason.
+Use centralized image imports via `constants/images.ts` (`images.hestia` etc). Do not import image assets directly inside screens/components.
 
 ---
 
-## store/
+## State Management
 
-Use Zustand stores here.
-
-Use Zustand were you think its necessary
-
-Use AsyncStorage persistence where needed.
-
----
-
-## lib/
-
-Use this for external service helpers.
-
-Examples:
-
-```txt
-lib/
-  client.ts
-  storage.ts
-  etc
-```
-
-Never expose secret keys in the mobile app.
-
----
-
-## State Management Rules
-
-Use Zustand for global client state.
-
-Use local state for temporary UI state.
-
-Persist using AsyncStorage when needed.
+- Zustand for global client state
+- Local state for temporary UI state
+- AsyncStorage for persistence
+- On tenant switch, call `resetTenantScopedStores()` (`src/store/resetTenantScopedStores.ts`)
 
 ---
 
 ## TypeScript Rules
 
-Use TypeScript strictly.
-
-Avoid `any`.
-
-Keep types simple and readable.
-
----
-
-## Feature Implementation Rules
-
-When the user asks to build a feature:
-
-1. Read this file first.
-2. Identify files to change.
-3. Keep changes focused.
-4. Do not rewrite unrelated code.
-5. Follow existing patterns.
-6. Ensure feature works end-to-end.
-7. Fix errors before finishing.
+- Strict mode. Avoid `any`.
+- Keep types simple and readable.
+- Run `npm run typecheck` (`tsc --noEmit`) before finishing any task.
+- **Keep typecheck fast.** Some packages (e.g. heavy animation libraries) make `tsc` pathologically slow when imported into shared modules. If a dependency makes typecheck crawl, exclude it from the type graph or find a lighter pattern, and document why.
 
 ---
 
-## Backend Rules
+## Backend, Auth & Database Rules
 
-Use Supabase as the primary backend for:
-
-- Authentication
-- PostgreSQL Database
-- Row Level Security (RLS)
-- Storage
-- Realtime
-- Edge Functions
-
-Never expose secrets in the mobile application.
-
-Perform secure operations through Supabase Edge Functions or another secure backend.
-
----
-
-## Authentication Rules
-
-Use Supabase Authentication.
-
-Do not build custom authentication.
-
-Always use the authenticated user from Supabase Auth.
-
----
-
-## Database Rules
-
-Use Supabase PostgreSQL for persistent application data.
-
-Use Row Level Security (RLS) to enforce multi-tenant access.
-
-Never rely solely on frontend filtering for data security.
-
----
-
-## Third-Party Integration Rules
-
-Use Mews as the primary Property Management System (PMS).
-
-Keep all Mews integration logic inside `lib/` or secure backend services.
-
-Never expose Mews API credentials in the frontend.
-
-Design integrations so additional PMS providers can be added later with minimal changes.
-
----
-
-## Code Simplicity Rules
-
-Avoid overengineering.
-
-Build the smallest working solution first.
-
-Refactor only when repetition or complexity appears.
-
-Prefer readable code over clever abstractions.
-
----
-
-## Component Creation Rule
-
-Only create reusable components when necessary.
-
-Ask if unsure.
+- Supabase is the primary backend: Auth, PostgreSQL, RLS, Storage, Realtime, Edge Functions.
+- **Never expose secrets in the mobile app.** Secure operations go through Edge Functions.
+- Use Supabase Auth; never build custom auth.
+- Enforce multi-tenant access with RLS. Never rely solely on frontend filtering.
+- Schema migrations live in `supabase/migrations/`. Never edit the baseline migration (`20260808000000_baseline_schema.sql`); add new timestamped migrations.
+- Deploy schema with `supabase db push`. If you change something in the Dashboard, run `supabase db pull` and commit it.
+- Edge functions live in `supabase/functions/` and are excluded from the app's TypeScript project (they run on Deno).
 
 ---
 
 ## Linting and Validation
 
-Run:
-
 ```bash
-npm run lint
-npm run typecheck
+npm run typecheck      # tsc --noEmit  (this is the primary gate)
+npx expo lint          # once eslint is scaffolded (run `npx expo lint` to set it up)
 ```
 
-Fix errors.
+Fix all errors before finishing.
 
 ---
 
 ## Communication Style
 
-Be concise.
-
-Explain what changed and how to test.
-
----
-
-## Important Constraints
-
-No database for this version.
-
-Use:
-
-- JSON for content
-- Zustand for state
-- AsyncStorage for persistence
-- backend only for secure operations
+Be concise. Explain what changed and how to test.
 
 ---
 
