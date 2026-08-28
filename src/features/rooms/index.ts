@@ -6,7 +6,7 @@ export { default as AssignRoomsScreen } from './screens/AssignRoomsScreen';
 export { useRoomsStore } from './store/useRoomsStore';
 export * from './services/rooms';
 export * from './services/roomHistory';
-export { dashboardService, type RoomStateUpdate } from './services/dashboard';
+export { dashboardService } from './services/dashboard';
 export * from './types/allRooms.types';
 export * from './types/roomDetail.types';
 export * from './types/checklist.types';

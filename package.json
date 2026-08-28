@@ -4,6 +4,9 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint",
+    "db:types": "supabase gen types typescript --linked --schema public > src/types/supabase.ts",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:roles": "node scripts/seedRolesAndPermissions.js",
     "seed:users": "node scripts/seedUsers.js",
@@ -64,6 +67,8 @@
   "devDependencies": {
     "@types/react": "~19.2.14",
     "babel-plugin-module-resolver": "^5.0.0",
+    "eslint": "^9.0.0",
+    "eslint-config-expo": "~56.0.4",
     "pdf-parse": "^2.4.5",
     "pdf.js-extract": "^0.2.1",
     "pdfjs-dist": "^5.4.530",

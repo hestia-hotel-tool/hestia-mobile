@@ -248,6 +248,7 @@ Use centralized image imports via `constants/images.ts` (`images.hestia` etc). D
 - Schema migrations live in `supabase/migrations/`. Never edit the baseline migration (`20260808000000_baseline_schema.sql`); add new timestamped migrations.
 - Deploy schema with `supabase db push`. If you change something in the Dashboard, run `supabase db pull` and commit it.
 - Edge functions live in `supabase/functions/` and are excluded from the app's TypeScript project (they run on Deno).
+- After any migration, regenerate the typed schema with `npm run db:types` (writes `src/types/supabase.ts`) and commit it in the same change.
 
 ---
 
