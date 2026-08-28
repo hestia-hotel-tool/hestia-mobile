@@ -9,9 +9,6 @@
       ],
       "@features/*": [
         "./src/features/*"
-      ],
-      "@data/*": [
-        "./src/mocks/*"
       ]
     }
   },

@@ -1,7 +1,0 @@
-Test content
-Starting PDF extraction...
-Extraction successful
-Pages: 1
-Text length: 9177
-First 500 chars: roomNum ber roomCat egory   credits   housekeepingStat us houskeepingT ask reservationSt atus   priority   promisedTime   guestNameChec kingIn guestNameChec kingOut datesofStayGue stcheckingIn datesofStayGuest checkingOut vipCodeGuestch eckingIn vipCodeGuestche ckingOut numberOfAdultsG uestcheckingIn numberOfKidsGue stcheckingIn numberOfAdultsGu estcheckingOut numberOfKidsGuest checkingOut   ETA   ETD   roomAttendant Assigned specialInstrustions GuestCheckingIn   roomNotes   noteMadeBy   flagged
-Process completed

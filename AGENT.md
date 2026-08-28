@@ -255,7 +255,7 @@ Use centralized image imports via `constants/images.ts` (`images.hestia` etc). D
 
 ```bash
 npm run typecheck      # tsc --noEmit  (this is the primary gate)
-npx expo lint          # once eslint is scaffolded (run `npx expo lint` to set it up)
+npm run lint           # expo lint (eslint-config-expo, flat config)
 ```
 
 Fix all errors before finishing.
