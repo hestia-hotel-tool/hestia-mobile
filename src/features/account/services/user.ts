@@ -80,7 +80,9 @@ export async function updateAvatar(
   if (!hotelId) {
     throw new Error('No hotel assigned to this user.');
   }
-  const fileName = `${hotelId}/${userId}-${Date.now()}.${normalizedExt}`;
+  // Folder convention: {hotelId}/{entityId}/... so every upload is scoped to
+  // its hotel and owner (matches guest/chat/ticket uploads).
+  const fileName = `${hotelId}/${userId}/avatar-${Date.now()}.${normalizedExt}`;
   const arrayBuffer = base64ToArrayBuffer(imageBase64);
 
   const { error: uploadError } = await supabase.storage

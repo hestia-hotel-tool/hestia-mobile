@@ -110,6 +110,22 @@ One module per domain (`auth`, `account`, `rooms`, `tickets`, `chat`, `lost-and-
 - **Do not write `supabase.from(...)` directly in screens.** Always go through a service.
 - PMS data goes through `src/integrations/pms`, never a vendor SDK directly.
 
+### Storage uploads
+
+Every Supabase Storage upload must be namespaced under folders, never at the
+bucket root:
+
+```txt
+{bucket}/{hotelId}/{entityId}/<file>
+```
+
+- avatars → `avatars/{hotelId}/{userId}/avatar-{ts}.{ext}`
+- guest images → `guest-images/{hotelId}/{guestId}/avatar.{ext}`
+- chat attachments → `chat-attachments/{hotelId}/{userId}/{ts}_{name}`
+- ticket attachments → `ticket-attachments/{hotelId}/{userId}/{ts}_{rand}.jpg`
+
+`{hotelId}` scopes files to the tenant; `{entityId}` is the owning record.
+
 ---
 
 ## Styling Rules (Tailwind v4 via NativeWind v5)
