@@ -34,8 +34,8 @@ import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
 import { dashboardService } from '@features/rooms';
-import { supabase } from '@/lib/supabase';
-import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt } from '@features/rooms';
+import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt, getRoomNumbersByIds } from '@features/rooms';
+import { getLatestPausedAssignment } from '../services/home';
 
 import type { MainTabsParamList } from '@/types/navigation';
 
@@ -191,11 +191,7 @@ export default function HomeScreen() {
     try {
       const logs = await getRecentActivityLogs({ tableName: 'rooms', actionIlike: '%ticket%', limit: 10 });
       const roomIds = Array.from(new Set((logs ?? []).map((l: any) => l.record_id).filter(Boolean)));
-      const roomNumberById = new Map<string, string>();
-      if (roomIds.length > 0) {
-        const { data } = await supabase.from('rooms').select('id, room_number').in('id', roomIds);
-        (data ?? []).forEach((r: any) => roomNumberById.set(r.id, String(r.room_number)));
-      }
+      const roomNumberById = await getRoomNumbersByIds(roomIds);
 
       const items = (logs ?? [])
         .map((l: any) => {
@@ -303,32 +299,13 @@ export default function HomeScreen() {
     try {
       const uid = session?.user?.id;
       if (uid) {
-        const { data: shiftRow } = await supabase
-          .from('shifts')
-          .select('id')
-          .ilike('name', homeData.selectedShift)
-          .limit(1)
-          .maybeSingle();
-        const shiftId = (shiftRow as any)?.id as string | undefined;
-        if (shiftId) {
-          const { data: paused } = await supabase
-            .from('room_assignments')
-            .select('room_id, updated_at')
-            .eq('user_id', uid)
-            .eq('shift_id', shiftId)
-            .eq('work_status', 'paused')
-            .order('updated_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
-          const rid = (paused as any)?.room_id as string | undefined;
-          const updatedAt = (paused as any)?.updated_at as string | undefined;
-          if (rid) {
-            const room = workingRooms.find((r) => r.id === rid);
-            if (room?.roomNumber) pausedRoomLabel = `Room ${room.roomNumber}`;
-            // Prefer the persisted pause start time on the room record when available; fallback to assignment updated_at.
-            const roomPausedAt = (room as any)?.pausedAt as string | null | undefined;
-            pausedStartedAtIso = roomPausedAt ?? updatedAt ?? undefined;
-          }
+        const paused = await getLatestPausedAssignment(uid, homeData.selectedShift);
+        if (paused) {
+          const room = workingRooms.find((r) => r.id === paused.roomId);
+          if (room?.roomNumber) pausedRoomLabel = `Room ${room.roomNumber}`;
+          // Prefer the persisted pause start time on the room record when available; fallback to assignment updated_at.
+          const roomPausedAt = (room as any)?.pausedAt as string | null | undefined;
+          pausedStartedAtIso = roomPausedAt ?? paused.updatedAt ?? undefined;
         }
       }
     } catch (e) {

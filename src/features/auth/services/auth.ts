@@ -131,6 +131,14 @@ export const authService = {
   },
 
   /**
+   * Get the current authenticated user's id (or null when signed out / unconfigured).
+   */
+  async getCurrentUserId(): Promise<string | null> {
+    const session = await this.getSession();
+    return session?.user?.id ?? null;
+  },
+
+  /**
    * Subscribe to auth state changes (e.g. session changes, token refresh)
    */
   onAuthStateChange(

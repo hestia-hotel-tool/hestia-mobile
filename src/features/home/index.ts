@@ -4,3 +4,4 @@ export { default as FilterRow } from './components/FilterRow';
 export { useHomeFilters } from './hooks/useHomeFilters';
 export * from './types/home.types';
 export * from './constants/homeLayout';
+export * from './services/home';

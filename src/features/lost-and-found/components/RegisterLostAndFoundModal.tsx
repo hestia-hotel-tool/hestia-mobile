@@ -18,9 +18,11 @@ import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../constants/lostAndFoundStyles';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStaffFromSupabase } from '@features/staff';
-import { GUEST_IMAGES_BUCKET } from '@/lib/guests';
+import { authService } from '@features/auth';
+import { listRoomsWithReservationGuests } from '@features/rooms';
+import { resolveGuestImageUrl } from '@/lib/guests';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';
@@ -31,14 +33,6 @@ import type { StaffMember } from '@features/staff';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TWO_COL_GAP = 12 * scaleX;
 const PHOTO_GRID_ITEM_SIZE = (SCREEN_WIDTH - 2 * (27 * scaleX) - TWO_COL_GAP) / 2;
-
-function isHttpUrl(raw?: string | null): boolean {
-  return /^https?:\/\//i.test(String(raw ?? '').trim());
-}
-
-function fallbackGuestAvatarUrl(seed: string): string {
-  return `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`;
-}
 
 function getInitials(name?: string): string {
   const parts = String(name ?? '')
@@ -246,8 +240,7 @@ export default function RegisterLostAndFoundModal({
     let cancelled = false;
     const loadStaffWithCurrentUserDefault = async () => {
       const rows = await fetchStaffFromSupabase();
-      const { data: sessionData } = await supabase.auth.getSession();
-      const loginUserId = sessionData?.session?.user?.id ?? null;
+      const loginUserId = await authService.getCurrentUserId();
 
       if (cancelled) return;
       setCurrentUserId(loginUserId);
@@ -285,50 +278,14 @@ export default function RegisterLostAndFoundModal({
     let cancelled = false;
     if (!isSupabaseConfigured) return;
     (async () => {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select(`
-          id,
-          room_number,
-          reservations (
-            guests (
-              id,
-              full_name,
-              vip_code,
-              image_url
-            ),
-            arrival_date,
-            departure_date,
-            adults,
-            kids,
-            front_office_status
-          )
-        `)
-        .order('room_number', { ascending: true });
+      let data: any[];
+      try {
+        data = await listRoomsWithReservationGuests();
+      } catch {
+        return;
+      }
 
-      if (cancelled || error || !data) return;
-
-      const expiresIn = 60 * 60; // 1 hour
-      const resolveAccessibleImageUrl = async (
-        rawUrl: string | null | undefined,
-        seed: string
-      ): Promise<string> => {
-        const v = String(rawUrl ?? '').trim();
-        if (!v) return fallbackGuestAvatarUrl(seed);
-        if (isHttpUrl(v)) return v;
-        try {
-          const { data: signed } = await supabase.storage
-            .from(GUEST_IMAGES_BUCKET)
-            .createSignedUrl(v, expiresIn);
-          const signedUrl = (signed as any)?.signedUrl as string | undefined;
-          if (signedUrl) return signedUrl;
-        } catch {}
-        try {
-          const { data: pub } = supabase.storage.from(GUEST_IMAGES_BUCKET).getPublicUrl(v);
-          if (pub?.publicUrl) return pub.publicUrl;
-        } catch {}
-        return fallbackGuestAvatarUrl(seed);
-      };
+      if (cancelled || !data) return;
 
       const mapped: RoomSelection[] = await Promise.all(
         (data as any[]).map(async (room) => {
@@ -341,7 +298,7 @@ export default function RegisterLostAndFoundModal({
           const guestCount = (reservation?.adults || 0) + (reservation?.kids || 0);
           const guestName = guest?.full_name ?? '';
           const seed = String(guest?.id ?? `${room.id ?? room.room_number}-${guestName || 'guest'}`);
-          const img = await resolveAccessibleImageUrl(guest?.image_url ?? null, seed);
+          const img = await resolveGuestImageUrl(guest?.image_url ?? null, seed);
 
           return {
             id: room.id,

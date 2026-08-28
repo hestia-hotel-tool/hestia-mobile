@@ -376,6 +376,49 @@ const fetchRoomNotesAggregate = async (roomIds: string[]): Promise<Map<string, R
 };
 
 /**
+ * Raw `rooms → reservations → guests` rows for location pickers
+ * (Lost & Found "found location", Create Ticket "select location").
+ * Callers keep their own row → view-model mapping.
+ */
+export async function listRoomsWithReservationGuests(): Promise<any[]> {
+  const { data, error } = await supabase
+    .from('rooms')
+    .select(
+      `
+        id,
+        room_number,
+        reservations (
+          guests (
+            id,
+            full_name,
+            vip_code,
+            image_url
+          ),
+          arrival_date,
+          departure_date,
+          adults,
+          kids,
+          front_office_status
+        )
+      `
+    )
+    .order('room_number', { ascending: true });
+
+  if (error) throw error;
+  return (data ?? []) as any[];
+}
+
+/** Resolve a set of room ids to a `roomId → room_number` map. */
+export async function getRoomNumbersByIds(ids: string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const unique = Array.from(new Set(ids.filter(Boolean)));
+  if (unique.length === 0) return out;
+  const { data } = await supabase.from('rooms').select('id, room_number').in('id', unique);
+  (data ?? []).forEach((r: any) => out.set(r.id, String(r.room_number)));
+  return out;
+}
+
+/**
  * Fetch all rooms with reservations and guests (Supabase).
  */
 export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenData> {

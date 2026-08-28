@@ -21,12 +21,17 @@ import {
 } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@/types/navigation';
 import { LoadingOverlay } from '@/components/LoadingOverlay';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import * as FileSystem from 'expo-file-system/legacy';
+import { isSupabaseConfigured } from '@/lib/supabase';
 import { typography } from '@/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { base64ToArrayBuffer } from '@/utils/encoding';
-import { getMyHotelId } from '@/lib/tenant';
+import {
+  fetchLostAndFoundRows,
+  fetchRegisteredByUsers,
+  getLostAndFoundPublicUrl,
+  createLostAndFoundItem,
+  updateLostAndFoundStatus,
+  setLostAndFoundShipped,
+} from '../services/lostAndFound';
 
 type MainTabsParamList = {
   '(home)/index': undefined;
@@ -172,90 +177,21 @@ export default function LostAndFoundScreen() {
     }
 
     try {
-      const baseSelect = `
-        id,
-        item_name,
-        description,
-        status,
-        storage_location,
-        found_at,
-        room_id,
-        found_location,
-        created_at,
-        found_by_id,
-        registered_by_id,
-        tracking_number,
-        image_url,
-        rooms (
-          room_number,
-          reservations (
-            guests (
-              id,
-              full_name,
-              vip_code,
-              image_url
-            ),
-            arrival_date,
-            departure_date,
-            adults,
-            kids,
-            front_office_status
-          )
-        )
-      `;
-
-      // `shipped_location` is added by a later migration; gracefully fallback when DB is behind.
-      const withShippedSelect = baseSelect.replace('storage_location,', 'storage_location,\n        shipped_location,');
-
-      let data: any[] | null = null;
-      let error: any = null;
-
-      ({ data, error } = await supabase
-        .from('lost_and_found_items')
-        .select(withShippedSelect)
-        .order('found_at', { ascending: false, nullsFirst: false })
-        .order('created_at', { ascending: false }));
-
-      if (!error) shippedLocationColumnAvailableRef.current = true;
-
-      if (error && error.code === '42703') {
-        shippedLocationColumnAvailableRef.current = false;
-        ({ data, error } = await supabase
-          .from('lost_and_found_items')
-          .select(baseSelect)
-          .order('found_at', { ascending: false, nullsFirst: false })
-          .order('created_at', { ascending: false }));
-      }
-
-      if (error || !data) {
+      let rows: any[];
+      try {
+        const result = await fetchLostAndFoundRows();
+        rows = result.rows;
+        shippedLocationColumnAvailableRef.current = result.shippedLocationColumnAvailable;
+      } catch (error) {
         console.warn('[LostAndFoundScreen] Failed to load items', error);
         setItems([]);
         return;
       }
-      const rows = data as any[];
 
-      const staffIds = Array.from(
-        new Set(
-          rows
-            .map((row) => row.registered_by_id ?? row.found_by_id)
-            .filter((id): id is string => Boolean(id))
-        )
+      const userById = await fetchRegisteredByUsers(
+        rows.map((row) => row.registered_by_id ?? row.found_by_id)
       );
 
-      const userById = new Map<string, { full_name?: string | null; avatar_url?: string | null }>();
-      if (staffIds.length > 0) {
-        const { data: usersData, error: usersError } = await supabase
-          .from('users')
-          .select('id, full_name, avatar_url')
-          .in('id', staffIds);
-        if (usersError) {
-          console.warn('[LostAndFoundScreen] Failed to load registered-by users', usersError);
-        } else if (usersData) {
-          (usersData as any[]).forEach((user) => {
-            userById.set(user.id, user);
-          });
-        }
-      }
       const mapped: LostAndFoundItem[] = rows.map((row) => {
         const room = (row as any).rooms;
         const reservation = room?.reservations?.[0];
@@ -268,26 +204,9 @@ export default function LostAndFoundScreen() {
         const registeredByUser = userById.get(row.registered_by_id ?? row.found_by_id);
 
         // Normalize image URL: legacy rows may store only the storage path.
-        let imageUri: string | undefined;
-        if (row.image_url) {
-          if (typeof row.image_url === 'string') {
-            const raw = row.image_url.trim();
-            if (raw.startsWith('http')) {
-              imageUri = raw;
-            } else {
-            const { data: publicUrlData } = supabase.storage
-              .from('lost-and-found')
-              .getPublicUrl(raw);
-            imageUri = publicUrlData.publicUrl || undefined;
-            }
-          } else {
-            const raw = String(row.image_url).trim();
-            const { data: publicUrlData } = supabase.storage
-              .from('lost-and-found')
-              .getPublicUrl(raw);
-            imageUri = publicUrlData.publicUrl || undefined;
-          }
-        }
+        const imageUri = row.image_url
+          ? getLostAndFoundPublicUrl(String(row.image_url))
+          : undefined;
 
         return {
           id: row.id,
@@ -423,199 +342,13 @@ export default function LostAndFoundScreen() {
     registerInflightRef.current = (async () => {
       try {
       if (isSupabaseConfigured) {
-        const itemData = data.itemData ?? {};
-        const title: string = itemData.title ?? '';
-        const notes: string = itemData.notes ?? '';
-        const status: string = itemData.status ?? 'stored';
-        const storedLocation: string | null = itemData.storedLocation ?? null;
-        const selectedLocation: 'room' | 'publicArea' = itemData.selectedLocation ?? 'room';
-        const selectedRoom = itemData.selectedRoom as { number?: string } | undefined;
-        const selectedPublicArea = itemData.selectedPublicArea as string | null | undefined;
-        const selectedDate: Date = itemData.selectedDate ?? new Date();
-        const selectedHour: number = itemData.selectedHour ?? selectedDate.getHours();
-        const selectedMinute: number = itemData.selectedMinute ?? selectedDate.getMinutes();
-        const registeredByIdFromForm: string | null = itemData.registeredBy ?? null;
-
-        const { data: sessionData } = await supabase.auth.getSession();
-        const userId = sessionData?.session?.user?.id ?? null;
-
-        const hotelId = await getMyHotelId();
-        if (!hotelId) throw new Error('No hotel assigned to this user.');
-
-        // Build found_at timestamp
-        const foundAt = new Date(
-          selectedDate.getFullYear(),
-          selectedDate.getMonth(),
-          selectedDate.getDate(),
-          selectedHour,
-          selectedMinute,
-          0,
-          0
-        ).toISOString();
-
-        const foundLocation =
-          selectedLocation === 'room' && selectedRoom?.number
-            ? `Room ${selectedRoom.number}`
-            : selectedPublicArea
-              ? selectedPublicArea
-              : 'Public Area';
-
-        // Use Title when provided; fallback to deriving from notes
-        const itemName =
-          title.trim() ||
-          (notes || '')
-            .split(/[.!]/)[0]
-            .trim()
-            .split(' ')
-            .slice(0, 4)
-            .join(' ') ||
-          'Lost item';
-
-        // Upload first image to Supabase storage (lost-and-found bucket), if present.
-        // Only persist a remote URL so the image displays when loading from DB (iOS and Android).
-        let imageUrl: string | null = null;
-        if (firstImageUri) {
-          try {
-            let body: ArrayBuffer | Blob;
-            let contentType = 'image/jpeg';
-            const extMatch = firstImageUri.split('.').pop();
-            const rawExt = (extMatch || 'jpg').split('?')[0].toLowerCase();
-            const normalizedExt = rawExt === 'heic' ? 'jpg' : rawExt;
-
-            if (firstImageUri.startsWith('file://')) {
-              // Prefer reading local file as base64 -> ArrayBuffer (more consistent for RN uploads).
-              // This avoids relying on fetch() for `file://` URIs.
-              const base64 = await FileSystem.readAsStringAsync(firstImageUri, {
-                encoding: FileSystem.EncodingType.Base64,
-              });
-              body = base64ToArrayBuffer(base64);
-              contentType = normalizedExt === 'png' ? 'image/png' : 'image/jpeg';
-            } else {
-              // content:// or ph:// (Android / iOS library) – copy to cache then read as base64
-              let uriToRead = firstImageUri;
-              if (!firstImageUri.startsWith('file://')) {
-                const tempPath = `${FileSystem.cacheDirectory}lost_found_${Date.now()}.${normalizedExt}`;
-                await FileSystem.copyAsync({ from: firstImageUri, to: tempPath });
-                uriToRead = tempPath;
-              }
-              const base64 = await FileSystem.readAsStringAsync(uriToRead, {
-                encoding: FileSystem.EncodingType.Base64,
-              });
-              contentType = normalizedExt === 'png' ? 'image/png' : 'image/jpeg';
-              // Supabase storage upload is most reliable with an ArrayBuffer in React Native.
-              body = base64ToArrayBuffer(base64);
-            }
-
-            const fileName = `${hotelId}/items/${Date.now()}-${Math.random()
-              .toString(36)
-              .slice(2)}.${normalizedExt}`;
-
-            let uploadData: any = null;
-            let uploadError: any = null;
-
-            // 1) Try signed upload first (often more reliable in RN)
-            try {
-              const { data: signedUpload, error: signedUrlError } = await supabase.storage
-                .from('lost-and-found')
-                .createSignedUploadUrl(fileName, { upsert: false });
-
-              if (!signedUrlError && signedUpload?.token) {
-                const { data: signedUploadData, error: signedUploadError } = await supabase.storage
-                  .from('lost-and-found')
-                  .uploadToSignedUrl(fileName, signedUpload.token, body, {
-                    contentType,
-                  });
-
-                uploadData = signedUploadData;
-                uploadError = signedUploadError;
-                if (signedUploadError) {
-                  console.warn('[LostAndFoundScreen] uploadToSignedUrl failed', {
-                    message: String(signedUploadError?.message ?? signedUploadError ?? ''),
-                    status: (signedUploadError as any)?.status,
-                    statusCode: (signedUploadError as any)?.statusCode,
-                  });
-                }
-              } else if (signedUrlError) {
-                console.warn('[LostAndFoundScreen] createSignedUploadUrl failed', signedUrlError);
-              }
-            } catch (signedException) {
-              console.warn('[LostAndFoundScreen] Signed upload exception', signedException);
-            }
-
-            // 2) Fallback to direct upload with retry
-            if (uploadError || !uploadData?.path) {
-              const maxAttempts = 3;
-              for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-                // eslint-disable-next-line no-await-in-loop
-                const result = await supabase.storage.from('lost-and-found').upload(fileName, body, {
-                  contentType,
-                  upsert: false,
-                });
-                uploadData = result.data;
-                uploadError = result.error;
-
-                if (!uploadError) break;
-
-                const message = String(uploadError?.message ?? uploadError ?? '');
-                const isTransientNetwork = message.includes('Network request failed');
-                if (!isTransientNetwork || attempt === maxAttempts) break;
-
-                console.warn('[LostAndFoundScreen] Upload attempt failed, retrying', {
-                  attempt,
-                  maxAttempts,
-                  message,
-                });
-                // eslint-disable-next-line no-await-in-loop
-                await new Promise((r) => setTimeout(r, attempt * 800));
-              }
-            }
-
-            if (!uploadError && uploadData?.path) {
-              const { data: publicUrlData } = supabase.storage
-                .from('lost-and-found')
-                .getPublicUrl(uploadData.path);
-              const url = publicUrlData.publicUrl ?? null;
-              // Only use URL for DB if it's a remote URL (so it displays when we load items)
-              if (url) imageUrl = url;
-            } else if (uploadError) {
-              console.warn('[LostAndFoundScreen] Failed to upload lost-and-found image', uploadError);
-            }
-          } catch (uploadException) {
-            console.warn('[LostAndFoundScreen] Unexpected error uploading image', uploadException);
-          }
-        }
-
-        if (userId) {
-          const { data: inserted, error } = await supabase
-            .from('lost_and_found_items')
-            .insert({
-              item_name: itemName,
-              description: notes.trim() || null,
-              status,
-              storage_location: storedLocation,
-              found_at: foundAt,
-              found_by_id: userId,
-              registered_by_id: registeredByIdFromForm ?? userId,
-              found_location: foundLocation,
-              room_id:
-                selectedLocation === 'room' && selectedRoom
-                  ? (selectedRoom as any).id
-                  : null,
-              image_url: imageUrl,
-              hotel_id: hotelId,
-            })
-            .select('id, tracking_number, image_url')
-            .single();
-          if (!error && inserted?.tracking_number) {
-            trackingNumberFromDb = inserted.tracking_number;
-          }
-          if (!error && inserted?.id) {
-            pendingInsertedItemIdRef.current = inserted.id;
-          }
-          // Do not refresh here; we refresh once when the user closes the success modal.
-        } else {
-          console.warn('[LostAndFoundScreen] No authenticated user – lost & found item not persisted.');
-        }
+        const result = await createLostAndFoundItem({
+          itemData: data.itemData,
+          imageUri: firstImageUri,
+        });
+        if (result.trackingNumber) trackingNumberFromDb = result.trackingNumber;
+        if (result.id) pendingInsertedItemIdRef.current = result.id;
+        // Do not refresh here; we refresh once when the user closes the success modal.
       }
       } catch (e) {
         console.warn('[LostAndFoundScreen] Failed to persist lost & found item', e);
@@ -690,19 +423,12 @@ export default function LostAndFoundScreen() {
     setStatusUpdatingItemId(item?.id ?? null);
     if (!item || !isSupabaseConfigured) return;
     try {
-      const { error } = await supabase
-        .from('lost_and_found_items')
-        .update({ status: newStatus })
-        .eq('id', item.id);
-      if (error) {
-        console.warn('[LostAndFoundScreen] Failed to update status', error);
-        return;
-      }
+      await updateLostAndFoundStatus(item.id, newStatus);
       setStatusModalItem(null);
       setStatusAnchor(null);
       await loadItems('focus');
     } catch (e) {
-      console.warn('[LostAndFoundScreen] Error updating status', e);
+      console.warn('[LostAndFoundScreen] Failed to update status', e);
     } finally {
       setStatusUpdating(false);
       setStatusUpdatingItemId(null);
@@ -771,35 +497,13 @@ export default function LostAndFoundScreen() {
           return next;
         });
 
-        // If PostgREST doesn't know this column yet, do a status-only update without warning spam.
-        const shippedLocationColumnAvailable = shippedLocationColumnAvailableRef.current;
-        if (shippedLocationColumnAvailable === false) {
-          const statusOnly = await supabase.from('lost_and_found_items').update({ status: 'shipped' }).eq('id', item.id);
-          if (statusOnly.error) {
-            console.warn('[LostAndFoundScreen] Failed to update shipped status', statusOnly.error);
-            return;
-          }
-        } else {
-          // Attempt full update; if schema cache rejects shipped_location, remember and fallback.
-          const { error } = await supabase
-            .from('lost_and_found_items')
-            .update({ status: 'shipped', shipped_location: trimmed })
-            .eq('id', item.id);
-
-          if (error && error.code === 'PGRST204') {
-            shippedLocationColumnAvailableRef.current = false;
-            const statusOnly = await supabase.from('lost_and_found_items').update({ status: 'shipped' }).eq('id', item.id);
-            if (statusOnly.error) {
-              console.warn('[LostAndFoundScreen] Failed to update shipped status', statusOnly.error);
-              return;
-            }
-          } else if (error) {
-            console.warn('[LostAndFoundScreen] Failed to update shipped location', error);
-            return;
-          } else {
-            shippedLocationColumnAvailableRef.current = true;
-          }
-        }
+        // Handles PostgREST schema-cache lag on `shipped_location` internally.
+        const { shippedLocationColumnAvailable } = await setLostAndFoundShipped(
+          item.id,
+          trimmed,
+          shippedLocationColumnAvailableRef.current
+        );
+        shippedLocationColumnAvailableRef.current = shippedLocationColumnAvailable;
 
         setStatusModalItem(null);
         setStatusAnchor(null);

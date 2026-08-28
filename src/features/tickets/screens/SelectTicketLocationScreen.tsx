@@ -19,8 +19,9 @@ import { RouteProp } from 'expo-router/react-navigation';
 import { NativeStackNavigationProp } from 'expo-router';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { GUEST_IMAGES_BUCKET } from '@/lib/guests';
+import { isSupabaseConfigured } from '@/lib/supabase';
+import { resolveGuestImageUrls } from '@/lib/guests';
+import { listRoomsWithReservationGuests } from '@features/rooms';
 import {
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,
@@ -129,28 +130,7 @@ export default function SelectTicketLocationScreen() {
     
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('rooms')
-        .select(`
-          id,
-          room_number,
-          reservations (
-            guests (
-              id,
-              full_name,
-              vip_code,
-              image_url
-            ),
-            arrival_date,
-            departure_date,
-            adults,
-            kids,
-            front_office_status
-          )
-        `)
-        .order('room_number', { ascending: true });
-
-      if (error) throw error;
+      const data = await listRoomsWithReservationGuests();
 
       const now = new Date();
       let roomsData: RoomData[] = (data || []).map((room: any) => {
@@ -232,37 +212,7 @@ export default function SelectTicketLocationScreen() {
       );
 
       if (rawPaths.length > 0) {
-        // 1 hour is plenty for a selection screen session.
-        const expiresIn = 60 * 60;
-        let signedByPath = new Map<string, string>();
-        try {
-          // supabase-js supports createSignedUrls for batching.
-          const { data: signedList, error: signedErr } = await supabase.storage
-            .from(GUEST_IMAGES_BUCKET)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .createSignedUrls(rawPaths as any, expiresIn);
-          if (signedErr) throw signedErr;
-          (signedList ?? []).forEach((item: any) => {
-            if (item?.path && item?.signedUrl) signedByPath.set(String(item.path), String(item.signedUrl));
-          });
-        } catch (e) {
-          // Fallback: try getPublicUrl (if bucket is public) or per-path signed URLs.
-          for (const p of rawPaths) {
-            try {
-              const { data: pub } = supabase.storage.from(GUEST_IMAGES_BUCKET).getPublicUrl(p);
-              if (pub?.publicUrl) {
-                signedByPath.set(p, pub.publicUrl);
-                continue;
-              }
-              const { data: signedOne } = await supabase.storage
-                .from(GUEST_IMAGES_BUCKET)
-                .createSignedUrl(p, expiresIn);
-              if ((signedOne as any)?.signedUrl) signedByPath.set(p, (signedOne as any).signedUrl);
-            } catch {
-              // ignore
-            }
-          }
-        }
+        const signedByPath = await resolveGuestImageUrls(rawPaths);
 
         if (signedByPath.size > 0) {
           roomsData = roomsData.map((r) => ({
