@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Image, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
 import { colors, typography } from '@/theme';
+import LogoMark from '@assets/brand/logo-mark.svg';
 import { useAuth } from '../hooks/useAuth';
 
 const DESIGN_WIDTH = 440;
@@ -36,11 +37,7 @@ export default function SplashScreen() {
     <View style={styles.container}>
       {/* Centered content block (positioned to match Figma). */}
       <View style={styles.logoTitleGroup}>
-        <Image
-          source={require('../../../../assets/logos/header-logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <LogoMark width={53 * scale} height={50 * scale} />
         <Text style={styles.title}>Hestia</Text>
       </View>
 
@@ -73,10 +70,6 @@ function buildSplashStyles(scale: number) {
       // Figma: logo sits ~10px above the wordmark baseline.
       alignItems: 'flex-start',
       justifyContent: 'center',
-    },
-    logo: {
-      width: 53 * scale,
-      height: 50 * scale,
     },
     title: {
       // Figma spacing: ~13px gap from icon to wordmark.
