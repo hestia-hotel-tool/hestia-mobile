@@ -9,6 +9,9 @@
       ],
       "@features/*": [
         "./src/features/*"
+      ],
+      "@assets/*": [
+        "./assets/*"
       ]
     }
   },

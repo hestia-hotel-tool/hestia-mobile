@@ -231,9 +231,20 @@ The app should feel playful, polished, friendly, mobile-first:
 - progress indicators, friendly empty states, large touch targets
 - simple animations when useful
 
-### Image Rule
+### Icons & Images
 
-Use centralized image imports via `constants/images.ts` (`images.hestia` etc). Do not import image assets directly inside screens/components.
+See [`assets/README.md`](assets/README.md) for the full convention. In short:
+
+- **UI icons are SVG**, one concept per file, under `assets/icons/<group>/`,
+  named `domain-concept[-variant]` in kebab-case (no `-icon` suffix).
+- Register each icon in `src/components/Icon/registry.ts`, then render it with
+  `<Icon name="status-dirty" size={20} color={tokens.status.dirty} />`.
+- **Never `require()` an icon or image inside a screen/component.** Non-icon
+  assets import through the `@assets` alias (`@assets/brand/logo.svg`), never
+  deep relative paths.
+- `assets/app/*` (Expo icon/splash/adaptive/favicon) stays PNG. Photographic
+  content stays raster or comes from the DB; person avatars are mock/DB data,
+  not assets.
 
 ---
 
