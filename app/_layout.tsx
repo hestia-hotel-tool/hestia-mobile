@@ -17,6 +17,11 @@ import { setupNotificationPresentation } from '@/lib/notifications';
 import type { PushData } from '@/lib/notifications';
 import { getFullRoomDetails } from '@features/rooms';
 import { router } from 'expo-router';
+import * as NativeSplash from 'expo-splash-screen';
+
+// Keep the native splash up until the first screen has painted, so there is no
+// white flash between the OS splash and the app's launch screen.
+NativeSplash.preventAutoHideAsync().catch(() => {});
 
 function navigateFromPushData(data: Partial<PushData> & Record<string, unknown>) {
   if (data.type === 'chat_message' && typeof data.chatId === 'string') {
@@ -76,6 +81,15 @@ export default function RootLayout() {
     const sub = Notifications.addNotificationResponseReceivedListener(openAppFromNotificationResponse);
     return () => sub.remove();
   }, [openAppFromNotificationResponse]);
+
+  // Reveal the app one frame after the first render — the launch screen shares
+  // the native splash's background, so the handoff is seamless.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => {
+      NativeSplash.hideAsync().catch(() => {});
+    });
+    return () => cancelAnimationFrame(raf);
+  }, []);
 
   useEffect(() => {
     if (!lastNotificationResponse) return;

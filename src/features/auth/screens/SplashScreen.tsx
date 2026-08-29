@@ -1,16 +1,20 @@
-import React, { useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, useWindowDimensions } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Animated, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
 import { router } from 'expo-router';
-import { colors, typography } from '@/theme';
+import { typography } from '@/theme';
 import LogoMark from '@assets/brand/logo-mark.svg';
 import { useAuth } from '../hooks/useAuth';
 
 const DESIGN_WIDTH = 440;
 const DESIGN_HEIGHT = 956;
-const MIN_SPLASH_DURATION_MS = 2000;
 
+/**
+ * Launch screen. The native splash (see app.config.ts) covers the cold-start
+ * gap; this screen shares its background so the handoff is invisible. It exists
+ * only to resolve the session and route on — no spinner, no artificial delay.
+ */
 export default function SplashScreen() {
-  const { session, hotelId, error, isLoading } = useAuth();
+  const { session, hotelId, error, isLoading, signOut } = useAuth();
   const { width, height } = useWindowDimensions();
   const scale = useMemo(
     () => Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT),
@@ -18,24 +22,30 @@ export default function SplashScreen() {
   );
   const styles = useMemo(() => buildSplashStyles(scale), [scale]);
 
+  const [fade] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.timing(fade, { toValue: 1, duration: 250, useNativeDriver: true }).start();
+  }, [fade]);
+
+  // Route as soon as auth state is settled. Cases:
+  //  - no session            -> login
+  //  - session + hotelId     -> home
+  //  - session + error       -> stay, show the recovery action below
   useEffect(() => {
     if (isLoading) return;
-    if (session && !hotelId && !error) return;
+    if (!session) {
+      router.replace('/(auth)/login');
+      return;
+    }
+    if (hotelId) {
+      router.replace('/(tabs)/(home)');
+    }
+  }, [isLoading, session, hotelId]);
 
-    const timer = setTimeout(() => {
-      if (session) {
-        router.replace('/(tabs)/(home)');
-      } else {
-        router.replace('/(auth)/login');
-      }
-    }, MIN_SPLASH_DURATION_MS);
-
-    return () => clearTimeout(timer);
-  }, [isLoading, session, hotelId, error]);
+  const showError = !isLoading && !!session && !!error && !hotelId;
 
   return (
-    <View style={styles.container}>
-      {/* Centered content block (positioned to match Figma). */}
+    <Animated.View style={[styles.container, { opacity: fade }]}>
       <View style={styles.logoTitleGroup}>
         <LogoMark width={53 * scale} height={50 * scale} />
         <Text style={styles.title}>Hestia</Text>
@@ -43,15 +53,22 @@ export default function SplashScreen() {
 
       <Text style={styles.subtitle}>Build by Housekeepers</Text>
       <Text style={styles.tagline}>For Housekeeping</Text>
-      {!!error && <Text style={styles.errorText}>{error}</Text>}
 
-      <View style={styles.indicator} />
-      {(isLoading || (session && !hotelId && !error)) && (
-        <View style={styles.loadingOverlay}>
-          <ActivityIndicator size="large" color={colors.text.white} />
+      {showError && (
+        <View style={styles.errorBlock}>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            style={styles.errorButton}
+            onPress={async () => {
+              await signOut();
+              router.replace('/(auth)/login');
+            }}
+          >
+            <Text style={styles.errorButtonText}>Back to sign in</Text>
+          </Pressable>
         </View>
       )}
-    </View>
+    </Animated.View>
   );
 }
 
@@ -67,14 +84,11 @@ function buildSplashStyles(scale: number) {
       left: 0,
       right: 0,
       flexDirection: 'row',
-      // Figma: logo sits ~10px above the wordmark baseline.
       alignItems: 'flex-start',
       justifyContent: 'center',
     },
     title: {
-      // Figma spacing: ~13px gap from icon to wordmark.
       marginLeft: 13 * scale,
-      // Figma: wordmark top is ~10px below icon top.
       marginTop: 10 * scale,
       fontSize: 39 * scale,
       fontFamily: typography.fontFamily.primary,
@@ -107,37 +121,32 @@ function buildSplashStyles(scale: number) {
       lineHeight: 24 * scale,
       textAlign: 'center',
     },
-    errorText: {
+    errorBlock: {
       position: 'absolute',
-      top: 610 * scale,
+      top: 620 * scale,
       left: 24 * scale,
       right: 24 * scale,
-      paddingHorizontal: 18 * scale,
+      alignItems: 'center',
+    },
+    errorText: {
       fontSize: 14 * scale,
       fontFamily: typography.fontFamily.primary,
       color: '#5A759D',
       textAlign: 'center',
       opacity: 0.95,
     },
-    loadingOverlay: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(238, 240, 246, 0.7)',
-      alignItems: 'center',
-      justifyContent: 'center',
+    errorButton: {
+      marginTop: 16 * scale,
+      paddingVertical: 10 * scale,
+      paddingHorizontal: 24 * scale,
+      borderRadius: 999,
+      backgroundColor: '#5A759D',
     },
-    indicator: {
-      position: 'absolute',
-      bottom: 47 * scale,
-      left: '50%',
-      width: 54 * scale,
-      height: 8 * scale,
-      backgroundColor: '#D9D9D9',
-      borderRadius: 57 * scale,
-      transform: [{ translateX: -(54 * scale) / 2 }],
+    errorButtonText: {
+      fontSize: 15 * scale,
+      fontFamily: typography.fontFamily.primary,
+      fontWeight: '600',
+      color: '#FFFFFF',
     },
   });
 }

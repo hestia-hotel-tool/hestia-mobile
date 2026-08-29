@@ -87,7 +87,16 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       "expo-audio",
       "expo-image",
       "expo-sharing",
-      "expo-splash-screen",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/app/splash-icon.png",
+          imageWidth: 160,
+          resizeMode: "contain",
+          backgroundColor: "#EEF0F6",
+          dark: { backgroundColor: "#EEF0F6" },
+        },
+      ],
       "expo-status-bar",
       [
         "expo-notifications",
