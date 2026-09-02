@@ -40,6 +40,14 @@ const TAB_RETURN_ROUTE: Record<string, ReturnToTab> = {
   Settings: '(settings)/index',
 };
 
+/**
+ * Tabs deliberately outside the permission matrix. The signed-off roles spec
+ * has no column for the AI assistant, so it stays available to everyone until
+ * the spec says otherwise. Everything not listed here must be registered in
+ * TAB_PERMISSION or it will not render.
+ */
+const UNGATED_TABS = new Set<string>(['AIHome']);
+
 const MAIN_TABS = [
   {
     id: 'Home',
@@ -100,10 +108,13 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
           iconHeight: option.iconHeight,
         })),
       ];
-      // RBAC: only show tabs the user's role has permission to view.
+      // RBAC: fail CLOSED. A tab id with no entry in TAB_PERMISSION is hidden
+      // unless it is explicitly listed as ungated, so forgetting to register a
+      // new tab cannot silently expose it to every role.
       return all.filter((t) => {
+        if (UNGATED_TABS.has(t.id)) return true;
         const permission = TAB_PERMISSION[t.id];
-        return !permission || can(permission);
+        return !!permission && can(permission);
       });
     },
     [can]

@@ -1,11 +1,24 @@
-export { PERMISSIONS, TAB_PERMISSION } from './permissions';
+export { PERMISSIONS, ALL_PERMISSIONS, TAB_PERMISSION, TAB_ORDER } from './permissions';
 export type { Permission } from './permissions';
+
+export { resolveLandingRoute, TAB_ROUTE } from './landing';
+
 export {
-  getRoleCategory,
-  getPermissionsForRole,
-  getPermissionSet,
-  roleHasPermission,
-} from './rolePolicy';
-export type { RoleCategory } from './rolePolicy';
+  ROLES,
+  JOB_TITLES,
+  DEPARTMENTS,
+  RIGHTS,
+  permissionsForRole,
+  findRole,
+  findJobTitle,
+} from './matrix';
+export type {
+  RoleDefinition,
+  JobTitleDefinition,
+  DepartmentDefinition,
+  RightDefinition,
+  HomeVariant,
+} from './matrix';
+
 export { usePermissions } from './usePermissions';
 export { Can } from './Can';

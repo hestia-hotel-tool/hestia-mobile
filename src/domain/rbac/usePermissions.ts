@@ -1,39 +1,34 @@
 import { useMemo } from 'react';
-import { useUserStore } from '@features/account';
-import { useAuth } from '@features/auth';
-import {
-  getPermissionSet,
-  getRoleCategory,
-} from './rolePolicy';
+import { usePermissionContext } from '@/providers/PermissionProvider';
 import type { Permission } from './permissions';
 
 /**
- * Resolve the current user's role + permission set.
+ * The current user's permissions.
  *
- * Role comes from the fetched profile (public.users → roles.name), falling
- * back to session metadata so gating works even before the profile loads.
+ * The set is resolved once per session by `PermissionProvider` from
+ * `get_my_permissions()`, so every call here is an O(1) lookup against server
+ * truth — there is no client-side role→permission table to drift.
+ *
+ * Prefer a screen-level capabilities hook over scattering `can()` through JSX:
+ * see `useRoomDetailCapabilities`. For structural gating (routes, tabs) use the
+ * route manifest and the tab filter rather than checking in the screen body.
+ *
+ * Fails closed: while `isLoading` is true the set is empty.
  */
 export function usePermissions() {
-  const profileRole = useUserStore((s) => s.profile?.role ?? null);
-  const { session } = useAuth();
-  const metadataRole =
-    (session?.user.user_metadata?.['role_name'] as string | undefined) ??
-    (session?.user.user_metadata?.['role'] as string | undefined) ??
-    null;
-
-  const role = profileRole ?? metadataRole;
-
-  const permissions = useMemo(() => getPermissionSet(role), [role]);
-  const category = useMemo(() => getRoleCategory(role), [role]);
+  const { permissions, homeVariant, isLoading, error, refresh } = usePermissionContext();
 
   return useMemo(
     () => ({
-      role,
-      category,
+      permissions,
+      homeVariant,
+      isLoading,
+      error,
+      refresh,
       can: (permission: Permission) => permissions.has(permission),
-      canAny: (list: readonly Permission[]) => list.some((perm) => permissions.has(perm)),
-      canAll: (list: readonly Permission[]) => list.every((perm) => permissions.has(perm)),
+      canAny: (list: readonly Permission[]) => list.some((p) => permissions.has(p)),
+      canAll: (list: readonly Permission[]) => list.every((p) => permissions.has(p)),
     }),
-    [role, category, permissions]
+    [permissions, homeVariant, isLoading, error, refresh]
   );
 }

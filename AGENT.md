@@ -171,23 +171,60 @@ Hestia design tokens live in `design-system.json` (project root, loaded via `src
 
 ## RBAC (Role-Based Access Control)
 
-Security boundary is **server-side** (RLS + Edge Functions); client gating is UX only.
+Security boundary is **server-side** (RLS via `auth_has_permission()`); client gating is UX only.
 
-Source of truth is the database: `roles`, `permissions`, `role_permissions` tables (see `scripts/seedRolesAndPermissions.js`).
+### The model
 
-The client mirrors this in `src/domain/rbac/`:
+The signed-off spec (`docs/spec/hestia-roles-2026-01-03.pdf`) defines 54 job
+titles × 18 rights, but those collapse to **11 distinct permission profiles**.
+So:
 
-- `permissions.ts` — canonical permission keys (e.g. `'tab.home.view'`, `'rooms.assign'`)
-- `rolePolicy.ts` — role → permission set, kept in sync with the DB seed
-- `usePermissions()` — resolves the current user's role + permissions, exposes `can()` / `canAny()` / `canAll()`
-- `<Can permission={...}>` — conditional rendering component
+- **`roles`** (11) carry the permissions. Joined on `key`, never on `name`.
+- **`job_titles`** (54) carry the display identity and point at a role.
+- **`users.job_title_id`** is what a person is assigned. `users.role_id` is
+  deprecated and no longer read.
+
+Permissions resolve `users → job_titles → roles → role_permissions`.
+
+### One source, generated outputs
+
+`src/domain/rbac/matrix.json` is the single source of truth. Never hand-edit the
+things derived from it:
+
+```txt
+docs/spec/*.pdf  --(scripts/rbac/parse-spec.py)-->  src/domain/rbac/matrix.json
+matrix.json      --(scripts/generateRbac.js)-----> src/domain/rbac/permissions.ts
+                                                   supabase/migrations/*_rbac_seed.sql
+```
+
+```bash
+npm run rbac:parse-spec   # only when the spec PDF changes (needs poppler)
+npm run rbac:generate     # after any matrix.json change
+```
+
+This is why the client no longer keeps its own role→permission table: it was
+impossible to keep in step with the DB by hand, and the drift silently locked
+users out.
+
+### Client API
+
+- `PermissionProvider` — resolves the user's permission set **once per session**
+  from `get_my_permissions()`. Everything downstream is an O(1) lookup.
+- `usePermissions()` — `can()` / `canAny()` / `canAll()`, plus `isLoading`.
+- `<Can permission={...}>` — for one-off elements.
 
 Rules:
 
-- **Never hardcode role names in screens.** Use permissions.
-- Gate tabs/actions with `usePermissions()` or `<Can/>`.
-- When you change permissions in the DB seed, update `rolePolicy.ts` in the same change.
-- `src/config/rolePermissions.ts` is a deprecated shim — do not add new usages.
+- **Never hardcode role or department names in screens.** Use permissions.
+- **Gate structurally, not per-screen.** Routes go in the route manifest; tabs
+  are filtered from `TAB_PERMISSION`. A screen body should not ask "may I be
+  here?" — the router already guaranteed it.
+- For a screen with several gated elements, derive one memoized capabilities
+  object (see `useRoomDetailCapabilities`) rather than scattering `can()` calls
+  through JSX.
+- **Fail closed.** An unregistered tab or route is denied, not allowed.
+- Changing a right means editing `matrix.json`, running `npm run rbac:generate`,
+  and committing the regenerated files in the same change.
 
 ---
 

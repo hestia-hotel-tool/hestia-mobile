@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Modal, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import MoreMenuItem from './MoreMenuItem';
 import { MORE_MENU_OPTIONS, MoreMenuItemId } from '@/types/more.types';
+import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -14,6 +15,19 @@ interface MorePopupProps {
 }
 
 export default function MorePopup({ visible, onClose, onMenuItemPress }: MorePopupProps) {
+  const { can } = usePermissions();
+
+  // Same gate as the tab bar, and equally fail-closed. Without this the popup
+  // hands out Lost & Found / Staff / Settings to users whose tab bar hides them.
+  const options = useMemo(
+    () =>
+      MORE_MENU_OPTIONS.filter((option) => {
+        const permission = TAB_PERMISSION[option.navigationTarget];
+        return !!permission && can(permission);
+      }),
+    [can]
+  );
+
   return (
     <Modal
       transparent
@@ -28,7 +42,7 @@ export default function MorePopup({ visible, onClose, onMenuItemPress }: MorePop
       >
         <View style={styles.popupWrapper}>
           <View style={styles.popupContainer}>
-            {MORE_MENU_OPTIONS.map((option) => (
+            {options.map((option) => (
               <MoreMenuItem
                 key={option.id}
                 icon={option.icon}
