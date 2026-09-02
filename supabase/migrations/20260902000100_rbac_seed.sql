@@ -10,10 +10,83 @@
 -- Idempotent: safe to re-run. Reference data is upserted by key, and
 -- role_permissions is rebuilt from scratch so a revoked grant is actually
 -- removed rather than left behind.
+--
+-- Ordering matters. The legacy vocabulary is retired BEFORE the new rows go
+-- in, because names are unique and some collide (the old per-title role
+-- "Front Office Agent" vs the new profile of the same name). The legacy
+-- user->role assignment is captured first so the backfill still has it.
 
 BEGIN;
 
--- Departments ---------------------------------------------------------------
+-- 1. Remember who had which legacy role, before we delete those roles.
+CREATE TEMP TABLE legacy_user_roles ON COMMIT DROP AS
+SELECT u.id AS user_id, r.name AS role_name
+  FROM public.users u
+  JOIN public.roles r ON r.id = u.role_id;
+
+-- 2. Retire the legacy vocabulary.
+--    The previous seed used different permission names (view_dashboard,
+--    bill_consumption, ...) and one role per job title, none of it read by
+--    any code or policy. Deleting a role cascades its role_permissions and
+--    nulls the deprecated users.role_id.
+DELETE FROM public.roles WHERE key IS NULL;
+DELETE FROM public.permissions WHERE name NOT IN (
+  'tab.home.view',
+  'tab.rooms.view',
+  'rooms.read',
+  'tab.chat.view',
+  'chat.create',
+  'chat.groups.manage',
+  'tab.tickets.view',
+  'tickets.create',
+  'tickets.update',
+  'tab.lost_and_found.view',
+  'lost_and_found.read',
+  'lost_and_found.register',
+  'tab.staff.view',
+  'staff.read',
+  'tab.settings.view',
+  'rooms.reassign',
+  'rooms.status.update',
+  'rooms.notes.view',
+  'rooms.notes.create',
+  'rooms.special_instructions.view',
+  'rooms.history.view',
+  'rooms.history.export',
+  'rooms.checklist.view',
+  'rooms.checklist.complete',
+  'rooms.credits.view',
+  'rooms.credits.manage',
+  'rooms.front_office_status.view',
+  'rooms.reservation_status.view',
+  'rooms.rush.toggle',
+  'rooms.flag.toggle',
+  'staff.manage',
+  'settings.manage',
+  'tickets.close',
+  'lost_and_found.manage'
+);
+
+-- 3. Departments.
+--    Adopt any row that already carries one of our names but no key —
+--    earlier seeds created departments by name only, and name is UNIQUE, so
+--    inserting alongside them would collide.
+UPDATE public.departments d
+   SET key = v.key
+  FROM (VALUES
+    ('housekeeping', 'Housekeeping'),
+    ('front_office', 'Front Office'),
+    ('concierge', 'Concierge'),
+    ('in_room_dining', 'In Room Dining'),
+    ('engineering', 'Engineering'),
+    ('it', 'IT'),
+    ('executive', 'Executive and Administration'),
+    ('food_beverage', 'Food & Beverage / Kitchen')
+  ) AS v(key, name)
+ WHERE d.name = v.name
+   AND d.key IS NULL
+   AND NOT EXISTS (SELECT 1 FROM public.departments o WHERE o.key = v.key);
+
 INSERT INTO public.departments (key, name, description) VALUES
   ('housekeeping', 'Housekeeping', 'Room attendants, supervisors and housekeeping leadership'),
   ('front_office', 'Front Office', 'Reception, night audit and guest relations'),
@@ -26,7 +99,7 @@ INSERT INTO public.departments (key, name, description) VALUES
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
--- Permissions ---------------------------------------------------------------
+-- 4. Permissions.
 INSERT INTO public.permissions (name, description) VALUES
   ('tab.home.view', 'See the Home (Dashboard) tab'),
   ('tab.rooms.view', 'See the Rooms tab'),
@@ -64,7 +137,7 @@ INSERT INTO public.permissions (name, description) VALUES
   ('lost_and_found.manage', 'Edit and resolve lost & found items')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
--- Roles ---------------------------------------------------------------------
+-- 5. Roles — one per distinct permission profile.
 INSERT INTO public.roles (key, name, description) VALUES
   ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.'),  -- 9 titles
   ('hk_room_attendant', 'Room Attendant', 'Cleans rooms: status changes, notes, checklist and history.'),  -- 1 title
@@ -80,10 +153,8 @@ INSERT INTO public.roles (key, name, description) VALUES
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
--- Role permissions ----------------------------------------------------------
--- Rebuilt wholesale so revoked grants disappear.
-DELETE FROM public.role_permissions
- WHERE role_id IN (SELECT id FROM public.roles WHERE key IS NOT NULL);
+-- 6. Role permissions. Rebuilt wholesale so revoked grants disappear.
+DELETE FROM public.role_permissions;
 
 INSERT INTO public.role_permissions (role_id, permission_id)
 SELECT r.id, p.id
@@ -305,8 +376,7 @@ SELECT r.id, p.id
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
--- Job titles ----------------------------------------------------------------
--- Display identity. Permissions come from the role each title points at.
+-- 7. Job titles. Display identity; permissions come from the role.
 INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant)
 SELECT v.key, v.name, d.id, r.id, v.home_variant
   FROM (VALUES
@@ -373,21 +443,27 @@ ON CONFLICT (key) DO UPDATE
       role_id       = EXCLUDED.role_id,
       home_variant  = EXCLUDED.home_variant;
 
--- Backfill users.job_title_id --------------------------------------------
--- Best effort: match each user's legacy role name against a job title,
--- ignoring case, punctuation and spacing ("Housekeeping Portier / Houseman"
--- vs "Housekeeping Porter / Houseman", "Director of Rooms" vs "Director Of
--- Rooms"). Anything unmatched is left NULL and reported below — those users
--- resolve to no permissions until an admin assigns a title, which is the
--- correct fail-closed behaviour.
+-- 8. Give existing users a job title.
+--    Match the legacy role name captured in step 1 against a job title,
+--    ignoring case, punctuation and spacing ("Housekeeping Portier /
+--    Houseman" vs "Housekeeping Porter / Houseman", "Director of Rooms" vs
+--    "Director Of Rooms"). Anything unmatched stays NULL and resolves to no
+--    permissions, which is the correct fail-closed outcome.
 UPDATE public.users u
    SET job_title_id = jt.id
-  FROM public.roles r
+  FROM legacy_user_roles l
   JOIN public.job_titles jt
     ON regexp_replace(lower(jt.name), '[^a-z0-9]', '', 'g')
-     = regexp_replace(lower(r.name),  '[^a-z0-9]', '', 'g')
- WHERE u.role_id = r.id
+     = regexp_replace(lower(l.role_name),  '[^a-z0-9]', '', 'g')
+ WHERE u.id = l.user_id
    AND u.job_title_id IS NULL;
+
+-- Keep department in step with the assigned title.
+UPDATE public.users u
+   SET department_id = jt.department_id
+  FROM public.job_titles jt
+ WHERE jt.id = u.job_title_id
+   AND u.department_id IS DISTINCT FROM jt.department_id;
 
 DO $$
 DECLARE n_unassigned int;
@@ -395,55 +471,11 @@ BEGIN
   SELECT count(*) INTO n_unassigned FROM public.users WHERE job_title_id IS NULL;
   IF n_unassigned > 0 THEN
     RAISE NOTICE '% user(s) have no job title and therefore no permissions. '
-      'Assign one via the staff admin or scripts/seedUsers.js.', n_unassigned;
+      'Run scripts/seedUsers.js or assign one via the staff admin.', n_unassigned;
   END IF;
 END $$;
 
--- Retire the legacy vocabulary ---------------------------------------------
--- The previous seed used a different permission vocabulary (view_dashboard,
--- bill_consumption, ...) and one role per job title, none of it read by any
--- code or policy. Removing it keeps the tables a faithful picture of the
--- spec. Deleting a role cascades its role_permissions and nulls the
--- deprecated users.role_id.
-DELETE FROM public.roles WHERE key IS NULL;
-DELETE FROM public.permissions WHERE name NOT IN (
-  'tab.home.view',
-  'tab.rooms.view',
-  'rooms.read',
-  'tab.chat.view',
-  'chat.create',
-  'chat.groups.manage',
-  'tab.tickets.view',
-  'tickets.create',
-  'tickets.update',
-  'tab.lost_and_found.view',
-  'lost_and_found.read',
-  'lost_and_found.register',
-  'tab.staff.view',
-  'staff.read',
-  'tab.settings.view',
-  'rooms.reassign',
-  'rooms.status.update',
-  'rooms.notes.view',
-  'rooms.notes.create',
-  'rooms.special_instructions.view',
-  'rooms.history.view',
-  'rooms.history.export',
-  'rooms.checklist.view',
-  'rooms.checklist.complete',
-  'rooms.credits.view',
-  'rooms.credits.manage',
-  'rooms.front_office_status.view',
-  'rooms.reservation_status.view',
-  'rooms.rush.toggle',
-  'rooms.flag.toggle',
-  'staff.manage',
-  'settings.manage',
-  'tickets.close',
-  'lost_and_found.manage'
-);
-
--- Fail the migration if the seed did not land as expected.
+-- 9. Fail the migration if the seed did not land as expected.
 DO $$
 DECLARE n_roles int; n_titles int; n_perms int; n_grants int;
 BEGIN
