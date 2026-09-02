@@ -189,13 +189,15 @@ export default function HomeScreen() {
     }
 
     try {
-      const logs = await getRecentActivityLogs({ tableName: 'rooms', actionIlike: '%ticket%', limit: 10 });
-      const roomIds = Array.from(new Set((logs ?? []).map((l: any) => l.record_id).filter(Boolean)));
+      // Ticket activity now records the ticket as the entity and the room as
+      // the correlation, so read table_name='tickets' and map by room_id.
+      const logs = await getRecentActivityLogs({ tableName: 'tickets', limit: 10 });
+      const roomIds = Array.from(new Set((logs ?? []).map((l: any) => l.room_id).filter(Boolean)));
       const roomNumberById = await getRoomNumbersByIds(roomIds);
 
       const items = (logs ?? [])
         .map((l: any) => {
-          const roomNum = l.record_id ? roomNumberById.get(l.record_id) : undefined;
+          const roomNum = l.room_id ? roomNumberById.get(l.room_id) : undefined;
           const staffName = l.users?.full_name ?? 'Staff';
           const action = String(l.action ?? '').trim();
 
