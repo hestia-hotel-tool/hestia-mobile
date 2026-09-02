@@ -216,12 +216,13 @@ function generateSeedSql() {
   w('INSERT INTO public.roles (key, name, description) VALUES');
   w(
     matrix.roles
-      .map(
-        (r) =>
-          `  (${sql(r.key)}, ${sql(r.name)}, ${sql(r.description)})` +
-          `  -- ${r.titleCount} title${r.titleCount === 1 ? '' : 's'}`
-      )
-      .join(',\n')
+      .map((r, i) => {
+        // Comma before the comment — a trailing `--` would swallow it.
+        const comma = i < matrix.roles.length - 1 ? ',' : '';
+        const titles = `${r.titleCount} title${r.titleCount === 1 ? '' : 's'}`;
+        return `  (${sql(r.key)}, ${sql(r.name)}, ${sql(r.description)})${comma}  -- ${titles}`;
+      })
+      .join('\n')
   );
   w('ON CONFLICT (key) DO UPDATE');
   w('  SET name = EXCLUDED.name, description = EXCLUDED.description;');

@@ -66,16 +66,16 @@ ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- Roles ---------------------------------------------------------------------
 INSERT INTO public.roles (key, name, description) VALUES
-  ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.')  -- 9 titles,
-  ('hk_room_attendant', 'Room Attendant', 'Cleans rooms: status changes, notes, checklist and history.')  -- 1 title,
-  ('hk_houseman', 'Porter / Houseman', 'Support role: rooms, notes and history, no status changes.')  -- 1 title,
-  ('hk_laundry', 'Laundry Attendant', 'Linen duties. No chat.')  -- 1 title,
-  ('hk_public_area', 'Public Area Attendant', 'Public areas only. No room access.')  -- 1 title,
-  ('ops_senior', 'Operations Senior', 'Front Office, Concierge and In-Room Dining leadership.')  -- 20 titles,
-  ('fo_agent', 'Front Office Agent', 'Front desk agents and trainees.')  -- 4 titles,
-  ('concierge_agent', 'Concierge Agent', 'Concierge, bell desk and valet floor staff.')  -- 5 titles,
-  ('ird_service', 'In-Room Dining Service', 'In-room dining order takers and butlers.')  -- 2 titles,
-  ('technical', 'Technical', 'Engineering and IT. Ticket-driven.')  -- 9 titles,
+  ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.'),  -- 9 titles
+  ('hk_room_attendant', 'Room Attendant', 'Cleans rooms: status changes, notes, checklist and history.'),  -- 1 title
+  ('hk_houseman', 'Porter / Houseman', 'Support role: rooms, notes and history, no status changes.'),  -- 1 title
+  ('hk_laundry', 'Laundry Attendant', 'Linen duties. No chat.'),  -- 1 title
+  ('hk_public_area', 'Public Area Attendant', 'Public areas only. No room access.'),  -- 1 title
+  ('ops_senior', 'Operations Senior', 'Front Office, Concierge and In-Room Dining leadership.'),  -- 20 titles
+  ('fo_agent', 'Front Office Agent', 'Front desk agents and trainees.'),  -- 4 titles
+  ('concierge_agent', 'Concierge Agent', 'Concierge, bell desk and valet floor staff.'),  -- 5 titles
+  ('ird_service', 'In-Room Dining Service', 'In-room dining order takers and butlers.'),  -- 2 titles
+  ('technical', 'Technical', 'Engineering and IT. Ticket-driven.'),  -- 9 titles
   ('fnb_kitchen', 'F&B / Kitchen', 'Chat, tickets and lost & found only.')  -- 1 title
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;

@@ -3,8 +3,17 @@
  * Requires: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env
  * Run: node scripts/seedUsers.js
  *
- * Creates auth users and links them to departments/roles in public.users.
+ * Creates auth users and links them to a job title in public.users.
  * Default password: "Hestia2025!" (change in production)
+ *
+ * Permissions come from the job title, not from this file:
+ *   users.job_title_id -> job_titles.role_id -> role_permissions
+ * so a user's access is whatever the signed-off matrix says for that title.
+ * `users.role_id` is deprecated and no longer written. Department is derived
+ * from the job title so the two can never disagree.
+ *
+ * Seed both hotels to exercise tenant isolation, and at least one user per
+ * permission profile so every row of the matrix is testable.
  */
 
 const { createClient } = require('@supabase/supabase-js');
@@ -18,79 +27,56 @@ const DEFAULT_PASSWORD = 'Hestia2025!';
 const DEFAULT_HOTEL_NAME = 'Default Hotel';
 const NEW_HOTEL_NAME = 'Palm Haven Hotel';
 
-// Map role_key (used in users) to role name (stored in roles table)
-const ROLE_KEY_TO_NAME = {
-  general_manager: 'General Manager',
-  hotel_manager: 'Hotel Manager',
-  executive_housekeeper: 'Executive Housekeeper',
-  housekeeping_manager: 'Housekeeping Manager',
-  assistant_housekeeping_manager: 'Assistant Housekeeping Manager',
-  housekeeping_senior_supervisor: 'Senior Supervisor',
-  housekeeping_supervisor: 'Supervisor',
-  housekeeping_coordinator: 'Coordinator',
-  room_attendant: 'Housekeeping Room Attendant',
-  houseman: 'Housekeeping Portier / Houseman',
-  laundry_attendant: 'Housekeeping Laundry Attendant',
-  public_area_attendant: 'Housekeeping Public Area Attendant',
-  director_of_rooms: 'Director of Rooms',
-  assistant_director_of_rooms: 'Assistant Director of Rooms',
-  front_office_director: 'Director of Front Office',
-  front_office_manager: 'Front Office Manager',
-  front_office_supervisor: 'Front Office Supervisor',
-  front_office_agent: 'Front Office Agent',
-  front_office_trainee: 'Front Office Trainee',
-  night_manager: 'Night Manager',
-  night_auditor: 'Night Auditor',
-  night_agent: 'Night Agent',
-  engineering_director: 'Director of Engineering',
-  engineering_supervisor: 'Engineering Supervisor',
-  shift_engineer: 'Shift Engineer',
-  it_admin: 'IT Manager',
-};
-
+// `job_title_key` matches job_titles.key, seeded from src/domain/rbac/matrix.json.
+// The trailing comment is the permission profile that title resolves to.
 const users = [
-  { full_name: 'Wallace Mua', email: 'wallace@hestia.ch', role_key: 'general_manager', department_name: 'Executive Administration', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Stella Kitou', email: 'stella@hestia.ch', role_key: 'hotel_manager', department_name: 'Executive Administration', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Wallace Mua', email: 'wallace@hestia.ch', job_title_key: 'general_manager', hotel_name: DEFAULT_HOTEL_NAME },                       // full_access
+  { full_name: 'Stella Kitou', email: 'stella@hestia.ch', job_title_key: 'hotel_manager', hotel_name: DEFAULT_HOTEL_NAME },                         // full_access
 
-  { full_name: 'Henry Tankeu', email: 'henry@hestia.ch', role_key: 'executive_housekeeper', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Giovanna Rossi', email: 'gio@hestia.ch', role_key: 'housekeeping_manager', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Leon Meyer', email: 'leon@hestia.ch', role_key: 'assistant_housekeeping_manager', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Etleva Kola', email: 'etleva@hestia.ch', role_key: 'housekeeping_senior_supervisor', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Alex Morin', email: 'alex@hestia.ch', role_key: 'housekeeping_supervisor', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Maria Lopez', email: 'maria@hestia.ch', role_key: 'housekeeping_coordinator', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Zoe Cakeri', email: 'zoe@hestia.ch', role_key: 'room_attendant', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Jordan Lee', email: 'jordan@hestia.ch', role_key: 'houseman', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Samantha Nguyen', email: 'sam@hestia.ch', role_key: 'laundry_attendant', department_name: 'Laundry', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Taylor Robinson', email: 'taylor@hestia.ch', role_key: 'public_area_attendant', department_name: 'HSK Portier', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Henry Tankeu', email: 'henry@hestia.ch', job_title_key: 'executive_housekeeper', hotel_name: DEFAULT_HOTEL_NAME },                  // full_access
+  { full_name: 'Giovanna Rossi', email: 'gio@hestia.ch', job_title_key: 'housekeeping_manager', hotel_name: DEFAULT_HOTEL_NAME },                   // full_access
+  { full_name: 'Leon Meyer', email: 'leon@hestia.ch', job_title_key: 'assistant_housekeeping_manager', hotel_name: DEFAULT_HOTEL_NAME },            // full_access
+  { full_name: 'Etleva Kola', email: 'etleva@hestia.ch', job_title_key: 'senior_supervisor', hotel_name: DEFAULT_HOTEL_NAME },                      // full_access
+  { full_name: 'Alex Morin', email: 'alex@hestia.ch', job_title_key: 'supervisor', hotel_name: DEFAULT_HOTEL_NAME },                                // full_access
+  { full_name: 'Maria Lopez', email: 'maria@hestia.ch', job_title_key: 'coordinator', hotel_name: DEFAULT_HOTEL_NAME },                             // full_access
+  { full_name: 'Zoe Cakeri', email: 'zoe@hestia.ch', job_title_key: 'housekeeping_room_attendant', hotel_name: DEFAULT_HOTEL_NAME },                // hk_room_attendant
+  { full_name: 'Jordan Lee', email: 'jordan@hestia.ch', job_title_key: 'housekeeping_porter_houseman', hotel_name: DEFAULT_HOTEL_NAME },            // hk_houseman
+  { full_name: 'Samantha Nguyen', email: 'sam@hestia.ch', job_title_key: 'housekeeping_laundry_attendant', hotel_name: DEFAULT_HOTEL_NAME },        // hk_laundry
+  { full_name: 'Taylor Robinson', email: 'taylor@hestia.ch', job_title_key: 'housekeeping_public_area_attendant', hotel_name: DEFAULT_HOTEL_NAME }, // hk_public_area
 
-  { full_name: 'Chris Johnson', email: 'chris@hestia.ch', role_key: 'director_of_rooms', department_name: 'Executive Administration', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Morgan Patel', email: 'morgan@hestia.ch', role_key: 'assistant_director_of_rooms', department_name: 'Executive Administration', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Chris Johnson', email: 'chris@hestia.ch', job_title_key: 'director_of_rooms', hotel_name: DEFAULT_HOTEL_NAME },                     // ops_senior
+  { full_name: 'Morgan Patel', email: 'morgan@hestia.ch', job_title_key: 'assistant_director_of_rooms', hotel_name: DEFAULT_HOTEL_NAME },           // ops_senior
 
-  { full_name: 'Chi Henry', email: 'chi@hestia.ch', role_key: 'front_office_director', department_name: 'Front Office', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Alex Martinez', email: 'alexm@hestia.ch', role_key: 'front_office_manager', department_name: 'Front Office', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Sofia Blanc', email: 'sofia@hestia.ch', role_key: 'front_office_supervisor', department_name: 'Front Office', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Noah Weber', email: 'noah@hestia.ch', role_key: 'front_office_agent', department_name: 'Front Office', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Emma Dubois', email: 'emma@hestia.ch', role_key: 'front_office_trainee', department_name: 'Front Office', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Chi Henry', email: 'chi@hestia.ch', job_title_key: 'director_of_front_office', hotel_name: DEFAULT_HOTEL_NAME },                    // ops_senior
+  { full_name: 'Alex Martinez', email: 'alexm@hestia.ch', job_title_key: 'front_office_manager', hotel_name: DEFAULT_HOTEL_NAME },                  // ops_senior
+  { full_name: 'Sofia Blanc', email: 'sofia@hestia.ch', job_title_key: 'front_office_supervisor', hotel_name: DEFAULT_HOTEL_NAME },                 // ops_senior
+  { full_name: 'Noah Weber', email: 'noah@hestia.ch', job_title_key: 'front_office_agent', hotel_name: DEFAULT_HOTEL_NAME },                        // fo_agent
+  { full_name: 'Emma Dubois', email: 'emma@hestia.ch', job_title_key: 'front_office_trainee', hotel_name: DEFAULT_HOTEL_NAME },                     // fo_agent
 
-  { full_name: 'Lucas Braun', email: 'lucas@hestia.ch', role_key: 'night_manager', department_name: 'Reception', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Nina Keller', email: 'nina@hestia.ch', role_key: 'night_auditor', department_name: 'Reception', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Paul Steiner', email: 'paul@hestia.ch', role_key: 'night_agent', department_name: 'Reception', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Lucas Braun', email: 'lucas@hestia.ch', job_title_key: 'night_manager', hotel_name: DEFAULT_HOTEL_NAME },                           // ops_senior
+  { full_name: 'Nina Keller', email: 'nina@hestia.ch', job_title_key: 'night_auditor', hotel_name: DEFAULT_HOTEL_NAME },                            // ops_senior
+  { full_name: 'Paul Steiner', email: 'paul@hestia.ch', job_title_key: 'night_agent', hotel_name: DEFAULT_HOTEL_NAME },                             // fo_agent
 
-  { full_name: 'Felix Fuhrken', email: 'felix@hestia.ch', role_key: 'engineering_director', department_name: 'Engineering', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Marco Rossi', email: 'marco@hestia.ch', role_key: 'engineering_supervisor', department_name: 'Engineering', hotel_name: DEFAULT_HOTEL_NAME },
-  { full_name: 'Ivan Petrov', email: 'ivan@hestia.ch', role_key: 'shift_engineer', department_name: 'Engineering', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Felix Fuhrken', email: 'felix@hestia.ch', job_title_key: 'director_of_engineering', hotel_name: DEFAULT_HOTEL_NAME },               // technical
+  { full_name: 'Marco Rossi', email: 'marco@hestia.ch', job_title_key: 'engineering_supervisor', hotel_name: DEFAULT_HOTEL_NAME },                  // technical
+  { full_name: 'Ivan Petrov', email: 'ivan@hestia.ch', job_title_key: 'shift_engineer', hotel_name: DEFAULT_HOTEL_NAME },                           // technical
 
-  { full_name: 'Brian Osei', email: 'brian@hestia.ch', role_key: 'it_admin', department_name: 'IT', hotel_name: DEFAULT_HOTEL_NAME },
+  { full_name: 'Brian Osei', email: 'brian@hestia.ch', job_title_key: 'it_manager', hotel_name: DEFAULT_HOTEL_NAME },                               // technical
+
+  // Added so every one of the 11 permission profiles has a test account.
+  { full_name: 'Yara Haddad', email: 'yara@hestia.ch', job_title_key: 'concierge_agent', hotel_name: DEFAULT_HOTEL_NAME },                          // concierge_agent
+  { full_name: 'Tomas Novak', email: 'tomas@hestia.ch', job_title_key: 'in_room_dining_order_taker', hotel_name: DEFAULT_HOTEL_NAME },              // ird_service
+  { full_name: 'Rui Almeida', email: 'rui@hestia.ch', job_title_key: 'fandb_kitchen_staff', hotel_name: DEFAULT_HOTEL_NAME },                       // fnb_kitchen
 ];
 
 function generateTenantUsers(hotelName) {
   const domain = 'palmhavenhotel.com';
   const templates = [
-    { full_name: 'Amina Diallo', role_key: 'hotel_manager', department_name: 'Executive Administration' },
-    { full_name: 'Jonas Fischer', role_key: 'front_office_manager', department_name: 'Front Office' },
-    { full_name: 'Sofia Mendes', role_key: 'executive_housekeeper', department_name: 'HSK Portier' },
-    { full_name: 'Daniel Kim', role_key: 'engineering_supervisor', department_name: 'Engineering' },
-    { full_name: 'Priya Shah', role_key: 'night_auditor', department_name: 'Reception' },
+    { full_name: 'Amina Diallo', job_title_key: 'hotel_manager' },
+    { full_name: 'Jonas Fischer', job_title_key: 'front_office_manager' },
+    { full_name: 'Sofia Mendes', job_title_key: 'executive_housekeeper' },
+    { full_name: 'Daniel Kim', job_title_key: 'engineering_supervisor' },
+    { full_name: 'Priya Shah', job_title_key: 'night_auditor' },
   ];
 
   return templates.map((t) => {
@@ -181,69 +167,80 @@ async function main() {
   const defaultHotelId = await ensureHotelId(supabase, DEFAULT_HOTEL_NAME);
   const newHotelId = await ensureHotelId(supabase, NEW_HOTEL_NAME);
 
-  // Fetch department and role ids by name
-  const { data: departments } = await supabase.from('departments').select('id, name');
-  const { data: roles } = await supabase.from('roles').select('id, name');
-  const deptMap = Object.fromEntries((departments || []).map(d => [d.name, d.id]));
-  const roleMap = Object.fromEntries((roles || []).map(r => [r.name, r.id]));
+  // Job titles carry both the permission profile and the department, so one
+  // lookup settles everything about a user's access.
+  const { data: jobTitles, error: jobTitleErr } = await supabase
+    .from('job_titles')
+    .select('id, key, name, department_id');
+
+  if (jobTitleErr) {
+    console.error(
+      '[seedUsers] Could not read job_titles: ' + jobTitleErr.message + '\n' +
+        'Apply the RBAC migrations first (`supabase db push`), which create and seed the table.'
+    );
+    process.exit(1);
+  }
+  if (!jobTitles?.length) {
+    console.error('[seedUsers] job_titles is empty. Run `supabase db push` to apply the RBAC seed.');
+    process.exit(1);
+  }
+  const jobTitleMap = Object.fromEntries(jobTitles.map((t) => [t.key, t]));
+  console.log(`[seedUsers] Loaded ${jobTitles.length} job titles`);
 
   const tenantUsers = generateTenantUsers(NEW_HOTEL_NAME);
   const allUsers = [...users, ...tenantUsers];
 
+  // Fail fast on a typo rather than silently seeding a user with no access.
+  const unknown = allUsers.filter((u) => !jobTitleMap[u.job_title_key]);
+  if (unknown.length) {
+    console.error('[seedUsers] Unknown job_title_key values:');
+    for (const u of unknown) console.error(`  ${u.email} -> ${u.job_title_key}`);
+    process.exit(1);
+  }
+
   for (const u of allUsers) {
     try {
-      const roleDisplayName = ROLE_KEY_TO_NAME[u.role_key] || u.role_key;
-      const roleId = roleMap[roleDisplayName] || null;
+      const jobTitle = jobTitleMap[u.job_title_key];
       const hotelId =
         (u.hotel_name || DEFAULT_HOTEL_NAME) === NEW_HOTEL_NAME ? newHotelId : defaultHotelId;
+
+      // Profile fields are derived from the job title, so department and
+      // permissions cannot drift apart.
+      const profile = {
+        full_name: u.full_name,
+        job_title_id: jobTitle.id,
+        department_id: jobTitle.department_id,
+        ...(hotelId ? { hotel_id: hotelId } : {}),
+      };
+
+      // NOTE: hotel_id in user_metadata is what handle_new_auth_user() reads to
+      // place a new user in a tenant. That path trusts a value the user can
+      // write themselves — tracked as a separate security fix; kept here so
+      // seeding keeps working until it is replaced by an invitation table.
+      const metadata = {
+        full_name: u.full_name,
+        role_name: jobTitle.name, // display only; permissions come from the DB
+        ...(hotelId ? { hotel_id: hotelId } : {}),
+      };
+
       const { data: authUser, error: authErr } = await supabase.auth.admin.createUser({
         email: u.email,
         password: DEFAULT_PASSWORD,
         email_confirm: true,
-        user_metadata: {
-          full_name: u.full_name,
-          role_name: roleDisplayName,
-          ...(hotelId ? { hotel_id: hotelId } : {}),
-        },
+        user_metadata: metadata,
       });
 
       if (authErr) {
         if (authErr.message?.includes('already been registered')) {
           console.log(`Skip (exists): ${u.email}`);
-          // Update existing user's department/role and metadata
           const { data: existing } = await supabase.auth.admin.listUsers();
-          const user = existing?.users?.find(x => x.email === u.email);
+          const user = existing?.users?.find((x) => x.email === u.email);
           if (user) {
-            // Update profile: try tenant schema first, then fallback to legacy schema (no hotel_id)
-            let updateRes = await supabase
-              .from('users')
-              .update({
-                department_id: deptMap[u.department_name] || null,
-                role_id: roleId,
-                full_name: u.full_name,
-                ...(hotelId ? { hotel_id: hotelId } : {}),
-              })
-              .eq('id', user.id);
-            if (updateRes.error && (updateRes.error.code === '42703' || updateRes.error.code === 'PGRST204')) {
-              updateRes = await supabase
-                .from('users')
-                .update({
-                  department_id: deptMap[u.department_name] || null,
-                  role_id: roleId,
-                  full_name: u.full_name,
-                })
-                .eq('id', user.id);
-            }
+            const updateRes = await supabase.from('users').update(profile).eq('id', user.id);
             if (updateRes.error) throw updateRes.error;
 
-            await supabase.auth.admin.updateUserById(user.id, {
-              user_metadata: {
-                full_name: u.full_name,
-                role_name: roleDisplayName,
-                ...(hotelId ? { hotel_id: hotelId } : {}),
-              },
-            });
-            console.log(`  Updated profile for ${u.email}`);
+            await supabase.auth.admin.updateUserById(user.id, { user_metadata: metadata });
+            console.log(`  Updated profile for ${u.email} (${jobTitle.name})`);
           }
           continue;
         }
@@ -254,42 +251,15 @@ async function main() {
         console.warn(`Warning: auth user created but trigger failed for ${u.email}. Fixing profile via upsert...`);
       }
 
-      // Ensure public.users row exists and has the right fields (idempotent)
       const userId = authUser.user.id;
-      // Try tenant schema first (hotel_id), then fallback for legacy schema.
-      let upsertRes = await supabase.from('users').upsert(
-        {
-          id: userId,
-          full_name: u.full_name,
-          department_id: deptMap[u.department_name] || null,
-          role_id: roleId,
-          ...(hotelId ? { hotel_id: hotelId } : {}),
-        },
-        { onConflict: 'id' }
-      );
-      if (upsertRes.error && (upsertRes.error.code === '42703' || upsertRes.error.code === 'PGRST204')) {
-        upsertRes = await supabase.from('users').upsert(
-          {
-            id: userId,
-            full_name: u.full_name,
-            department_id: deptMap[u.department_name] || null,
-            role_id: roleId,
-          },
-          { onConflict: 'id' }
-        );
-      }
+      const upsertRes = await supabase
+        .from('users')
+        .upsert({ id: userId, ...profile }, { onConflict: 'id' });
       if (upsertRes.error) throw upsertRes.error;
 
-      // Keep auth metadata in sync (idempotent)
-      await supabase.auth.admin.updateUserById(userId, {
-        user_metadata: {
-          full_name: u.full_name,
-          role_name: roleDisplayName,
-          ...(hotelId ? { hotel_id: hotelId } : {}),
-        },
-      });
+      await supabase.auth.admin.updateUserById(userId, { user_metadata: metadata });
 
-      console.log(`Created: ${u.email} (${u.role_key})`);
+      console.log(`Created: ${u.email} (${jobTitle.name})`);
     } catch (err) {
       console.error(`Failed ${u.email}:`, err?.message || err);
       if (err && typeof err === 'object') {
