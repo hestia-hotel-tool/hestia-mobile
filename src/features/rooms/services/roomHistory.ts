@@ -1,7 +1,7 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { HistoryEvent } from '../types/roomDetail.types';
 import type { TablesInsert } from '@/types/supabase';
-import { getActivityLogsForRecord, logActivity } from '@/lib/activityLogs';
+import { getActivityLogsForRoom, logActivity } from '@/lib/activityLogs';
 
 type RoomHistoryInsert = TablesInsert<'room_history'>;
 
@@ -126,6 +126,7 @@ export async function logRoomHistoryEvent(input: {
     action,
     tableName: 'rooms',
     recordId: input.roomId,
+    roomId: input.roomId,
   });
 
   // 2) Back-compat / storage: keep using room_history for attachments (ticket photos)
@@ -162,7 +163,9 @@ export async function getRoomHistoryEvents(roomId: string): Promise<HistoryEvent
   if (!roomId || !isValidUUID(roomId)) return [];
 
   // Read from the global activity logs table for the Room Detail History UI.
-  const rows = await getActivityLogsForRecord({ tableName: 'rooms', recordId: roomId, limit: 300 });
+  // Correlated on room_id, so a ticket or note change shows here while still
+  // recording its own table and row id in the audit trail.
+  const rows = await getActivityLogsForRoom({ roomId, limit: 300 });
 
   return rows
     .map((row) => {
