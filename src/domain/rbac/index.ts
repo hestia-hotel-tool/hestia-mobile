@@ -2,6 +2,8 @@ export { PERMISSIONS, ALL_PERMISSIONS, TAB_PERMISSION, TAB_ORDER } from './permi
 export type { Permission } from './permissions';
 
 export { resolveLandingRoute, TAB_ROUTE } from './landing';
+export { ROUTE_PERMISSIONS, UNGATED_ROUTES, resolveRoutePermission } from './routePermissions';
+export { RouteGuard, withRouteGuard } from './RouteGuard';
 
 export {
   ROLES,

@@ -3,6 +3,7 @@ import { Animated, View, Text, StyleSheet, Pressable, useWindowDimensions } from
 import { router } from 'expo-router';
 import { typography } from '@/theme';
 import LogoMark from '@assets/brand/logo-mark.svg';
+import { usePermissions, resolveLandingRoute } from '@/domain/rbac';
 import { useAuth } from '../hooks/useAuth';
 
 const DESIGN_WIDTH = 440;
@@ -15,6 +16,7 @@ const DESIGN_HEIGHT = 956;
  */
 export default function SplashScreen() {
   const { session, hotelId, error, isLoading, signOut } = useAuth();
+  const { permissions, isLoading: permissionsLoading } = usePermissions();
   const { width, height } = useWindowDimensions();
   const scale = useMemo(
     () => Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT),
@@ -28,20 +30,28 @@ export default function SplashScreen() {
   }, [fade]);
 
   // Route as soon as auth state is settled. Cases:
-  //  - no session            -> login
-  //  - session + hotelId     -> home
-  //  - session + error       -> stay, show the recovery action below
+  //  - no session               -> login
+  //  - session + hotelId        -> first tab this role may open
+  //  - session + error          -> stay, show the recovery action below
+  //  - session, but no rights   -> stay, explain (see noAccess below)
+  //
+  // The landing route is resolved from permissions rather than hardcoded to
+  // Home: F&B and Kitchen staff have no Dashboard right, so sending everyone to
+  // Home would drop them on a screen they cannot see.
   useEffect(() => {
     if (isLoading) return;
     if (!session) {
       router.replace('/(auth)/login');
       return;
     }
-    if (hotelId) {
-      router.replace('/(tabs)/(home)');
-    }
-  }, [isLoading, session, hotelId]);
+    if (!hotelId || permissionsLoading) return;
 
+    const landing = resolveLandingRoute(permissions);
+    if (landing) router.replace(landing as never);
+  }, [isLoading, session, hotelId, permissionsLoading, permissions]);
+
+  const settled = !isLoading && !!session && !!hotelId && !permissionsLoading;
+  const noAccess = settled && resolveLandingRoute(permissions) === null;
   const showError = !isLoading && !!session && !!error && !hotelId;
 
   return (
@@ -54,9 +64,13 @@ export default function SplashScreen() {
       <Text style={styles.subtitle}>Build by Housekeepers</Text>
       <Text style={styles.tagline}>For Housekeeping</Text>
 
-      {showError && (
+      {(showError || noAccess) && (
         <View style={styles.errorBlock}>
-          <Text style={styles.errorText}>{error}</Text>
+          <Text style={styles.errorText}>
+            {noAccess
+              ? 'This account has not been given a job title, so it has no permissions. Ask your manager to assign one.'
+              : error}
+          </Text>
           <Pressable
             style={styles.errorButton}
             onPress={async () => {

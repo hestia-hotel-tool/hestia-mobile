@@ -8,6 +8,7 @@
     "lint": "expo lint",
     "db:types": "supabase gen types typescript --linked --schema public > src/types/supabase.ts",
     "rbac:generate": "node scripts/generateRbac.js",
+    "rbac:check": "node scripts/rbac/checkRoutes.js",
     "rbac:parse-spec": "python3 scripts/rbac/parse-spec.py",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:users": "node scripts/seedUsers.js",

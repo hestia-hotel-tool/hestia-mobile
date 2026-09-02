@@ -1,1 +1,4 @@
-export { default } from '@features/tickets/screens/CreateTicketFormScreen';
+import { withRouteGuard } from '@/domain/rbac';
+import CreateTicketFormScreen from '@features/tickets/screens/CreateTicketFormScreen';
+
+export default withRouteGuard(CreateTicketFormScreen);

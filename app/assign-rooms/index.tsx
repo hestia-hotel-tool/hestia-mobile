@@ -1,1 +1,4 @@
-export { default } from '@features/rooms/screens/AssignRoomsScreen';
+import { withRouteGuard } from '@/domain/rbac';
+import AssignRoomsScreen from '@features/rooms/screens/AssignRoomsScreen';
+
+export default withRouteGuard(AssignRoomsScreen);
