@@ -99,10 +99,12 @@
     --text-hestia-8xl: 34px;
     --text-hestia-9xl: 39px;
 
-    /* Font families */
-    /* Helvetica is the design-system face. Android has no Helvetica and
-       falls back to Roboto — matching what typography.fontFamily.primary
-       already does in the StyleSheet screens. */
+    /* Font families (iOS / default — see the android block below) */
+    /* Helvetica is the design face and exists on iOS. Android has neither
+       Helvetica nor Inter, and no font files are bundled, so the android
+       media block below declares the real system face instead of relying on
+       a silent fallback — an unrecognised family also makes fontWeight
+       unreliable on Android. */
     --font-hestia-primary: Helvetica;
     --font-hestia-secondary: Inter;
 
@@ -118,6 +120,8 @@
     --font-rounded: normal;
     --font-serif: serif;
     --font-sans: normal;
+    --font-hestia-primary: Roboto;
+    --font-hestia-secondary: Roboto;
   }
 }
 

@@ -381,7 +381,7 @@ derives width from the viewBox, so a 28×14 glyph renders 28×14, not 14×14.
 - Strict mode. Avoid `any`.
 - Keep types simple and readable.
 - Run `npm run typecheck` (`tsc --noEmit`) before finishing any task.
-- **Keep typecheck fast.** Some packages (e.g. heavy animation libraries) make `tsc` pathologically slow when imported into shared modules. If a dependency makes typecheck crawl, exclude it from the type graph or find a lighter pattern, and document why.
+- **Keep typecheck fast.** Some packages make `tsc` pathologically slow when imported into shared modules. If a dependency makes typecheck crawl, exclude it from the type graph or find a lighter pattern, and document why. Measure before assuming — `react-native-reanimated` was long suspected here and, when finally added, moved typecheck from 10.68s to 9.66s, i.e. not at all.
 
 ---
 
@@ -409,6 +409,57 @@ Fix all errors before finishing.
 
 ---
 
+## Cross-Platform Rule (iOS AND Android)
+
+**Every change must work on both platforms. Never verify only the one you happen
+to be running.** This app ships to both; a change that builds on iOS and breaks
+on Android is not done.
+
+### Verify both, every time
+
+```bash
+npm run typecheck
+npx expo export --platform ios
+npx expo export --platform android
+```
+
+**Typecheck is not enough, and neither is the bundler's exit code.**
+
+- `tsc` does not check `require()` of an image. Moving a file with
+  `require('../../assets/…')` in it type-checks perfectly and fails at bundle
+  time. Use the `@assets` alias so paths survive moves.
+- An export can **succeed while silently compiling no CSS at all**, producing a
+  screen with no styling. Confirm the output actually contains your work:
+
+  ```bash
+  strings <output>/_expo/static/js/<platform>/*.hbc | grep -c "bg-status-dirty"
+  ```
+
+  Validate the check itself with a string you know is present, so a zero means
+  "missing", not "grep cannot read this file".
+
+### Where the platforms diverge
+
+- **Fonts.** Helvetica and Inter exist on iOS; Android has neither, and this app
+  bundles no font files. Resolved centrally — `src/theme` uses `Platform.select`
+  and `global.css` has an `@media android` block — so **use
+  `typography.fontFamily` or `font-hestia-*`, never a literal font name.** An
+  unrecognised family on Android also makes `fontWeight` unreliable.
+- **Shadows.** iOS reads `shadow*`; Android needs `elevation`. Set both.
+- **Rounded corners.** Android does not clip children to `borderRadius` — add
+  `overflow: 'hidden'` when a child (an image, usually) must be clipped.
+- **Safe areas.** Use `useSafeAreaInsets()`. Do not hardcode a status-bar height.
+- **Native modules** (reanimated, worklets, svg, …) need
+  `npx expo prebuild` and a rebuild of **both** dev clients. A JS reload will not
+  pick them up, and "works on my simulator" usually means only one was rebuilt.
+
+### When you cannot test both
+
+Say so explicitly and name what is unverified. Do not imply parity you have not
+checked.
+
+---
+
 ## Communication Style
 
 Be concise. Explain what changed and how to test.
@@ -423,3 +474,9 @@ Before every feature implementation:
 - Follow it strictly
 - Build clean, simple, teachable code
 - Replicate UI exactly when designs are provided
+
+Before calling anything done:
+
+- `npm run typecheck` and `npm run lint` clean
+- **Bundle for iOS *and* Android**, and confirm the output contains your change
+  — see the Cross-Platform Rule. Exit code alone is not evidence.

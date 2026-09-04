@@ -114,10 +114,12 @@ for (const [key, value] of Object.entries(ds.typography?.fontSizes ?? {})) {
   emit(`--text-hestia-${kebab(key)}`, value);
 }
 
-section('Font families');
-w('    /* Helvetica is the design-system face. Android has no Helvetica and');
-w('       falls back to Roboto — matching what typography.fontFamily.primary');
-w('       already does in the StyleSheet screens. */');
+section('Font families (iOS / default — see the android block below)');
+w('    /* Helvetica is the design face and exists on iOS. Android has neither');
+w('       Helvetica nor Inter, and no font files are bundled, so the android');
+w('       media block below declares the real system face instead of relying on');
+w('       a silent fallback — an unrecognised family also makes fontWeight');
+w('       unreliable on Android. */');
 for (const [key, value] of Object.entries(ds.typography?.fontFamily ?? {})) {
   emit(`--font-hestia-${kebab(key)}`, value);
 }
@@ -143,6 +145,9 @@ w('    --font-mono: monospace;');
 w('    --font-rounded: normal;');
 w('    --font-serif: serif;');
 w('    --font-sans: normal;');
+for (const [key, value] of Object.entries(ds.typography?.fontFamilyAndroid ?? {})) {
+  w(`    --font-hestia-${kebab(key)}: ${value};`);
+}
 w('  }');
 w('}');
 w();

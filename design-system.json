@@ -55,6 +55,10 @@
       "primary": "Helvetica",
       "secondary": "Inter"
     },
+    "fontFamilyAndroid": {
+      "primary": "Roboto",
+      "secondary": "Roboto"
+    },
     "fontWeights": {
       "light": "300",
       "regular": "400",
