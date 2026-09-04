@@ -1,6 +1,26 @@
 import React from 'react';
+import { StyleSheet } from 'react-native';
 import { View, Text, Pressable, ScrollView } from '@/tw';
 import { Checkbox } from '@/components/ui/Checkbox';
+
+/**
+ * The sheet's drop shadow — Figma node 2702:3186, whose filter is
+ * feGaussianBlur stdDeviation 52.55 over rgb(100,131,176) at 40%. That is the
+ * same shadow as the `shadow.nav` design token (105.1px = 52.55 x 2).
+ *
+ * Expressed as a StyleSheet rather than a `shadow-*` class because the two
+ * platforms take different props, and the design's -35px spread has no React
+ * Native equivalent — the radius here approximates it.
+ */
+const SHEET_SHADOW = StyleSheet.create({
+  s: {
+    shadowColor: 'rgb(100, 131, 176)',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 26,
+    elevation: 12,
+  },
+}).s;
 
 export type FloorOption = {
   id: string;
@@ -37,12 +57,14 @@ export function FloorsFilterSheet({
   onSeeRooms,
 }: FloorsFilterSheetProps) {
   return (
-    <View className="w-full overflow-hidden rounded-2xl bg-surface-primary">
+    // No `overflow-hidden` here: it would clip the drop shadow on iOS, and
+    // nothing needs clipping — every child sits inside the padding.
+    <View className="w-full rounded-4xl bg-surface-primary" style={SHEET_SHADOW}>
       {/* Title + result count — nodes 2702:3193 and 2702:3190 */}
       <View className="flex-row items-center justify-between px-2xl pb-lg pt-2xl">
         <Text className="font-hestia-primary text-hestia-4xl text-ink-primary">Floors Filter</Text>
 
-        <View className="h-[33px] justify-center rounded-3xl bg-badge-results px-lg">
+        <View className="h-[33px] justify-center rounded-full bg-badge-results px-lg">
           <Text className="font-hestia-secondary text-hestia-md font-light text-ink-primary">
             {resultCount} results
           </Text>
@@ -58,7 +80,7 @@ export function FloorsFilterSheet({
       {/* Scrolls when a hotel has more floors than fit — the design shows six. */}
       <ScrollView
         className="max-h-[340px]"
-        contentContainerClassName="gap-xl px-2xl pb-lg"
+        contentContainerClassName="gap-2xl px-2xl pb-lg"
         showsVerticalScrollIndicator={false}
       >
         {options.map((option) => (
@@ -91,7 +113,7 @@ export function FloorsFilterSheet({
           onPress={onSeeRooms}
           accessibilityRole="button"
           accessibilityLabel={`See ${resultCount} rooms`}
-          className="h-[66px] w-[231px] items-center justify-center rounded-4xl bg-primary"
+          className="h-[66px] w-[231px] items-center justify-center rounded-full bg-primary"
         >
           <Text className="font-hestia-secondary text-hestia-3xl font-medium text-ink-white">
             See Rooms
