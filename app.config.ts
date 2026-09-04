@@ -40,7 +40,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       supportsTablet: true,
       bundleIdentifier,
       icon,
-      backgroundColor: "#FFFFFF",
+      backgroundColor: "#EEF0F6",
       infoPlist: {
         ITSAppUsesNonExemptEncryption: false,
         NSUserNotificationsUsageDescription:
@@ -111,7 +111,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           imageWidth: 160,
           resizeMode: "contain",
           backgroundColor: "#EEF0F6",
-          dark: { backgroundColor: "#EEF0F6" },
         },
       ],
       "expo-status-bar",

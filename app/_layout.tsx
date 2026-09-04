@@ -17,10 +17,13 @@ import type { PushData } from '@/lib/notifications';
 import { getFullRoomDetails } from '@features/rooms';
 import { router } from 'expo-router';
 import * as NativeSplash from 'expo-splash-screen';
+import { hideNativeSplash, NATIVE_SPLASH_FAILSAFE_MS } from '@/lib/nativeSplash';
 
 // Keep the native splash up until the first screen has painted, so there is no
-// white flash between the OS splash and the app's launch screen.
+// white flash between the OS splash and the app's launch screen, and cross-fade
+// into it. `fade` is iOS-only; Android cuts, which the shared background hides.
 NativeSplash.preventAutoHideAsync().catch(() => {});
+NativeSplash.setOptions({ duration: 250, fade: true });
 
 function navigateFromPushData(data: Partial<PushData> & Record<string, unknown>) {
   if (data.type === 'chat_message' && typeof data.chatId === 'string') {
@@ -82,12 +85,16 @@ export default function RootLayout() {
   }, [openAppFromNotificationResponse]);
 
   // Reveal the app one frame after the first render — the launch screen shares
-  // the native splash's background, so the handoff is seamless.
+  // the native splash's background, so the handoff is seamless. The timer is a
+  // failsafe: whatever happens to that frame callback, the OS splash comes down.
+  // Neither path waits on auth; see src/lib/nativeSplash.ts.
   useEffect(() => {
-    const raf = requestAnimationFrame(() => {
-      NativeSplash.hideAsync().catch(() => {});
-    });
-    return () => cancelAnimationFrame(raf);
+    const raf = requestAnimationFrame(hideNativeSplash);
+    const failsafe = setTimeout(hideNativeSplash, NATIVE_SPLASH_FAILSAFE_MS);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(failsafe);
+    };
   }, []);
 
   useEffect(() => {

@@ -69,7 +69,10 @@ app/                                # Expo Router routes — thin re-exports of 
   (tabs)/(home|rooms|tickets|lost_and_found|staff|chats|settings)/
   room/[roomId].tsx  chat/[chatId].tsx  assign-rooms/ ... etc
 src/
+  app-shell/                        # composition tier: may import features/ + domain/;
+                                    #   only app/ imports from it (launch, bootstrap)
   components/                       # app-level composites (BottomTabBar, TabBarItem, ...)
+    brand/ launch/ layout/          #   BrandLockup, LaunchView, Screen
   config/                           # app constants (rolePermissions is deprecated — see RBAC)
   contexts/                         # React contexts (ToastContext, MessageModalContext)
   domain/                           # business logic independent of UI

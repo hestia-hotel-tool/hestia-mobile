@@ -12,9 +12,10 @@
  * missing session all deny.
  */
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
-import { Redirect, useSegments, useRouter } from 'expo-router';
+import { Redirect, useSegments } from 'expo-router';
 import { useAuth } from '@features/auth';
+import { LaunchView } from '@/components/launch/LaunchView';
+import { NoAccessNotice, NO_JOB_TITLE_MESSAGE } from './NoAccessNotice';
 import { usePermissions } from './usePermissions';
 import { resolveRoutePermission } from './routePermissions';
 import { resolveLandingRoute } from './landing';
@@ -64,67 +65,19 @@ export function withRouteGuard<P extends object>(Screen: React.ComponentType<P>)
   return Guarded;
 }
 
-/** Shares the launch screen's background so the handoff stays invisible. */
+/**
+ * Shown while permissions resolve. Renders the same visual as the launch
+ * screen, so a cold-start deep link (which never mounts the launch route) shows
+ * the brand rather than a bare spinner on a different background.
+ */
 function GuardSplash() {
-  return (
-    <View style={styles.container}>
-      <ActivityIndicator color="#5A759D" />
-    </View>
-  );
+  return <LaunchView />;
 }
 
 function NoAccess() {
-  const router = useRouter();
-  const { signOut } = useAuth();
-
   return (
-    <View style={[styles.container, styles.padded]}>
-      <Text style={styles.title}>No access yet</Text>
-      <Text style={styles.body}>
-        This account has not been given a job title, so it has no permissions.
-        Ask your manager to assign one.
-      </Text>
-      <Pressable
-        style={styles.button}
-        onPress={async () => {
-          await signOut();
-          router.replace('/(auth)/login');
-        }}
-      >
-        <Text style={styles.buttonText}>Back to sign in</Text>
-      </Pressable>
-    </View>
+    <LaunchView>
+      <NoAccessNotice message={NO_JOB_TITLE_MESSAGE} />
+    </LaunchView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#EEF0F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  padded: { paddingHorizontal: 32 },
-  title: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#5A759D',
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  body: {
-    fontSize: 15,
-    color: '#5A759D',
-    textAlign: 'center',
-    lineHeight: 22,
-    opacity: 0.95,
-  },
-  button: {
-    marginTop: 24,
-    paddingVertical: 12,
-    paddingHorizontal: 28,
-    borderRadius: 999,
-    backgroundColor: '#5A759D',
-  },
-  buttonText: { fontSize: 15, fontWeight: '600', color: '#FFFFFF' },
-});

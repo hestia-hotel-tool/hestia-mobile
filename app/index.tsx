@@ -1,1 +1,1 @@
-export { default } from '@features/auth/screens/SplashScreen';
+export { default } from '@/app-shell/launch/LaunchScreen';

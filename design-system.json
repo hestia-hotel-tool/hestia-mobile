@@ -207,21 +207,6 @@
     "turndown": "Turndown",
     "vacant": "Vacant"
   },
-  "screens": {
-    "splash": {
-      "backgroundColor": "#5a759d",
-      "textColor": "#ffffff"
-    },
-    "login": {
-      "backgroundColor": "#eef0f6",
-      "inputBackground": "#ffffff",
-      "buttonBackground": "#5a759d"
-    },
-    "dashboard": {
-      "backgroundColor": "#ffffff",
-      "cardBackground": "rgba(238, 240, 246, 0.35)"
-    }
-  },
   "icons": {
     "sizes": {
       "xs": "8px",
