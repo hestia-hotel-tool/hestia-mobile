@@ -81,12 +81,11 @@ export default function HomeFilterModal({
   // Calculate position below filter button
   // Use provided heights or defaults for HomeScreen
   const HEADER_HEIGHT = headerHeight || DEFAULT_HEADER_HEIGHT;
-  const HEADER_HEIGHT_MINUS_30 = HEADER_HEIGHT - 30 * scaleX; // Subtract 30 directly from HEADER_HEIGHT for responsive calculation
   const HEADER_MARGIN = DEFAULT_HEADER_MARGIN;
   const SEARCH_BAR_HEIGHT = searchBarHeight || DEFAULT_SEARCH_BAR_HEIGHT;
   
   // Calculate filter icon position (when modal is open)
-  const FILTER_ICON_TOP = HEADER_HEIGHT_MINUS_30 + 5 * scaleX; // Just below header, on top of overlay
+  const FILTER_ICON_TOP = HEADER_HEIGHT + 5 * scaleX; // Just below the header, on top of the overlay
   const FILTER_ICON_HEIGHT = 40 * scaleX; // Filter icon container height
   const FILTER_ICON_BOTTOM = FILTER_ICON_TOP + FILTER_ICON_HEIGHT; // Bottom of filter icon
   const MODAL_MARGIN_FROM_ICON = 10 * scaleX; // Margin between icon and modal
@@ -442,7 +441,10 @@ export default function HomeFilterModal({
     },
     blurOverlay: {
       position: 'absolute' as const,
-      top: HEADER_HEIGHT_MINUS_30, // Responsive calculation: HEADER_HEIGHT - 30
+      // Figma node 2702:3183 — the header stays crisp, the blur begins below
+      // it. BLUR_TOP_OFFSET has always meant this; it just was not used here,
+      // so the blur reached 30px up into the header.
+      top: BLUR_TOP_OFFSET,
       left: 0,
       right: 0,
       bottom: 0,
