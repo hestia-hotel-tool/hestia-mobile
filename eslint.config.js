@@ -17,7 +17,6 @@ module.exports = defineConfig([
       'credentials/**',
       '*.config.js',
       '*.config.mjs',
-      'nativewind-env.d.ts',
       'declarations.d.ts',
     ],
   },

@@ -1,3 +1,9 @@
+> **SUPERSEDED — see [`AGENT.md`](../../AGENT.md).**
+> This document describes the old `design-system.json` token system, where
+> sizes were px-strings needing `parseInt()`, and a Tailwind/NativeWind
+> styling layer that has been removed. Tokens are now typed TypeScript in
+> `src/theme/`, and styling is `StyleSheet`. Kept for reference only.
+
 # Hestia Design System Rules
 
 This document provides comprehensive rules for integrating Figma designs into the Hestia React Native application using the Model Context Protocol (MCP).

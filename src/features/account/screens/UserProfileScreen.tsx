@@ -25,7 +25,7 @@ import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useUserStore } from '../store/useUserStore';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import type { UserProfile } from '@features/home';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 
 type UserProfileRouteParams = {
   UserProfile: { user: UserProfile };

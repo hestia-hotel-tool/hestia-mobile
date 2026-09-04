@@ -4,7 +4,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '@/theme';
 import { useAuth } from '../hooks/useAuth';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 
 const LANGUAGES = [
   { code: 'EN', name: 'English' },

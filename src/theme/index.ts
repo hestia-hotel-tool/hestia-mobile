@@ -1,37 +1,30 @@
-// @ts-ignore - JSON import
-import designSystem from '../../design-system.json';
+/**
+ * Hestia design tokens.
+ *
+ * TypeScript is the source of truth. `design-system.json` at the repo root is a
+ * Figma-sync artifact and is no longer read at runtime — see AGENT.md.
+ *
+ * Tokens are pure data: nothing in this folder imports React or a React Native
+ * runtime value (types only, plus `Platform` for shadows). The runtime half of
+ * the design system — `<Icon>`, `useDesignScale()` — lives in `@/ui`.
+ */
 
-export type DesignSystem = typeof designSystem;
+export { colors, roomStatusColors } from './colors';
+export type { Colors, RoomStatusToken } from './colors';
 
-export const theme = designSystem;
+export { typography, fontFamily, fontWeights, fontSize, lineHeight } from './typography';
+export type { FontSize, FontWeight } from './typography';
 
-// Color helpers
-export const colors = theme.colors;
-export const statusColors = theme.roomStatus;
+export { spacing } from './spacing';
+export type { Spacing } from './spacing';
 
-// Typography helpers
-export const typography = theme.typography;
-export const fontSizes = typography.fontSizes;
-export const fontWeights = typography.fontWeights;
+export { radius } from './radius';
+export type { Radius } from './radius';
 
-// Spacing helpers
-export const spacing = theme.spacing;
+export { shadows } from './shadows';
 
-// Border radius helpers
-export const borderRadius = theme.borderRadius;
+export { DESIGN_FRAME, SCALE_CLAMP, iconSize, MIN_TOUCH_TARGET } from './layout';
+export type { IconSize } from './layout';
 
-// Component styles
-export const components = theme.components;
-
-// Get status color
-export const getStatusColor = (status: keyof typeof statusColors) => {
-  return statusColors[status]?.color || colors.text.primary;
-};
-
-// Get status background color
-export const getStatusBackgroundColor = (status: keyof typeof statusColors) => {
-  return statusColors[status]?.backgroundColor || colors.background.primary;
-};
-
-export default theme;
-
+// --- deprecated, scheduled for deletion (see compat.ts) ---
+export { components, getStatusColor, getStatusBackgroundColor } from './compat';

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 
 export default function EngineeringRecentActivityItem({
   roomLabel,

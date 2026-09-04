@@ -29,7 +29,7 @@ How the app helps:
 
 - Expo (SDK 56) + React Native (0.85) + TypeScript (strict)
 - Expo Router (routes at the project root `app/`)
-- Tailwind CSS v4 via **NativeWind v5 + react-native-css** (see Styling Rules)
+- Typed design tokens + `StyleSheet` (see Styling Rules)
 - Zustand + AsyncStorage
 - Supabase (Auth, PostgreSQL, RLS, Storage, Realtime, Edge Functions)
 
@@ -64,14 +64,13 @@ For every feature:
 
 ```txt
 app/                                # Expo Router routes — thin re-exports of feature screens
-  _layout.tsx                       # root layout: providers + Stack + global.css import
+  _layout.tsx                       # root layout: providers + Stack
   (auth)/                           # login
   (tabs)/(home|rooms|tickets|lost_and_found|staff|chats|settings)/
   room/[roomId].tsx  chat/[chatId].tsx  assign-rooms/ ... etc
 src/
-  components/                       # shared UI (BottomTabBar, TabBarItem, ...)
+  components/                       # app-level composites (BottomTabBar, TabBarItem, ...)
   config/                           # app constants (rolePermissions is deprecated — see RBAC)
-  constants/                        # shared constants (images.ts, ...)
   contexts/                         # React contexts (ToastContext, MessageModalContext)
   domain/                           # business logic independent of UI
     rbac/                           # permissions, rolePolicy, usePermissions, <Can>
@@ -85,8 +84,10 @@ src/
   mocks/                            # seed/mock data
   providers/                        # provider composition (AppProviders, AuthProvider)
   store/                            # cross-feature state (resetTenantScopedStores)
-  theme/                            # design tokens (loads design-system.json)
-  tw/                               # CSS-enabled wrappers (View, Text, Image, ...)
+  theme/                            # typed design tokens (colors, typography, spacing,
+                                    #   radius, shadows, layout) — pure data, no React
+  ui/                               # design system runtime: Icon, useDesignScale,
+                                    #   primitives/ (added only when a screen needs one)
   types/                            # shared types (+ generated supabase types)
   utils/                            # pure helpers
 ```
@@ -128,46 +129,73 @@ bucket root:
 
 ---
 
-## Styling Rules (Tailwind v4 via NativeWind v5)
+## Styling Rules (typed tokens + StyleSheet)
 
-The app uses **Tailwind CSS v4 + NativeWind v5 + react-native-css**. Styling is **CSS-first** — `className` on components.
+Styling is **typed design tokens + `StyleSheet`**. There is no Tailwind, no
+NativeWind and no `className` in this codebase — that stack was configured but
+never adopted (zero files used it), so it was removed.
 
-Key setup:
-
-- `src/global.css` — imports the Tailwind layers, defines Hestia design tokens via `@theme`. This is imported once in `app/_layout.tsx`.
-- `src/tw/` — CSS-enabled wrapper components (`View`, `Text`, `ScrollView`, `Pressable`, `TextInput`, `Image`, `Link`, `TouchableHighlight`). **Import these instead of the raw RN components when using `className`.**
-- No `tailwind.config.js` and no NativeWind Babel plugin — Tailwind v4 is configured through CSS and `metro.config.js` (`withNativewind`).
-
-Usage:
+- Tokens live in `src/theme/` and are imported from `@/theme`.
+- Build styles with `StyleSheet.create`.
+- **Never hardcode a hex value.** If a colour is missing, add a token.
 
 ```tsx
-import { View, Text } from '@/tw';
+import { StyleSheet, Text, View } from 'react-native';
+import { colors, fontSize, spacing } from '@/theme';
 
-<View className="flex-1 bg-bg-secondary p-4">
-  <Text className="text-text-primary font-bold">Hello</Text>
-</View>;
+const styles = StyleSheet.create({
+  card: { backgroundColor: colors.background.card, padding: spacing.xl },
+  title: { color: colors.text.primary, fontSize: fontSize['3xl'] },
+});
 ```
 
-### Style exceptions
+When a style depends on the device scale, build it in render through a memoized
+factory rather than at module scope:
 
-Use `StyleSheet` / inline styles when:
-
-- The component has no CSS wrapper (`SafeAreaView`, `KeyboardAvoidingView`, `Modal`, native `Button`) — or wrap it in `src/tw/` first
-- The value is dynamic/calculated at runtime (animated values, transforms, pressed states)
-- Platform-specific props (iOS-only / Android-only)
-- Shadow syntax differs per platform
-
-When in doubt, ask: *"Should this use Tailwind classes or StyleSheet?"*
-
-### Global utilities
-
-Prefer reusable class patterns as utilities in `global.css`. If there is no utility for a repeated pattern, add one there following BEM conventions.
+```tsx
+const { s } = useDesignScale();
+const styles = useMemo(() => buildStyles(s), [s]);
+```
 
 ### Design tokens
 
-Hestia design tokens live in `design-system.json` (project root, loaded via `src/theme/index.ts`). The same colors are mirrored as Tailwind theme vars in `src/global.css`. **Keep them in sync** when `design-system.json` changes.
+`src/theme/` is the **source of truth**, in TypeScript:
 
----
+| File | Holds |
+|---|---|
+| `colors.ts` | `colors`, `roomStatusColors` |
+| `typography.ts` | `fontFamily`, `fontWeights`, `fontSize` (numeric), `lineHeight` |
+| `spacing.ts` / `radius.ts` | numeric scales |
+| `shadows.ts` | real RN shadow objects (per-platform) |
+| `layout.ts` | `DESIGN_FRAME`, `SCALE_CLAMP`, `iconSize`, `MIN_TOUCH_TARGET` |
+| `compat.ts` | `@deprecated` aliases awaiting call-site cleanup |
+
+`design-system.json` at the repo root is a **Figma-sync artifact only** — it is
+no longer read at runtime. Do not add tokens there expecting them to apply.
+
+Sizes are **numbers**, not px-strings: the old JSON tokens were `"13px"` and so
+could never be used in a `StyleSheet`, which is why nothing consumed them.
+
+## Layout & Scaling
+
+`useDesignScale()` from `@/ui` is the **only** scaling helper. It replaced five
+competing implementations, two of which snapshotted `Dimensions.get('window')`
+at module load and went stale on rotation.
+
+```tsx
+const { s, fs, scale, isTablet } = useDesignScale();
+```
+
+- Use `s()` / `fs()` for **size** — type, icons, gaps, radii, fixed control sizes.
+- Use **flex + `useSafeAreaInsets()`** for **position**.
+- **Never** write `top: N * scale`. Absolute design-frame offsets are a bug on
+  every device that is not exactly the design frame.
+
+The design frame is **440×956** (`DESIGN_FRAME`). The width ratio is clamped by
+`SCALE_CLAMP` so a tablet does not scale everything 2.3×.
+
+`src/utils/responsive.ts` still exists but is `@deprecated`, kept only for five
+components that build `StyleSheet.create` at module scope. Do not add consumers.
 
 ## RBAC (Role-Based Access Control)
 
@@ -274,8 +302,8 @@ See [`assets/README.md`](assets/README.md) for the full convention. In short:
 
 - **UI icons are SVG**, one concept per file, under `assets/icons/<group>/`,
   named `domain-concept[-variant]` in kebab-case (no `-icon` suffix).
-- Register each icon in `src/components/Icon/registry.ts`, then render it with
-  `<Icon name="status-dirty" size={20} color={tokens.status.dirty} />`.
+- Register each icon in `src/ui/Icon/registry.ts`, then render it with
+  `<Icon name="status-dirty" size="md" color={colors.status.dirty} />`.
 - **Never `require()` an icon or image inside a screen/component.** Non-icon
   assets import through the `@assets` alias (`@assets/brand/logo.svg`), never
   deep relative paths.

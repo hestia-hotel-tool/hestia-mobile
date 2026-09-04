@@ -10,7 +10,7 @@ import { useUserStore } from '@features/account/store/useUserStore';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 
 type SettingsScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, '(settings)/index'>;
 

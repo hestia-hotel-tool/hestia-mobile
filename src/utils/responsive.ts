@@ -1,45 +1,27 @@
 /**
- * Responsive scaling utility for consistent sizing across all screen sizes
- * Prevents extreme scaling on very small or very large devices
+ * @deprecated Use `useDesignScale()` from `@/ui`.
+ *
+ * These values snapshot `Dimensions.get('window')` at module load, so they go
+ * stale on rotation, split view and folding — they can never be correct on a
+ * device that resizes.
+ *
+ * Kept alive only for the five components that build `StyleSheet.create` at
+ * module scope and therefore cannot call a hook: `MoreMenuItem`,
+ * `CategoryCard`, `PriorityBadge`, `StatusIndicator`, `GuestInfoDisplay`.
+ * Moving one of those to the hook means moving its `StyleSheet.create` into
+ * render. Delete this file when the last one is done.
+ *
+ * The `[0.8, 1.2]` clamp is deliberately left at its legacy value rather than
+ * converged on `SCALE_CLAMP` (`[0.85, 1.15]`), so that removing the old helpers
+ * changes no pixels. `useDesignScale().normalizedScaleX` matches this exactly;
+ * `useDesignScale().scale` is the new clamp. Each component converges when it
+ * is refactored.
  */
-
 import { Dimensions } from 'react-native';
+import { DESIGN_FRAME } from '@/theme';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-export const DESIGN_WIDTH = 440;
+/** @deprecated Use `useDesignScale().ratio`. */
+export const scaleX = Dimensions.get('window').width / DESIGN_FRAME.width;
 
-// Calculate base scale (frozen at first import — prefer useDesignScale / scaleXForWindowWidth in UI)
-export const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
-
-// Normalized scale - prevents extreme scaling (clamped between 0.8 and 1.2)
-// This ensures elements don't become too small on small screens or too large on big screens
+/** @deprecated Use `useDesignScale().scale`. */
 export const normalizedScaleX: number = Math.max(0.8, Math.min(1.2, scaleX));
-
-/** Live width scale for responsive layouts (rotation, split view). */
-export function scaleXForWindowWidth(windowWidth: number): number {
-  return windowWidth / DESIGN_WIDTH;
-}
-
-/** Live clamped scale — same formula as `normalizedScaleX` but from current width. */
-export function normalizedScaleXForWindowWidth(windowWidth: number): number {
-  return Math.max(0.8, Math.min(1.2, scaleXForWindowWidth(windowWidth)));
-}
-
-/**
- * Scale a value using normalized scaling
- * @param value - The value to scale
- * @returns Scaled value
- */
-export const scale = (value: number): number => {
-  return value * normalizedScaleX;
-};
-
-/**
- * Scale a value using raw scaling (use with caution)
- * @param value - The value to scale
- * @returns Scaled value
- */
-export const scaleRaw = (value: number): number => {
-  return value * scaleX;
-};
-

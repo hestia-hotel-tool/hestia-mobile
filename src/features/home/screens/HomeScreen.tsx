@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Text } from 'react-native';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';

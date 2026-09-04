@@ -1,6 +1,5 @@
 const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
-const { withNativewind } = require('nativewind/metro');
 
 const config = getDefaultConfig(__dirname);
 
@@ -15,9 +14,4 @@ config.transformer.babelTransformerPath = require.resolve('react-native-svg-tran
 config.resolver.assetExts = config.resolver.assetExts.filter((ext) => ext !== 'svg');
 config.resolver.sourceExts = [...config.resolver.sourceExts, 'svg'];
 
-module.exports = withNativewind(config, {
-  // inline variables break PlatformColor in CSS variables
-  inlineVariables: false,
-  // We add className support manually
-  globalClassNamePolyfill: false,
-});
+module.exports = config;

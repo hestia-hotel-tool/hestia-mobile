@@ -8,6 +8,9 @@ assets/
                     MUST stay PNG (Expo requirement). Referenced from app.config.ts.
   brand/            Logos and wordmarks. SVG preferred.
   icons/            UI glyphs — SVG ONLY, one concept per file.
+                    NOTE: the loose *.png files still sitting directly in this
+                    folder are LEGACY. They are being drained screen by screen
+                    as each screen is refactored. Do not add new PNGs here.
     nav/            tab bar + header nav: home, rooms, tickets, chat, staff, settings, lost-found, back, more
     room-status/    dirty, in-progress, cleaned, inspected, out-of-order, out-of-service
     guest-status/   arrival, departure, stayover, turndown, checked-in, checked-out, vacant, occupied
@@ -42,10 +45,16 @@ Export from Figma, then before committing:
 - Run through SVGO (Figma "SVGO Compressor" plugin, or `npx svgo`).
 - No embedded rasters or `<image>` tags.
 
+**Brand marks are not icons.** A multi-colour, non-square logo (e.g.
+`brand/logo-mark.svg`) keeps its literal fills, stays out of the icon registry,
+and is imported directly by the component that draws it. `<Icon>` assumes a
+square, single-colour, `currentColor` glyph.
+
 ## Consuming
 
-Icons: register in [`src/components/Icon/registry.ts`](../src/components/Icon/registry.ts),
-then `<Icon name="status-dirty" size={20} color={tokens.status.dirty} />`.
+Icons: register in [`src/ui/Icon/registry.ts`](../src/ui/Icon/registry.ts),
+then `<Icon name="status-dirty" size="md" color={colors.status.dirty} />`
+(`size` takes an `iconSize` token or a number).
 Never `require()` an icon inside a screen or component.
 
 Other assets: import through the `@assets` alias —

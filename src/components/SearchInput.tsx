@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, StyleSheet } from 'react-native';
 import { typography, colors } from '../theme';
-import { useDesignScale } from '../hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 
 interface SearchInputProps {
   placeholder: string | { bold: string; normal: string };

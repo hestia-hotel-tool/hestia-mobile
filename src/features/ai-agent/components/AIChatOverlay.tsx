@@ -23,7 +23,7 @@ import {
 import { colors, typography } from '@/theme';
 import { useToast } from '@/contexts/ToastContext';
 import { transcribeAndRespond, sendTextToAgent } from '../services/aiAgent';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import { useDesignScale } from '@/ui';
 
 export interface AIChatMessage {
   role: 'user' | 'assistant';

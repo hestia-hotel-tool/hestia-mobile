@@ -1,4 +1,5 @@
 {
+  "_note": "FIGMA-SYNC ARTIFACT — NOT READ AT RUNTIME. The source of truth for design tokens is TypeScript in src/theme/ (see AGENT.md > Design tokens). Editing this file changes nothing in the app. It is kept only as a machine-readable mirror for design tooling, and may be deleted once Figma variables are wired up.",
   "name": "Hestia Design System",
   "version": "1.0.0",
   "description": "Design system for Hestia housekeeping management app",
@@ -244,4 +245,3 @@
     }
   }
 }
-

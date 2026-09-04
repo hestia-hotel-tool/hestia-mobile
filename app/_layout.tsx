@@ -7,7 +7,6 @@ import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import { AppProviders } from '@/providers/AppProviders';
 import { useAuth } from '@features/auth';
-import '../src/global.css';
 import {
   incomingAlertDedupeKeyFromPushData,
   presentIncomingNotificationAlert,
