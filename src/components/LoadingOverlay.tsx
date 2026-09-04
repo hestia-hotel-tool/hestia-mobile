@@ -38,7 +38,11 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: colors.background.overlay ?? 'rgba(255,255,255,0.85)',
+    // Not colors.background.overlay — that token is rgba(228,228,228,0.1), a
+    // near-transparent grey. It was read with a `?? 'rgba(255,255,255,0.85)'`
+    // fallback that never applied because the token is defined, so the intended
+    // scrim was never drawn and content stayed legible behind the spinner.
+    backgroundColor: 'rgba(255,255,255,0.85)',
     zIndex: 1000,
   },
 });
