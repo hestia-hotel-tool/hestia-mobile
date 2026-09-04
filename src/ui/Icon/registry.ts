@@ -25,14 +25,23 @@ import type { SvgProps } from 'react-native-svg';
  * fails every property `<Icon>` assumes (square, single-colour, `currentColor`).
  * It is imported directly by the component that draws the brand lockup.
  */
+import NavChevronRight from '@assets/icons/nav/nav-chevron-right.svg';
+import ActionPhone from '@assets/icons/actions/action-phone.svg';
+import MiscHouse from '@assets/icons/misc/misc-house.svg';
+
 export const icons = {
-  // Empty until the first screen is refactored — icons are exported from Figma
-  // per screen, so only glyphs actually in use enter the system. Groups:
+  /** Points right. Rotate 90deg for down, 180deg for left. */
+  'nav-chevron-right': NavChevronRight,
+  'action-phone': ActionPhone,
+  /** Hestia house silhouette, single-colour. The two-tone brand mark lives in assets/brand/. */
+  'misc-house': MiscHouse,
+
+  // Groups fill in as screens are refactored:
   //   nav/          nav-home, nav-rooms, nav-tickets, nav-chat, nav-more
   //   room-status/  status-dirty, status-in-progress, status-cleaned, status-inspected
   //   guest-status/ guest-arrival, guest-departure, guest-stayover, guest-turndown
-  //   departments/  dept-engineering, dept-reception, dept-laundry, …
-  //   actions/      action-plus, action-search, action-flag, action-print, …
+  //   departments/  dept-engineering, dept-reception, dept-laundry, ...
+  //   actions/      action-plus, action-search, action-flag, action-print, ...
 } satisfies Record<string, FC<SvgProps>>;
 
 export type IconName = keyof typeof icons;
