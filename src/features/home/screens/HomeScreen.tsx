@@ -777,9 +777,29 @@ export default function HomeScreen() {
     return { roomStates, guests, floors, totalRooms, reservations };
   }, [homeData.categories, derivedCategories, homeData.selectedShift, roomsForHome]);
 
+  /**
+   * "See Rooms" in the filter sheet.
+   *
+   * This used to only call setActiveFilters, so picking floors and pressing the
+   * button stored the selection and closed the sheet — and nothing happened.
+   * The filter was applied only later, incidentally, when the user tapped a
+   * category card, because those pass `activeFilters` along in their navigation
+   * params.
+   *
+   * The button says "See Rooms", so it goes there, with the selection applied.
+   * AllRoomsScreen reads `filters` from route params and filters by floor.
+   *
+   * No `categoryFilter` here: this is a floor selection, not a category, and
+   * sending one would narrow the results to a bucket the user did not choose.
+   */
   const handleGoToResults = (filters: FilterState) => {
-    // Apply filters to Home stats/cards in both AM and PM modes
     setActiveFilters(filters);
+    navigation.navigate('(rooms)/index', {
+      showBackButton: true,
+      filters,
+      selectedShift: effectiveShift,
+      prioritizeMyAssignedRooms: isHskPortierUser,
+    } as any);
   };
 
   const handleAdvanceFilter = () => {
