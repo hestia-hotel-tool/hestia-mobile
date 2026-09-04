@@ -11,6 +11,7 @@ import {
 import { BlurView } from 'expo-blur';
 import { colors, typography } from '@/theme';
 import FilterSection from './FilterSection';
+import FloorsFilterSheet from './FloorsFilterSheet';
 import FilterCheckbox from './FilterCheckbox';
 import SeeRoomsButton from '@/components/ui/SeeRoomsButton';
 import { FilterState, FilterCounts, FilterOption } from '@/types/filter.types';
@@ -505,50 +506,12 @@ export default function HomeFilterModal({
         >
           <View style={styles.modalContent}>
             {shouldShowAMStyle ? (
-              <View style={styles.amContent}>
-                <View style={styles.amHeader}>
-                  <Text style={styles.headerTitle}>Floors Filter</Text>
-                  <View style={styles.resultsPill}>
-                    <Text style={styles.resultsPillText}>{displayResultCount} results</Text>
-                  </View>
-                </View>
-
-                <View style={styles.amBody}>
-                  <View style={styles.amBodyContent}>
-                    <Text style={styles.amSectionTitle}>Housekeeping Status</Text>
-                    <View style={styles.amDivider} />
-                    <View style={styles.floorList}>
-                      {floorOptions.map((option) => (
-                        <TouchableOpacity
-                          key={option.id}
-                          style={styles.floorRow}
-                          onPress={() => handleToggleFloor(option.id)}
-                          activeOpacity={0.7}
-                        >
-                          <View style={styles.floorCheckboxWrapper}>
-                            <FilterCheckbox
-                              checked={option.selected}
-                              onToggle={() => handleToggleFloor(option.id)}
-                              size={22}
-                            />
-                          </View>
-                          <View style={[styles.floorBullet, option.selected && styles.floorBulletActive]} />
-                          <Text style={styles.floorLabel}>{option.label}</Text>
-                          <Text style={styles.floorCount}>{option.count} Rooms</Text>
-                        </TouchableOpacity>
-                      ))}
-                    </View>
-                  </View>
-
-                  {/* Action Buttons - at bottom */}
-                  <View style={styles.amActions}>
-                    <SeeRoomsButton
-                      onPress={handleGoToResults}
-                      resultCount={displayResultCount}
-                    />
-                  </View>
-                </View>
-              </View>
+              <FloorsFilterSheet
+                options={floorOptions}
+                resultCount={displayResultCount}
+                onToggle={handleToggleFloor}
+                onSeeRooms={handleGoToResults}
+              />
             ) : (
               <>
                 {/* Header */}
@@ -808,106 +771,9 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.secondary, // Lighter grey color
   },
-  filterIconContainer: {
-    position: 'absolute' as const,
-    width: 26 * scaleX,
-    height: 12 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1002, // Higher than overlay (999) and modal (1000) to be on top
-  },
   filterIconImage: {
     width: 32 * scaleX, // Match the increased size from HomeScreen
     height: 16 * scaleX, // Match the increased size from HomeScreen (maintaining aspect ratio)
     tintColor: colors.primary.main,
-  },
-  amContent: {
-    flex: 1,
-    paddingHorizontal: 20 * scaleX,
-    paddingTop: 16 * scaleX,
-    paddingBottom: 24 * scaleX,
-    backgroundColor: '#ffffff',
-  },
-  amHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12 * scaleX,
-  },
-  resultsPill: {
-    backgroundColor: '#f1f6fc',
-    paddingHorizontal: 14 * scaleX,
-    paddingVertical: 6 * scaleX,
-    borderRadius: 40 * scaleX,
-  },
-  resultsPillText: {
-    color: '#5a759d',
-    fontSize: 14 * scaleX,
-    fontFamily: 'Inter',
-    fontWeight: '600' as any,
-  },
-  amBody: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-    flexDirection: 'column',
-    justifyContent: 'space-between',
-  },
-  amBodyContent: {
-    flex: 1,
-  },
-  amSectionTitle: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.text.primary,
-    marginTop: 8 * scaleX,
-    marginBottom: 10 * scaleX,
-  },
-  amDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: '#e6e6e6',
-    marginBottom: 10 * scaleX,
-  },
-  floorList: {
-    marginTop: 4 * scaleX,
-  },
-  floorRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8 * scaleX,
-    marginBottom: 12 * scaleX, // Increased spacing between filter options
-  },
-  floorBullet: {
-    width: 14 * scaleX,
-    height: 14 * scaleX,
-    borderRadius: 7 * scaleX,
-    backgroundColor: '#cfd3d8',
-    marginRight: 12 * scaleX,
-  },
-  floorBulletActive: {
-    backgroundColor: '#1e1e1e',
-  },
-  floorCheckboxWrapper: {
-    marginRight: 12 * scaleX,
-  },
-  floorLabel: {
-    flex: 1,
-    fontSize: 16 * scaleX,
-    fontFamily: 'Inter',
-    fontStyle: 'normal',
-    fontWeight: '300' as any,
-    color: '#000',
-    lineHeight: undefined, // normal line height
-  },
-  floorCount: {
-    fontSize: 14 * scaleX,
-    color: '#a9a9a9',
-    fontFamily: 'Inter',
-  },
-  amActions: {
-    paddingTop: 12 * scaleX, // Reduced padding to move button up
-    paddingBottom: 0, // No bottom padding needed
-    alignItems: 'center', // Center the button horizontally
-    justifyContent: 'center',
   },
 });

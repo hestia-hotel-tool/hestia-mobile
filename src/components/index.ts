@@ -15,6 +15,8 @@
 // ui
 export { Card, CardDivider } from './ui/Card';
 export type { CardProps } from './ui/Card';
+export { Checkbox } from './ui/Checkbox';
+export type { CheckboxProps } from './ui/Checkbox';
 export { CountBadge } from './ui/CountBadge';
 export type { CountBadgeProps } from './ui/CountBadge';
 export { StatusCircle, ROOM_STATUS, ROOM_STATUS_ORDER } from './ui/StatusCircle';

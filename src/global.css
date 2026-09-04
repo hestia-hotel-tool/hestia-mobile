@@ -41,18 +41,21 @@
     --color-ink-white: #ffffff;
     --color-ink-accent: #5a759d;
     --color-ink-pink: #ff46a3;
+    --color-ink-muted: #a9a9a9;
 
     /* Border */
     --color-border-light: #dbdbdb;
     --color-border-medium: #e3e3e3;
     --color-border-dark: #e6e6e6;
     --color-border-card: rgba(90, 117, 157, 0.23);
+    --color-border-control: #c6c5c5;
 
     /* Badge */
     --color-badge-eta: #e9f7e9;
     --color-badge-etd: #ffe3e3;
     --color-badge-group: #ffebeb;
     --color-badge-priority: #ffebeb;
+    --color-badge-results: rgba(181, 207, 246, 0.37);
 
     /* Spacing */
     --spacing-xs: 4px;

@@ -140,7 +140,7 @@ Both idioms exist right now; a screen converts when it is refactored, not before
   screen you are only passing through.
 
 Migrated so far: `src/components/ui/*`, `src/components/Icon/*`,
-`src/features/home/components/{CategoryCard,HomeHeader,HousekeepingDashboard}`.
+`src/features/home/components/{CategoryCard,HomeHeader,HousekeepingDashboard,FloorsFilterSheet}`.
 
 Key setup:
 

@@ -32,19 +32,22 @@
       "light": "#b1afaf",
       "white": "#ffffff",
       "accent": "#5a759d",
-      "pink": "#ff46a3"
+      "pink": "#ff46a3",
+      "muted": "#a9a9a9"
     },
     "border": {
       "light": "#dbdbdb",
       "medium": "#e3e3e3",
       "dark": "#e6e6e6",
-      "card": "rgba(90, 117, 157, 0.23)"
+      "card": "rgba(90, 117, 157, 0.23)",
+      "control": "#c6c5c5"
     },
     "badge": {
       "eta": "#e9f7e9",
       "etd": "#ffe3e3",
       "group": "#ffebeb",
-      "priority": "#ffebeb"
+      "priority": "#ffebeb",
+      "results": "rgba(181, 207, 246, 0.37)"
     },
     "shadow": {
       "nav": "0px 0px 105.1px -35px rgba(100, 131, 176, 0.4)"
