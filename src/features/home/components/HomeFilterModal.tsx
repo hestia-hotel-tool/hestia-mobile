@@ -454,7 +454,10 @@ export default function HomeFilterModal({
       left: SCREEN_WIDTH * 0.05, // 5% of screen width
       width: SCREEN_WIDTH * 0.9, // 90% of screen width
       maxWidth: 400 * scaleX,
-      bottom: 20 * scaleX, // Add margin bottom
+      // Only the multi-section variant fills the screen. The floors sheet sizes
+      // to its content — pinning `bottom` here stretched it into a full-height
+      // panel with the sheet sitting at the top of it.
+      ...(shouldShowAMStyle ? null : { bottom: 20 * scaleX }),
       zIndex: 1000, // On top of overlay
     },
   };
@@ -490,7 +493,15 @@ export default function HomeFilterModal({
         />
         
         {/* Blurred area - below header and search section */}
-        <BlurView intensity={80} style={dynamicStyles.blurOverlay} tint="light">
+        <BlurView
+          intensity={80}
+          tint="light"
+          // Android does not blur without this; expo-blur falls back to a
+          // flat translucent view, so the sheet appeared to float on a grey
+          // panel rather than over blurred content.
+          experimentalBlurMethod="dimezisBlurView"
+          style={dynamicStyles.blurOverlay}
+        >
           <View style={styles.blurDarkener} />
           {/* Backdrop - clickable to close */}
           <TouchableOpacity
@@ -504,15 +515,15 @@ export default function HomeFilterModal({
           style={dynamicStyles.modalContainer}
           pointerEvents="box-none"
         >
-          <View style={styles.modalContent}>
-            {shouldShowAMStyle ? (
-              <FloorsFilterSheet
-                options={floorOptions}
-                resultCount={displayResultCount}
-                onToggle={handleToggleFloor}
-                onSeeRooms={handleGoToResults}
-              />
-            ) : (
+          {shouldShowAMStyle ? (
+            <FloorsFilterSheet
+              options={floorOptions}
+              resultCount={displayResultCount}
+              onToggle={handleToggleFloor}
+              onSeeRooms={handleGoToResults}
+            />
+          ) : (
+            <View style={styles.modalContent}>
               <>
                 {/* Header */}
                 <View style={styles.header}>
@@ -616,8 +627,8 @@ export default function HomeFilterModal({
                   )}
                 </View>
               </>
-            )}
-          </View>
+            </View>
+          )}
         </View>
       </View>
     </Modal>
@@ -630,7 +641,9 @@ const styles = StyleSheet.create({
   },
   blurDarkener: {
     ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(200, 200, 200, 0.6)',
+    // Figma node 2702:3183. Was rgba(200,200,200,0.6) — six times this opacity,
+    // which greyed the whole screen and hid the blur underneath it.
+    backgroundColor: colors.background.overlay,
   },
   backdropTouchable: {
     ...StyleSheet.absoluteFill,

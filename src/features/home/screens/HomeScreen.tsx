@@ -52,6 +52,12 @@ export default function HomeScreen() {
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
   const { homeVariant } = usePermissions();
+
+  // The filter modal positions its blur and sheet below the chrome. It used to
+  // derive that from HOME_HEADER_HEIGHT_DESIGN_PX (180), which stopped being
+  // true when the header became flex + safe-area based — so the blur started at
+  // the wrong y and the sheet sat over unblurred content. Measure it instead.
+  const [chromeHeight, setChromeHeight] = useState<number | undefined>(undefined);
   const [homeData, setHomeData] = useState(() => ({
     // Avoid mock fallbacks — hydrate from Supabase stores/session only.
     user: undefined as any,
@@ -797,24 +803,26 @@ export default function HomeScreen() {
             positioned on top of the ScrollView, which forced the content to
             compensate with paddingTop: (180 + 14 + 59) * scaleX — a magic sum
             repeated in three more places. */}
-        <HomeHeader
-          name={safeUser?.name}
-          role={safeUser?.role}
-          avatarUrl={safeUser?.avatar}
-          shift={homeData.selectedShift}
-          onShiftChange={handleShiftToggle}
-        />
-
-        {!showFilterModal && (
-          <SearchAndFilterBar
-            value={searchQuery}
-            onChangeText={handleSearch}
-            onFilterPress={handleFilterPress}
-            placeholderLead="Search"
-            placeholderRest="Rooms, Guests, Floors etc"
-            className="px-lg py-md"
+        <View onLayout={(e) => setChromeHeight(e.nativeEvent.layout.height)}>
+          <HomeHeader
+            name={safeUser?.name}
+            role={safeUser?.role}
+            avatarUrl={safeUser?.avatar}
+            shift={homeData.selectedShift}
+            onShiftChange={handleShiftToggle}
           />
-        )}
+
+          {!showFilterModal && (
+            <SearchAndFilterBar
+              value={searchQuery}
+              onChangeText={handleSearch}
+              onFilterPress={handleFilterPress}
+              placeholderLead="Search"
+              placeholderRest="Rooms, Guests, Floors etc"
+              className="px-lg py-md"
+            />
+          )}
+        </View>
 
         {/* Scrollable Content with conditional blur */}
         <View style={styles.scrollContainer}>
@@ -1043,6 +1051,7 @@ export default function HomeScreen() {
         filterCounts={filterCounts}
         onFilterIconPress={handleFilterPress}
         selectedShift={homeData.selectedShift}
+        headerHeight={chromeHeight}
       />
     </View>
   );
