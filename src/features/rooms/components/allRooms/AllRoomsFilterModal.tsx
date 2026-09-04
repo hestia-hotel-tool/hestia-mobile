@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors, typography } from '@/theme';
-import SeeRoomsButton from '@/components/SeeRoomsButton';
+import SeeRoomsButton from '@/components/ui/SeeRoomsButton';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import { useHomeFilters } from '@features/home';
 import { FilterRow } from '@features/home';

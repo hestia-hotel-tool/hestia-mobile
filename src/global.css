@@ -25,26 +25,27 @@
     --color-status-priority-text: #f92424;
 
     /* Background */
-    --color-bg-primary: #ffffff;
-    --color-bg-secondary: #eef0f6;
-    --color-bg-tertiary: #f1f6fc;
-    --color-bg-card: #f9fafc;
-    --color-bg-header: #e4eefe;
-    --color-bg-overlay: rgba(228, 228, 228, 0.1);
+    --color-surface-primary: #ffffff;
+    --color-surface-secondary: #eef0f6;
+    --color-surface-tertiary: #f1f6fc;
+    --color-surface-card: #f9fafc;
+    --color-surface-header: #e4eefe;
+    --color-surface-overlay: rgba(228, 228, 228, 0.1);
 
     /* Text */
-    --color-text-primary: #1e1e1e;
-    --color-text-secondary: #334866;
-    --color-text-tertiary: #a0a0a0;
-    --color-text-light: #b1afaf;
-    --color-text-white: #ffffff;
-    --color-text-accent: #5a759d;
-    --color-text-pink: #ff46a3;
+    --color-ink-primary: #1e1e1e;
+    --color-ink-secondary: #334866;
+    --color-ink-tertiary: #a0a0a0;
+    --color-ink-light: #b1afaf;
+    --color-ink-white: #ffffff;
+    --color-ink-accent: #5a759d;
+    --color-ink-pink: #ff46a3;
 
     /* Border */
     --color-border-light: #dbdbdb;
     --color-border-medium: #e3e3e3;
     --color-border-dark: #e6e6e6;
+    --color-border-card: rgba(90, 117, 157, 0.23);
 
     /* Badge */
     --color-badge-eta: #e9f7e9;

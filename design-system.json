@@ -36,7 +36,8 @@
     "border": {
       "light": "#dbdbdb",
       "medium": "#e3e3e3",
-      "dark": "#e6e6e6"
+      "dark": "#e6e6e6",
+      "card": "rgba(90, 117, 157, 0.23)"
     },
     "badge": {
       "eta": "#e9f7e9",
@@ -244,4 +245,3 @@
     }
   }
 }
-

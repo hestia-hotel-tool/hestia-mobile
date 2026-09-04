@@ -11,7 +11,7 @@ import {
   CHAT_HEADER_BAR_HEIGHT,
   scaleX,
 } from '../constants/chatStyles';
-import SearchInput from '@/components/SearchInput';
+import SearchInput from '@/components/ui/SearchInput';
 
 interface ChatHeaderProps {
   onBackPress?: () => void;

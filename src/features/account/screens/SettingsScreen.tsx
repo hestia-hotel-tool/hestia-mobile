@@ -4,7 +4,7 @@ import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { colors, typography } from '@/theme';
-import BottomTabBar from '@/components/BottomTabBar';
+import BottomTabBar from '@/components/layout/BottomTabBar';
 import { useAuth } from '@features/auth';
 import { useUserStore } from '@features/account/store/useUserStore';
 import { useAIChatOverlay } from '@features/ai-agent';

@@ -3,7 +3,7 @@ import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { GUEST_INFO as ROOM_DETAIL_GUEST_INFO, scaleX } from '../../constants/roomDetailStyles';
 import { GUEST_INFO } from '../../constants/allRoomsStyles';
 import { formatGuestCount, formatDatesOfStay } from '@/utils/formatting';
-import GuestProfileImageModal, { type GuestImageAnchorLayout } from '@/components/GuestProfileImageModal';
+import GuestProfileImageModal, { type GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
 import type { GuestInfo } from '../../types/allRooms.types';
 
 export type GuestInfoCardCategory = 'Arrival' | 'Departure' | 'Stayover' | 'Turndown';

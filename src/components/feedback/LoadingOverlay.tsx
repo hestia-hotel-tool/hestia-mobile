@@ -3,7 +3,7 @@
  */
 import React from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { colors } from '../theme';
+import { colors } from '@/theme';
 
 interface LoadingOverlayProps {
   /** If true, overlay covers the whole screen (absolute). Otherwise inline. */

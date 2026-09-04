@@ -69,12 +69,12 @@ app/                                # Expo Router routes — thin re-exports of 
   (tabs)/(home|rooms|tickets|lost_and_found|staff|chats|settings)/
   room/[roomId].tsx  chat/[chatId].tsx  assign-rooms/ ... etc
 src/
-  components/                       # shared UI (BottomTabBar, TabBarItem, ...)
-  config/                           # app constants (rolePermissions is deprecated — see RBAC)
+  components/                       # shared UI — ui/ layout/ feedback/ Icon/ (barrel: @/components)
+  config/                           # app constants
   constants/                        # shared constants (images.ts, ...)
   contexts/                         # React contexts (ToastContext, MessageModalContext)
   domain/                           # business logic independent of UI
-    rbac/                           # permissions, rolePolicy, usePermissions, <Can>
+    rbac/                           # permissions (generated), routePermissions, RouteGuard, usePermissions, <Can>
   features/                         # feature modules
     <feature>/
       screens/ components/ services/ store/ hooks/ types/ constants/ utils/
@@ -85,7 +85,7 @@ src/
   mocks/                            # seed/mock data
   providers/                        # provider composition (AppProviders, AuthProvider)
   store/                            # cross-feature state (resetTenantScopedStores)
-  theme/                            # design tokens (loads design-system.json)
+  theme/                            # design tokens, JS side (loads design-system.json)
   tw/                               # CSS-enabled wrappers (View, Text, Image, ...)
   types/                            # shared types (+ generated supabase types)
   utils/                            # pure helpers
@@ -130,44 +130,83 @@ bucket root:
 
 ## Styling Rules (Tailwind v4 via NativeWind v5)
 
-The app uses **Tailwind CSS v4 + NativeWind v5 + react-native-css**. Styling is **CSS-first** — `className` on components.
+**Migration in progress.** The app is moving from `StyleSheet` to `className`.
+Both idioms exist right now; a screen converts when it is refactored, not before.
+
+- **New shared components and refactored screens: `className`.** Import the CSS
+  wrappers from `src/tw/` (`View`, `Text`, `ScrollView`, `Pressable`, `TextInput`,
+  `Link`, `TouchableHighlight`) and `Image` from `src/tw/image`.
+- **Everything else: leave it on `StyleSheet`** until its turn. Do not convert a
+  screen you are only passing through.
+
+Migrated so far: `src/components/ui/*`, `src/components/Icon/*`.
 
 Key setup:
 
-- `src/global.css` — imports the Tailwind layers, defines Hestia design tokens via `@theme`. This is imported once in `app/_layout.tsx`.
-- `src/tw/` — CSS-enabled wrapper components (`View`, `Text`, `ScrollView`, `Pressable`, `TextInput`, `Image`, `Link`, `TouchableHighlight`). **Import these instead of the raw RN components when using `className`.**
-- No `tailwind.config.js` and no NativeWind Babel plugin — Tailwind v4 is configured through CSS and `metro.config.js` (`withNativewind`).
+- `src/global.css` — **generated**, see Design tokens below. Imported once in
+  `app/_layout.tsx`.
+- No `tailwind.config.js` and no NativeWind Babel plugin — Tailwind v4 is
+  configured through CSS and `metro.config.js` (`withNativewind`).
 
 Usage:
 
 ```tsx
 import { View, Text } from '@/tw';
 
-<View className="flex-1 bg-bg-secondary p-4">
-  <Text className="text-text-primary font-bold">Hello</Text>
+<View className="flex-1 bg-surface-secondary p-lg">
+  <Text className="font-hestia-primary text-ink-primary font-bold">Hello</Text>
 </View>;
 ```
+
+### Layout
+
+Use flex and `gap` with spacing tokens. **Do not** position against the 440x956
+design frame with `* scaleX` — that pattern is being removed. `useDesignScale()`
+survives only for screens not yet migrated.
 
 ### Style exceptions
 
 Use `StyleSheet` / inline styles when:
 
-- The component has no CSS wrapper (`SafeAreaView`, `KeyboardAvoidingView`, `Modal`, native `Button`) — or wrap it in `src/tw/` first
-- The value is dynamic/calculated at runtime (animated values, transforms, pressed states)
-- Platform-specific props (iOS-only / Android-only)
-- Shadow syntax differs per platform
+- The value is computed at runtime (animated values, a diameter from a prop)
+- The component has no CSS wrapper (`SafeAreaView`, `KeyboardAvoidingView`,
+  `Modal`) — or wrap it in `src/tw/` first
+- Platform-specific props, or shadow syntax that differs per platform
 
-When in doubt, ask: *"Should this use Tailwind classes or StyleSheet?"*
+### Shared components
 
-### Global utilities
+`src/components/` is grouped: `ui/` (visual primitives), `layout/` (app chrome),
+`feedback/` (overlays), `Icon/`. Import from `@/components`.
 
-Prefer reusable class patterns as utilities in `global.css`. If there is no utility for a repeated pattern, add one there following BEM conventions.
+Anything only one feature uses belongs in that feature, not here.
 
 ### Design tokens
 
-Hestia design tokens live in `design-system.json` (project root, loaded via `src/theme/index.ts`). The same colors are mirrored as Tailwind theme vars in `src/global.css`. **Keep them in sync** when `design-system.json` changes.
+`design-system.json` (repo root) is the single source of truth.
 
----
+```bash
+npm run tokens:generate   # design-system.json -> src/global.css
+npm run icons:generate    # assets/icons/**.svg -> src/components/Icon/registry.ts
+```
+
+**Never hand-edit `src/global.css` or `Icon/registry.ts`** — they are generated,
+and the previous hand-mirroring drifted badly (the CSS lost the entire spacing
+scale, 7 radii and 3 font sizes, and contradicted the JSON on font family).
+
+Token names map onto Tailwind utilities. `text` and `background` are renamed to
+`ink` and `surface` so utilities do not stutter:
+
+| JSON | Token | Utility |
+|---|---|---|
+| `colors.text.primary` | `--color-ink-primary` | `text-ink-primary` |
+| `colors.background.card` | `--color-surface-card` | `bg-surface-card` |
+| `colors.status.dirty` | `--color-status-dirty` | `bg-status-dirty` |
+| `spacing.lg` | `--spacing-lg` | `p-lg`, `gap-lg` |
+| `borderRadius.xl` | `--radius-xl` | `rounded-xl` |
+| `typography.fontSizes.lg` | `--text-hestia-lg` | `text-hestia-lg` |
+
+The JS API is unchanged — `colors.text.primary` still reads from the same JSON
+via `src/theme`.
 
 ## RBAC (Role-Based Access Control)
 

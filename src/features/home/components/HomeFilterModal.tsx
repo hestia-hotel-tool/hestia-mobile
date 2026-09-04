@@ -12,7 +12,7 @@ import { BlurView } from 'expo-blur';
 import { colors, typography } from '@/theme';
 import FilterSection from './FilterSection';
 import FilterCheckbox from './FilterCheckbox';
-import SeeRoomsButton from '@/components/SeeRoomsButton';
+import SeeRoomsButton from '@/components/ui/SeeRoomsButton';
 import { FilterState, FilterCounts, FilterOption } from '@/types/filter.types';
 import { getFloorLabel } from '@/utils/formatting';
 import { ShiftType } from '../types/home.types';

@@ -7,7 +7,7 @@ import TabBarItem from './TabBarItem';
 import { MORE_MENU_OPTIONS } from '@/types/more.types';
 import type { ReturnToTab } from '@/types/navigation';
 import { useDesignScale } from '@/hooks/useDesignScale';
-import { useBottomTabBadges } from '../hooks/useBottomTabBadges';
+import { useBottomTabBadges } from '../../hooks/useBottomTabBadges';
 import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };

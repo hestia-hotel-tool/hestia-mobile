@@ -5,7 +5,7 @@ import { GUEST_INFO, CARD_DIMENSIONS, GUEST_CONTAINER_BG, STATUS_BUTTON } from '
 import { normalizedScaleX } from '@/utils/responsive';
 import { formatGuestCount, formatDatesOfStay } from '@/utils/formatting';
 import type { GuestInfo } from '../types/allRooms.types';
-import type { GuestImageAnchorLayout } from '@/components/GuestProfileImageModal';
+import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
 
 interface GuestInfoDisplayProps {
   guest: GuestInfo;

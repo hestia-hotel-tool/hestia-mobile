@@ -8,7 +8,7 @@ import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
 import { colors } from '@/theme';
-import SearchInput from '@/components/SearchInput';
+import SearchInput from '@/components/ui/SearchInput';
 
 import type { ShiftType } from '../types/home.types';
 import { useAuth } from '@features/auth';
@@ -16,7 +16,7 @@ import { useUserStore } from '@features/account';
 import { userProfileFromSession } from '@features/account';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useRoomsStore } from '@features/rooms';
-import { LoadingOverlay } from '@/components/LoadingOverlay';
+import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import type { MoreMenuItemId } from '@/types/more.types';
 import type { RootStackParamList } from '@/types/navigation';
 import HomeHeader from '../components/HomeHeader';
@@ -25,7 +25,7 @@ import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOver
 import EngineeringRecentActivityItem from '../components/EngineeringRecentActivityItem';
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
-import BottomTabBar from '@/components/BottomTabBar';
+import BottomTabBar from '@/components/layout/BottomTabBar';
 import HomeFilterModal from '../components/HomeFilterModal';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategorySection } from '../types/home.types';

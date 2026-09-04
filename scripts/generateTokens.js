@@ -36,11 +36,20 @@ const ds = JSON.parse(fs.readFileSync(SOURCE, 'utf8'));
 /** `inProgress` -> `in-progress`, `2xl` -> `2xl`. */
 const kebab = (key) => key.replace(/([a-z0-9])([A-Z])/g, '$1-$2').toLowerCase();
 
-/** Colour groups in design-system.json -> the prefix their tokens get. */
+/**
+ * Colour groups in design-system.json -> the prefix their tokens get.
+ *
+ * `text` and `background` are renamed on the way out. A token named
+ * --color-text-primary produces the utility `text-text-primary`, and
+ * --color-bg-card produces `bg-bg-card`; the stutter is tiresome to write and
+ * to read. `ink` and `surface` are the usual design-system names for these and
+ * give `text-ink-primary` / `bg-surface-card`. The JS side is untouched —
+ * `colors.text.primary` still reads from the same JSON.
+ */
 const COLOR_GROUPS = {
   status: 'status',
-  background: 'bg',
-  text: 'text',
+  background: 'surface',
+  text: 'ink',
   border: 'border',
   badge: 'badge',
 };

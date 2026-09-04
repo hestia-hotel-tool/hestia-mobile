@@ -4,7 +4,7 @@ import { colors, typography } from '@/theme';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home';
 import { scaleX } from '../../constants/allRoomsStyles';
 import { AMPMToggle } from '@features/home';
-import SearchInput from '@/components/SearchInput';
+import SearchInput from '@/components/ui/SearchInput';
 import type { ShiftType } from '@features/home';
 
 interface AllRoomsHeaderProps {
