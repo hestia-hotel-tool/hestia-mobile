@@ -5,6 +5,7 @@ import { GUEST_INFO } from '../../constants/allRoomsStyles';
 import { formatGuestCount, formatDatesOfStay } from '@/utils/formatting';
 import GuestProfileImageModal, { type GuestImageAnchorLayout } from '@/components/GuestProfileImageModal';
 import type { GuestInfo } from '../../types/allRooms.types';
+import { typography } from '@/theme';
 
 export type GuestInfoCardCategory = 'Arrival' | 'Departure' | 'Stayover' | 'Turndown';
 
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     marginBottom: 4 * scaleX,
   },
@@ -240,7 +241,7 @@ const styles = StyleSheet.create({
   },
   guestName: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.name.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: ROOM_DETAIL_GUEST_INFO.arrival.name.color,
     lineHeight: 21 * scaleX,
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
   },
   numberBadge: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.numberBadge.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: ROOM_DETAIL_GUEST_INFO.arrival.numberBadge.color,
   },
@@ -262,7 +263,7 @@ const styles = StyleSheet.create({
   },
   dateRange: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.dates.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: ROOM_DETAIL_GUEST_INFO.arrival.dates.color,
     lineHeight: 17 * scaleX,
@@ -274,14 +275,14 @@ const styles = StyleSheet.create({
   },
   countText: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.occupancy.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: ROOM_DETAIL_GUEST_INFO.arrival.occupancy.color,
     lineHeight: 17 * scaleX,
   },
   timeText: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.eta.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: ROOM_DETAIL_GUEST_INFO.arrival.eta.color,
     lineHeight: 17 * scaleX,
@@ -292,14 +293,14 @@ const styles = StyleSheet.create({
   },
   specialTitle: {
     fontSize: SI.title.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: SI.title.color,
     marginBottom: 8 * scaleX,
   },
   specialText: {
     fontSize: SI.text.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: SI.text.color,
     lineHeight: 18 * scaleX,

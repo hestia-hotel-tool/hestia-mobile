@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: REASSIGN_MODAL.tabs.inactiveTab.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: REASSIGN_MODAL.tabs.inactiveTab.color,
   },

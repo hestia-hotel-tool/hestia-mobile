@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   number: {
     fontSize: REASSIGN_MODAL.staffList.workloadNumber.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#000000',
   },

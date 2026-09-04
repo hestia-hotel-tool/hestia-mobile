@@ -1,25 +1,39 @@
 import type { TextStyle } from 'react-native';
 
 /**
- * KNOWN ISSUE (documented, not fixed here):
+ * Font families, addressed BY WEIGHT.
  *
- * `primary: 'Helvetica'` resolves on iOS only. No custom font is bundled —
- * `expo-font` is installed but never registers a family — so Android's
- * `Typeface.create` silently falls back to Roboto. The brand therefore renders
- * in a different typeface per platform.
+ * Inter is bundled natively via the `expo-font` config plugin (see
+ * app.config.ts), so there is no `useFonts` call and nothing to wait on at
+ * launch.
  *
- * Fixing this shifts text metrics on every screen, so it ships as its own
- * change, not as part of the token refactor.
+ * Each weight is its own family on purpose. TrueType's legacy name table only
+ * lets four styles share a family name, so `Inter-Light.ttf` reports the family
+ * "Inter Light" and `Inter-SemiBold.ttf` reports "Inter SemiBold". Asking for
+ * family "Inter" with `fontWeight: '300'` therefore resolves on Android (which
+ * maps weights through a generated XML family) but silently falls back to
+ * Regular on iOS. Naming the exact family removes that divergence: iOS matches
+ * the PostScript name and Android the registered file name, and both land on
+ * the same face.
+ *
+ * Consequence: set `fontFamily` alone. Do NOT pair it with `fontWeight` — the
+ * weight is already carried by the family, and specifying both can make iOS
+ * re-resolve against a family that does not exist.
  */
 export const fontFamily = {
-  primary: 'Helvetica',
-  secondary: 'Inter',
+  light: 'Inter-Light',
+  regular: 'Inter-Regular',
+  semibold: 'Inter-SemiBold',
+  bold: 'Inter-Bold',
+
 } as const;
 
+export type FontFamily = keyof typeof fontFamily;
+
 /**
- * Literal-typed, so `fontWeight:` needs no cast. Many call sites still write
- * `as any` / `as '700'` against the old JSON-derived `string` type; those casts
- * are now harmless no-ops and can be swept as screens are refactored.
+ * @deprecated Weight is carried by the font family now — use `fontFamily.bold`
+ * rather than `fontFamily.primary` + `fontWeights.bold`. Kept only so that any
+ * remaining call site still compiles; do not add new uses.
  */
 export const fontWeights = {
   light: '300',

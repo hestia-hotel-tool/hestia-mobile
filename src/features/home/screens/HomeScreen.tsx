@@ -7,7 +7,7 @@ import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BlurView } from 'expo-blur';
-import { colors } from '@/theme';
+import { colors, typography } from '@/theme';
 import SearchInput from '@/components/SearchInput';
 
 import type { ShiftType } from '../types/home.types';
@@ -1153,7 +1153,7 @@ function buildHomeScreenStyles(scaleX: number) {
   },
   engineeringTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#1e1e1e',
     marginLeft: 20 * scaleX,
@@ -1162,7 +1162,7 @@ function buildHomeScreenStyles(scaleX: number) {
   },
   engineeringRecentTitle: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400' as any,
     color: '#000000',
     marginTop: 16 * scaleX,
@@ -1171,7 +1171,7 @@ function buildHomeScreenStyles(scaleX: number) {
   },
   portierTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#1e1e1e',
     marginLeft: 20 * scaleX,
@@ -1210,14 +1210,14 @@ function buildHomeScreenStyles(scaleX: number) {
     height: '100%',
   },
   searchInput: {
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     padding: 0,
     height: '100%',
     backgroundColor: 'transparent',
   },
   placeholderText: {
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.regular,
     color: 'rgba(0,0,0,0.6)',
     includeFontPadding: false,
   },

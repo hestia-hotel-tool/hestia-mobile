@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   colonText: {
     fontSize: 24 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5a759d',
     lineHeight: 24 * scaleX, // Match fontSize exactly

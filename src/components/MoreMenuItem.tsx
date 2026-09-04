@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
-import { colors } from '@/theme';
+import { colors, typography } from '@/theme';
 import { normalizedScaleX } from '@/utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -59,7 +59,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontSize: Math.round(15 * normalizedScaleX),
     color: colors.primary.main,
     textAlign: 'center',

@@ -79,7 +79,7 @@ function buildStyles(scaleX: number) {
     },
     label: {
       fontSize: 20 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#1e1e1e',
     },
@@ -117,7 +117,7 @@ function buildStyles(scaleX: number) {
     },
     badgeText: {
       fontSize: 20 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#000000',
       includeFontPadding: false,

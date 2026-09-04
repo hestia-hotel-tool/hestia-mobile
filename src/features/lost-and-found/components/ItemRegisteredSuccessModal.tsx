@@ -84,7 +84,7 @@ export default function ItemRegisteredSuccessModal({
         scaleX *
         0.5,
       fontSize: ITEM_REGISTERED_SUCCESS.itemRegisteredText.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: ITEM_REGISTERED_SUCCESS.itemRegisteredText.fontWeight as any,
       color: ITEM_REGISTERED_SUCCESS.itemRegisteredText.color,
       textAlign: 'center',
@@ -116,7 +116,7 @@ export default function ItemRegisteredSuccessModal({
     trackingNumberLabel: {
       marginTop: (ITEM_REGISTERED_SUCCESS.trackingNumberLabel.top - ITEM_REGISTERED_SUCCESS.itemRegisteredText.top) * scaleX * 0.5,
       fontSize: ITEM_REGISTERED_SUCCESS.trackingNumberLabel.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: ITEM_REGISTERED_SUCCESS.trackingNumberLabel.fontWeight as any,
       color: ITEM_REGISTERED_SUCCESS.trackingNumberLabel.color,
       textAlign: 'center',
@@ -124,7 +124,7 @@ export default function ItemRegisteredSuccessModal({
     trackingNumberValue: {
       marginTop: (ITEM_REGISTERED_SUCCESS.trackingNumberValue.top - ITEM_REGISTERED_SUCCESS.trackingNumberLabel.top) * scaleX * 0.5,
       fontSize: ITEM_REGISTERED_SUCCESS.trackingNumberValue.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: ITEM_REGISTERED_SUCCESS.trackingNumberValue.fontWeight as any,
       color: ITEM_REGISTERED_SUCCESS.trackingNumberValue.color,
       textAlign: 'center',
@@ -135,7 +135,7 @@ export default function ItemRegisteredSuccessModal({
       marginTop: (ITEM_REGISTERED_SUCCESS.instructionsText.top - ITEM_REGISTERED_SUCCESS.trackingNumberValue.top) * scaleX * 0.6,
       width: Math.min(ITEM_REGISTERED_SUCCESS.instructionsText.width * scaleX, SCREEN_WIDTH - 40 * scaleX),
       fontSize: ITEM_REGISTERED_SUCCESS.instructionsText.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: ITEM_REGISTERED_SUCCESS.instructionsText.fontWeight as any,
       color: ITEM_REGISTERED_SUCCESS.instructionsText.color,
       textAlign: 'center',
@@ -161,7 +161,7 @@ export default function ItemRegisteredSuccessModal({
     },
     printButtonText: {
       fontSize: ITEM_REGISTERED_SUCCESS.printButtonText.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: ITEM_REGISTERED_SUCCESS.printButtonText.fontWeight as any,
       color: ITEM_REGISTERED_SUCCESS.printButtonText.color,
     },
@@ -172,7 +172,7 @@ export default function ItemRegisteredSuccessModal({
     },
     closeLinkText: {
       fontSize: ITEM_REGISTERED_SUCCESS.closeLink.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: ITEM_REGISTERED_SUCCESS.closeLink.fontWeight as any,
       color: ITEM_REGISTERED_SUCCESS.closeLink.color,
       textAlign: 'center',

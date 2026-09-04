@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: STAFF_TABS.tab.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: STAFF_TABS.tab.color,
   },
@@ -184,7 +184,7 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     fontSize: STAFF_TABS.tab.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: STAFF_TABS.tab.color,
     paddingVertical: 0,
     paddingHorizontal: 0,

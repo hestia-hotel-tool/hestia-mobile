@@ -515,7 +515,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.primary,
   },
@@ -534,7 +534,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.text.primary,
     marginBottom: 16 * scaleX,
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   },
   seeMoreText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#4a91fc',
     marginRight: 4 * scaleX,

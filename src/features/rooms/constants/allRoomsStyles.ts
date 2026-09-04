@@ -4,6 +4,7 @@
  */
 
 import { Dimensions } from 'react-native';
+import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -473,7 +474,7 @@ export const DIVIDERS = {
 
 // Typography
 export const TYPOGRAPHY = {
-  fontFamily: 'Helvetica',
+  fontFamily: typography.fontFamily.regular,
   weights: {
     light: '300',
     regular: '400',

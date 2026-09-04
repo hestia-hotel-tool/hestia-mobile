@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 18,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600',
     color: '#607aa1',
     flex: 1,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: 16,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#333',
   },
   check: {
@@ -273,7 +273,7 @@ const styles = StyleSheet.create({
   },
   doneButtonText: {
     fontSize: 16,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600',
     color: '#fff',
   },

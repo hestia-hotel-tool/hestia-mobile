@@ -1155,7 +1155,7 @@ const styles = StyleSheet.create({
   },
   guestName: {
     fontSize: GUEST_INFO.name.fontSize * normalizedScaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: GUEST_INFO.name.color,
     lineHeight: GUEST_INFO.name.lineHeight * normalizedScaleX,
@@ -1171,14 +1171,14 @@ const styles = StyleSheet.create({
   priorityCount: {
     position: 'absolute',
     fontSize: GUEST_INFO.priorityBadge.fontSize * normalizedScaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: GUEST_INFO.priorityBadge.color,
     lineHeight: GUEST_INFO.priorityBadge.lineHeight * normalizedScaleX,
   },
   priorityCountInline: {
     fontSize: GUEST_INFO.priorityBadge.fontSize * normalizedScaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: GUEST_INFO.priorityBadge.color,
     lineHeight: GUEST_INFO.priorityBadge.lineHeight * normalizedScaleX,
@@ -1241,7 +1241,7 @@ const styles = StyleSheet.create({
   },
   dateRange: {
     fontSize: GUEST_INFO.dateRange.fontSize * normalizedScaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: GUEST_INFO.dateRange.color,
     lineHeight: GUEST_INFO.dateRange.lineHeight * normalizedScaleX,
@@ -1273,7 +1273,7 @@ const styles = StyleSheet.create({
   },
   countTextInline: {
     fontSize: GUEST_INFO.guestCount.fontSize * normalizedScaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: GUEST_INFO.guestCount.color,
     lineHeight: GUEST_INFO.guestCount.lineHeight * normalizedScaleX,
@@ -1286,7 +1286,7 @@ const styles = StyleSheet.create({
   time: {
     position: 'absolute',
     fontSize: GUEST_INFO.time.fontSize * normalizedScaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: GUEST_INFO.time.color,
     lineHeight: GUEST_INFO.time.lineHeight * normalizedScaleX,
@@ -1306,7 +1306,7 @@ const styles = StyleSheet.create({
   },
   timeInline: {
     fontSize: GUEST_INFO.time.fontSize * normalizedScaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: GUEST_INFO.time.color,
     lineHeight: GUEST_INFO.dateRange.lineHeight * normalizedScaleX, // Match date range line height for vertical alignment
@@ -1331,7 +1331,7 @@ const styles = StyleSheet.create({
   countText: {
     position: 'absolute',
     fontSize: GUEST_INFO.guestCount.fontSize * normalizedScaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: GUEST_INFO.guestCount.color,
     lineHeight: GUEST_INFO.guestCount.lineHeight * normalizedScaleX,

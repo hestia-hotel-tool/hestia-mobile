@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: CHAT_TYPOGRAPHY.chatName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: CHAT_TYPOGRAPHY.chatName.fontWeight as any,
     color: CHAT_TYPOGRAPHY.chatName.color,
     marginBottom: 2 * scaleX,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
   },
   message: {
     fontSize: CHAT_TYPOGRAPHY.message.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: CHAT_TYPOGRAPHY.message.fontWeight as any,
     color: CHAT_TYPOGRAPHY.message.color,
     marginTop: 2 * scaleX,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
   },
   groupLabelText: {
     fontSize: CHAT_TYPOGRAPHY.groupLabel.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: CHAT_TYPOGRAPHY.groupLabel.fontWeight as any,
     color: CHAT_TYPOGRAPHY.groupLabel.color,
   },
@@ -197,7 +197,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: CHAT_TYPOGRAPHY.badge.fontWeight as any,
     color: CHAT_TYPOGRAPHY.badge.color,
     includeFontPadding: false,

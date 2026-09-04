@@ -81,17 +81,17 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     ...HISTORY_SECTION.initialsText,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
   },
   eventContent: {
     ...HISTORY_SECTION.eventContent,
   },
   eventDescription: {
     ...HISTORY_SECTION.eventDescription,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
   },
   eventTimestamp: {
     ...HISTORY_SECTION.eventTimestamp,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
   },
 });

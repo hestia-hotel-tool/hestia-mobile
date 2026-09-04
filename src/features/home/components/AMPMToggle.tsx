@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: '#b1afaf',
   },

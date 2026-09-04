@@ -321,7 +321,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#607AA1',
     lineHeight: 24 * scaleX,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   searchInputWrapper: { justifyContent: 'center' },
   searchInput: {
     fontSize: CHAT_TYPOGRAPHY.searchPlaceholder.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: CHAT_COLORS.textPrimary,
     paddingVertical: 0,
@@ -389,7 +389,7 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: CHAT_TYPOGRAPHY.searchPlaceholder.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: CHAT_COLORS.textPlaceholder,
     opacity: CHAT_TYPOGRAPHY.searchPlaceholder.opacity,

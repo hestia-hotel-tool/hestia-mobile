@@ -651,7 +651,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   headerTitle: {
     fontSize: 24 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#607aa1',
     marginLeft: 80 * scaleX,
@@ -680,7 +680,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   betaLabel: {
     fontSize: 9 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ff4dd8',
     marginTop: -CREATE_TICKET_BETA_OVERLAP_AI_PX * scaleX,
@@ -689,7 +689,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   aiDescription: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
     textAlign: 'center',
@@ -701,7 +701,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   sectionTitle: {
     fontSize: 16 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#000',
     marginBottom: 16 * scaleX,
@@ -736,12 +736,12 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   toggleLabel: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#5a759d',
   },
   inputLabel: {
     fontSize: 16 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
     marginBottom: 12 * scaleX,
@@ -764,7 +764,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   searchInputText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#000',
     flex: 1,
   },
@@ -802,7 +802,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     borderBottomColor: '#e5e7eb',
     paddingHorizontal: 16 * scaleX,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
   },
   roomsDropdownList: {
     maxHeight: 350 * scaleX,
@@ -841,7 +841,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   roomNumber: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#5a759d',
   },
   verticalDivider: {
@@ -875,7 +875,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   guestImagePlaceholderText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ffffff',
   },
@@ -892,7 +892,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   vipBadgeText: {
     fontSize: 10 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -911,13 +911,13 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   guestName: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000',
   },
   vipCode: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#334866',
     marginLeft: 6 * scaleX,
@@ -928,7 +928,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   guestDates: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
     marginRight: 12 * scaleX,
@@ -941,7 +941,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   guestCount: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
   },
@@ -973,7 +973,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   publicAreaText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
   },
@@ -998,7 +998,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   },
   continueButtonText: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#fff',
   },
 });

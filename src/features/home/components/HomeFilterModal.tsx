@@ -697,7 +697,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.primary,
     flex: 1,
@@ -737,7 +737,7 @@ const styles = StyleSheet.create({
   },
   resetButtonText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: '#ffffff',
   },
@@ -747,7 +747,7 @@ const styles = StyleSheet.create({
   },
   resultsButtonText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.primary.main,
   },
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
   },
   goToResultsButtonText: {
     fontSize: 18 * scaleX, // Increased from 16px for better visibility
-    fontFamily: typography.fontFamily.primary, // Helvetica
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any, // 700
     color: '#5A759D', // Exact color from Figma
     // lineHeight: typography.lineHeights.normal, // normal - removed to fix type error
@@ -804,7 +804,7 @@ const styles = StyleSheet.create({
   },
   advanceFilterText: {
     fontSize: 14 * scaleX, // Matches Figma - smaller than Go to Results
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.secondary, // Lighter grey color
   },
@@ -843,7 +843,7 @@ const styles = StyleSheet.create({
   resultsPillText: {
     color: '#5a759d',
     fontSize: 14 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600' as any,
   },
   amBody: {
@@ -857,7 +857,7 @@ const styles = StyleSheet.create({
   },
   amSectionTitle: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.primary,
     marginTop: 8 * scaleX,
@@ -893,7 +893,7 @@ const styles = StyleSheet.create({
   floorLabel: {
     flex: 1,
     fontSize: 16 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     fontStyle: 'normal',
     fontWeight: '300' as any,
     color: '#000',
@@ -902,7 +902,7 @@ const styles = StyleSheet.create({
   floorCount: {
     fontSize: 14 * scaleX,
     color: '#a9a9a9',
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.regular,
   },
   amActions: {
     paddingTop: 12 * scaleX, // Reduced padding to move button up

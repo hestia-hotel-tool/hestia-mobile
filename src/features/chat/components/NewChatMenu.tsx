@@ -147,7 +147,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 17 * scaleX, // From Figma: fontSize=17
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#1e1e1e',
     flex: 1,

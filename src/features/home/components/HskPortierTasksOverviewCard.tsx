@@ -215,7 +215,7 @@ function buildStyles(scaleX: number) {
     },
     title: {
       fontSize: 20 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#1e1e1e',
     },
@@ -251,7 +251,7 @@ function buildStyles(scaleX: number) {
     },
     priorityBadgeText: {
       fontSize: 15 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#ffffff',
       includeFontPadding: false,
@@ -293,7 +293,7 @@ function buildStyles(scaleX: number) {
     },
     statusBadgeText: {
       fontSize: 20 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#000000',
       includeFontPadding: false,
@@ -301,7 +301,7 @@ function buildStyles(scaleX: number) {
     statusLabel: {
       marginTop: 12 * scaleX,
       fontSize: 14 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: typography.fontWeights.light as any,
       color: '#000000',
     },
@@ -352,7 +352,7 @@ function buildStyles(scaleX: number) {
     },
     progressText: {
       fontSize: 16 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#000000',
     },
@@ -384,7 +384,7 @@ function buildStyles(scaleX: number) {
     pausedTextCol: { flex: 1, minWidth: 0 },
     pausedRoom: {
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#f0be1b',
       includeFontPadding: false,
@@ -392,7 +392,7 @@ function buildStyles(scaleX: number) {
     pausedTimer: {
       marginTop: 2 * scaleX,
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: typography.fontWeights.regular as any,
       color: '#1e1e1e',
       includeFontPadding: false,
@@ -409,7 +409,7 @@ function buildStyles(scaleX: number) {
     },
     pausedRightText: {
       fontSize: 11 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#5a759d',
       includeFontPadding: false,

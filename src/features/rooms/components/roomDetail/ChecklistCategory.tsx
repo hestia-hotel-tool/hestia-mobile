@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   categoryTitle: {
     fontSize: CHECKLIST_SECTION.category.header.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: CHECKLIST_SECTION.category.header.fontWeight as any,
     color: CHECKLIST_SECTION.category.header.color,
   },
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
   },
   loadMoreText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: '#5a759d',
   },

@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
     left: STAFF_HEADER.title.left * scaleX,
     top: STAFF_HEADER.title.top * scaleX,
     fontSize: STAFF_HEADER.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: STAFF_HEADER.title.color,
   },

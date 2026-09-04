@@ -119,14 +119,14 @@ const styles = StyleSheet.create({
   label: {
     flex: 1,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.primary,
     marginLeft: 12 * scaleX,
   },
   count: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#A9A9A9',
     marginLeft: 8 * scaleX,

@@ -5,6 +5,7 @@
  */
 
 import { Dimensions } from 'react-native';
+import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 /** Figma frame width — use `createTicketScaleX(useWindowDimensions().width)` in screens for responsive layout */
@@ -51,7 +52,7 @@ export const CREATE_TICKET_HEADER = {
     top: 63, // From Figma design specs: top=63px
     fontSize: 24,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#607aa1',
     text: 'Create Ticket',
   },
@@ -66,7 +67,7 @@ export const CREATE_TICKET_CONTENT = {
     top: 153, // From Figma: y=153
     fontSize: 20,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#607aa1',
     text: 'Create a ticket',
   },
@@ -75,7 +76,7 @@ export const CREATE_TICKET_CONTENT = {
     top: 198, // Adjusted to match screenshot
     fontSize: 14,
     fontWeight: '300' as const, // Inter:Light (300)
-    fontFamily: 'Inter', // Inter:Light
+    fontFamily: typography.fontFamily.light, // Inter:Light
     color: '#5E6A7A', // Slightly muted color from screenshot
     text: 'Select Department',
   },
@@ -95,7 +96,7 @@ export const DEPARTMENT_GRID = {
   label: {
     fontSize: 14,
     fontWeight: '300' as const, // Inter:Light (300)
-    fontFamily: 'Inter', // Inter:Light
+    fontFamily: typography.fontFamily.light, // Inter:Light
     color: '#000000',
     textAlign: 'center' as const, // Labels are centered under icons
     lineHeight: 'normal' as const,
@@ -197,7 +198,7 @@ export const CREATE_TICKET_AI_BUTTON = {
     top: 22, // From Figma: text y=22 relative to button
     fontSize: 16, // From Figma: text-[16px]
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#5a759d',
     width: 104, // From Figma: width=104
     text: 'Create Ticket',
@@ -215,7 +216,7 @@ export const CREATE_TICKET_AI_BUTTON = {
     top: 51, // From Figma: text y=51 relative to button
     fontSize: 12,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     width: 15, // From Figma: width=15
     text: 'AI',
     // Gradient colors: from #ff46a3 to #4a91fc
@@ -230,7 +231,7 @@ export const CREATE_TICKET_AI_BUTTON = {
     top: 698, // Adjusted: button moved to 630, so beta at 630 + 68 = 698
     fontSize: 9,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#ff4dd8', // Pink color
     width: 28, // From Figma: width=28
     text: 'BETA',
@@ -241,8 +242,8 @@ export const CREATE_TICKET_AI_BUTTON = {
     top: 734, // Adjusted: button moved to 630, so description at 630 + 104 = 734
     width: 318, // From Figma: width=318
     fontSize: 14,
-    fontWeight: '300' as const, // Helvetica:Light (300)
-    fontFamily: 'Helvetica', // Helvetica:Light
+    fontWeight: '300' as const,
+    fontFamily: typography.fontFamily.light,
     color: '#6B7280', // Slightly muted grey from screenshot
     textAlign: 'center' as const,
     lineHeight: 'normal' as const,
@@ -289,37 +290,37 @@ export const CREATE_TICKET_TYPOGRAPHY = {
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#607aa1',
   },
   heading: {
     fontSize: 20,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#607aa1',
   },
   selectDepartmentLabel: {
     fontSize: 14,
     fontWeight: '300' as const, // Inter:Light (300)
-    fontFamily: 'Inter', // Inter:Light
+    fontFamily: typography.fontFamily.light, // Inter:Light
     color: '#5E6A7A', // Muted grey from screenshot
   },
   departmentLabel: {
     fontSize: 14,
     fontWeight: '300' as const, // Inter:Light (300)
-    fontFamily: 'Inter', // Inter:Light
+    fontFamily: typography.fontFamily.light, // Inter:Light
     color: '#000000',
   },
   aiButtonText: {
     fontSize: 16, // From Figma: text-[16px]
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#5a759d',
   },
   aiBadgeText: {
     fontSize: 12,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     // Gradient: from #ff46a3 to #4a91fc
     gradientStart: '#ff46a3', // Pink
     gradientEnd: '#4a91fc', // Blue
@@ -327,13 +328,13 @@ export const CREATE_TICKET_TYPOGRAPHY = {
   betaLabel: {
     fontSize: 9,
     fontWeight: 'bold' as const,
-    fontFamily: 'Helvetica', // Helvetica:Bold
+    fontFamily: typography.fontFamily.bold,
     color: '#ff4dd8',
   },
   description: {
     fontSize: 14,
-    fontWeight: '300' as const, // Helvetica:Light (300)
-    fontFamily: 'Helvetica', // Helvetica:Light
+    fontWeight: '300' as const,
+    fontFamily: typography.fontFamily.light,
     color: '#6B7280', // Muted grey from screenshot
     lineHeight: 'normal' as const,
   },

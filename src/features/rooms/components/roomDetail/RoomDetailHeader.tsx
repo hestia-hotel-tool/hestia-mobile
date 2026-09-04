@@ -452,7 +452,7 @@ const styles = StyleSheet.create({
   },
   roomNumber: {
     fontSize: ROOM_DETAIL_HEADER.roomNumber.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: ROOM_DETAIL_HEADER.roomNumber.color,
   },
@@ -471,7 +471,7 @@ const styles = StyleSheet.create({
   roomCode: {
     position: 'absolute',
     fontSize: ROOM_DETAIL_HEADER.roomCode.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: ROOM_DETAIL_HEADER.roomCode.color,
     top: ROOM_DETAIL_HEADER.roomCode.top * scaleX,
@@ -491,7 +491,7 @@ const styles = StyleSheet.create({
   },
   frontOfficeLabel: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: ROOM_DETAIL_HEADER.roomCode.color,
   },
@@ -509,7 +509,7 @@ const styles = StyleSheet.create({
   },
   withLinenBadgeText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#334866',
   },
@@ -533,7 +533,7 @@ const styles = StyleSheet.create({
   },
   flaggedPillText: {
     fontSize: 19 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: ROOM_DETAIL_HEADER.flagged.pill.textAndIconTint,
   },
@@ -554,7 +554,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: 19 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontStyle: 'normal',
     fontWeight: '300' as any,
     lineHeight: undefined,
@@ -573,7 +573,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: (ROOM_DETAIL_HEADER.statusIndicator.top + ROOM_DETAIL_HEADER.statusIndicator.height + 8) * scaleX, // Below status indicator with 8px spacing
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     color: '#ffffff',
     textAlign: 'center',
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
   },
   pausedTimeInline: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     color: '#ffffff',
     textAlign: 'center',
@@ -607,7 +607,7 @@ const styles = StyleSheet.create({
   },
   resumeBtnText: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#f92424',
     includeFontPadding: false,
@@ -618,7 +618,7 @@ const styles = StyleSheet.create({
     right: 0,
     top: (ROOM_DETAIL_HEADER.statusIndicator.top + ROOM_DETAIL_HEADER.statusIndicator.height + 8) * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     color: '#ffffff',
     textAlign: 'center',
@@ -635,7 +635,7 @@ const styles = StyleSheet.create({
   },
   refuseText: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     textAlign: 'center',
   },
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
   },
   clearBtnText: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#f92424',
     includeFontPadding: false,

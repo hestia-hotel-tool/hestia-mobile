@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     left: LOST_AND_FOUND_CONTENT.itemName.left * scaleX,
     top: LOST_AND_FOUND_CONTENT.itemName.top * scaleX,
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.itemName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.itemName.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.itemName.color,
     maxWidth:
@@ -469,7 +469,7 @@ const styles = StyleSheet.create({
   },
   itemId: {
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.itemId.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.itemId.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.itemId.color,
     marginRight: 4 * scaleX, // Space between ID and copy icon
@@ -493,7 +493,7 @@ const styles = StyleSheet.create({
     width: 84 * scaleX,
     height: 19 * scaleX,
     fontSize: 13 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#000000',
     lineHeight: undefined,
@@ -518,7 +518,7 @@ const styles = StyleSheet.create({
   },
   foundInLocationText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: LOST_AND_FOUND_COLORS.tabActive,
   },
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
   },
   foundInGuestThumbFallbackText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#ffffff',
     includeFontPadding: false,
@@ -599,7 +599,7 @@ const styles = StyleSheet.create({
   },
   foundInGuestName: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#000000',
     marginRight: 6 * scaleX,
@@ -611,7 +611,7 @@ const styles = StyleSheet.create({
   },
   foundInGuestDates: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#000000',
     marginTop: 6 * scaleX,
@@ -628,7 +628,7 @@ const styles = StyleSheet.create({
   },
   roomBadgeText: {
     fontSize: 9 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#000000',
     includeFontPadding: false,
@@ -668,7 +668,7 @@ const styles = StyleSheet.create({
   },
   publicAreaFoundInTitle: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#000000',
     flexShrink: 1,
@@ -686,7 +686,7 @@ const styles = StyleSheet.create({
   },
   publicAreaBadgeText: {
     fontSize: 9 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#000000',
     includeFontPadding: false,
@@ -695,7 +695,7 @@ const styles = StyleSheet.create({
   publicAreaFoundInSubTitle: {
     marginTop: 6 * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#000000',
     flexShrink: 1,
@@ -718,13 +718,13 @@ const styles = StyleSheet.create({
   },
   storedLocationLabel: {
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.storedLocationLabel.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.storedLocationLabel.color,
   },
   storedLocationName: {
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.storedLocationName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.storedLocationName.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.storedLocationName.color,
   },
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
     left: LOST_AND_FOUND_REGISTERED_BY.label.left * scaleX,
     top: LOST_AND_FOUND_REGISTERED_BY.label.top * scaleX,
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.registeredByLabel.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.registeredByLabel.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.registeredByLabel.color,
   },
@@ -796,7 +796,7 @@ const styles = StyleSheet.create({
     left: LOST_AND_FOUND_REGISTERED_BY.name.left * scaleX,
     top: LOST_AND_FOUND_REGISTERED_BY.name.top * scaleX,
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.staffName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.staffName.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.staffName.color,
     maxWidth: 150 * scaleX,
@@ -806,7 +806,7 @@ const styles = StyleSheet.create({
     left: LOST_AND_FOUND_REGISTERED_BY.timestamp.left * scaleX,
     top: LOST_AND_FOUND_REGISTERED_BY.timestamp.top * scaleX,
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.timestamp.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.timestamp.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.timestamp.color,
     maxWidth: 150 * scaleX,
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
   },
   statusText: {
     fontSize: LOST_AND_FOUND_STATUS.text.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: LOST_AND_FOUND_STATUS.text.fontWeight as any,
     lineHeight: LOST_AND_FOUND_STATUS.text.lineHeight * scaleX,
     includeFontPadding: false,

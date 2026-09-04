@@ -236,7 +236,7 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.white,
     lineHeight: 20 * scaleX,
@@ -244,7 +244,7 @@ const styles = StyleSheet.create({
   staffName: {
     position: 'absolute',
     fontSize: STAFF_SECTION.name.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: STAFF_SECTION.name.color,
     width: STAFF_SECTION.name.width * scaleX,
@@ -256,7 +256,7 @@ const styles = StyleSheet.create({
   statusText: {
     position: 'absolute',
     fontSize: STAFF_SECTION.status.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     lineHeight: STAFF_SECTION.status.lineHeight * scaleX,
     width: STAFF_SECTION.status.width * scaleX,
@@ -272,7 +272,7 @@ const styles = StyleSheet.create({
   promiseTime: {
     position: 'absolute',
     fontSize: STAFF_SECTION.promiseTime.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: STAFF_SECTION.promiseTime.color,
     lineHeight: STAFF_SECTION.promiseTime.lineHeight * scaleX,
@@ -305,7 +305,7 @@ const styles = StyleSheet.create({
   },
   assignButtonText: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5a759d',
   },

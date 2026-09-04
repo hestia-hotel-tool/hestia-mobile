@@ -242,7 +242,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: CHECKLIST_SECTION.title.color,
     marginBottom: 24 * scaleX,

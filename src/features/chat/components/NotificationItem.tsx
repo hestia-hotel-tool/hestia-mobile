@@ -83,7 +83,7 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     includeFontPadding: false,
   },
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: CHAT_COLORS.textPrimary,
     includeFontPadding: false,
@@ -101,7 +101,7 @@ const styles = StyleSheet.create({
   time: {
     marginTop: 2 * scaleX,
     fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: CHAT_COLORS.textPrimary,
     opacity: 0.9,
@@ -118,7 +118,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#ffffff',
     includeFontPadding: false,

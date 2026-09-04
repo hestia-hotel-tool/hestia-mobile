@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
     borderRadius: 10 * scaleX,
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#1e1e1e',
   },
 });

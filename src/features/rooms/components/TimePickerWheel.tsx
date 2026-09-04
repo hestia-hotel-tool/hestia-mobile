@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8 * scaleX,
   },
   text: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     textAlign: 'center',
   },
   textSelected: {

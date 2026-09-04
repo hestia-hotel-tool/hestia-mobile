@@ -98,7 +98,7 @@ function buildCreateTicketStyles(windowWidth: number) {
     },
     headerTitle: {
       fontSize: 24 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: '700' as any,
       color: '#607AA1',
       lineHeight: undefined,
@@ -110,7 +110,7 @@ function buildCreateTicketStyles(windowWidth: number) {
       left: (windowWidth / 2) + (CREATE_TICKET_CONTENT.heading.leftOffset * scaleX),
       top: CREATE_TICKET_CONTENT.heading.top * scaleX,
       fontSize: CREATE_TICKET_TYPOGRAPHY.heading.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: '700',
       color: CREATE_TICKET_TYPOGRAPHY.heading.color,
     },
@@ -119,7 +119,7 @@ function buildCreateTicketStyles(windowWidth: number) {
       left: CREATE_TICKET_CONTENT.selectDepartmentLabel.left * scaleX,
       top: CREATE_TICKET_CONTENT.selectDepartmentLabel.top * scaleX,
       fontSize: CREATE_TICKET_TYPOGRAPHY.selectDepartmentLabel.fontSize * scaleX,
-      fontFamily: typography.fontFamily.secondary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: '300',
       color: CREATE_TICKET_TYPOGRAPHY.selectDepartmentLabel.color,
     },
@@ -160,7 +160,7 @@ function buildCreateTicketStyles(windowWidth: number) {
     departmentLabel: {
       position: 'absolute',
       fontSize: CREATE_TICKET_TYPOGRAPHY.departmentLabel.fontSize * scaleX,
-      fontFamily: typography.fontFamily.secondary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: '300',
       color: CREATE_TICKET_TYPOGRAPHY.departmentLabel.color,
       textAlign: 'center',
@@ -185,7 +185,7 @@ function buildCreateTicketStyles(windowWidth: number) {
     },
     betaLabel: {
       fontSize: CREATE_TICKET_TYPOGRAPHY.betaLabel.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: '700',
       color: CREATE_TICKET_TYPOGRAPHY.betaLabel.color,
       textAlign: 'center',
@@ -195,7 +195,7 @@ function buildCreateTicketStyles(windowWidth: number) {
     },
     description: {
       fontSize: CREATE_TICKET_TYPOGRAPHY.description.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: '300',
       color: CREATE_TICKET_TYPOGRAPHY.description.color,
       textAlign: 'center',

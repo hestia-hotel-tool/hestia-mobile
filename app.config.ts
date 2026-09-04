@@ -76,7 +76,24 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       policy: "appVersion",
     },
     plugins: [
-      "expo-font",
+      // Bundled at build time (no useFonts, no async gate, nothing for the
+      // launch screen to wait on). Registered as four separate families rather
+      // than one "Inter" family with weights: TrueType's name table only lets
+      // four styles share a family, so Inter-Light and Inter-SemiBold report
+      // "Inter Light"/"Inter SemiBold". Android would map them by weight but
+      // iOS would silently fall back to Regular. Addressing each weight by its
+      // own family name resolves identically on both platforms.
+      [
+        "expo-font",
+        {
+          fonts: [
+            "./assets/fonts/Inter-Light.ttf",
+            "./assets/fonts/Inter-Regular.ttf",
+            "./assets/fonts/Inter-SemiBold.ttf",
+            "./assets/fonts/Inter-Bold.ttf",
+          ],
+        },
+      ],
       "expo-asset",
       [
         "expo-router",

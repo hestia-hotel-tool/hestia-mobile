@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.text.primary,
     marginBottom: 12 * scaleX, // Reduced from 16px

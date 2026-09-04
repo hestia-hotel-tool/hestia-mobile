@@ -227,7 +227,7 @@ const styles = StyleSheet.create({
   title: {
     flex: 1,
     fontSize: 22,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5a759d',
     marginLeft: 4,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
   },
   autoAssignText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#5a759d',
   },
@@ -256,14 +256,14 @@ const styles = StyleSheet.create({
   tabActive: { borderBottomWidth: 2, borderBottomColor: '#5a759d', paddingBottom: 8, marginRight: 28 },
   tabActiveText: {
     fontSize: 15,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5a759d',
   },
   tabSelected: {
     flex: 1,
     fontSize: 15,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#1e1e1e',
   },
   tabSelectedCount: { fontWeight: typography.fontWeights.bold as any },
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e3e8ef',
     paddingHorizontal: 14,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontSize: 14,
     color: '#1e1e1e',
   },
@@ -306,19 +306,19 @@ const styles = StyleSheet.create({
   cardTopRow: { flexDirection: 'row', alignItems: 'baseline' },
   roomNumber: {
     fontSize: 18,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#1e1e1e',
     marginRight: 8,
   },
   roomCode: {
     fontSize: 11,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#9aa0a6',
   },
   roomType: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#1e1e1e',
     marginTop: 2,
@@ -334,14 +334,14 @@ const styles = StyleSheet.create({
   dirtyIcon: { width: 22, height: 22, marginRight: 7 },
   dirtyText: {
     fontSize: 13,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#ffffff',
   },
   center: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
   emptyText: {
     fontSize: 14,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#9aa0a6',
   },
   footer: {
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   assignBtnDisabled: { backgroundColor: '#b7c2d3' },
   assignBtnText: {
     fontSize: 16,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#ffffff',
   },

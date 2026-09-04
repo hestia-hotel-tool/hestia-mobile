@@ -176,6 +176,34 @@ no longer read at runtime. Do not add tokens there expecting them to apply.
 Sizes are **numbers**, not px-strings: the old JSON tokens were `"13px"` and so
 could never be used in a `StyleSheet`, which is why nothing consumed them.
 
+## Fonts
+
+Inter is bundled and embedded **natively** through the `expo-font` config plugin
+(see `app.config.ts`). There is no `useFonts` call, no async gate and nothing for
+the launch screen to wait on. Changing the font set requires a native rebuild.
+
+Address a face **by weight-specific family, and do not pair it with
+`fontWeight`**:
+
+```tsx
+import { typography } from '@/theme';
+
+title:    { fontFamily: typography.fontFamily.bold },      // not primary + '700'
+subtitle: { fontFamily: typography.fontFamily.light },
+```
+
+Why each weight is its own family: TrueType's legacy name table only lets four
+styles share a family name, so `Inter-Light.ttf` reports the family
+"Inter Light" and `Inter-SemiBold.ttf` reports "Inter SemiBold". Asking for
+family `Inter` with `fontWeight: '300'` therefore resolves on Android — which
+maps weights through a generated XML family — but silently falls back to Regular
+on iOS. Naming the exact family removes that divergence: iOS matches the
+PostScript name, Android the registered file name, and both land on the same
+face. As a bonus, each of these families holds exactly one face, so a stale
+`fontWeight` left beside it cannot select the wrong one.
+
+`fontWeights` still exists but is `@deprecated`; do not add new uses.
+
 ## Layout & Scaling
 
 `useDesignScale()` from `@/ui` is the **only** scaling helper. It replaced five

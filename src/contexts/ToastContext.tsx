@@ -124,14 +124,14 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   title: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     fontSize: 14 * scaleX,
     color: colors.text.white,
     marginBottom: 2,
   },
   message: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     fontSize: 13 * scaleX,
     color: colors.text.white,

@@ -1643,7 +1643,7 @@ const styles = StyleSheet.create({
     left: REGISTER_FORM.header.title.left * scaleX,
     top: REGISTER_FORM.header.title.top * scaleX,
     fontSize: REGISTER_FORM.header.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.header.title.fontWeight as any,
     color: REGISTER_FORM.header.title.color,
     zIndex: 11,
@@ -1659,7 +1659,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: REGISTER_FORM.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.title.fontWeight as any,
     color: REGISTER_FORM.title.color,
     // The container has 27px horizontal padding; Figma title starts at x=31.
@@ -1668,7 +1668,7 @@ const styles = StyleSheet.create({
   },
   stepIndicator: {
     fontSize: REGISTER_FORM.stepIndicator.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.stepIndicator.fontWeight as any,
     color: REGISTER_FORM.stepIndicator.color,
     // The container has 27px horizontal padding; Figma step label starts at x=32.
@@ -1696,7 +1696,7 @@ const styles = StyleSheet.create({
   },
   sectionLabel: {
     fontSize: REGISTER_FORM.dateTime.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.dateTime.label.fontWeight as any,
     color: REGISTER_FORM.dateTime.label.color,
     marginBottom: 16 * scaleX, // Relative spacing from label to input
@@ -1718,7 +1718,7 @@ const styles = StyleSheet.create({
   },
   titleInput: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#111827',
   },
@@ -1747,7 +1747,7 @@ const styles = StyleSheet.create({
   },
   dateTimeText: {
     fontSize: REGISTER_FORM.dateTime.dateText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.dateTime.dateText.fontWeight as any,
     color: REGISTER_FORM.dateTime.dateText.color,
   },
@@ -1790,7 +1790,7 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: REGISTER_FORM.location.roomOption.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.location.roomOption.fontWeight as any,
     color: '#5a759d',
   },
@@ -1799,7 +1799,7 @@ const styles = StyleSheet.create({
   },
   sectionLabelLight: {
     fontSize: REGISTER_FORM.roomNumber.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.roomNumber.label.fontWeight as any,
     color: REGISTER_FORM.roomNumber.label.color,
     marginTop: 0, // Already accounted in locationContainer marginBottom
@@ -1827,7 +1827,7 @@ const styles = StyleSheet.create({
   },
   searchInputText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#000',
     flex: 1,
   },
@@ -1866,7 +1866,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#e5e7eb',
     paddingHorizontal: 16 * scaleX,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
   },
   roomsDropdownList: {
     maxHeight: 350 * scaleX,
@@ -1921,7 +1921,7 @@ const styles = StyleSheet.create({
   },
   roomNumberText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#5a759d',
   },
@@ -1955,7 +1955,7 @@ const styles = StyleSheet.create({
   },
   guestImagePlaceholderText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#5a759d',
   },
@@ -1972,7 +1972,7 @@ const styles = StyleSheet.create({
   },
   vipBadgeText: {
     fontSize: 10 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -1991,13 +1991,13 @@ const styles = StyleSheet.create({
   },
   guestNameText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000',
   },
   vipCodeText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#334866',
     marginLeft: 6 * scaleX,
@@ -2008,7 +2008,7 @@ const styles = StyleSheet.create({
   },
   guestDatesText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
     marginRight: 12 * scaleX,
@@ -2022,7 +2022,7 @@ const styles = StyleSheet.create({
   },
   guestCountText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
   },
@@ -2058,7 +2058,7 @@ const styles = StyleSheet.create({
   },
   publicAreaText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
   },
@@ -2069,7 +2069,7 @@ const styles = StyleSheet.create({
   },
   roomText: {
     fontSize: REGISTER_FORM.roomNumber.roomText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.roomNumber.roomText.fontWeight as any,
     color: REGISTER_FORM.roomNumber.roomText.color,
   },
@@ -2085,7 +2085,7 @@ const styles = StyleSheet.create({
   },
   guestText: {
     fontSize: REGISTER_FORM.roomNumber.guestText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.roomNumber.guestText.fontWeight as any,
     color: REGISTER_FORM.roomNumber.guestText.color,
   },
@@ -2116,7 +2116,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: REGISTER_FORM.roomNumber.badge.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.roomNumber.badge.fontWeight as any,
     color: REGISTER_FORM.roomNumber.badge.textColor,
   },
@@ -2155,7 +2155,7 @@ const styles = StyleSheet.create({
   },
   roomSearchInput: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#111827',
   },
   roomDropdownItem: {
@@ -2177,7 +2177,7 @@ const styles = StyleSheet.create({
   },
   roomDropdownRoomText: {
     fontSize: REGISTER_FORM.roomNumber.roomText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.roomNumber.roomText.fontWeight as any,
     color: REGISTER_FORM.roomNumber.roomText.color,
   },
@@ -2189,7 +2189,7 @@ const styles = StyleSheet.create({
   },
   roomDropdownGuestText: {
     fontSize: REGISTER_FORM.roomNumber.guestText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.roomNumber.guestText.fontWeight as any,
     color: REGISTER_FORM.roomNumber.guestText.color,
   },
@@ -2206,7 +2206,7 @@ const styles = StyleSheet.create({
   },
   roomDropdownVipCodeText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#334866',
     marginLeft: 6 * scaleX,
@@ -2269,14 +2269,14 @@ const styles = StyleSheet.create({
   },
   addPhotoTitle: {
     fontSize: 19 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ff46a3',
     marginBottom: 8 * scaleX,
   },
   addPhotoSubtitle: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
@@ -2289,7 +2289,7 @@ const styles = StyleSheet.create({
   },
   addPhotoGridTitle: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ff46a3',
   },
@@ -2362,7 +2362,7 @@ const styles = StyleSheet.create({
   },
   notesLabel: {
     fontSize: REGISTER_FORM.notes.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.notes.label.fontWeight as any,
     color: REGISTER_FORM.notes.label.color,
   },
@@ -2370,7 +2370,7 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: REGISTER_FORM.notes.text.width * scaleX,
     fontSize: REGISTER_FORM.notes.text.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.notes.text.fontWeight as any,
     color: REGISTER_FORM.notes.text.color,
     minHeight: 60 * scaleX,
@@ -2400,7 +2400,7 @@ const styles = StyleSheet.create({
   },
   nextButtonText: {
     fontSize: REGISTER_FORM.nextButton.text.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.nextButton.text.fontWeight as any,
     color: REGISTER_FORM.nextButton.text.color,
   },
@@ -2452,7 +2452,7 @@ const styles = StyleSheet.create({
   },
   step2InitialsText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#ffffff',
   },
@@ -2462,7 +2462,7 @@ const styles = StyleSheet.create({
   },
   step2FieldText: {
     fontSize: REGISTER_FORM.step2.foundedBy.name.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step2.foundedBy.name.fontWeight as any,
     color: REGISTER_FORM.step2.foundedBy.name.color,
   },
@@ -2538,7 +2538,7 @@ const styles = StyleSheet.create({
   step3ItemDescription: {
     flex: 1,
     fontSize: REGISTER_FORM.step3.itemDescription.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.itemDescription.fontWeight as any,
     color: REGISTER_FORM.step3.itemDescription.color,
     marginRight: 8 * scaleX,
@@ -2558,7 +2558,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.foundIn.label.top - REGISTER_FORM.step3.itemDescription.top) * scaleX * 0.7,
     marginLeft: REGISTER_FORM.step3.foundIn.label.left * scaleX,
     fontSize: REGISTER_FORM.step3.foundIn.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step3.foundIn.label.fontWeight as any,
     color: REGISTER_FORM.step3.foundIn.label.color,
     marginBottom: 0,
@@ -2590,7 +2590,7 @@ const styles = StyleSheet.create({
   },
   step3FoundInRoomText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#5a759d',
     minWidth: 78 * scaleX,
@@ -2635,7 +2635,7 @@ const styles = StyleSheet.create({
   },
   step3FoundInVipBadgeText: {
     fontSize: 10 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold',
     color: '#fff',
   },
@@ -2654,14 +2654,14 @@ const styles = StyleSheet.create({
   },
   step3FoundInGuestName: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000',
     flexShrink: 1,
   },
   step3FoundInVipCode: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#334866',
     marginLeft: 6 * scaleX,
@@ -2672,7 +2672,7 @@ const styles = StyleSheet.create({
   },
   step3FoundInDates: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
     marginRight: 12 * scaleX,
@@ -2685,14 +2685,14 @@ const styles = StyleSheet.create({
   },
   step3FoundInGuestCountText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
   },
   step3FoundInPublicAreaText: {
     flex: 1,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     color: '#5a759d',
   },
@@ -2720,7 +2720,7 @@ const styles = StyleSheet.create({
   },
   step3CheckboxLabel: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: '#5a759d',
   },
@@ -2744,13 +2744,13 @@ const styles = StyleSheet.create({
   },
   step3GuestName: {
     fontSize: REGISTER_FORM.step3.foundIn.guestName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step3.foundIn.guestName.fontWeight as any,
     color: REGISTER_FORM.step3.foundIn.guestName.color,
   },
   step3RoomNumber: {
     fontSize: REGISTER_FORM.step3.foundIn.roomNumber.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.foundIn.roomNumber.fontWeight as any,
     color: REGISTER_FORM.step3.foundIn.roomNumber.color,
     marginTop: 4 * scaleX, // Reduced gap between name and room
@@ -2765,7 +2765,7 @@ const styles = StyleSheet.create({
   },
   step3EmailLabel: {
     fontSize: REGISTER_FORM.step3.emailCheckbox.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: REGISTER_FORM.step3.emailCheckbox.color,
   },
@@ -2779,7 +2779,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.dateTime.label.top - 716) * scaleX * 0.7, // Divider is at 716px
     marginLeft: REGISTER_FORM.step3.dateTime.label.left * scaleX,
     fontSize: REGISTER_FORM.step3.dateTime.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.dateTime.label.fontWeight as any,
     color: REGISTER_FORM.step3.dateTime.label.color,
     marginBottom: 0,
@@ -2795,14 +2795,14 @@ const styles = StyleSheet.create({
   },
   step3Date: {
     fontSize: REGISTER_FORM.step3.dateTime.date.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: REGISTER_FORM.step3.dateTime.date.color,
     marginRight: 16 * scaleX,
   },
   step3Time: {
     fontSize: REGISTER_FORM.step3.dateTime.time.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: REGISTER_FORM.step3.dateTime.time.color,
     marginRight: 16 * scaleX,
@@ -2811,7 +2811,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.foundedBy.label.top - 804) * scaleX * 0.7, // Divider is at 804px
     marginLeft: REGISTER_FORM.step3.foundedBy.label.left * scaleX,
     fontSize: REGISTER_FORM.step3.foundedBy.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step3.foundedBy.label.fontWeight as any,
     color: REGISTER_FORM.step3.foundedBy.label.color,
     marginBottom: 0,
@@ -2820,7 +2820,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.registeredBy.label.top - REGISTER_FORM.step3.foundedBy.department.top) * scaleX * 0.7,
     marginLeft: REGISTER_FORM.step3.registeredBy.label.left * scaleX,
     fontSize: REGISTER_FORM.step3.registeredBy.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step3.registeredBy.label.fontWeight as any,
     color: REGISTER_FORM.step3.registeredBy.label.color,
     marginBottom: 0,
@@ -2864,7 +2864,7 @@ const styles = StyleSheet.create({
   },
   step3InitialsText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#ffffff',
   },
@@ -2877,13 +2877,13 @@ const styles = StyleSheet.create({
   },
   step3StaffName: {
     fontSize: REGISTER_FORM.step3.foundedBy.name.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.foundedBy.name.fontWeight as any,
     color: REGISTER_FORM.step3.foundedBy.name.color,
   },
   step3StaffDepartment: {
     fontSize: REGISTER_FORM.step3.foundedBy.department.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.foundedBy.department.fontWeight as any,
     color: REGISTER_FORM.step3.foundedBy.department.color,
     marginTop: 4 * scaleX, // Reduced gap between name and department
@@ -2892,7 +2892,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.status.label.top - 1021) * scaleX * 0.7, // Divider is at 1021px
     marginLeft: REGISTER_FORM.step3.status.label.left * scaleX,
     fontSize: REGISTER_FORM.step3.status.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step3.status.label.fontWeight as any,
     color: REGISTER_FORM.step3.status.label.color,
     marginBottom: 0,
@@ -2913,7 +2913,7 @@ const styles = StyleSheet.create({
   },
   step3StatusValue: {
     fontSize: REGISTER_FORM.step3.status.value.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.status.value.fontWeight as any,
     color: REGISTER_FORM.step3.status.value.color,
   },
@@ -2921,7 +2921,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.storedLocation.label.top - REGISTER_FORM.step3.status.value.top) * scaleX * 0.5,
     marginLeft: REGISTER_FORM.step3.storedLocation.label.left * scaleX,
     fontSize: REGISTER_FORM.step3.storedLocation.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step3.storedLocation.label.fontWeight as any,
     color: REGISTER_FORM.step3.storedLocation.label.color,
     marginBottom: 0,
@@ -2930,7 +2930,7 @@ const styles = StyleSheet.create({
     marginTop: (REGISTER_FORM.step3.storedLocation.value.top - REGISTER_FORM.step3.storedLocation.label.top) * scaleX * 0.5,
     marginLeft: REGISTER_FORM.step3.storedLocation.value.left * scaleX,
     fontSize: REGISTER_FORM.step3.storedLocation.value.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step3.storedLocation.value.fontWeight as any,
     color: REGISTER_FORM.step3.storedLocation.value.color,
     width: '100%',

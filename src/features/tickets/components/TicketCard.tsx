@@ -285,7 +285,7 @@ const styles = StyleSheet.create({
   dueAtLine: {
     marginTop: 6 * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#334866',
     includeFontPadding: false,
@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
   title: {
     flexShrink: 1,
     fontSize: 27 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     includeFontPadding: false,
   },
@@ -326,7 +326,7 @@ const styles = StyleSheet.create({
   },
   roomPillText: {
     fontSize: 24 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#fff',
     includeFontPadding: false,
@@ -352,7 +352,7 @@ const styles = StyleSheet.create({
   },
   guestThumbInitial: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#5a759d',
   },
@@ -362,14 +362,14 @@ const styles = StyleSheet.create({
   },
   guestName: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#1e1e1e',
   },
   guestDates: {
     marginTop: 2 * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#1e1e1e',
   },
@@ -408,7 +408,7 @@ const styles = StyleSheet.create({
   /** Figma 3147:230 — "OFT" inside the white circle */
   ofoPillLabel: {
     fontSize: 9 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#c6c5c5',
     includeFontPadding: false,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   },
   footerAvatarInitial: {
     fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#5a759d',
   },
@@ -502,14 +502,14 @@ const styles = StyleSheet.create({
   },
   footerName: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#1e1e1e',
   },
   footerSub: {
     marginTop: 2 * scaleX,
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000',
   },

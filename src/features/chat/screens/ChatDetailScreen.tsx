@@ -35,7 +35,7 @@ import { RootStackParamList } from '@/types/navigation';
 import { ChatMessage } from '@/types';
 import MessageBubble from '../components/MessageBubble';
 import ChatHeader from '../components/ChatHeader';
-import { colors } from '@/theme';
+import { colors, typography } from '@/theme';
 import { scaleX, CHAT_HEADER, CHAT_HEADER_BAR_HEIGHT } from '../constants/chatStyles';
 import {
   getCurrentUserId,
@@ -1059,7 +1059,7 @@ const styles = StyleSheet.create({
   },
   mentionSnippetFaded: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     lineHeight: 18 * scaleX,
     color: colors.text.primary,
     opacity: 0.4,
@@ -1071,19 +1071,19 @@ const styles = StyleSheet.create({
   },
   mentionBannerTitle: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: colors.primary.main,
   },
   mentionBannerSender: {
     fontSize: 12 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.secondary,
     marginTop: 2 * scaleX,
   },
   mentionBannerMore: {
     fontSize: 11 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.tertiary,
     marginTop: 2 * scaleX,
   },
@@ -1170,7 +1170,7 @@ const styles = StyleSheet.create({
   },
   dateSeparatorText: {
     fontSize: 12 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.tertiary,
     marginHorizontal: 12 * scaleX,
     fontWeight: '400' as any,
@@ -1220,7 +1220,7 @@ const styles = StyleSheet.create({
   },
   filePreviewName: {
     fontSize: 12 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.primary,
     marginLeft: 6 * scaleX,
     flex: 1,
@@ -1248,7 +1248,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 18 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600' as any,
     color: colors.text.primary,
   },
@@ -1264,7 +1264,7 @@ const styles = StyleSheet.create({
   },
   participantName: {
     fontSize: 16 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.primary,
   },
   tagListPanel: {
@@ -1281,7 +1281,7 @@ const styles = StyleSheet.create({
   },
   tagListHeader: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600' as any,
     color: colors.text.tertiary,
     paddingHorizontal: 12 * scaleX,
@@ -1314,7 +1314,7 @@ const styles = StyleSheet.create({
   tagListName: {
     flex: 1,
     fontSize: 16 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.primary,
   },
   emptyTagList: {
@@ -1429,7 +1429,7 @@ const styles = StyleSheet.create({
   },
   groupMemberName: {
     fontSize: 16 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     color: colors.text.primary,
   },
   groupMemberRole: {

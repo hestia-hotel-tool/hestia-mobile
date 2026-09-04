@@ -9,7 +9,7 @@
 
 import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native';
-import { colors } from '@/theme';
+import { colors, typography } from '@/theme';
 import { scaleX, CONTENT_AREA, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import { getRoomTypeConfig } from '../../constants/roomTypeConfigs';
 import RoomDetailHeader from './RoomDetailHeader';
@@ -374,7 +374,7 @@ const styles = StyleSheet.create({
   },
   guestInfoTitle: {
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold',
     color: '#000000',
     marginBottom: 8 * scaleX,
@@ -388,7 +388,7 @@ const styles = StyleSheet.create({
   },
   assignedToHeading: {
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold',
     color: '#000000',
     paddingHorizontal: 20 * scaleX,
@@ -417,14 +417,14 @@ const styles = StyleSheet.create({
   },
   taskTitle: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold',
     color: '#000000',
     marginBottom: 8 * scaleX,
   },
   taskText: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     lineHeight: 18 * scaleX,
@@ -439,7 +439,7 @@ const styles = StyleSheet.create({
   },
   seeMoreText: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '500',
     color: '#5a759d',
   },

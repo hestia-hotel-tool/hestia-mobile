@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
   },
   backText: {
     fontSize: REASSIGN_MODAL.header.backButton.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: REASSIGN_MODAL.header.backButton.color,
   },
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
   },
   autoAssignText: {
     fontSize: REASSIGN_MODAL.header.autoAssignButton.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: REASSIGN_MODAL.header.autoAssignButton.color,
   },

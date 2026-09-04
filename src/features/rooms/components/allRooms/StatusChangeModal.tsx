@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
   },
   headerText: {
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#607AA1',
     marginBottom: 16 * scaleX,
@@ -506,7 +506,7 @@ const styles = StyleSheet.create({
   flagRoomText: {
     flex: 1,
     fontSize: 13 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#F92424',
     textAlign: 'left',

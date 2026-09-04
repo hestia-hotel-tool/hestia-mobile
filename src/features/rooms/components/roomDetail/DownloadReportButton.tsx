@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: HISTORY_SECTION.downloadButtonText.fontSize,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: HISTORY_SECTION.downloadButtonText.color,
   },

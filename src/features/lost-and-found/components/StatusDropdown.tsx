@@ -108,7 +108,7 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   text: {
     flex: 1,
     fontSize: REGISTER_FORM.step2.statusDropdown.item.text.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step2.statusDropdown.item.text.fontWeight as any,
     color: REGISTER_FORM.step2.statusDropdown.item.text.color,
   },

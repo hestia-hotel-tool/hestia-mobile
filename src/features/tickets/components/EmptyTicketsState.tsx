@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#1e1e1e',
     marginBottom: 8 * scaleX,
@@ -77,7 +77,7 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#666',
     textAlign: 'center',

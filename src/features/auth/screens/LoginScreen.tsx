@@ -260,7 +260,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     minWidth: 70 * scaleX, // Ensure full text visibility
     height: 18.812 * scaleX,
     fontSize: 19 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#5A759D', // Exact color from Figma
     includeFontPadding: Platform.OS === 'android' ? false : undefined,
@@ -279,7 +279,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
   },
   languageText: {
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: colors.text.tertiary, // Lighter grey (#a0a0a0) as per Figma
   },
@@ -336,7 +336,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
   },
   languageDropdownText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.primary,
   },
@@ -361,7 +361,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     minWidth: 120 * scaleX, // Ensure enough width for "Log in" text
     height: 39 * scaleX,
     fontSize: 34 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.primary.main,
     includeFontPadding: Platform.OS === 'android' ? false : undefined, // Fix Android text clipping
@@ -375,7 +375,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     width: 121 * scaleX,
     height: 22 * scaleX,
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.primary,
   },
@@ -392,7 +392,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     flex: 1,
     paddingHorizontal: 12 * scaleX, // x=47 - x=35 = 12px padding
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: colors.text.primary,
   },
@@ -404,7 +404,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     width: 121 * scaleX,
     height: 22 * scaleX,
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.primary,
   },
@@ -421,7 +421,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     flex: 1,
     paddingHorizontal: 9 * scaleX, // x=45 - x=36 = 9px padding
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: colors.text.primary,
   },
@@ -438,7 +438,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
   },
   signInText: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.white,
   },
@@ -453,7 +453,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
   },
   errorText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#c53030',
   },
   // Recover Password Container (Rectangle 116) - x=36, y=665, 370×70px
@@ -478,7 +478,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
   },
   recoverPasswordText: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.primary.main,
   },
@@ -525,7 +525,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     width: 128 * scaleX,
     height: 17 * scaleX,
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.primary.main,
   },
@@ -537,7 +537,7 @@ function buildLoginStyles(scaleX: number, windowHeight: number) {
     width: 216 * scaleX,
     height: 22 * scaleX,
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: colors.text.primary,
   },

@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   },
   guestInfoTitleFlex: {
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#000000',
     marginBottom: 8 * scaleX,
@@ -784,7 +784,7 @@ const styles = StyleSheet.create({
   },
   assignedToHeadingFlex: {
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#000000',
     paddingHorizontal: 20 * scaleX,
@@ -834,13 +834,13 @@ const styles = StyleSheet.create({
   },
   createTicketButtonText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600',
     color: '#ffffff',
   },
   noTicketsText: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#666',
     textAlign: 'center',
     marginTop: 40 * scaleX,

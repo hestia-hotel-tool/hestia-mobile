@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: NOTES_SECTION.badge.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as '300',
     color: NOTES_SECTION.badge.color,
     textAlign: 'center',
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: NOTES_SECTION.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as '700',
     color: NOTES_SECTION.title.color,
   },
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: NOTES_SECTION.addButton.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as '300',
     color: NOTES_SECTION.addButton.color,
   },

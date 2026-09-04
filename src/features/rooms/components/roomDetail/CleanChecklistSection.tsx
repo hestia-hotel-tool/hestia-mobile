@@ -168,7 +168,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: CLEAN_CHECKLIST.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: CLEAN_CHECKLIST.title.fontWeight as any,
     color: CLEAN_CHECKLIST.title.color,
   },
@@ -202,7 +202,7 @@ const styles = StyleSheet.create({
   checklistLabel: {
     flex: 1,
     fontSize: CLEAN_CHECKLIST.item.labelFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: CLEAN_CHECKLIST.item.labelColor,
   },
@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   },
   optionalTitle: {
     fontSize: CLEAN_CHECKLIST.optional.titleFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: CLEAN_CHECKLIST.optional.titleColor,
     marginBottom: CLEAN_CHECKLIST.optional.marginBottom,
   },
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
   },
   optionalLabel: {
     fontSize: CLEAN_CHECKLIST.optional.itemLabelFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: CLEAN_CHECKLIST.optional.itemLabelWeight as any,
     color: CLEAN_CHECKLIST.optional.itemLabelColor,
   },
@@ -269,7 +269,7 @@ const styles = StyleSheet.create({
     right: 0,
     textAlign: 'center',
     fontSize: CLEAN_CHECKLIST.slide.labelFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: CLEAN_CHECKLIST.slide.labelWeight as any,
     color: CLEAN_CHECKLIST.slide.labelColor,
   },

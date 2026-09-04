@@ -161,7 +161,7 @@ const styles = StyleSheet.create({
     padding: 4,
   },
   monthTitle: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: STAFF_SHIFT_CALENDAR.monthTitle.color,
     minWidth: 160,
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   weekdayText: {
-    fontFamily: typography.fontFamily.secondary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: STAFF_SHIFT_CALENDAR.weekdayLabel.color,
   },
@@ -195,7 +195,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dayNum: {
-    fontFamily: typography.fontFamily.secondary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
   },
 });

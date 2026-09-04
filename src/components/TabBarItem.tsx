@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, Image, StyleSheet, Pressable } from 'react-native';
 import { colors, typography } from '@/theme';
 import { useDesignScale } from '@/ui';
 
@@ -152,14 +152,14 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
     badgeText: {
       color: colors.text.white,
       fontSize: Math.round(13 * ns),
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: typography.fontWeights.light as any,
       includeFontPadding: false,
     },
     label: {
       fontSize: Math.round(15 * ns),
       lineHeight: Math.round(15 * ns),
-      fontFamily: Platform.OS === 'ios' ? 'Helvetica' : typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: typography.fontWeights.regular as any,
       color: colors.primary.main,
       includeFontPadding: false,
@@ -173,7 +173,7 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
       flexShrink: 0,
     },
     labelActive: {
-      fontFamily: Platform.OS === 'ios' ? 'Helvetica' : typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: '700' as any,
       color: colors.text.pink,
       includeFontPadding: false,

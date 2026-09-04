@@ -126,13 +126,13 @@ const styles = StyleSheet.create({
   },
   staffName: {
     fontSize: ASSIGNED_TO.staffName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: ASSIGNED_TO.staffName.color,
   },
   department: {
     fontSize: ASSIGNED_TO.department.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: ASSIGNED_TO.department.color,
     marginTop: 2 * scaleX,
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   reassignButtonText: {
     fontSize: ASSIGNED_TO.reassignButton.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: ASSIGNED_TO.reassignButton.color,
   },
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   unassignedLabel: {
     fontSize: ASSIGNED_TO.staffName.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: '#5a759d',
   },
@@ -173,7 +173,7 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#ffffff',
   },

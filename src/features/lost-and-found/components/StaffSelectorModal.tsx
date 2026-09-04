@@ -126,7 +126,7 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   },
   headerTitle: {
     fontSize: REGISTER_FORM.step2.staffSelector.header.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step2.staffSelector.header.title.fontWeight as any,
     color: REGISTER_FORM.step2.staffSelector.header.title.color,
   },
@@ -137,7 +137,7 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   },
   selectedCount: {
     fontSize: REGISTER_FORM.step2.staffSelector.header.selectedCount.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step2.staffSelector.header.selectedCount.fontWeight as any,
     color: REGISTER_FORM.step2.staffSelector.header.selectedCount.color,
   },
@@ -169,7 +169,7 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
     borderRadius: 8 * scaleX,
     paddingHorizontal: 12 * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#111827',
     backgroundColor: '#ffffff',
   },
@@ -206,7 +206,7 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   },
   initialsText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#ffffff',
   },
@@ -215,20 +215,20 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   },
   meLabel: {
     fontSize: REGISTER_FORM.step2.staffSelector.listItem.meLabel.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step2.staffSelector.listItem.meLabel.fontWeight as any,
     color: REGISTER_FORM.step2.staffSelector.listItem.meLabel.color,
     marginBottom: 2 * scaleX,
   },
   name: {
     fontSize: REGISTER_FORM.step2.staffSelector.listItem.name.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: REGISTER_FORM.step2.staffSelector.listItem.name.fontWeight as any,
     color: REGISTER_FORM.step2.staffSelector.listItem.name.color,
   },
   department: {
     fontSize: REGISTER_FORM.step2.staffSelector.listItem.department.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step2.staffSelector.listItem.department.fontWeight as any,
     color: REGISTER_FORM.step2.staffSelector.listItem.department.color,
     marginTop: 2 * scaleX,
@@ -247,7 +247,7 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   },
   seeAll: {
     fontSize: REGISTER_FORM.step2.staffSelector.footer.seeAll.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: REGISTER_FORM.step2.staffSelector.footer.seeAll.fontWeight as any,
     color: REGISTER_FORM.step2.staffSelector.footer.seeAll.color,
   },

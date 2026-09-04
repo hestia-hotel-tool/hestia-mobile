@@ -145,13 +145,13 @@ const styles = StyleSheet.create({
   },
   backButtonText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#5a759d',
   },
   title: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#1e1e1e',
   },
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5a759d',
   },
@@ -178,7 +178,7 @@ const styles = StyleSheet.create({
   input: {
     minHeight: 150 * scaleX,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#1e1e1e',
     borderWidth: 1,

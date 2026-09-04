@@ -101,14 +101,14 @@ const styles = StyleSheet.create({
   },
   registeredByLabel: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     color: '#666666',
     marginBottom: 2 * scaleX,
   },
   registeredByName: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#000000',
   },
@@ -117,14 +117,14 @@ const styles = StyleSheet.create({
   },
   time: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: '#000000',
     marginBottom: 2 * scaleX,
   },
   date: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     color: '#666666',
   },
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#ffffff',
   },
@@ -159,7 +159,7 @@ const styles = StyleSheet.create({
   },
   cancelButtonText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: '#5a759d',
   },

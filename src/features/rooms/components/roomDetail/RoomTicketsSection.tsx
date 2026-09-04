@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   },
   currentTicketTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#607aa1',
     marginLeft: 20 * scaleX,
@@ -128,7 +128,7 @@ const styles = StyleSheet.create({
   },
   currentTicketEmptyText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#5a759d',
     textAlign: 'center',

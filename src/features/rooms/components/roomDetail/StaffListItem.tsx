@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#ffffff',
   },
@@ -128,14 +128,14 @@ const styles = StyleSheet.create({
   },
   name: {
     fontSize: REASSIGN_MODAL.staffList.name.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#1e1e1e',
     marginBottom: 2 * scaleX,
   },
   department: {
     fontSize: (REASSIGN_MODAL.staffList.department.fontSize - 1) * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: '#555555',
   },

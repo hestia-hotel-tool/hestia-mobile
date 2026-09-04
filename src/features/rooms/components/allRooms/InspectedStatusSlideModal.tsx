@@ -24,6 +24,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Path } from 'react-native-svg';
 import { CARD_DIMENSIONS, scaleX } from '../../constants/allRoomsStyles';
+import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -399,7 +400,7 @@ const styles = StyleSheet.create({
   },
   checklistTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#41d541',
     marginBottom: 0,
@@ -437,7 +438,7 @@ const styles = StyleSheet.create({
   checklistLabel: {
     flex: 1,
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     lineHeight: 20 * scaleX,
     color: '#334866',
   },
@@ -456,7 +457,7 @@ const styles = StyleSheet.create({
   },
   optionalTitle: {
     fontSize: 10 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontStyle: 'normal',
     fontWeight: '400',
     color: '#575353',
@@ -470,7 +471,7 @@ const styles = StyleSheet.create({
   },
   optionalLabel: {
     fontSize: 18 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontStyle: 'normal',
     fontWeight: '700',
     color: '#1E1E1E',
@@ -544,7 +545,7 @@ const styles = StyleSheet.create({
     right: 0,
     textAlign: 'center',
     fontSize: 16 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600',
     color: '#334866',
   },

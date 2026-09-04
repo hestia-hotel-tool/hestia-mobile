@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
   },
   initialsText: {
     fontSize: 22 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.white,
   },
@@ -179,7 +179,7 @@ const styles = StyleSheet.create({
   },
   userName: {
     color: '#000',
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontSize: 20 * scaleX,
     fontStyle: 'normal',
     fontWeight: '300',
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
   },
   userRole: {
     color: '#000',
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     fontSize: 11 * scaleX,
     fontStyle: 'normal',
     fontWeight: '300',

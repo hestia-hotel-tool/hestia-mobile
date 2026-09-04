@@ -158,7 +158,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: 16 * scaleX, // font-size: 16px
-    fontFamily: typography.fontFamily.primary, // font-family: Helvetica
+    fontFamily: typography.fontFamily.regular,
     color: '#5A759D', // color: #5A759D
     lineHeight: 16 * scaleX, // line-height: normal (same as font-size)
     includeFontPadding: false, // Remove extra padding on Android

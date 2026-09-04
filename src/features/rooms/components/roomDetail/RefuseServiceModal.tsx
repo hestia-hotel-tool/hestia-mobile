@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, Image } from 'react-native';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
 import { ASSIGNED_TO } from '../../constants/roomDetailStyles';
+import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scaleX = SCREEN_WIDTH / 430;
@@ -184,7 +185,7 @@ const styles = StyleSheet.create({
     marginTop: 21 * scaleX,
     marginLeft: 24 * scaleX,
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#607aa1',
   },
@@ -193,7 +194,7 @@ const styles = StyleSheet.create({
     marginLeft: 24 * scaleX,
     marginRight: 24 * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
   },
@@ -228,7 +229,7 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     flex: 1,
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#000000',
   },
@@ -236,7 +237,7 @@ const styles = StyleSheet.create({
     marginTop: 32 * scaleX,
     marginLeft: 24 * scaleX,
     fontSize: 16 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
   },
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16 * scaleX,
     paddingVertical: 12 * scaleX,
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
   },
@@ -267,7 +268,7 @@ const styles = StyleSheet.create({
   },
   confirmButtonText: {
     fontSize: 18 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#FFFFFF',
   },
@@ -282,7 +283,7 @@ const styles = StyleSheet.create({
     marginLeft: 32 * scaleX,
     marginBottom: 16 * scaleX,
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000000',
   },
@@ -307,14 +308,14 @@ const styles = StyleSheet.create({
   },
   assignedToInitialsText: {
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ffffff',
   },
   assignedToName: {
     flex: 1,
     fontSize: ASSIGNED_TO.staffName.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600',
     color: ASSIGNED_TO.staffName.color,
   },
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
   },
   reassignButtonText: {
     fontSize: ASSIGNED_TO.reassignButton.fontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: ASSIGNED_TO.reassignButton.color,
   },

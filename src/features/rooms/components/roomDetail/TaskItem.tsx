@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   taskText: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#1e1e1e',
     lineHeight: LINE_HEIGHT * scaleX,
@@ -144,7 +144,7 @@ const styles = StyleSheet.create({
   },
   seeMoreText: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#5a759d',
   },

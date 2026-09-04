@@ -352,7 +352,7 @@ function buildAIChatOverlayStyles(scaleX: number) {
     gap: 8 * scaleX,
   },
   messageText: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     fontSize: 13 * scaleX,
     color: colors.text.primary,
@@ -395,7 +395,7 @@ function buildAIChatOverlayStyles(scaleX: number) {
   },
   input: {
     flex: 1,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     fontSize: 15 * scaleX,
     color: colors.text.primary,

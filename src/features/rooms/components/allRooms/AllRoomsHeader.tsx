@@ -192,7 +192,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 24 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     fontStyle: 'normal',
     color: '#607AA1',
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   searchInput: {
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300' as any,
     padding: 0,
     height: '100%',
@@ -238,7 +238,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   placeholderText: {
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.regular,
     color: 'rgba(0,0,0,0.6)',
     includeFontPadding: false,
   },

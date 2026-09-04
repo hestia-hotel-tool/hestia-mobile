@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
   },
   initialStockText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#000000',
   },
@@ -158,13 +158,13 @@ const styles = StyleSheet.create({
   },
   itemName: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
     color: '#000000',
   },
   description: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'light' as any,
     color: '#666666',
   },
@@ -193,7 +193,7 @@ const styles = StyleSheet.create({
   },
   quantityButtonText: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: 'bold' as any,
   },
   quantityButtonTextMinus: {
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 14 * scaleX,
     lineHeight: 18 * scaleX, // Add line height for proper text display
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: 'regular' as any,
     color: '#000000',
     backgroundColor: '#ffffff',

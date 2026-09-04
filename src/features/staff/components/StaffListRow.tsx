@@ -118,7 +118,7 @@ export default function StaffListRow({
         },
         initialsText: {
           fontSize: 16 * sx,
-          fontFamily: typography.fontFamily.primary,
+          fontFamily: typography.fontFamily.bold,
           fontWeight: typography.fontWeights.bold as any,
           color: '#ffffff',
         },
@@ -139,14 +139,14 @@ export default function StaffListRow({
         },
         name: {
           fontSize: 16 * sx,
-          fontFamily: typography.fontFamily.primary,
+          fontFamily: typography.fontFamily.bold,
           fontWeight: typography.fontWeights.bold as any,
           color: '#1e1e1e',
         },
         department: {
           marginTop: 2 * sx,
           fontSize: 14 * sx,
-          fontFamily: typography.fontFamily.secondary,
+          fontFamily: typography.fontFamily.light,
           fontWeight: typography.fontWeights.light as any,
           color: '#000000',
         },
@@ -271,7 +271,7 @@ const styles = StyleSheet.create({
     marginRight: 4,
   },
   editPillText: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: STAFF_SHIFT_CALENDAR.editPill.color,
   },

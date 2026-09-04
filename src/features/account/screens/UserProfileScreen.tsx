@@ -211,13 +211,13 @@ function buildUserProfileStyles(scaleX: number) {
   },
   backButtonText: {
     fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.primary.main,
   },
   headerTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.primary,
   },
@@ -269,7 +269,7 @@ function buildUserProfileStyles(scaleX: number) {
   },
   initialsText: {
     fontSize: 38 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.white,
   },
@@ -280,7 +280,7 @@ function buildUserProfileStyles(scaleX: number) {
   },
   changePhotoText: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.primary.main,
   },
@@ -290,7 +290,7 @@ function buildUserProfileStyles(scaleX: number) {
   },
   userName: {
     fontSize: 24 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: colors.text.primary,
     marginBottom: 4 * scaleX,
@@ -298,7 +298,7 @@ function buildUserProfileStyles(scaleX: number) {
   },
   userRole: {
     fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.secondary,
+    fontFamily: typography.fontFamily.light,
     fontStyle: 'normal',
     fontWeight: typography.fontWeights.light as any,
     color: '#000',
@@ -332,13 +332,13 @@ function buildUserProfileStyles(scaleX: number) {
   },
   infoLabel: {
     fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.text.secondary,
   },
   infoValue: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: colors.text.primary,
   },
@@ -354,7 +354,7 @@ function buildUserProfileStyles(scaleX: number) {
   },
   logoutButtonText: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     color: '#c53030',
   },

@@ -608,7 +608,7 @@ export default function TicketForm({
                   text="AI"
                   textStyle={{
                     fontSize: 12 * scaleX,
-                    fontFamily: typography.fontFamily.primary,
+                    fontFamily: typography.fontFamily.bold,
                     fontWeight: '700',
                   }}
                 />
@@ -680,14 +680,14 @@ const styles = StyleSheet.create({
   },
   heading: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#607aa1',
     marginBottom: 24 * scaleX,
   },
   selectDepartmentLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#5a759d',
     marginBottom: 16 * scaleX,
@@ -724,7 +724,7 @@ const styles = StyleSheet.create({
   },
   departmentLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
@@ -740,14 +740,14 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#607aa1',
     marginBottom: 8 * scaleX,
   },
   sectionSubtitle: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#494747',
     marginBottom: 12 * scaleX,
@@ -769,7 +769,7 @@ const styles = StyleSheet.create({
   textInput: {
     flex: 1,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#1e1e1e',
   },
@@ -801,7 +801,7 @@ const styles = StyleSheet.create({
   },
   frequentCasesTitle: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000000',
     paddingHorizontal: 16 * scaleX,
@@ -816,7 +816,7 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     flex: 1,
@@ -862,7 +862,7 @@ const styles = StyleSheet.create({
   },
   staffName: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#5a759d',
     textAlign: 'center',
@@ -918,7 +918,7 @@ const styles = StyleSheet.create({
   },
   priorityIcon: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     marginRight: 12 * scaleX,
   },
@@ -933,7 +933,7 @@ const styles = StyleSheet.create({
   },
   priorityLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000000',
   },
@@ -962,21 +962,21 @@ const styles = StyleSheet.create({
   },
   addPhotoTitle: {
     fontSize: 19 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ff46a3',
     marginBottom: 8 * scaleX,
   },
   priorityTitle: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#5a759d',
     marginBottom: 8 * scaleX,
   },
   addPhotoSubtitle: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
@@ -1029,7 +1029,7 @@ const styles = StyleSheet.create({
   },
   addPhotoGridTitle: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ff46a3',
   },
@@ -1049,7 +1049,7 @@ const styles = StyleSheet.create({
   },
   descriptionLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#1e1e1e',
   },
@@ -1074,7 +1074,7 @@ const styles = StyleSheet.create({
   },
   descriptionInput: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#44474e',
     lineHeight: 20 * scaleX,
@@ -1103,7 +1103,7 @@ const styles = StyleSheet.create({
   },
   submitButtonText: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#ffffff',
   },

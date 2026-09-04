@@ -146,7 +146,7 @@ function buildStyles(scaleX: number) {
     },
     title: {
       fontSize: 20 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#1e1e1e',
     },
@@ -209,7 +209,7 @@ function buildStyles(scaleX: number) {
     },
     countText: {
       fontSize: 20 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#000000',
     },
@@ -237,7 +237,7 @@ function buildStyles(scaleX: number) {
     statLabel: {
       marginTop: 8 * scaleX,
       fontSize: 14 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: typography.fontWeights.light as any,
       color: '#000000',
     },
@@ -262,7 +262,7 @@ function buildStyles(scaleX: number) {
     },
     progressText: {
       fontSize: 16 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#000000',
     },

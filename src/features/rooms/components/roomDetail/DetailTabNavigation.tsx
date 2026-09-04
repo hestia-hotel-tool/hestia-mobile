@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: DETAIL_TABS.tabs.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: DETAIL_TABS.tabs.color,
   },

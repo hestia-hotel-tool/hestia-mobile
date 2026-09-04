@@ -84,7 +84,7 @@ function buildSearchInputStyles(
     },
     searchInput: {
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: typography.fontWeights.light as any,
       color: colors.text.primary,
       paddingVertical: 0,
@@ -103,7 +103,7 @@ function buildSearchInputStyles(
     },
     placeholderText: {
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: typography.fontWeights.light as any,
       color: '#b1afaf',
       opacity: 0.36,

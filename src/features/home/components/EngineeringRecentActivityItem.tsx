@@ -58,20 +58,20 @@ function buildStyles(scaleX: number) {
     },
     roomLabel: {
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#5a759d',
       marginBottom: 2 * scaleX,
     },
     message: {
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.regular,
       fontWeight: typography.fontWeights.regular as any,
       color: '#1e1e1e',
     },
     time: {
       fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#5a759d',
       marginLeft: 8 * scaleX,

@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: STAFF_DEPARTMENT_PANEL.header.titleFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: STAFF_DEPARTMENT_PANEL.header.titleColor,
     flex: 1,
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
   searchInputInHeader: {
     flex: 1,
     fontSize: STAFF_DEPARTMENT_PANEL.header.titleFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: STAFF_DEPARTMENT_PANEL.header.titleColor,
     paddingVertical: 0,
@@ -379,7 +379,7 @@ const styles = StyleSheet.create({
   },
   selectedCountText: {
     fontSize: STAFF_DEPARTMENT_PANEL.selectedCount.fontSize * scaleX,
-    fontFamily: typography.fontFamily.secondary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: STAFF_DEPARTMENT_PANEL.selectedCount.fontWeight as any,
     color: STAFF_DEPARTMENT_PANEL.selectedCount.color,
   },
@@ -413,7 +413,7 @@ const styles = StyleSheet.create({
   },
   initial: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -423,13 +423,13 @@ const styles = StyleSheet.create({
   },
   staffName: {
     fontSize: STAFF_DEPARTMENT_PANEL.listItem.nameFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: STAFF_DEPARTMENT_PANEL.listItem.nameColor,
   },
   staffRole: {
     fontSize: STAFF_DEPARTMENT_PANEL.listItem.departmentFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: STAFF_DEPARTMENT_PANEL.listItem.departmentColor,
     marginTop: 2 * scaleX,

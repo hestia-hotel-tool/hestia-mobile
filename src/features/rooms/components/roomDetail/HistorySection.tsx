@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   emptyStateText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     color: '#999999',
   },
@@ -167,14 +167,14 @@ const styles = StyleSheet.create({
   },
   dateLabel: {
     ...HISTORY_SECTION.dateLabel,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
   },
   dateLine: {
     ...HISTORY_SECTION.dateLine,
   },
   todayLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#1e1e1e',
     marginTop: 24 * scaleX,

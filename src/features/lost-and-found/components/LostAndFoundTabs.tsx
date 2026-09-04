@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.tab.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: LOST_AND_FOUND_COLORS.tabActive,
     lineHeight: LOST_AND_FOUND_TYPOGRAPHY.tab.fontSize * scaleX,
     includeFontPadding: false,

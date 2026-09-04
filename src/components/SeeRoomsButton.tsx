@@ -45,7 +45,7 @@ const styles = StyleSheet.create({
   },
   buttonText: {
     fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#FFFFFF',
   },
@@ -69,7 +69,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5A759D',
   },

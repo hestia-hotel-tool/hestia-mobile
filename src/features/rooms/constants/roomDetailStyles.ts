@@ -5,6 +5,7 @@
  */
 
 import { Dimensions } from 'react-native';
+import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -418,7 +419,7 @@ export const NOTES_SECTION = {
     text: {
       left: 27, // From Figma: calc(50%-185px) = 220-185 = 35px, but visually ~27px for left padding
       top: 1169, // From Figma: first note text at top: 1169px (absolute position)
-      fontFamily: 'Helvetica',
+      fontFamily: typography.fontFamily.light,
       fontSize: 13,
       fontStyle: 'normal' as const,
       fontWeight: '300' as const,
@@ -435,7 +436,7 @@ export const NOTES_SECTION = {
     staffName: {
       left: 70, // From Figma: left: 70px (absolute position for staff name)
       top: 1235, // From Figma: top: 1235px (absolute position for first staff name)
-      fontFamily: 'Helvetica',
+      fontFamily: typography.fontFamily.bold,
       fontSize: 11,
       fontStyle: 'normal' as const,
       fontWeight: '700' as const, // bold

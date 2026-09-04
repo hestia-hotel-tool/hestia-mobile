@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   categoryName: {
     fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: 'rgba(30, 30, 30, 0.7)',
   },
@@ -165,7 +165,7 @@ const styles = StyleSheet.create({
   },
   totalCount: {
     fontSize: 24 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#000000',
   },

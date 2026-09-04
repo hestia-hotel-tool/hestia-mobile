@@ -155,7 +155,7 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: CREATE_TICKET_MENU_TYPOGRAPHY.menuItemText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: CREATE_TICKET_MENU_TYPOGRAPHY.menuItemText.fontWeight as any,
     color: CREATE_TICKET_MENU_COLORS.text,
     flex: 1,

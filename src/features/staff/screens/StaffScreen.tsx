@@ -318,7 +318,7 @@ export default function StaffScreen() {
     },
     searchSectionTitle: {
       fontSize: 12 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: '700',
       color: STAFF_TABS.tab.inactiveColor,
       marginBottom: 12 * scaleX,
@@ -361,7 +361,7 @@ export default function StaffScreen() {
     },
     deptLabel: {
       fontSize: 14 * scaleX,
-      fontFamily: typography.fontFamily.secondary,
+      fontFamily: typography.fontFamily.light,
       fontWeight: typography.fontWeights.light as any,
       color: '#000000',
       textAlign: 'center',
@@ -376,13 +376,13 @@ export default function StaffScreen() {
     },
     sectionTitle: {
       fontSize: 17 * scaleX,
-      fontFamily: typography.fontFamily.secondary,
+      fontFamily: typography.fontFamily.semibold,
       fontWeight: typography.fontWeights.semibold as any,
       color: '#607aa1',
     },
     sectionCount: {
       fontSize: 16 * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: typography.fontWeights.bold as any,
       color: '#5a759d',
     },

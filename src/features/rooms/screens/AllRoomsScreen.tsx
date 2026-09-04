@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
-import { colors } from '@/theme';
+import { colors, typography } from '@/theme';
 import { ShiftType } from '@features/home';
 import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
@@ -1154,7 +1154,7 @@ function buildAllRoomsStyles(scaleX: number) {
   },
   emptyStateTitle: {
     fontSize: 22 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: '#5a759d',
     marginBottom: 12 * scaleX,
@@ -1162,7 +1162,7 @@ function buildAllRoomsStyles(scaleX: number) {
   },
   emptyStateMessage: {
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400' as any,
     color: '#607AA1',
     textAlign: 'center',

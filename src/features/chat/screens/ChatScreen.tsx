@@ -347,7 +347,7 @@ const styles = StyleSheet.create({
     marginBottom: 8 * scaleX,
     paddingHorizontal: CHAT_ITEM.avatar.left * scaleX,
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: CHAT_COLORS.textPrimary,
     includeFontPadding: false,

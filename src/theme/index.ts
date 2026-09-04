@@ -13,7 +13,7 @@ export { colors, roomStatusColors } from './colors';
 export type { Colors, RoomStatusToken } from './colors';
 
 export { typography, fontFamily, fontWeights, fontSize, lineHeight } from './typography';
-export type { FontSize, FontWeight } from './typography';
+export type { FontSize, FontWeight, FontFamily } from './typography';
 
 export { spacing } from './spacing';
 export type { Spacing } from './spacing';

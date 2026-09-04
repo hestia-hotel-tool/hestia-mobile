@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.headerTitle.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.headerTitle.fontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.headerTitle.color,
   },
@@ -129,7 +129,7 @@ const styles = StyleSheet.create({
   },
   registerButtonText: {
     fontSize: LOST_AND_FOUND_TYPOGRAPHY.registerButton.plusFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: LOST_AND_FOUND_TYPOGRAPHY.registerButton.plusFontWeight as any,
     color: LOST_AND_FOUND_TYPOGRAPHY.registerButton.color,
   },

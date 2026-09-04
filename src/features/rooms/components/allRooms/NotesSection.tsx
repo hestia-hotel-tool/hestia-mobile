@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: NOTES_SECTION.badge.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: NOTES_SECTION.badge.color,
     lineHeight: NOTES_SECTION.badge.lineHeight * scaleX,
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   notesText: {
     position: 'absolute',
     fontSize: NOTES_SECTION.text.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: NOTES_SECTION.text.color,
     lineHeight: NOTES_SECTION.text.lineHeight * scaleX,

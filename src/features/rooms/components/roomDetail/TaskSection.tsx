@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     top: (777 - 674 - 80) * scaleX, // 23px from container top
     left: (TASK_SECTION.title.left - ASSIGNED_TASK_CARD.left) * scaleX, // Adjust for card left position
     fontSize: TASK_SECTION.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: TASK_SECTION.title.color,
     lineHeight: TASK_SECTION.title.fontSize * scaleX,
@@ -133,7 +133,7 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: TASK_SECTION.addButton.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: TASK_SECTION.addButton.color,
   },

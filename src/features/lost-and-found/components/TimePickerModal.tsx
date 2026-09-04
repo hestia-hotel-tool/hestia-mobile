@@ -185,12 +185,12 @@ const styles = StyleSheet.create({
   },
   cancelText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#5a759d',
   },
   title: {
     fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#000000',
   },
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
   },
   confirmText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#5a759d',
   },
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
   },
   periodText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     color: '#5a759d',
   },
   periodTextActive: {

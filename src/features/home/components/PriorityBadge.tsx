@@ -62,7 +62,7 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     fontSize: 15 * normalizedScaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#ffffff',
   },

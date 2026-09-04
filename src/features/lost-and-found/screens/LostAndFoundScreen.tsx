@@ -877,7 +877,7 @@ const styles = StyleSheet.create({
   statusGridLabel: {
     marginTop: 8 * scaleX,
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
@@ -901,7 +901,7 @@ const styles = StyleSheet.create({
   shippedInput: {
     flex: 1,
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     paddingVertical: 0,
@@ -940,7 +940,7 @@ const styles = StyleSheet.create({
   shippedOptionText: {
     flex: 1,
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
   },

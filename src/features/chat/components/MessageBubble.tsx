@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, Image, TouchableOpacity, Linking } fr
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { ChatMessage } from '@/types';
 import { scaleX } from '../constants/chatStyles';
-import { colors } from '@/theme';
+import { colors, typography } from '@/theme';
 
 const SWIPE_REPLY_THRESHOLD = 50;
 
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
   },
   senderName: {
     fontSize: 12.5 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700' as any,
     color: colors.primary.main,
     marginBottom: 3 * scaleX,
@@ -305,14 +305,14 @@ const styles = StyleSheet.create({
   mentionInlineSent: {
     fontSize: 15 * scaleX,
     lineHeight: 22 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600' as any,
     color: '#c8f5d4',
   },
   mentionInlineReceived: {
     fontSize: 15 * scaleX,
     lineHeight: 22 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600' as any,
     color: '#0077c8',
   },
@@ -414,7 +414,7 @@ const styles = StyleSheet.create({
   },
   messageText: {
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     lineHeight: 22 * scaleX,
     letterSpacing: 0.15,
   },
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
   },
   timestamp: {
     fontSize: 10.5 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '500' as any,
   },
   timestampSent: {
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   fileName: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     flex: 1,
     fontWeight: '500' as any,
   },
@@ -578,7 +578,7 @@ const styles = StyleSheet.create({
   },
   voiceDuration: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: '600' as any,
     minWidth: 36 * scaleX,
   },

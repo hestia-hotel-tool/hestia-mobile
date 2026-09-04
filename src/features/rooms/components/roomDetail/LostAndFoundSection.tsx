@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20 * scaleX,
     marginBottom: 12 * scaleX,
     fontSize: LOST_AND_FOUND.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: LOST_AND_FOUND.title.color,
     lineHeight: LOST_AND_FOUND.title.fontSize * scaleX,
@@ -125,13 +125,13 @@ const styles = StyleSheet.create({
     left: (LOST_AND_FOUND.plusIcon.left - LOST_AND_FOUND.icon.left) * scaleX, // 213 - 160 = 53px from icon left
     top: (LOST_AND_FOUND.plusIcon.top - LOST_AND_FOUND.icon.top) * scaleX, // 23 - 31.02 = -8.02px from icon top
     fontSize: LOST_AND_FOUND.plusIcon.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: LOST_AND_FOUND.plusIcon.color,
   },
   addPhotosText: {
     fontSize: LOST_AND_FOUND.addPhotosText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: LOST_AND_FOUND.addPhotosText.color,
     // Text on the right side of the flex container

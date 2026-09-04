@@ -4,6 +4,7 @@
  */
 
 import { Dimensions } from 'react-native';
+import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -96,7 +97,7 @@ export const STAFF_DATE = {
   fontSize: 11,
   fontWeight: 'semiBold' as const,
   color: '#000000',
-  fontFamily: 'Inter',
+  fontFamily: typography.fontFamily.regular,
 } as const;
 
 export const STAFF_CARD = {
@@ -238,7 +239,7 @@ export const STAFF_DEPARTMENT_LIST = {
   label: {
     fontSize: 14,
     fontWeight: '300' as const,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     color: '#000000',
     marginTop: 8,
     textAlign: 'left' as const,
@@ -246,7 +247,7 @@ export const STAFF_DEPARTMENT_LIST = {
   /** When a department panel is open, its name uses these styles. */
   labelActive: {
     color: '#F92424',
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.semibold,
     fontSize: 14,
     fontStyle: 'normal' as const,
     fontWeight: '600' as const,
@@ -278,7 +279,7 @@ export const STAFF_DEPARTMENT_GRID = {
   label: {
     fontSize: 14,
     fontWeight: '300' as const,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.light,
     color: '#000000',
     marginTop: 8,
     textAlign: 'center' as const,
@@ -334,7 +335,7 @@ export const STAFF_DEPARTMENT_PANEL = {
     paddingTop: 10,
     paddingBottom: 12,
     fontSize: 14,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400' as const,
     color: '#334866',
   },

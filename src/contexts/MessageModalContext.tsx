@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     maxWidth: 340,
   },
   title: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     fontSize: 17 * scaleX,
     color: colors.text.primary,
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   message: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.regular,
     fontWeight: typography.fontWeights.regular as any,
     fontSize: 14 * scaleX,
     color: colors.text.secondary,
@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.status?.dirty ?? '#f92424',
   },
   buttonText: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.semibold,
     fontWeight: typography.fontWeights.semibold as any,
     fontSize: 16 * scaleX,
     color: colors.text.white,

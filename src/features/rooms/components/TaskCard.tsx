@@ -54,7 +54,7 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#000000',
   },
@@ -69,13 +69,13 @@ const styles = StyleSheet.create({
   },
   addButtonText: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: '#000000',
   },
   description: {
     fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: '#000000',
     lineHeight: 18 * scaleX,

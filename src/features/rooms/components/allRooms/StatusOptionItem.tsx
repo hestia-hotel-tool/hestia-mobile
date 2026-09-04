@@ -82,7 +82,7 @@ const styles = StyleSheet.create({
     height: ICON_FIT_SIZE,
   },
   label: {
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontSize: 12 * scaleX,
     fontWeight: typography.fontWeights.light as any,
     color: '#1e1e1e',

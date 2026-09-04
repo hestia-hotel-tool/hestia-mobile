@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: RETURN_LATER_MODAL.suggestions.buttonFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: RETURN_LATER_MODAL.suggestions.buttonTextWeightUnselected,
     color: RETURN_LATER_MODAL.suggestions.buttonTextColorUnselected,
     lineHeight: RETURN_LATER_MODAL.suggestions.buttonLineHeight * scaleX,

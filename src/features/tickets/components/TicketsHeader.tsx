@@ -103,7 +103,7 @@ function buildTicketsHeaderStyles(windowWidth: number) {
     },
     title: {
       fontSize: TICKETS_TYPOGRAPHY.headerTitle.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
+      fontFamily: typography.fontFamily.bold,
       fontWeight: TICKETS_TYPOGRAPHY.headerTitle.fontWeight as any,
       color: TICKETS_TYPOGRAPHY.headerTitle.color,
       position: 'absolute',

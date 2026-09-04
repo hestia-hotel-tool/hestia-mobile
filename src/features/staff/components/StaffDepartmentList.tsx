@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
   },
   label: {
     fontSize: STAFF_DEPARTMENT_LIST.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.secondary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: STAFF_DEPARTMENT_LIST.label.color,
     marginTop: STAFF_DEPARTMENT_LIST.label.marginTop * scaleX,

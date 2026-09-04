@@ -490,7 +490,7 @@ const styles = StyleSheet.create({
   },
   roomNumber: {
     fontSize: ROOM_HEADER.roomNumber.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: ROOM_HEADER.roomNumber.color,
     lineHeight: ROOM_HEADER.roomNumber.lineHeight * scaleX,
@@ -511,7 +511,7 @@ const styles = StyleSheet.create({
   },
   roomTypeText: {
     fontSize: ROOM_HEADER.roomType.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: ROOM_HEADER.roomType.color,
     lineHeight: ROOM_HEADER.roomType.lineHeight * scaleX,
@@ -525,7 +525,7 @@ const styles = StyleSheet.create({
   },
   priorityTextHeader: {
     fontSize: ROOM_HEADER.priorityBadge.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.light,
     fontWeight: typography.fontWeights.light as any,
     color: ROOM_HEADER.priorityBadge.color,
     lineHeight: ROOM_HEADER.roomType.lineHeight * scaleX,
@@ -544,7 +544,7 @@ const styles = StyleSheet.create({
   },
   categoryLabel: {
     fontSize: ROOM_HEADER.category.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: ROOM_HEADER.category.color,
     lineHeight: ROOM_HEADER.category.lineHeight * scaleX,
@@ -570,7 +570,7 @@ const styles = StyleSheet.create({
   },
   withLinenBadgeText: {
     fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.bold,
     fontWeight: typography.fontWeights.bold as any,
     color: '#334866',
   },
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   vacantText: {
     marginLeft: 6 * scaleX,
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontStyle: 'normal',
     fontWeight: '700',
     color: '#FFF',

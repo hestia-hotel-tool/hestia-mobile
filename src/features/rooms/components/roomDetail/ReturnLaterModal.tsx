@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     marginTop: 21 * scaleX,
     marginLeft: 24 * scaleX,
     fontSize: 20 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#607aa1',
   },
@@ -805,7 +805,7 @@ const styles = StyleSheet.create({
     marginTop: 24 * scaleX,
     marginLeft: 24 * scaleX,
     fontSize: RETURN_LATER_MODAL.suggestions.labelFontSize * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: RETURN_LATER_MODAL.suggestions.labelFontWeight as any,
     color: RETURN_LATER_MODAL.suggestions.labelColor,
   },
@@ -864,14 +864,14 @@ const styles = StyleSheet.create({
   wheelDateText: {
     fontSize: RETURN_LATER_MODAL.timePicker.unselectedFontSize * scaleX,
     color: RETURN_LATER_MODAL.timePicker.unselectedColor,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: RETURN_LATER_MODAL.timePicker.unselectedFontWeight as any,
     textAlign: 'center',
   },
   wheelSelectedDateText: {
     fontSize: RETURN_LATER_MODAL.timePicker.selectedFontSize * scaleX,
     color: RETURN_LATER_MODAL.timePicker.selectedColor,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: RETURN_LATER_MODAL.timePicker.selectedFontWeight as any,
     textAlign: 'center',
   },
@@ -886,14 +886,14 @@ const styles = StyleSheet.create({
   wheelNumberText: {
     fontSize: RETURN_LATER_MODAL.timePicker.unselectedFontSize * scaleX,
     color: RETURN_LATER_MODAL.timePicker.unselectedColor,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: RETURN_LATER_MODAL.timePicker.unselectedFontWeight as any,
     textAlign: 'center',
   },
   wheelSelectedNumberText: {
     fontSize: RETURN_LATER_MODAL.timePicker.selectedFontSize * scaleX,
     color: RETURN_LATER_MODAL.timePicker.selectedColor,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: RETURN_LATER_MODAL.timePicker.selectedFontWeight as any,
     textAlign: 'center',
   },
@@ -910,7 +910,7 @@ const styles = StyleSheet.create({
   
   confirmButtonText: {
     fontSize: 18 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '400',
     color: '#FFFFFF',
   },
@@ -921,7 +921,7 @@ const styles = StyleSheet.create({
     marginLeft: 32 * scaleX,
     marginBottom: 12 * scaleX,
     fontSize: 15 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#000000',
   },
@@ -962,7 +962,7 @@ const styles = StyleSheet.create({
   
   taskTitle: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.bold,
     fontWeight: '700',
     color: '#1e1e1e',
     marginBottom: 8 * scaleX,
@@ -970,7 +970,7 @@ const styles = StyleSheet.create({
   
   taskText: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.light,
     fontWeight: '300',
     color: '#000000',
     lineHeight: LINE_HEIGHT * scaleX,
@@ -985,7 +985,7 @@ const styles = StyleSheet.create({
 
   seeMoreText: {
     fontSize: 13 * scaleX,
-    fontFamily: 'Helvetica',
+    fontFamily: typography.fontFamily.regular,
     fontWeight: '500',
     color: '#5a759d',
   },
