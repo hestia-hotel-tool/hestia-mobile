@@ -1,13 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
-import {
-  View,
-  Text,
-  Modal,
-  TouchableOpacity,
-  StyleSheet,
-  Dimensions,
-  Image,
-} from 'react-native';
+import { View, Text, Modal, TouchableOpacity, StyleSheet, Dimensions, Image, Platform } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { colors, typography } from '@/theme';
 import FilterSection from './FilterSection';
@@ -495,23 +487,35 @@ export default function HomeFilterModal({
         />
         
         {/* Blurred area - below header and search section */}
-        <BlurView
-          intensity={80}
-          tint="light"
-          // Android does not blur without this; expo-blur falls back to a
-          // flat translucent view, so the sheet appeared to float on a grey
-          // panel rather than over blurred content.
-          experimentalBlurMethod="dimezisBlurView"
-          style={dynamicStyles.blurOverlay}
-        >
-          <View style={styles.blurDarkener} />
-          {/* Backdrop - clickable to close */}
-          <TouchableOpacity
-            style={styles.backdropTouchable}
-            activeOpacity={1}
-            onPress={onClose}
-          />
-        </BlurView>
+        {/*
+          iOS blurs the content behind the modal natively. Android cannot: since
+          expo-blur 56 its blur methods need a `blurTarget` ref pointing at a
+          BlurTargetView in the same view hierarchy, and a React Native Modal
+          renders in its own window — so there is nothing behind it to target.
+          Passing a blur method there logs a warning and silently falls back to
+          no blur, which left the backdrop almost invisible behind the 10%
+          scrim the design specifies over blurred content.
+
+          So Android gets an opaque-enough scrim instead of a broken blur.
+        */}
+        {Platform.OS === 'ios' ? (
+          <BlurView intensity={80} tint="light" style={dynamicStyles.blurOverlay}>
+            <View style={styles.blurScrim} />
+            <TouchableOpacity
+              style={styles.backdropTouchable}
+              activeOpacity={1}
+              onPress={onClose}
+            />
+          </BlurView>
+        ) : (
+          <View style={[dynamicStyles.blurOverlay, styles.androidScrim]}>
+            <TouchableOpacity
+              style={styles.backdropTouchable}
+              activeOpacity={1}
+              onPress={onClose}
+            />
+          </View>
+        )}
 
         <View
           style={dynamicStyles.modalContainer}
@@ -641,11 +645,18 @@ const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
   },
-  blurDarkener: {
+  blurScrim: {
     ...StyleSheet.absoluteFill,
     // Figma node 2702:3183. Was rgba(200,200,200,0.6) — six times this opacity,
-    // which greyed the whole screen and hid the blur underneath it.
+    // which greyed the whole screen and hid the blur underneath it. Only makes
+    // sense on top of a real blur, so iOS only.
     backgroundColor: colors.background.overlay,
+  },
+  androidScrim: {
+    // Android's stand-in for the blur, not a design token: with no blur beneath
+    // it, the design's 10% scrim would be invisible. Tuned so content behind is
+    // muted but still legible as context.
+    backgroundColor: 'rgba(238, 240, 246, 0.88)',
   },
   backdropTouchable: {
     ...StyleSheet.absoluteFill,
