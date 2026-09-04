@@ -139,7 +139,8 @@ Both idioms exist right now; a screen converts when it is refactored, not before
 - **Everything else: leave it on `StyleSheet`** until its turn. Do not convert a
   screen you are only passing through.
 
-Migrated so far: `src/components/ui/*`, `src/components/Icon/*`.
+Migrated so far: `src/components/ui/*`, `src/components/Icon/*`,
+`src/features/home/components/{CategoryCard,HomeHeader,HousekeepingDashboard}`.
 
 Key setup:
 
@@ -313,14 +314,56 @@ See [`assets/README.md`](assets/README.md) for the full convention. In short:
 
 - **UI icons are SVG**, one concept per file, under `assets/icons/<group>/`,
   named `domain-concept[-variant]` in kebab-case (no `-icon` suffix).
-- Register each icon in `src/components/Icon/registry.ts`, then render it with
-  `<Icon name="status-dirty" size={20} color={tokens.status.dirty} />`.
+- Render with `<Icon name="status-dirty" size={20} color={colors.status.dirty} />`.
+  The registry is generated — see below.
 - **Never `require()` an icon or image inside a screen/component.** Non-icon
   assets import through the `@assets` alias (`@assets/brand/logo.svg`), never
   deep relative paths.
 - `assets/app/*` (Expo icon/splash/adaptive/favicon) stays PNG. Photographic
   content stays raster or comes from the DB; person avatars are mock/DB data,
   not assets.
+
+#### ALWAYS check before downloading an icon
+
+**Check the registry first. Do not export an icon from Figma that already exists.**
+
+```bash
+npm run icons:list          # every registered icon, by group
+```
+
+Then, in order:
+
+1. **Is the concept already registered?** Reuse it. The same glyph appears in
+   many designs — `action-search` serves the Home search bar, the chat header,
+   the reassign panel and the staff picker. One file, many call sites.
+2. **Is it the same concept under a different name?** Reuse the registered one
+   and do not add a synonym. The old PNG folder is a warning: it accumulated
+   `flag.png` next to `flag-icon.png`, `priority-icon.png` next to
+   `prioirty-icon.png` next to `priority-status.png`, `settings-icon.png` next
+   to `setting-icon.png`, and `laundry-icon.png` byte-identical to
+   `thumbs-up-icon.png`. 117 PNGs collapse to roughly 60 real concepts.
+3. **Does it differ only in colour or size?** Reuse it and pass `size` / `color`.
+   Never commit a second file for a recolour.
+4. **Only if genuinely new**, export it from Figma and add it.
+
+Adding a genuinely new icon:
+
+```bash
+# 1. export the SVG from Figma into a scratch dir, then normalise it
+node scripts/normalizeSvg.js <file>.svg --mono '#5A759D'   # single-colour only
+# 2. move it to the right group, named domain-concept
+mv <file>.svg assets/icons/<group>/
+# 3. regenerate the registry
+npm run icons:generate
+```
+
+`--mono` rewrites the listed colours to `currentColor` so `<Icon color=…>` tints
+the glyph. **Do not pass it for two-tone brand marks** (`nav-home`,
+`nav-lost-found`, the Hestia logo) — flattening them to one colour destroys the
+mark. `<Icon>` warns in dev if you pass `color` to one of those.
+
+Icons keep their natural aspect ratio: `<Icon size={n}>` sets the height and
+derives width from the viewBox, so a 28×14 glyph renders 28×14, not 14×14.
 
 ---
 

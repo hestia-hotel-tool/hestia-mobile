@@ -23,6 +23,8 @@
 const fs = require('fs');
 const path = require('path');
 
+const LIST_ONLY = process.argv.includes('--list');
+
 const REPO = path.resolve(__dirname, '..');
 const ICONS_DIR = path.join(REPO, 'assets/icons');
 const OUT = path.join(REPO, 'src/components/Icon/registry.ts');
@@ -134,10 +136,14 @@ for (const icon of found.filter((i) => i.tintable)) {
 w(']);');
 w();
 
-fs.writeFileSync(OUT, lines.join('\n'));
+if (!LIST_ONLY) fs.writeFileSync(OUT, lines.join('\n'));
 
 const tintable = found.filter((i) => i.tintable).length;
-console.log(`Generated ${path.relative(REPO, OUT)}`);
+console.log(
+  LIST_ONLY
+    ? 'Registered icons — reuse one of these before exporting a new SVG from Figma:'
+    : `Generated ${path.relative(REPO, OUT)}`
+);
 console.log(`  ${found.length} icons across ${groups.length} groups`);
 console.log(`  ${tintable} tintable, ${found.length - tintable} two-tone`);
 for (const group of groups) {

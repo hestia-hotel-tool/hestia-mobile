@@ -6,9 +6,7 @@ import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { NativeStackNavigationProp } from 'expo-router';
-import { BlurView } from 'expo-blur';
 import { colors } from '@/theme';
-import SearchInput from '@/components/ui/SearchInput';
 
 import type { ShiftType } from '../types/home.types';
 import { useAuth } from '@features/auth';
@@ -20,7 +18,9 @@ import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import type { MoreMenuItemId } from '@/types/more.types';
 import type { RootStackParamList } from '@/types/navigation';
 import HomeHeader from '../components/HomeHeader';
-import CategoryCard from '../components/CategoryCard';
+import HousekeepingDashboard from '../components/HousekeepingDashboard';
+import { usePermissions } from '@/domain/rbac';
+import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
 import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOverviewCard';
 import EngineeringRecentActivityItem from '../components/EngineeringRecentActivityItem';
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
@@ -51,13 +51,12 @@ export default function HomeScreen() {
   const route = useRoute();
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
+  const { homeVariant } = usePermissions();
   const [homeData, setHomeData] = useState(() => ({
     // Avoid mock fallbacks — hydrate from Supabase stores/session only.
     user: undefined as any,
     selectedShift: getShiftFromTime(),
-    date: '',
     categories: [] as any[],
-    notifications: { chat: 0 },
   }));
   const { data: roomsStoreData, loading: roomsLoading, fetchRooms, updateRoom } = useRoomsStore();
   const roomsForHome = useMemo(
@@ -133,18 +132,13 @@ export default function HomeScreen() {
     [homeData.user]
   );
 
-  const safeDate = useMemo(() => {
-    if (typeof (homeData as any).date === 'string' && (homeData as any).date.trim()) return (homeData as any).date;
-    const d = new Date();
-    const day = d.toLocaleDateString(undefined, { weekday: 'short' });
-    const dd = String(d.getDate()).padStart(2, '0');
-    const mon = d.toLocaleDateString(undefined, { month: 'short' });
-    const yyyy = String(d.getFullYear());
-    return `${day} ${dd} ${mon} ${yyyy}`;
-  }, [(homeData as any).date]);
-
-  const isEngineeringUser = (homeData.user?.department ?? '').toLowerCase() === 'engineering';
-  const isHskPortierUser = (homeData.user?.department ?? '').toLowerCase() === 'hsk portier';
+  // Which dashboard this person sees comes from their job title
+  // (job_titles.home_variant -> get_my_home_variant()), not from comparing the
+  // department's display string. AGENT.md forbids branching on role or
+  // department names, and the old comparison broke the moment a hotel renamed
+  // "HSK Portier" or a title moved department.
+  const isEngineeringUser = homeVariant === 'engineering';
+  const isHskPortierUser = homeVariant === 'hsk_portier';
 
   const [engineeringCounts, setEngineeringCounts] = useState<{
     total: number;
@@ -247,6 +241,9 @@ export default function HomeScreen() {
     latestPill?: {
       type: 'paused' | 'returnLater' | 'refused';
       roomLabel: string;
+      /** The room to resume. Without it HskPortierTasksOverviewCard cannot
+          wire its Resume tap — see the gate at that component's onPress. */
+      roomId?: string;
       /** ISO time used for elapsed/countdown when relevant */
       timeIso?: string;
       /** Secondary line text (timer or message) */
@@ -402,14 +399,15 @@ export default function HomeScreen() {
       inspected,
       priority,
       progressText,
-        latestPill: latest?.roomLabel
-          ? {
-              type: latest.type,
-              roomLabel: latest.roomLabel,
-              timeIso: latest.timeIso,
-              subText: latest.subText,
-            }
-          : undefined,
+      latestPill: latest?.roomLabel
+        ? {
+            type: latest.type,
+            roomLabel: latest.roomLabel,
+            roomId: latest.roomId,
+            timeIso: latest.timeIso,
+            subText: latest.subText,
+          }
+        : undefined,
     });
 
     const flagged = workingRooms.filter((r) => !!r.flagged).length;
@@ -548,31 +546,6 @@ export default function HomeScreen() {
       selectedShift: effectiveShift,
       prioritizeMyAssignedRooms: isHskPortierUser ? true : false,
     } as any);
-  };
-
-  const filterRoomsByFloors = (rooms: RoomCardData[], filters?: FilterState) => {
-    const floorFilters = filters?.floors;
-    if (!floorFilters) return rooms;
-
-    const anySelected = Object.values(floorFilters).some(Boolean);
-    if (!anySelected) return rooms;
-
-    if (floorFilters.all) return rooms;
-
-    const allowedFloors = new Set<number>();
-    Object.entries(floorFilters).forEach(([key, selected]) => {
-      if (key !== 'all' && selected) {
-        const floorNum = Number.parseInt(key, 10);
-        if (!isNaN(floorNum)) allowedFloors.add(floorNum);
-      }
-    });
-
-    if (allowedFloors.size === 0) return rooms;
-
-    return rooms.filter((r) => {
-      const floor = getFloorFromRoomNumber(r.roomNumber);
-      return floor !== null && allowedFloors.has(floor);
-    });
   };
 
   const buildCategory = (name: CategorySection['name'], id: string, borderColor: string, rooms: RoomCardData[]): CategorySection => {
@@ -821,6 +794,29 @@ export default function HomeScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
+        {/* Header and search sit in the flex flow. They used to be absolutely
+            positioned on top of the ScrollView, which forced the content to
+            compensate with paddingTop: (180 + 14 + 59) * scaleX — a magic sum
+            repeated in three more places. */}
+        <HomeHeader
+          name={safeUser?.name}
+          role={safeUser?.role}
+          avatarUrl={safeUser?.avatar}
+          shift={homeData.selectedShift}
+          onShiftChange={handleShiftToggle}
+        />
+
+        {!showFilterModal && (
+          <SearchAndFilterBar
+            value={searchQuery}
+            onChangeText={handleSearch}
+            onFilterPress={handleFilterPress}
+            placeholderLead="Search"
+            placeholderRest="Rooms, Guests, Floors etc"
+            className="px-lg py-md"
+          />
+        )}
+
         {/* Scrollable Content with conditional blur */}
         <View style={styles.scrollContainer}>
           <ScrollView
@@ -1023,92 +1019,17 @@ export default function HomeScreen() {
                 />
               </View>
             ) : (
-              derivedCategories.map((category) => (
-                <CategoryCard
-                  key={category.id}
-                  category={category}
-                  onPress={() => handleCategoryPress(category)}
-                  onStatusPress={handleStatusPress}
-                  onPriorityPress={handlePriorityPress}
-                  selectedShift={homeData.selectedShift}
-                />
-              ))
+              <HousekeepingDashboard
+                categories={derivedCategories}
+                onCategoryPress={handleCategoryPress}
+                onStatusPress={handleStatusPress}
+                onPriorityPress={handlePriorityPress}
+              />
             )}
           </ScrollView>
           
         </View>
 
-        {/* Header - Fixed at top (no blur) */}
-        <HomeHeader
-          user={safeUser}
-          selectedShift={homeData.selectedShift}
-          date={safeDate}
-          onShiftToggle={handleShiftToggle}
-          onBellPress={handleBellPress}
-          onProfilePress={handleProfilePress}
-        />
-
-        {/* Search Bar and Filter - Fixed below header */}
-        {!showFilterModal && (
-          <View style={styles.searchSection}>
-            <View style={[
-              styles.searchBar,
-              homeData.selectedShift === 'PM' && styles.searchBarPM
-            ]}>
-              <TouchableOpacity
-                style={styles.searchIconButton}
-                onPress={() => {/* Search action */}}
-                activeOpacity={0.7}
-              >
-                <Image
-                  source={require('../../../../assets/icons/search-icon.png')}
-                  style={[
-                    styles.searchIcon,
-                    homeData.selectedShift === 'PM' && styles.searchIconPM
-                  ]}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-              <SearchInput
-                placeholder={{ bold: 'Search ', normal: 'by room number, guest name' }}
-                value={searchQuery}
-                onChangeText={handleSearch}
-                onSearch={handleSearch}
-                inputStyle={[
-                  styles.searchInput,
-                  homeData.selectedShift === 'PM' && styles.searchInputPM
-                ]}
-                placeholderStyle={[
-                  styles.placeholderText,
-                  homeData.selectedShift === 'PM' && styles.placeholderTextPM
-                ]}
-                placeholderBoldStyle={[
-                  styles.placeholderBold,
-                  homeData.selectedShift === 'PM' && styles.placeholderBoldPM
-                ]}
-                placeholderNormalStyle={[
-                  styles.placeholderNormal,
-                  homeData.selectedShift === 'PM' && styles.placeholderNormalPM
-                ]}
-                inputWrapperStyle={styles.searchInputContainer}
-              />
-            </View>
-            <TouchableOpacity
-              style={styles.filterButton}
-              onPress={handleFilterPress}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={require('../../../../assets/icons/menu-icon.png')}
-                style={[
-                  styles.filterIcon,
-                  homeData.selectedShift === 'PM' && styles.filterIconPM
-                ]}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
-          </View>
-        )}
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
@@ -1147,9 +1068,8 @@ function buildHomeScreenStyles(scaleX: number) {
     flex: 1,
   },
   scrollContent: {
-    // Match the fixed header + search bar geometry exactly (Figma node 3297:577).
-    paddingTop: (HOME_HEADER_HEIGHT_DESIGN_PX + 14 + 59) * scaleX,
-    paddingBottom: 152 * scaleX + 20 * scaleX, // Bottom nav height + extra padding
+    paddingTop: 8,
+    paddingBottom: 172, // clears the bottom tab bar
   },
   engineeringTitle: {
     fontSize: 20 * scaleX,
@@ -1177,102 +1097,6 @@ function buildHomeScreenStyles(scaleX: number) {
     marginLeft: 20 * scaleX,
     marginBottom: 16 * scaleX,
     marginTop: 0,
-  },
-  contentBlurOverlay: {
-    position: 'absolute',
-    top: (HOME_HEADER_HEIGHT_DESIGN_PX + 14 + 59) * scaleX, // Start below header + search bar
-    left: 0,
-    right: 0,
-    bottom: 152 * scaleX, // Stop above bottom nav
-    zIndex: 1,
-  },
-  searchSection: {
-    position: 'absolute',
-    left: 15 * scaleX,
-    top: (HOME_HEADER_HEIGHT_DESIGN_PX + 14) * scaleX, // Header + margin
-    flexDirection: 'row',
-    alignItems: 'center',
-    zIndex: 99,
-  },
-  searchBar: {
-    height: 59 * scaleX,
-    width: 347 * scaleX,
-    backgroundColor: '#F1F6FC',
-    borderRadius: 82 * scaleX,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20 * scaleX,
-  },
-  searchBarPM: {
-    backgroundColor: '#F1F6FC',
-  },
-  searchInputContainer: {
-    height: '100%',
-  },
-  searchInput: {
-    fontFamily: 'Inter',
-    fontWeight: '300' as any,
-    padding: 0,
-    height: '100%',
-    backgroundColor: 'transparent',
-  },
-  placeholderText: {
-    fontFamily: 'Inter',
-    color: 'rgba(0,0,0,0.6)',
-    includeFontPadding: false,
-  },
-  placeholderBold: {
-    fontWeight: '700' as any, // Bold for "Search"
-  },
-  placeholderNormal: {
-    fontWeight: '400' as any, // Regular for rest of text
-  },
-  searchInputPM: {
-    color: '#000000',
-  },
-  placeholderTextPM: {
-    color: 'rgba(0, 0, 0, 0.6)',
-  },
-  placeholderBoldPM: {
-    color: 'rgba(0, 0, 0, 0.6)',
-  },
-  placeholderNormalPM: {
-    color: 'rgba(0, 0, 0, 0.6)',
-  },
-  searchIconButton: {
-    width: 26 * scaleX,
-    height: 26 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10 * scaleX,
-  },
-  searchIcon: {
-    width: 19 * scaleX,
-    height: 19 * scaleX,
-    tintColor: colors.primary.main,
-  },
-  searchIconPM: {
-    tintColor: colors.primary.main,
-  },
-  filterButton: {
-    width: 40 * scaleX, // Increased touch target for easier clicking
-    height: 40 * scaleX, // Increased touch target for easier clicking
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 18 * scaleX, // Gap between search bar and filter icon
-    padding: 8 * scaleX, // Add padding for better touch area
-  },
-  filterIcon: {
-    width: 32 * scaleX, // Increased from 26px for better visibility
-    height: 16 * scaleX, // Increased from 12px for better visibility (maintaining aspect ratio)
-    tintColor: colors.primary.main,
-  },
-  filterIconPM: {
-    tintColor: colors.primary.main,
-  },
-  blurOverlayDarkener: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
 });
 }

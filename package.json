@@ -11,6 +11,7 @@
     "rbac:check": "node scripts/rbac/checkRoutes.js",
     "tokens:generate": "node scripts/generateTokens.js",
     "icons:generate": "node scripts/generateIcons.js",
+    "icons:list": "node scripts/generateIcons.js --list",
     "rbac:parse-spec": "python3 scripts/rbac/parse-spec.py",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:users": "node scripts/seedUsers.js",
