@@ -15,7 +15,6 @@ import {
 } from '@/lib/notificationIncoming';
 import { setupNotificationPresentation } from '@/lib/notifications';
 import type { PushData } from '@/lib/notifications';
-import { getFullRoomDetails } from '@features/rooms';
 import { router } from 'expo-router';
 import * as NativeSplash from 'expo-splash-screen';
 
@@ -115,10 +114,6 @@ export default function RootLayout() {
     return () => {
       try { ErrorUtils.setGlobalHandler(prev); } catch (_) {}
     };
-  }, []);
-
-  useEffect(() => {
-    getFullRoomDetails().catch((err) => console.warn('[getFullRoomDetails]', err));
   }, []);
 
   return (

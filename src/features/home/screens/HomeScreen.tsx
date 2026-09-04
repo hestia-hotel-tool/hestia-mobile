@@ -90,9 +90,8 @@ export default function HomeScreen() {
         : undefined,
     [session?.user]
   );
-  useEffect(() => {
-      if (session?.user && sessionFallback) fetchProfile(session.user.id, sessionFallback);
-    }, [session?.user?.id, sessionFallback, fetchProfile]);
+  // useFocusEffect already fires on mount, so the separate useEffect that used
+  // to sit here fetched the same profile a second time on every cold start.
   useFocusEffect(
     React.useCallback(() => {
       if (session?.user && sessionFallback) fetchProfile(session.user.id, sessionFallback);
