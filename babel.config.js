@@ -15,6 +15,10 @@ module.exports = function(api) {
           },
         },
       ],
+      // Required by react-native-reanimated 4.x, which react-native-css (and so
+      // NativeWind) imports unconditionally. MUST stay last — the worklets
+      // plugin has to see the output of every other plugin.
+      'react-native-worklets/plugin',
     ],
   };
 };

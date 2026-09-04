@@ -51,21 +51,21 @@ const UNGATED_TABS = new Set<string>(['AIHome']);
 const MAIN_TABS = [
   {
     id: 'Home',
-    icon: require('../../assets/icons/home-icon.png'),
+    icon: require('@assets/icons/home-icon.png'),
     label: 'Home',
     iconWidth: 56,
     iconHeight: 56,
   },
   {
     id: 'Rooms',
-    icon: require('../../assets/icons/rooms-icon.png'),
+    icon: require('@assets/icons/rooms-icon.png'),
     label: 'Rooms',
     iconWidth: 70,
     iconHeight: 56,
   },
   {
     id: 'Chat',
-    icon: require('../../assets/icons/chat-icon.png'),
+    icon: require('@assets/icons/chat-icon.png'),
     label: 'Chat',
     iconWidth: 56,
     iconHeight: 56,
@@ -73,7 +73,7 @@ const MAIN_TABS = [
   },
   {
     id: 'Tickets',
-    icon: require('../../assets/icons/tickets-icon.png'),
+    icon: require('@assets/icons/tickets-icon.png'),
     label: 'Tickets',
     iconWidth: 49,
     iconHeight: 54,
@@ -81,7 +81,7 @@ const MAIN_TABS = [
   },
   {
     id: 'AIHome',
-    icon: require('../../assets/icons/ai-home-icon.png'),
+    icon: require('@assets/icons/ai-home-icon.png'),
     label: '',
     iconWidth: 56,
     iconHeight: 56,
