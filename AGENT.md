@@ -141,7 +141,7 @@ Both idioms exist right now; a screen converts when it is refactored, not before
 
 Migrated so far: `src/components/ui/*`, `src/components/Icon/*`,
 `src/features/home/components/{CategoryCard,HomeHeader,HousekeepingDashboard,FloorsFilterSheet}`,
-`src/features/auth/screens/SplashScreen`.
+`src/features/auth/screens/{SplashScreen,LoginScreen}`.
 
 Key setup:
 

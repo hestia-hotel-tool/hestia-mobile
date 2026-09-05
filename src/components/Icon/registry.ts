@@ -13,8 +13,10 @@
  */
 
 // actions
+import ActionChevron from '@assets/icons/actions/action-chevron.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
+import ActionPhone from '@assets/icons/actions/action-phone.svg';
 import ActionSearch from '@assets/icons/actions/action-search.svg';
 // nav
 import NavChat from '@assets/icons/nav/nav-chat.svg';
@@ -30,8 +32,10 @@ import StatusInspected from '@assets/icons/room-status/status-inspected.svg';
 
 export const icons = {
   // actions
+  'action-chevron': ActionChevron,
   'action-filter': ActionFilter,
   'action-flag': ActionFlag,
+  'action-phone': ActionPhone,
   'action-search': ActionSearch,
   // nav
   'nav-chat': NavChat,
@@ -55,8 +59,10 @@ export type IconName = keyof typeof icons;
  * than forcing a square box and letterboxing the art at the wrong size.
  */
 export const ICON_ASPECT: Record<IconName, number> = {
+  'action-chevron': 0.5,
   'action-filter': 2,
   'action-flag': 1.1833,
+  'action-phone': 1,
   'action-search': 1,
   'nav-chat': 1.0003,
   'nav-home': 1.0744,
@@ -74,8 +80,10 @@ export const ICON_ASPECT: Record<IconName, number> = {
  * Two-tone brand marks are absent here — recolouring them destroys the mark.
  */
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
+  'action-chevron',
   'action-filter',
   'action-flag',
+  'action-phone',
   'action-search',
   'nav-chat',
   'nav-staff',
