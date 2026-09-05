@@ -44,6 +44,33 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
   NativeStackNavigationProp<RootStackParamList>
 >;
 
+/**
+ * Rooms on the floors selected in the filter sheet.
+ *
+ * "All", or nothing ticked, means no filtering. Floor comes from the first digit
+ * of the room number (101 -> 1, 305 -> 3), via the same helper AllRoomsScreen
+ * uses, so both screens agree on what a selection means.
+ */
+function filterRoomsBySelectedFloors<T extends { roomNumber: string }>(
+  rooms: T[],
+  floors: Record<string, boolean> | undefined
+): T[] {
+  if (!floors || floors.all) return rooms;
+
+  const allowed = new Set<number>();
+  for (const [key, selected] of Object.entries(floors)) {
+    if (key === 'all' || !selected) continue;
+    const floor = parseInt(key, 10);
+    if (!Number.isNaN(floor)) allowed.add(floor);
+  }
+  if (allowed.size === 0) return rooms;
+
+  return rooms.filter((room) => {
+    const floor = getFloorFromRoomNumber(room.roomNumber);
+    return floor !== null && allowed.has(floor);
+  });
+}
+
 export default function HomeScreen() {
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildHomeScreenStyles(scaleX), [scaleX]);
@@ -587,8 +614,10 @@ export default function HomeScreen() {
     const usePMRooms = uiShift === 'PM' && Array.isArray(roomsPM) && roomsPM.length > 0;
     const sourceRooms = usePMRooms ? roomsPM : (roomsForHome.rooms ?? []);
     
-    // Home category stats should not be affected by the Home filter modal or search input.
-    let rooms = sourceRooms;
+    // Home stats reflect the floors chosen in the filter sheet. They used to
+    // ignore it — the filter only took effect after navigating to the rooms
+    // list, so applying it here looked like nothing had happened.
+    let rooms = filterRoomsBySelectedFloors(sourceRooms, activeFilters?.floors);
 
     // Only HSK Portier stats are scoped to the signed-in user's assigned rooms.
     if (isHskPortierUser) {
@@ -635,7 +664,7 @@ export default function HomeScreen() {
     }
 
     return categories;
-  }, [homeData.selectedShift, roomsForHome, assignedRoomIdsOrdered, session?.user?.id, safeUser?.name, isHskPortierUser]);
+  }, [homeData.selectedShift, roomsForHome, assignedRoomIdsOrdered, session?.user?.id, safeUser?.name, isHskPortierUser, activeFilters]);
 
   // Sync route filters -> local state
   useEffect(() => {
@@ -786,20 +815,15 @@ export default function HomeScreen() {
    * category card, because those pass `activeFilters` along in their navigation
    * params.
    *
-   * The button says "See Rooms", so it goes there, with the selection applied.
-   * AllRoomsScreen reads `filters` from route params and filters by floor.
+   * Applying it navigated to the rooms list for a while, which moved the user
+   * off the screen they were filtering. It now applies in place: the category
+   * cards re-derive from the selected floors and the sheet closes.
    *
-   * No `categoryFilter` here: this is a floor selection, not a category, and
-   * sending one would narrow the results to a bucket the user did not choose.
+   * Tapping a card still carries `activeFilters` through to the rooms list, so
+   * drilling in keeps the same selection.
    */
   const handleGoToResults = (filters: FilterState) => {
     setActiveFilters(filters);
-    navigation.navigate('(rooms)/index', {
-      showBackButton: true,
-      filters,
-      selectedShift: effectiveShift,
-      prioritizeMyAssignedRooms: isHskPortierUser,
-    } as any);
   };
 
   const handleAdvanceFilter = () => {
