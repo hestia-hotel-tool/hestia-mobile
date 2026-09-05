@@ -9,6 +9,13 @@ export type CountBadgeProps = {
    * (node 2702:3308).
    */
   size?: number;
+  /**
+   * Type size in px. Not derived from `size`: the design sets 15px inside the
+   * 24px pill badge (node 2702:3400) and 20px inside the 34px status bubble
+   * (node 2702:3462) — 0.63 and 0.59 of the diameter, so no single ratio gives
+   * both. Defaults to a ratio for any other size.
+   */
+  fontSize?: number;
   /** Tailwind background class. Defaults to the red used on flag pills. */
   toneClassName?: string;
   /** Tailwind text-colour class. */
@@ -26,6 +33,7 @@ export type CountBadgeProps = {
 export function CountBadge({
   count,
   size = 24,
+  fontSize = Math.round(size * 0.6),
   toneClassName = 'bg-status-dirty',
   textClassName = 'text-ink-white',
   className,
@@ -38,7 +46,7 @@ export function CountBadge({
     >
       <Text
         className={`font-hestia-primary font-bold ${textClassName}`}
-        style={{ fontSize: size * 0.5 }}
+        style={{ fontSize }}
         numberOfLines={1}
       >
         {count}

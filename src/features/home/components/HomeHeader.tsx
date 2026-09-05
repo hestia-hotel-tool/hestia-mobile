@@ -39,7 +39,9 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
 
   return (
     <View
-      className="w-full flex-row items-center gap-lg bg-surface-dashboard px-xl pb-xl"
+      // gap-2xl, not gap-lg: node 2702:3468 hangs a country flag off the
+      // avatar's bottom-right, so the design leaves 25px before the name.
+      className="w-full flex-row items-center gap-2xl bg-surface-dashboard px-xl pb-xl"
       // Status bar height is a runtime value, so it stays a style.
       style={{ paddingTop: insets.top + 12 }}
     >
