@@ -6,17 +6,12 @@ import { View, Text, TextInput, Pressable, ScrollView } from '@/tw';
 import { Icon } from '@/components/Icon';
 import { colors } from '@/theme';
 import { usePermissions, resolveLandingRoute } from '@/domain/rbac';
+import { useTranslation } from '@/providers/I18nProvider';
+import { LANGUAGES } from '@/i18n';
 import LogoMark from '@assets/brand/logo-mark.svg';
 import LogoWordmark from '@assets/brand/logo-wordmark.svg';
 import SupportMark from '@assets/brand/support-mark.svg';
 import { useAuth } from '../hooks/useAuth';
-
-const LANGUAGES = [
-  { code: 'EN', name: 'English' },
-  { code: 'FR', name: 'French' },
-  { code: 'DE', name: 'German' },
-  { code: 'IT', name: 'Italian' },
-] as const;
 
 /** Figma node 263:40 — 370 of a 440 frame, so 35 either side. */
 const GUTTER = 35;
@@ -30,10 +25,10 @@ export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { signIn, resetPassword } = useAuth();
   const { permissions } = usePermissions();
+  const { t, language, setLanguage } = useTranslation();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [language, setLanguage] = useState<string>('EN');
   const [languageOpen, setLanguageOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +36,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
-      setError('Please enter your email and password.');
+      setError(t('login.errors.missingCredentials'));
       return;
     }
     setError(null);
@@ -50,7 +45,7 @@ export default function LoginScreen() {
     try {
       const { error: signInError } = await signIn(email.trim(), password);
       if (signInError) {
-        setError(signInError.message ?? 'Invalid email or password.');
+        setError(signInError.message ?? t('login.errors.invalidCredentials'));
         return;
       }
       // Not hardcoded to Home: F&B and Kitchen staff have no Dashboard right,
@@ -59,7 +54,7 @@ export default function LoginScreen() {
       const landing = resolveLandingRoute(permissions);
       router.replace((landing ?? '/(tabs)/(home)') as never);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An unexpected error occurred.');
+      setError(err instanceof Error ? err.message : t('login.errors.unexpected'));
     } finally {
       setIsSigningIn(false);
     }
@@ -68,16 +63,16 @@ export default function LoginScreen() {
   /** Was a TODO that rendered a tappable no-op; useAuth already exposed this. */
   const handleRecoverPassword = async () => {
     if (!email.trim()) {
-      setError('Enter your company email first, then tap Recover Password.');
+      setError(t('login.errors.emailRequiredForReset'));
       return;
     }
     setError(null);
     const { error: resetError } = await resetPassword(email.trim());
     if (resetError) {
-      setError(resetError.message ?? 'Could not send the reset email.');
+      setError(resetError.message ?? t('login.errors.resetFailed'));
       return;
     }
-    setNotice(`Password reset link sent to ${email.trim()}.`);
+    setNotice(t('login.resetSent', { email: email.trim() }));
   };
 
   return (
@@ -104,10 +99,10 @@ export default function LoginScreen() {
             className="flex-row items-center gap-md pt-md"
             onPress={() => setLanguageOpen((open) => !open)}
             accessibilityRole="button"
-            accessibilityLabel={`Language ${language}`}
+            accessibilityLabel={`${t('common.language')} ${language}`}
           >
             <Text className="font-hestia-primary text-hestia-2xl font-light text-primary">
-              Language <Text className="font-bold text-ink-pink">{language}</Text>
+              {t('common.language')} <Text className="font-bold text-ink-pink">{language}</Text>
             </Text>
             <View style={{ transform: [{ rotate: languageOpen ? '90deg' : '-90deg' }] }}>
               <Icon name="action-chevron" size={17} color={colors.primary.light} />
@@ -117,22 +112,22 @@ export default function LoginScreen() {
 
         {languageOpen && (
           <View className="self-end rounded-sm border border-border-light bg-surface-primary" style={styles.gutter}>
-            {LANGUAGES.map((lang) => (
+            {LANGUAGES.map((code) => (
               <Pressable
-                key={lang.code}
+                key={code}
                 className="py-md"
                 onPress={() => {
-                  setLanguage(lang.code);
+                  setLanguage(code);
                   setLanguageOpen(false);
                 }}
                 accessibilityRole="button"
               >
                 <Text
                   className={`font-hestia-primary text-hestia-xl ${
-                    lang.code === language ? 'font-bold text-ink-pink' : 'text-ink-primary'
+                    code === language ? 'font-bold text-ink-pink' : 'text-ink-primary'
                   }`}
                 >
-                  {lang.name} ({lang.code})
+                  {t(`languages.${code}`)} ({code})
                 </Text>
               </Pressable>
             ))}
@@ -144,11 +139,11 @@ export default function LoginScreen() {
 
         <View style={styles.gutter}>
           <Text className="mt-5xl font-hestia-primary text-hestia-8xl font-bold text-primary">
-            Log in
+            {t('login.title')}
           </Text>
 
           <Text className="mt-[80px] font-hestia-primary text-hestia-2xl text-ink-primary">
-            Company email
+            {t('login.emailLabel')}
           </Text>
           <TextInput
             className="mt-sm h-[70px] bg-surface-primary px-md font-hestia-primary text-hestia-2xl font-light text-ink-primary"
@@ -159,11 +154,11 @@ export default function LoginScreen() {
             autoCorrect={false}
             textContentType="username"
             autoComplete="email"
-            accessibilityLabel="Company email"
+            accessibilityLabel={t('login.emailLabel')}
           />
 
           <Text className="mt-lg font-hestia-primary text-hestia-2xl text-ink-primary">
-            Password
+            {t('login.passwordLabel')}
           </Text>
           <TextInput
             className="mt-sm h-[70px] bg-surface-primary px-md font-hestia-primary text-hestia-2xl font-light text-ink-primary"
@@ -172,7 +167,7 @@ export default function LoginScreen() {
             secureTextEntry
             textContentType="password"
             autoComplete="current-password"
-            accessibilityLabel="Password"
+            accessibilityLabel={t('login.passwordLabel')}
           />
 
           {!!error && (
@@ -190,12 +185,12 @@ export default function LoginScreen() {
             onPress={handleLogin}
             disabled={isSigningIn}
             accessibilityRole="button"
-            accessibilityLabel="Sign In"
+            accessibilityLabel={t('login.signIn')}
           >
             {isSigningIn ? (
               <ActivityIndicator color={colors.text.white} />
             ) : (
-              <Text className="font-hestia-primary text-hestia-3xl text-ink-white">Sign In</Text>
+              <Text className="font-hestia-primary text-hestia-3xl text-ink-white">{t('login.signIn')}</Text>
             )}
           </Pressable>
 
@@ -204,9 +199,9 @@ export default function LoginScreen() {
             className="mt-2xl h-[70px] flex-row items-center justify-center gap-md border border-border-light bg-surface-secondary"
             onPress={handleRecoverPassword}
             accessibilityRole="button"
-            accessibilityLabel="Recover Password"
+            accessibilityLabel={t('login.recoverPassword')}
           >
-            <Text className="font-hestia-primary text-hestia-3xl text-primary">Recover Password</Text>
+            <Text className="font-hestia-primary text-hestia-3xl text-primary">{t('login.recoverPassword')}</Text>
             <View style={{ transform: [{ rotate: '180deg' }] }}>
               <Icon name="action-chevron" size={17} color={colors.primary.main} />
             </View>
@@ -228,10 +223,10 @@ export default function LoginScreen() {
 
           <View>
             <Text className="font-hestia-primary text-hestia-lg font-bold text-primary">
-              Customer Service
+              {t('login.supportTitle')}
             </Text>
             <Text className="font-hestia-primary text-hestia-lg font-light text-ink-primary">
-              Having issues with the app?
+              {t('login.supportSubtitle')}
             </Text>
           </View>
         </View>

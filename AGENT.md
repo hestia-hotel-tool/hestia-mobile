@@ -210,6 +210,41 @@ Token names map onto Tailwind utilities. `text` and `background` are renamed to
 The JS API is unchanged — `colors.text.primary` still reads from the same JSON
 via `src/theme`.
 
+## Internationalisation
+
+Four languages: EN, FR, DE, IT. `i18n-js` for lookup, `expo-localization` for
+the device default, `I18nProvider` for switching at runtime.
+
+```tsx
+import { useTranslation } from '@/providers/I18nProvider';
+
+const { t, language, setLanguage } = useTranslation();
+<Text>{t('login.signIn')}</Text>
+<Text>{t('login.resetSent', { email })}</Text>   // {{email}} in the JSON
+```
+
+- **Copy lives in `src/i18n/locales/<code>.json`**, never inline in a screen.
+- `en.json` is the source of truth for the key set. Add a key there first, then
+  to the other three.
+- `npm run i18n:check` fails when a locale is missing a key English has, or has
+  one English does not. i18n-js silently falls back to English otherwise, so a
+  gap only shows up as a stray English word mid-screen.
+- Startup order: saved choice -> device language when offered -> English. The
+  choice persists in AsyncStorage.
+- `I18nProvider` is outermost in `AppProviders`: login needs a language before a
+  session exists.
+
+**Migration in progress**, like the styling one. Translated so far:
+`src/features/auth/screens/{SplashScreen,LoginScreen}`. Other screens still hold
+their copy inline and adopt `t()` as each is refactored.
+
+**FR/DE/IT copy is a first draft and needs a native speaker.** Hotel
+terminology has established trade terms per language — "Stayover", "Turndown",
+"Lost & Found" and the housekeeping statuses especially — and those should be
+reviewed before shipping to a non-English hotel.
+
+---
+
 ## RBAC (Role-Based Access Control)
 
 Security boundary is **server-side** (RLS via `auth_has_permission()`); client gating is UX only.

@@ -5,6 +5,7 @@ import { View, Text, Pressable } from '@/tw';
 import { colors } from '@/theme';
 import LogoMark from '@assets/brand/logo-mark.svg';
 import { usePermissions, resolveLandingRoute } from '@/domain/rbac';
+import { useTranslation } from '@/providers/I18nProvider';
 import { useAuth } from '../hooks/useAuth';
 
 /**
@@ -15,6 +16,7 @@ import { useAuth } from '../hooks/useAuth';
 export default function SplashScreen() {
   const { session, hotelId, error, isLoading, signOut } = useAuth();
   const { permissions, isLoading: permissionsLoading } = usePermissions();
+  const { t } = useTranslation();
   const [fade] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -66,19 +68,17 @@ export default function SplashScreen() {
         {/* 108px below the mark in the design (426 -> 534). */}
         <View className="mt-[108px] items-center">
           <Text className="font-hestia-primary text-hestia-6xl font-light leading-[25px] text-primary">
-            Build by Housekeepers
+            {t('splash.subtitle')}
           </Text>
           <Text className="font-hestia-primary text-hestia-5xl font-bold leading-[24px] text-ink-pink">
-            For Housekeeping
+            {t('splash.tagline')}
           </Text>
         </View>
 
         {(showError || noAccess) && (
           <View className="mt-4xl items-center">
             <Text className="text-center font-hestia-primary text-hestia-md text-primary opacity-95">
-              {noAccess
-                ? 'This account has not been given a job title, so it has no permissions. Ask your manager to assign one.'
-                : error}
+              {noAccess ? t('splash.noAccess') : error}
             </Text>
             <Pressable
               className="mt-lg rounded-full bg-primary px-2xl py-md"
@@ -89,7 +89,7 @@ export default function SplashScreen() {
               }}
             >
               <Text className="font-hestia-primary text-hestia-lg font-semibold text-ink-white">
-                Back to sign in
+                {t('common.backToSignIn')}
               </Text>
             </Pressable>
           </View>

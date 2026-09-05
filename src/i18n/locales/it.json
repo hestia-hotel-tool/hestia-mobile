@@ -1,0 +1,34 @@
+{
+  "common": {
+    "language": "Lingua",
+    "backToSignIn": "Torna all'accesso"
+  },
+  "languages": {
+    "EN": "Inglese",
+    "FR": "Francese",
+    "DE": "Tedesco",
+    "IT": "Italiano"
+  },
+  "splash": {
+    "subtitle": "Creato da governanti",
+    "tagline": "Per il reparto piani",
+    "noAccess": "A questo account non è stata assegnata una mansione, quindi non ha alcun permesso. Chiedi al tuo responsabile di assegnarne una."
+  },
+  "login": {
+    "title": "Accedi",
+    "emailLabel": "E-mail aziendale",
+    "passwordLabel": "Password",
+    "signIn": "Accedi",
+    "recoverPassword": "Recupera password",
+    "supportTitle": "Servizio clienti",
+    "supportSubtitle": "Problemi con l'app?",
+    "errors": {
+      "missingCredentials": "Inserisci e-mail e password.",
+      "invalidCredentials": "E-mail o password non validi.",
+      "unexpected": "Si è verificato un errore imprevisto.",
+      "emailRequiredForReset": "Inserisci prima la tua e-mail aziendale, poi tocca Recupera password.",
+      "resetFailed": "Impossibile inviare l'e-mail di reimpostazione."
+    },
+    "resetSent": "Link per reimpostare la password inviato a {{email}}."
+  }
+}

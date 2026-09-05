@@ -1,0 +1,34 @@
+{
+  "common": {
+    "language": "Sprache",
+    "backToSignIn": "Zurück zur Anmeldung"
+  },
+  "languages": {
+    "EN": "Englisch",
+    "FR": "Französisch",
+    "DE": "Deutsch",
+    "IT": "Italienisch"
+  },
+  "splash": {
+    "subtitle": "Von Housekeepern entwickelt",
+    "tagline": "Für das Housekeeping",
+    "noAccess": "Diesem Konto wurde keine Stellenbezeichnung zugewiesen, daher hat es keine Berechtigungen. Bitten Sie Ihre Vorgesetzte oder Ihren Vorgesetzten um eine Zuweisung."
+  },
+  "login": {
+    "title": "Anmelden",
+    "emailLabel": "Geschäftliche E-Mail",
+    "passwordLabel": "Passwort",
+    "signIn": "Anmelden",
+    "recoverPassword": "Passwort zurücksetzen",
+    "supportTitle": "Kundenservice",
+    "supportSubtitle": "Probleme mit der App?",
+    "errors": {
+      "missingCredentials": "Bitte geben Sie E-Mail und Passwort ein.",
+      "invalidCredentials": "E-Mail oder Passwort ist falsch.",
+      "unexpected": "Ein unerwarteter Fehler ist aufgetreten.",
+      "emailRequiredForReset": "Geben Sie zuerst Ihre geschäftliche E-Mail ein und tippen Sie dann auf Passwort zurücksetzen.",
+      "resetFailed": "Die E-Mail zum Zurücksetzen konnte nicht gesendet werden."
+    },
+    "resetSent": "Link zum Zurücksetzen an {{email}} gesendet."
+  }
+}

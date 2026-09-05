@@ -1,0 +1,34 @@
+{
+  "common": {
+    "language": "Langue",
+    "backToSignIn": "Retour à la connexion"
+  },
+  "languages": {
+    "EN": "Anglais",
+    "FR": "Français",
+    "DE": "Allemand",
+    "IT": "Italien"
+  },
+  "splash": {
+    "subtitle": "Créé par des gouvernantes",
+    "tagline": "Pour les étages",
+    "noAccess": "Aucun poste n'a été attribué à ce compte, il n'a donc aucune autorisation. Demandez à votre responsable de vous en attribuer un."
+  },
+  "login": {
+    "title": "Connexion",
+    "emailLabel": "E-mail professionnel",
+    "passwordLabel": "Mot de passe",
+    "signIn": "Se connecter",
+    "recoverPassword": "Mot de passe oublié",
+    "supportTitle": "Service client",
+    "supportSubtitle": "Un problème avec l'application ?",
+    "errors": {
+      "missingCredentials": "Veuillez saisir votre e-mail et votre mot de passe.",
+      "invalidCredentials": "E-mail ou mot de passe incorrect.",
+      "unexpected": "Une erreur inattendue s'est produite.",
+      "emailRequiredForReset": "Saisissez d'abord votre e-mail professionnel, puis touchez Mot de passe oublié.",
+      "resetFailed": "Impossible d'envoyer l'e-mail de réinitialisation."
+    },
+    "resetSent": "Lien de réinitialisation envoyé à {{email}}."
+  }
+}

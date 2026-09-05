@@ -12,6 +12,7 @@
     "tokens:generate": "node scripts/generateTokens.js",
     "icons:generate": "node scripts/generateIcons.js",
     "icons:list": "node scripts/generateIcons.js --list",
+    "i18n:check": "node scripts/checkLocales.js",
     "rbac:parse-spec": "python3 scripts/rbac/parse-spec.py",
     "seed:departments": "node scripts/seedDepartments.js",
     "seed:users": "node scripts/seedUsers.js",
@@ -46,6 +47,7 @@
     "expo-image-picker": "~56.0.18",
     "expo-linear-gradient": "~56.0.4",
     "expo-linking": "~56.0.14",
+    "expo-localization": "~56.0.6",
     "expo-notifications": "~56.0.18",
     "expo-print": "~56.0.4",
     "expo-router": "~56.2.11",
@@ -54,6 +56,7 @@
     "expo-status-bar": "~56.0.4",
     "expo-system-ui": "~56.0.5",
     "expo-updates": "~56.0.19",
+    "i18n-js": "^4.5.3",
     "nativewind": "5.0.0-preview.4",
     "pods": "^2.0.0",
     "react": "19.2.3",
@@ -76,7 +79,7 @@
     "babel-plugin-module-resolver": "^5.0.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~56.0.4",
-    "lightningcss": "^1.30.1",
+    "lightningcss": "1.30.1",
     "pdf-parse": "^2.4.5",
     "pdf.js-extract": "^0.2.1",
     "pdfjs-dist": "^5.4.530",
@@ -84,8 +87,5 @@
     "sharp": "^0.34.5",
     "typescript": "~6.0.3"
   },
-  "private": true,
-  "overrides": {
-    "lightningcss": "1.30.1"
-  }
+  "private": true
 }

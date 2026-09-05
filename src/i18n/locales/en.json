@@ -1,0 +1,34 @@
+{
+  "common": {
+    "language": "Language",
+    "backToSignIn": "Back to sign in"
+  },
+  "languages": {
+    "EN": "English",
+    "FR": "French",
+    "DE": "German",
+    "IT": "Italian"
+  },
+  "splash": {
+    "subtitle": "Build by Housekeepers",
+    "tagline": "For Housekeeping",
+    "noAccess": "This account has not been given a job title, so it has no permissions. Ask your manager to assign one."
+  },
+  "login": {
+    "title": "Log in",
+    "emailLabel": "Company email",
+    "passwordLabel": "Password",
+    "signIn": "Sign In",
+    "recoverPassword": "Recover Password",
+    "supportTitle": "Customer Service",
+    "supportSubtitle": "Having issues with the app?",
+    "errors": {
+      "missingCredentials": "Please enter your email and password.",
+      "invalidCredentials": "Invalid email or password.",
+      "unexpected": "An unexpected error occurred.",
+      "emailRequiredForReset": "Enter your company email first, then tap Recover Password.",
+      "resetFailed": "Could not send the reset email."
+    },
+    "resetSent": "Password reset link sent to {{email}}."
+  }
+}
