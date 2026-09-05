@@ -1,13 +1,11 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Animated, View, Text, StyleSheet, Pressable, useWindowDimensions } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Animated, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
-import { typography } from '@/theme';
+import { View, Text, Pressable } from '@/tw';
+import { colors } from '@/theme';
 import LogoMark from '@assets/brand/logo-mark.svg';
 import { usePermissions, resolveLandingRoute } from '@/domain/rbac';
 import { useAuth } from '../hooks/useAuth';
-
-const DESIGN_WIDTH = 440;
-const DESIGN_HEIGHT = 956;
 
 /**
  * Launch screen. The native splash (see app.config.ts) covers the cold-start
@@ -17,13 +15,6 @@ const DESIGN_HEIGHT = 956;
 export default function SplashScreen() {
   const { session, hotelId, error, isLoading, signOut } = useAuth();
   const { permissions, isLoading: permissionsLoading } = usePermissions();
-  const { width, height } = useWindowDimensions();
-  const scale = useMemo(
-    () => Math.min(width / DESIGN_WIDTH, height / DESIGN_HEIGHT),
-    [width, height],
-  );
-  const styles = useMemo(() => buildSplashStyles(scale), [scale]);
-
   const [fade] = useState(() => new Animated.Value(0));
   useEffect(() => {
     Animated.timing(fade, { toValue: 1, duration: 250, useNativeDriver: true }).start();
@@ -55,112 +46,64 @@ export default function SplashScreen() {
   const showError = !isLoading && !!session && !!error && !hotelId;
 
   return (
-    <Animated.View style={[styles.container, { opacity: fade }]}>
-      <View style={styles.logoTitleGroup}>
-        <LogoMark width={53 * scale} height={50 * scale} />
-        <Text style={styles.title}>Hestia</Text>
-      </View>
-
-      <Text style={styles.subtitle}>Build by Housekeepers</Text>
-      <Text style={styles.tagline}>For Housekeeping</Text>
-
-      {(showError || noAccess) && (
-        <View style={styles.errorBlock}>
-          <Text style={styles.errorText}>
-            {noAccess
-              ? 'This account has not been given a job title, so it has no permissions. Ask your manager to assign one.'
-              : error}
+    <Animated.View style={[styles.root, { opacity: fade }]}>
+      {/*
+        The design places the logo at y=376 and the tagline's baseline near
+        y=589 on a 956-tall frame — a block centred at 482 against a frame
+        centre of 478. So it is centred, and centring reproduces it on every
+        screen size, where the old `Math.min(w/440, h/956)` offsets only landed
+        correctly on a 440x956 device.
+      */}
+      <View className="flex-1 items-center justify-center px-2xl">
+        {/* Figma node 3265:2159 — mark 53x50, wordmark 13 to its right and 10 down. */}
+        <View className="flex-row items-start">
+          <LogoMark width={53} height={50} />
+          <Text className="ml-[13px] mt-[10px] font-hestia-primary text-hestia-9xl leading-[45px] text-primary">
+            Hestia
           </Text>
-          <Pressable
-            style={styles.errorButton}
-            onPress={async () => {
-              await signOut();
-              router.replace('/(auth)/login');
-            }}
-          >
-            <Text style={styles.errorButtonText}>Back to sign in</Text>
-          </Pressable>
         </View>
-      )}
+
+        {/* 108px below the mark in the design (426 -> 534). */}
+        <View className="mt-[108px] items-center">
+          <Text className="font-hestia-primary text-hestia-6xl font-light leading-[25px] text-primary">
+            Build by Housekeepers
+          </Text>
+          <Text className="font-hestia-primary text-hestia-5xl font-bold leading-[24px] text-ink-pink">
+            For Housekeeping
+          </Text>
+        </View>
+
+        {(showError || noAccess) && (
+          <View className="mt-4xl items-center">
+            <Text className="text-center font-hestia-primary text-hestia-md text-primary opacity-95">
+              {noAccess
+                ? 'This account has not been given a job title, so it has no permissions. Ask your manager to assign one.'
+                : error}
+            </Text>
+            <Pressable
+              className="mt-lg rounded-full bg-primary px-2xl py-md"
+              accessibilityRole="button"
+              onPress={async () => {
+                await signOut();
+                router.replace('/(auth)/login');
+              }}
+            >
+              <Text className="font-hestia-primary text-hestia-lg font-semibold text-ink-white">
+                Back to sign in
+              </Text>
+            </Pressable>
+          </View>
+        )}
+      </View>
     </Animated.View>
   );
 }
 
-function buildSplashStyles(scale: number) {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: '#EEF0F6',
-    },
-    logoTitleGroup: {
-      position: 'absolute',
-      top: 376 * scale,
-      left: 0,
-      right: 0,
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      justifyContent: 'center',
-    },
-    title: {
-      marginLeft: 13 * scale,
-      marginTop: 10 * scale,
-      fontSize: 39 * scale,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.regular as '400',
-      color: '#5A759D',
-      lineHeight: 39 * scale * 1.147,
-      textAlign: 'center',
-    },
-    subtitle: {
-      position: 'absolute',
-      top: 534 * scale,
-      left: 0,
-      right: 0,
-      fontSize: 22 * scale,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.light as '300',
-      color: '#5A759D',
-      lineHeight: 22 * scale,
-      textAlign: 'center',
-    },
-    tagline: {
-      position: 'absolute',
-      top: 565 * scale,
-      left: 0,
-      right: 0,
-      fontSize: 21 * scale,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.bold as '700',
-      color: '#FF46A3',
-      lineHeight: 24 * scale,
-      textAlign: 'center',
-    },
-    errorBlock: {
-      position: 'absolute',
-      top: 620 * scale,
-      left: 24 * scale,
-      right: 24 * scale,
-      alignItems: 'center',
-    },
-    errorText: {
-      fontSize: 14 * scale,
-      fontFamily: typography.fontFamily.primary,
-      color: '#5A759D',
-      textAlign: 'center',
-      opacity: 0.95,
-    },
-    errorButton: {
-      marginTop: 16 * scale,
-      paddingVertical: 10 * scale,
-      paddingHorizontal: 24 * scale,
-      borderRadius: 999,
-      backgroundColor: '#5A759D',
-    },
-    errorButtonText: {
-      fontSize: 15 * scale,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: '600',
-      color: '#FFFFFF',
-    },
-  });
-}
+/**
+ * Only the root needs a StyleSheet: Animated.View has no CSS wrapper, and the
+ * background must be painted before the tree mounts so the handoff from the
+ * native splash (same colour, see app.config.ts) stays invisible.
+ */
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background.secondary },
+});
