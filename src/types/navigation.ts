@@ -11,11 +11,6 @@ export type RootStackParamList = {
     initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
     departmentName?: string;
   };
-  'arrival-departure/[id]': {
-    room: any;
-    initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
-    departmentName?: string;
-  };
   'assign-rooms/index': { staffId: string; staffName: string; shift: 'AM' | 'PM' };
   'chat/[chatId]': { chatId: string; chat?: import('@features/chat/components/ChatItem').ChatItemData };
   'new-chat/index': undefined;

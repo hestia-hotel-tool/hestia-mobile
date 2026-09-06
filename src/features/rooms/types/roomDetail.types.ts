@@ -1,14 +1,34 @@
-import type { RoomCardData, RoomStatus } from './allRooms.types';
+import type { RoomCardData, RoomStatus, RoomActivityState } from './allRooms.types';
 import type { LostAndFoundItem } from '@features/lost-and-found';
 
 // Room Type Definitions
 export type RoomType = 'Arrival' | 'Departure' | 'ArrivalDeparture' | 'Stayover' | 'Turndown';
 
+export type GuestSlotRole = 'Arrival' | 'Departure' | 'Stayover' | 'Turndown';
+
+/**
+ * One guest block on the Overview, and how to find its guest.
+ *
+ * "Arrival only / Departure only / both" is a list of these rather than a chain
+ * of `roomType === 'ArrivalDeparture'` checks — which used to appear in two
+ * files, once to build a typed array and again to pick it apart.
+ */
+export interface GuestSlot {
+  role: GuestSlotRole;
+  /** How this slot picks its guest out of the room's guest list. */
+  match: { by: 'index'; index: number } | { by: 'timeLabel'; timeLabel: 'ETA' | 'EDT' };
+  /** Used when `match` finds nothing. */
+  fallbackIndex?: number;
+  /** Draw the Special Instructions block under this slot, when the room has any. */
+  showsSpecialInstructions: boolean;
+  /** 'inheritFromFirst' falls back to the first slot's badge when this one has none. */
+  numberBadge: 'own' | 'inheritFromFirst' | 'none';
+}
+
 export interface RoomTypeConfig {
   type: RoomType;
-  guestInfoStartTop: number;
-  hasSpecialInstructions: boolean;
-  numberOfGuests: 1 | 2;
+  /** The guest blocks this room type shows, in render order. */
+  guestSlots: GuestSlot[];
   cardHeight: number;
   lostAndFoundType: 'empty' | 'withItems';
 }
@@ -89,15 +109,13 @@ export interface RoomDetailScreenProps {
   // Room type determines layout structure
   roomType: RoomType;
   
-  // Guest information
-  // For Arrival/Departure: [arrivalGuest, departureGuest]
-  // For Arrival: [arrivalGuest]
-  // For Departure: [departureGuest]
-  // For Stayover/Turndown: [stayoverGuest]
-  guests: Array<{
-    guest: import('./allRooms.types').GuestInfo;
-    type: 'Arrival' | 'Departure' | 'Stayover' | 'Turndown';
-  }>;
+  /**
+   * The room's guests, in room-card order — pass `room.guests` straight through.
+   *
+   * Which of them fills which block is decided by the room type's `guestSlots`
+   * (see `resolveGuestSlots`), so callers no longer tag each guest with a role.
+   */
+  guests: import('./allRooms.types').GuestInfo[];
   
   // Special instructions (shown after Arrival guest info for Arrival/Departure, or after guest info for other types)
   specialInstructions?: string | null;
@@ -115,8 +133,11 @@ export interface RoomDetailScreenProps {
   /** When true, the Assigned To section is performing a mutation (e.g. reassign). */
   isAssigningStaff?: boolean;
   
-  // Task description
-  taskDescription?: string;
+  /**
+   * The room's tasks. Was a single `taskDescription` string, so only the first
+   * one could ever be seen and the Add-task callbacks had nothing to append to.
+   */
+  tasks?: Task[];
   
   // Notes
   notes?: Note[];
@@ -130,12 +151,16 @@ export interface RoomDetailScreenProps {
   // Callbacks
   onBackPress?: () => void;
   onStatusPress?: () => void;
-  onStatusChange?: (status: RoomStatus) => void;
   onReassign?: () => void;
+  /*
+   * Only the "open the modal" callbacks live here. Saving is the host screen's
+   * job, since it owns every modal — the matching save callbacks were declared
+   * and never called.
+   */
   onAddNote?: () => void;
-  onSaveNote?: (noteText: string) => void;
   onAddTask?: () => void;
-  onSaveTask?: (taskText: string) => void;
+  /** Opens a task in full — wired to ViewTaskModal. */
+  onSeeMoreTask?: (task: Task) => void;
   onAddLostAndFoundItem?: () => void;
   onDownloadHistoryReport?: () => Promise<void>;
   /** When the room is paused, resume clears pause and returns to normal UI. */
@@ -145,14 +170,15 @@ export interface RoomDetailScreenProps {
   /** Clear Refuse Service and return to normal UI. */
   onClearRefuseService?: () => void;
   
-  // Optional: Custom status text (for Pause, Return Later, etc.)
-  customStatusText?: string;
-  pausedAt?: string;
-  returnLaterAtTimestamp?: number;
-  promiseTimeAtTimestamp?: number;
-  /** Epoch ms when Refuse Service was confirmed (persisted). */
-  refuseServiceAtTimestamp?: number;
-  refuseServiceReason?: string;
+  /**
+   * What the room is doing — paused, returning later, refused, or nothing.
+   *
+   * Replaces `customStatusText` plus four parallel timestamp props. Those could
+   * describe combinations the data never produces, and the string was rebuilt on
+   * every render from whichever modal happened to be open. Derive it with
+   * `deriveRoomActivityState(room)`.
+   */
+  activity?: RoomActivityState;
   
   // Optional: Show stayover with linen badge
   showWithLinenBadge?: boolean;

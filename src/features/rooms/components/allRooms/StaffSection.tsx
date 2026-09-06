@@ -16,6 +16,8 @@ interface StaffSectionProps {
   /** When staff is assigned, tap on forward arrow opens staff list to change assignee */
   onStaffSectionPress?: () => void;
   isLoading?: boolean;
+  /** True when the room is paused (via either paused signal — see isRoomPaused) */
+  isPaused?: boolean;
 }
 
 function seededMinutes(roomId: string, modulo: number): number {
@@ -31,7 +33,7 @@ function formatHHMM(d: Date): string {
   return `${hh}:${mm}`;
 }
 
-export default function StaffSection({ staff, roomId, roomStatus, isPriority = false, frontOfficeStatus = '', selectedShift, onAssignPress, onStaffSectionPress, isLoading = false }: StaffSectionProps) {
+export default function StaffSection({ staff, roomId, roomStatus, isPriority = false, frontOfficeStatus = '', selectedShift, onAssignPress, onStaffSectionPress, isLoading = false, isPaused = false }: StaffSectionProps) {
   const isDeparture = frontOfficeStatus === 'Departure';
 
   // No staff assigned: show "Assign Staff" button
@@ -63,10 +65,13 @@ export default function StaffSection({ staff, roomId, roomStatus, isPriority = f
   const hasPromiseTime = !!staff.promiseTime;
   const derivedStatusText = useMemo(() => {
     // Rules requested:
+    // - Paused (either signal) + staff assigned -> "Paused" (checked first: pausing overlays
+    //   whatever the underlying houseKeepingStatus is, it doesn't replace it)
     // - Dirty + staff assigned -> "Not Started"
     // - InProgress + staff assigned -> "Started"
     // - Cleaned + staff assigned -> "Cleaned at: [time]" (random < now)
     // - Inspected + staff assigned -> "Inspected at: [time]" (random < now)
+    if (isPaused) return 'Paused';
     if (roomStatus === 'Dirty') return 'Not Started';
     if (roomStatus === 'InProgress') return 'Started';
     if (roomStatus === 'Cleaned') {
@@ -80,7 +85,7 @@ export default function StaffSection({ staff, roomId, roomStatus, isPriority = f
       return `Inspected At: ${formatHHMM(t)}`;
     }
     return 'Not Started';
-  }, [roomId, roomStatus, staff.statusText]);
+  }, [roomId, roomStatus, staff.statusText, isPaused]);
 
   // Departure cards have different positioning due to promiseTime
   const avatarLeft = isPriority ? STAFF_SECTION.avatar.left : (STAFF_SECTION.avatarStandard?.left ?? STAFF_SECTION.avatar.left);

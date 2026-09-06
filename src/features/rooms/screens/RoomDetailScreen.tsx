@@ -9,9 +9,8 @@ import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-nat
 import { useRoute, useNavigation, router } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
-import StatusChangeModal from '../components/allRooms/StatusChangeModal';
+import StatusChangeModal from '../components/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
-import CleanChecklistModal from '../components/allRooms/CleanChecklistModal';
 import ReturnLaterModal from '../components/roomDetail/ReturnLaterModal';
 import PromiseTimeModal from '../components/roomDetail/PromiseTimeModal';
 import RefuseServiceModal from '../components/roomDetail/RefuseServiceModal';
@@ -21,8 +20,13 @@ import AddTaskModal from '../components/roomDetail/AddTaskModal';
 import ViewTaskModal from '../components/roomDetail/ViewTaskModal';
 import RoomDetailContent from '../components/roomDetail/RoomDetailContent';
 import { getRoomTypeConfig } from '../constants/roomTypeConfigs';
-import type { RoomCardData, StatusChangeOption } from '../types/allRooms.types';
-import { STATUS_OPTIONS } from '../types/allRooms.types';
+import { mapFrontOfficeToRoomType } from '../utils/roomType';
+import type { RoomCardData, StatusChangeOption, RoomActivityState } from '../types/allRooms.types';
+import {
+  mapStatusOptionToRoomStatus,
+  deriveRoomActivityState,
+  activityStateToUpdate,
+} from '../types/allRooms.types';
 import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/roomDetail.types';
 import type { LostAndFoundItem } from '@features/lost-and-found';
 import type { RootStackParamList } from '@/types/navigation';
@@ -46,17 +50,6 @@ type RoomDetailScreenNavigationProp = NativeStackNavigationProp<
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function mapFrontOfficeToRoomType(frontOffice: string | null | undefined, reservationCount: number): RoomType {
-  if (reservationCount >= 2) return 'ArrivalDeparture';
-  switch (frontOffice) {
-    case 'Arrival': return 'Arrival';
-    case 'Departure': return 'Departure';
-    case 'Stayover': return 'Stayover';
-    case 'Turndown': return 'Turndown';
-    case 'No Task': return 'Stayover';
-    default: return 'Stayover';
-  }
-}
 
 function formatRegisteredTimestamp(iso?: string | null): string {
   if (!iso) return '';
@@ -206,57 +199,46 @@ export default function RoomDetailScreen() {
     return () => { cancelled = true; };
   }, [roomId, shift]);
 
-  const placeholderRoom: RoomCardData | null =
-    roomId && loadingDetails && !initialRoom
-      ? {
-          id: roomId,
-          roomNumber: '—',
-          roomCategory: '',
-          credit: 0,
-          frontOfficeStatus: 'Stayover',
-          houseKeepingStatus: 'InProgress',
-          reservationStatus: 'Occupied',
-          guests: [],
-          roomAttendantAssigned: null,
-          isPriority: false,
-          flagged: false,
-          specialInstructions: null,
-          roomNotes: null,
-          noteMadeBy: null,
-          notes: undefined,
-          withLinen: false,
-          promisedTime: null,
-        }
-      : null;
+  /*
+   * Stands in until the real room arrives, and is never null.
+   *
+   * It used to be built only while loading, so `room` went null the moment a
+   * fetch finished empty — and the early return below it skipped the ~18 hooks
+   * that follow. Going from null to a room then rendered a different number of
+   * hooks than the previous pass, which React aborts with "Rendered more hooks
+   * than during the previous render". That is the deep-link and
+   * push-notification path, where there is no `room` param to fall back on.
+   */
+  const placeholderRoom: RoomCardData = {
+    id: roomId ?? '',
+    roomNumber: '—',
+    roomCategory: '',
+    credit: 0,
+    frontOfficeStatus: 'Stayover',
+    houseKeepingStatus: 'InProgress',
+    reservationStatus: 'Occupied',
+    guests: [],
+    roomAttendantAssigned: null,
+    isPriority: false,
+    flagged: false,
+    specialInstructions: null,
+    roomNotes: null,
+    noteMadeBy: null,
+    notes: undefined,
+    withLinen: false,
+    promisedTime: null,
+  };
 
-  const room = fetchedRoom ?? initialRoom ?? placeholderRoom;
+  const room: RoomCardData = fetchedRoom ?? initialRoom ?? placeholderRoom;
   const roomType = fetchedRoomType ?? initialRoomType;
-
-  // Ensure we never proceed with `room === null` (keeps hooks type-safe and avoids runtime crashes).
-  if (!room) {
-    if (loadingDetails && !initialRoom) {
-      return (
-        <View
-          style={[
-            StyleSheet.absoluteFill,
-            { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary },
-          ]}
-        >
-          <ActivityIndicator size="large" color={colors.primary.main} />
-        </View>
-      );
-    }
-    console.warn('RoomDetailScreen: No room data provided');
-    return null;
-  }
+  /** Whether `room` is real data rather than the stand-in. Checked after the hooks. */
+  const hasRoom = Boolean(fetchedRoom ?? initialRoom);
 
   const roomGuests = room.guests || [];
-  const effectiveRoomType: RoomType = roomGuests.length >= 2 ? 'ArrivalDeparture' : roomType;
   const isUpdating = updatingRoomId === room.id;
-  const config = React.useMemo(() => getRoomTypeConfig(effectiveRoomType), [effectiveRoomType]);
+  const config = React.useMemo(() => getRoomTypeConfig(roomType), [roomType]);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showInspectedModal, setShowInspectedModal] = useState(false);
-  const [showCleanChecklistModal, setShowCleanChecklistModal] = useState(false);
   const [buttonPositionForInspection, setButtonPositionForInspection] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [showReturnLaterModal, setShowReturnLaterModal] = useState(false);
   const [showPromiseTimeModal, setShowPromiseTimeModal] = useState(false);
@@ -274,29 +256,24 @@ export default function RoomDetailScreen() {
   const [currentStatus, setCurrentStatus] = useState<RoomCardData['houseKeepingStatus']>(room.houseKeepingStatus);
   // Track room data locally to allow updates (e.g., flagged status)
   const [localRoom, setLocalRoom] = useState<RoomCardData>(room);
-  // Track selected status option text to display in header
-  const [selectedStatusText, setSelectedStatusText] = useState<string | undefined>(undefined);
-  // Track Return Later: timestamp for time-only display + remaining countdown (e.g. "2:30 PM · 30 mins 2s")
-  const [returnLaterAtTimestamp, setReturnLaterAtTimestamp] = useState<number | undefined>(() => {
-    const raw = (room as any)?.returnLaterAt ?? null;
-    if (!raw) return undefined;
-    const ms = new Date(raw).getTime();
-    return Number.isFinite(ms) ? ms : undefined;
-  });
-  // Track Promise Time: timestamp for time + countdown in header
-  const [promiseTimeAtTimestamp, setPromiseTimeAtTimestamp] = useState<number | undefined>(undefined);
-  // Track Refuse Service: selected reason or custom reason to show in header
-  const [refuseServiceReason, setRefuseServiceReason] = useState<string | undefined>(() => {
-    const raw = (room as any)?.refuseServiceReason ?? null;
-    return raw ? String(raw) : undefined;
-  });
-  // Track Refuse Service time: timestamp for time-only display in header
-  const [refuseServiceAtTimestamp, setRefuseServiceAtTimestamp] = useState<number | undefined>(() => {
-    const raw = (room as any)?.refuseServiceAt ?? null;
-    if (!raw) return undefined;
-    const ms = new Date(String(raw)).getTime();
-    return Number.isFinite(ms) ? ms : undefined;
-  });
+  /*
+   * What the room is doing — paused, returning later, refused, or nothing.
+   *
+   * Was five separate useStates plus a `customStatusText` string rebuilt on every
+   * render from which modal happened to be open. One derived value instead, so
+   * the header can only ever show a state the data actually supports.
+   */
+  const [activity, setActivity] = useState<RoomActivityState>(() =>
+    deriveRoomActivityState(room)
+  );
+  /**
+   * The state whose modal is open but not yet confirmed, so the header can
+   * preview it. Set only by the modals' own open/close handlers — never read off
+   * a visibility flag.
+   */
+  const [pendingActivity, setPendingActivity] = useState<
+    'returnLater' | 'refuseService' | 'promisedTime' | null
+  >(null);
 
   // Track notes in state. For Supabase rooms we load via getRoomNotes; for mock we use room.roomNotes.
   const [notes, setNotes] = useState<Note[]>(() => {
@@ -322,6 +299,10 @@ export default function RoomDetailScreen() {
     if (fetchedRoom) {
       setLocalRoom(fetchedRoom);
       setCurrentStatus(fetchedRoom.houseKeepingStatus);
+      // Re-derive from the fetched room too. Seeding only from the initial `room`
+      // meant a deep link or notification into a paused/refused room — which has
+      // no `room` param, only a roomId — opened on a plain header.
+      setActivity(deriveRoomActivityState(fetchedRoom));
     }
   }, [fetchedNotes, fetchedAssignedStaff, fetchedRoom]);
 
@@ -388,14 +369,24 @@ export default function RoomDetailScreen() {
     void refreshHistory();
   }, [refreshHistory]);
   
-  // Get task description - use actual tasks or default task
-  const getTaskDescription = () => {
-    if (tasks.length > 0) {
-      return tasks[0].text;
-    }
-    // Return default task based on room type
-    return getDefaultTaskText(effectiveRoomType);
-  };
+  /*
+   * The tasks to show, never empty.
+   *
+   * A room with no tasks falls back to the room type's standing task, which is
+   * what keeps the Assigned/Task card on screen — the card is gated on having
+   * an assignee or a task, so returning [] here would make it vanish for every
+   * unassigned, task-less room.
+   */
+  const displayTasks: Task[] =
+    tasks.length > 0
+      ? tasks
+      : [
+          {
+            id: 'default-task',
+            text: getDefaultTaskText(roomType),
+            createdAt: new Date().toISOString(),
+          },
+        ];
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -476,17 +467,6 @@ export default function RoomDetailScreen() {
     }
   };
   
-  // Track paused time (HH:mm) for header "Paused at ..."
-  const [pausedAt, setPausedAt] = useState<string | undefined>(() => {
-    const raw = (room as any)?.pausedAt ?? null;
-    if (!raw) return undefined;
-    const d = new Date(String(raw));
-    if (Number.isNaN(d.getTime())) return undefined;
-    const hh = String(d.getHours()).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${hh}:${mm}`;
-  });
-
   const handleBackPress = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -518,59 +498,34 @@ export default function RoomDetailScreen() {
   };
 
   const handleStatusSelect = (statusOption: StatusChangeOption) => {
-    const statusOptionConfig = STATUS_OPTIONS.find(opt => opt.id === statusOption);
-    const statusLabel = statusOptionConfig?.label || '';
-
+    // These three open a modal and only take effect on confirm. `pendingActivity`
+    // lets the header preview the state meanwhile, without anything downstream
+    // having to inspect which modal is open.
     if (statusOption === 'ReturnLater') {
-      console.log('🔵 Return Later selected - opening modal...');
       setShowStatusModal(false);
       setShowReturnLaterModal(true);
-      setSelectedStatusText(statusLabel);
-      console.log('🔵 showReturnLaterModal set to TRUE');
+      setPendingActivity('returnLater');
       return;
     }
 
     if (statusOption === 'PromisedTime') {
       setShowStatusModal(false);
       setShowPromiseTimeModal(true);
-      setSelectedStatusText(statusLabel);
+      setPendingActivity('promisedTime');
       return;
     }
 
     if (statusOption === 'RefuseService') {
       setShowStatusModal(false);
       setShowRefuseServiceModal(true);
-      setSelectedStatusText(statusLabel);
+      setPendingActivity('refuseService');
       return;
     }
-
-    const mapStatusOptionToRoomStatus = (option: StatusChangeOption): RoomCardData['houseKeepingStatus'] => {
-      switch (option) {
-        case 'Dirty':
-          return 'Dirty';
-        case 'InProgress':
-          return 'InProgress';
-        case 'Cleaned':
-          return 'Cleaned';
-        case 'Inspected':
-          return 'Inspected';
-        case 'Priority':
-        case 'Pause':
-        case 'ReturnLater':
-        case 'RefuseService':
-        case 'PromisedTime':
-          return 'InProgress';
-        default:
-          return 'InProgress';
-      }
-    };
 
     // Priority only toggles rush icon on room card; do not change room detail background or status icon
     if (statusOption === 'Priority') {
       const newIsPriority = !localRoom.isPriority;
       setLocalRoom((prev) => ({ ...prev, isPriority: newIsPriority }));
-      setSelectedStatusText(undefined);
-      setPausedAt(undefined);
       const priorityPayload = newIsPriority ? 'high' : 'normal';
       updateRoom(room.id, {
         ...(localRoom.houseKeepingStatus && { house_keeping_status: localRoom.houseKeepingStatus }),
@@ -585,33 +540,19 @@ export default function RoomDetailScreen() {
     const newStatus = mapStatusOptionToRoomStatus(statusOption);
     setCurrentStatus(newStatus);
 
-    if (statusOption === 'Pause') {
-      const now = new Date();
-      const hours = now.getHours().toString().padStart(2, '0');
-      const minutes = now.getMinutes().toString().padStart(2, '0');
-      setPausedAt(`${hours}:${minutes}`);
-      setSelectedStatusText(undefined);
-      // Persist so Pause survives reloads.
-      updateRoom(room.id, {
-        house_keeping_status: newStatus,
-        paused_at: now.toISOString(),
-        return_later_at: null,
-        refuse_service_at: null,
-        refuse_service_reason: null,
-      }).catch((e) => console.warn('Failed to persist pause in Supabase', e));
-    } else {
-      // Normal statuses should use the default header label + icon (prevents wrong icon/tinting).
-      setSelectedStatusText(undefined);
-      setPausedAt(undefined);
-      // Clear any prior pause / return later / refuse service state when a normal status is chosen.
-      updateRoom(room.id, {
-        house_keeping_status: newStatus,
-        paused_at: null,
-        return_later_at: null,
-        refuse_service_at: null,
-        refuse_service_reason: null,
-      }).catch((e) => console.warn('Failed to update room status in Supabase', e));
-    }
+    // Pause enters an activity; every other status clears back to none. Either
+    // way activityStateToUpdate writes all four columns, so no stale one is left.
+    const nextActivity: RoomActivityState =
+      statusOption === 'Pause'
+        ? { kind: 'paused', since: Date.now(), assignmentPaused: false }
+        : { kind: 'none' };
+
+    setActivity(nextActivity);
+    setPendingActivity(null);
+    updateRoom(room.id, {
+      house_keeping_status: newStatus,
+      ...activityStateToUpdate(nextActivity),
+    }).catch((e) => console.warn('Failed to update room status in Supabase', e));
 
     setShowStatusModal(false);
     setStatusButtonPosition(null);
@@ -631,34 +572,38 @@ export default function RoomDetailScreen() {
       console.log('Task saved from Return Later modal:', taskDescription);
     }
     if (returnAtTimestamp != null) {
-      setReturnLaterAtTimestamp(returnAtTimestamp);
+      const next: RoomActivityState = { kind: 'returnLater', dueAt: returnAtTimestamp };
+      setActivity(next);
       // Persist to DB so Return Later survives reloads.
       updateRoom(room.id, {
         house_keeping_status: 'InProgress',
-        return_later_at: new Date(returnAtTimestamp).toISOString(),
-        paused_at: null,
-        refuse_service_at: null,
-        refuse_service_reason: null,
+        ...activityStateToUpdate(next),
       }).catch((e) => console.warn('Failed to persist return later in Supabase', e));
     }
+    setPendingActivity(null);
     setShowReturnLaterModal(false);
     void refreshHistory();
   };
 
   const handleReturnLaterElapsed = useCallback(() => {
     // Time elapsed: clear Return Later and revert header to normal state.
-    setReturnLaterAtTimestamp(undefined);
-    setSelectedStatusText(undefined);
-    updateRoom(room.id, { return_later_at: null }).catch((e) => console.warn('Failed to clear return later in Supabase', e));
+    setActivity({ kind: 'none' });
+    setPendingActivity(null);
+    updateRoom(room.id, activityStateToUpdate({ kind: 'none' })).catch((e) =>
+      console.warn('Failed to clear return later in Supabase', e)
+    );
     void refreshHistory();
   }, [room.id, updateRoom, refreshHistory]);
 
   const handlePromiseTimeConfirm = (promiseTime: string, period: 'AM' | 'PM', _formattedDateTime?: string, promiseAtTimestamp?: number) => {
     console.log('Promise Time confirmed for room:', room.roomNumber, 'at:', promiseTime, period);
     if (promiseAtTimestamp != null) {
-      setPromiseTimeAtTimestamp(promiseAtTimestamp);
+      setActivity({ kind: 'promisedTime', dueAt: promiseAtTimestamp });
     }
-    // Promise time is currently not persisted in DB; still record it in room_history for audit.
+    setPendingActivity(null);
+    // TODO: Promised Time has no column, so unlike its three peers in
+    // RoomActivityState it does not survive a reload. Only room_history records
+    // it. Add `promise_time_at` to `rooms` to make it persist.
     void logRoomHistoryEvent({
       roomId: room.id,
       type: 'promise_time',
@@ -669,15 +614,13 @@ export default function RoomDetailScreen() {
   };
 
   const handleRefuseServiceConfirm = (reason: string) => {
-    setRefuseServiceReason(reason);
-    setRefuseServiceAtTimestamp(Date.now());
+    const next: RoomActivityState = { kind: 'refuseService', at: Date.now(), reason };
+    setActivity(next);
+    setPendingActivity(null);
     // Persist to DB so Refuse Service survives reloads.
     updateRoom(room.id, {
       house_keeping_status: 'InProgress',
-      refuse_service_at: new Date().toISOString(),
-      refuse_service_reason: reason,
-      paused_at: null,
-      return_later_at: null,
+      ...activityStateToUpdate(next),
     }).catch((e) => console.warn('Failed to persist refuse service in Supabase', e));
     void logRoomHistoryEvent({
       roomId: room.id,
@@ -689,17 +632,18 @@ export default function RoomDetailScreen() {
   };
 
   const handleResumePause = () => {
-    setPausedAt(undefined);
-    setSelectedStatusText(undefined);
-    updateRoom(room.id, { paused_at: null }).catch((e) => console.warn('Failed to resume pause in Supabase', e));
+    setActivity({ kind: 'none' });
+    setPendingActivity(null);
+    updateRoom(room.id, activityStateToUpdate({ kind: 'none' })).catch((e) =>
+      console.warn('Failed to resume pause in Supabase', e)
+    );
     void refreshHistory();
   };
 
   const handleClearRefuseService = useCallback(() => {
-    setRefuseServiceReason(undefined);
-    setRefuseServiceAtTimestamp(undefined);
-    setSelectedStatusText(undefined);
-    updateRoom(room.id, { refuse_service_at: null, refuse_service_reason: null }).catch((e) =>
+    setActivity({ kind: 'none' });
+    setPendingActivity(null);
+    updateRoom(room.id, activityStateToUpdate({ kind: 'none' })).catch((e) =>
       console.warn('Failed to clear refuse service in Supabase', e)
     );
     void refreshHistory();
@@ -871,80 +815,6 @@ export default function RoomDetailScreen() {
     setShowReassignModal(false);
   };
 
-  if (!room) {
-    return null;
-  }
-
-  // Transform room data to props format for reusable component
-  // Build guests array with type information
-  const guestsWithTypes: Array<{ guest: import('../types/allRooms.types').GuestInfo; type: 'Arrival' | 'Departure' | 'Stayover' | 'Turndown' }> = [];
-  
-  if (effectiveRoomType === 'ArrivalDeparture') {
-    // For Arrival/Departure: the UI expects the first guest to be Arrival and the second to be Departure.
-    // Keep this strictly aligned with the room card ordering to avoid mismatched names/images.
-    const arrivalGuest = roomGuests[0];
-    const departureGuest = roomGuests.length > 1 ? roomGuests[1] : undefined;
-    if (arrivalGuest) guestsWithTypes.push({ guest: arrivalGuest, type: 'Arrival' });
-    if (departureGuest) guestsWithTypes.push({ guest: departureGuest, type: 'Departure' });
-  } else if (effectiveRoomType === 'Arrival') {
-    // For Arrival: single arrival guest
-    const arrivalGuest = roomGuests.find((g) => g.timeLabel === 'ETA') || roomGuests[0];
-    if (arrivalGuest) {
-      guestsWithTypes.push({ guest: arrivalGuest, type: 'Arrival' });
-    }
-  } else if (effectiveRoomType === 'Departure') {
-    // For Departure: single departure guest
-    const departureGuest = roomGuests.find((g) => g.timeLabel === 'EDT') || roomGuests[0];
-    if (departureGuest) {
-      guestsWithTypes.push({ guest: departureGuest, type: 'Departure' });
-    }
-  } else if (effectiveRoomType === 'Stayover') {
-    // For Stayover: single stayover guest
-    const stayoverGuest = roomGuests[0];
-    if (stayoverGuest) {
-      guestsWithTypes.push({ guest: stayoverGuest, type: 'Stayover' });
-    }
-  } else if (effectiveRoomType === 'Turndown') {
-    // For Turndown: single turndown guest
-    const turndownGuest = roomGuests[0];
-    if (turndownGuest) {
-      guestsWithTypes.push({ guest: turndownGuest, type: 'Turndown' });
-    }
-  }
-  // Ensure Room Detail always has at least one guest block to render.
-  if (guestsWithTypes.length === 0) {
-    const fallbackGuest =
-      roomGuests[0] ??
-      ({
-        name: 'Guest',
-        datesOfStay: { from: '', to: '' },
-        time: 'N/A',
-        timeLabel: 'N/A',
-        guestCount: { adults: 0, kids: 0 },
-        imageUrl: `https://i.pravatar.cc/96?u=${room.id}-0`,
-      } as import('../types/allRooms.types').GuestInfo);
-    const fallbackType: 'Arrival' | 'Departure' | 'Stayover' | 'Turndown' =
-      effectiveRoomType === 'Departure'
-        ? 'Departure'
-        : effectiveRoomType === 'Turndown'
-          ? 'Turndown'
-          : effectiveRoomType === 'Arrival'
-            ? 'Arrival'
-            : 'Stayover';
-    guestsWithTypes.push({
-      guest: {
-        ...fallbackGuest,
-        imageUrl:
-          (fallbackGuest as any)?.imageUrl ??
-          `https://i.pravatar.cc/96?u=${room.id}-0`,
-      },
-      type: fallbackType,
-    });
-  }
-
-  // Get task description from tasks
-  const taskDescription = getTaskDescription();
-
   // Lost & found: use fetched items when loaded by roomId, else mock when config says withItems
   const lostAndFoundItems =
     fetchedLostAndFound !== null
@@ -968,13 +838,32 @@ export default function RoomDetailScreen() {
           ]
         : undefined;
 
-  if (loadingDetails && !initialRoom) {
-    return (
-      <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary }]}>
-        <ActivityIndicator size="large" color={colors.primary.main} />
-      </View>
-    );
+  // Every hook above has run by now, so returning early here is safe.
+  if (!hasRoom) {
+    if (loadingDetails) {
+      return (
+        <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center', backgroundColor: colors.background.primary }]}>
+          <ActivityIndicator size="large" color={colors.primary.main} />
+        </View>
+      );
+    }
+    console.warn('RoomDetailScreen: No room data provided');
+    return null;
   }
+
+  /*
+   * What the header shows: the committed activity, unless a modal is open for a
+   * different one — then preview that with no time yet, which is what the user
+   * is in the middle of choosing.
+   */
+  const effectiveActivity: RoomActivityState =
+    pendingActivity && pendingActivity !== activity.kind
+      ? ({
+          returnLater: { kind: 'returnLater', dueAt: null },
+          promisedTime: { kind: 'promisedTime', dueAt: null },
+          refuseService: { kind: 'refuseService', at: null, reason: null },
+        } as const)[pendingActivity]
+      : activity;
 
   return (
     <View style={{ flex: 1 }}>
@@ -992,46 +881,29 @@ export default function RoomDetailScreen() {
         isPriority={localRoom.isPriority === true}
         flagged={localRoom.flagged}
         frontOfficeStatus={room.frontOfficeStatus === 'Refresh' ? undefined : room.frontOfficeStatus}
-        roomType={effectiveRoomType}
-        guests={guestsWithTypes}
+        roomType={roomType}
+        guests={roomGuests}
         specialInstructions={room.specialInstructions ?? undefined}
         assignedTo={assignedStaff}
         isAssigningStaff={isAssigningStaff}
-        taskDescription={taskDescription}
+        tasks={displayTasks}
         notes={notes}
         lostAndFoundItems={lostAndFoundItems}
         historyEvents={historyEvents}
         onBackPress={handleBackPress}
         onStatusPress={handleStatusPress}
-        onStatusChange={handleStatusSelect}
         onReassign={handleReassign}
         onAddNote={handleAddNote}
-        onSaveNote={handleSaveNote}
         onAddTask={handleAddTask}
-        onSaveTask={handleSaveTask}
+        onSeeMoreTask={handleSeeMoreTask}
         onAddLostAndFoundItem={handleAddPhotos}
         onDownloadHistoryReport={handleDownloadReport}
-        onResumePause={pausedAt ? handleResumePause : undefined}
-        onReturnLaterElapsed={returnLaterAtTimestamp != null ? handleReturnLaterElapsed : undefined}
-        onClearRefuseService={refuseServiceReason || refuseServiceAtTimestamp != null ? handleClearRefuseService : undefined}
+        onResumePause={handleResumePause}
+        onReturnLaterElapsed={handleReturnLaterElapsed}
+        onClearRefuseService={handleClearRefuseService}
         initialTab={initialTab}
         departmentName={departmentName}
-        customStatusText={
-          showReturnLaterModal
-            ? 'Return Later'
-            : showPromiseTimeModal
-              ? 'Promise Time'
-              : showRefuseServiceModal || refuseServiceReason
-                ? 'Refuse Service'
-                : returnLaterAtTimestamp != null
-                  ? 'Return Later'
-                  : selectedStatusText
-        }
-        pausedAt={pausedAt}
-        returnLaterAtTimestamp={returnLaterAtTimestamp}
-        promiseTimeAtTimestamp={promiseTimeAtTimestamp}
-        refuseServiceAtTimestamp={refuseServiceAtTimestamp}
-        refuseServiceReason={refuseServiceReason}
+        activity={effectiveActivity}
         showWithLinenBadge={room.frontOfficeStatus === 'Stayover' && showStayoverWithLinenBadge(room)}
       />
 
@@ -1047,7 +919,6 @@ export default function RoomDetailScreen() {
           setButtonPositionForInspection(statusButtonPosition);
           setShowInspectedModal(true);
         }}
-        onCleanedSelect={() => setShowCleanChecklistModal(true)}
         currentStatus={currentStatus}
         room={localRoom}
         buttonPosition={statusButtonPosition}
@@ -1090,22 +961,11 @@ export default function RoomDetailScreen() {
         showTriangle={false}
       />
 
-      <CleanChecklistModal
-        visible={showCleanChecklistModal}
-        onClose={() => setShowCleanChecklistModal(false)}
-        onComplete={() => {
-          handleStatusSelect('Cleaned');
-          setShowCleanChecklistModal(false);
-        }}
-        headerHeight={232}
-        showTriangle={false}
-      />
-
       <ReturnLaterModal
         visible={showReturnLaterModal}
         onClose={() => {
           setShowReturnLaterModal(false);
-          setSelectedStatusText(undefined);
+          setPendingActivity(null);
         }}
         onConfirm={handleReturnLaterConfirm}
         roomNumber={room.roomNumber}
@@ -1118,7 +978,7 @@ export default function RoomDetailScreen() {
         visible={showPromiseTimeModal}
         onClose={() => {
           setShowPromiseTimeModal(false);
-          setSelectedStatusText(undefined);
+          setPendingActivity(null);
         }}
         onConfirm={handlePromiseTimeConfirm}
         roomNumber={room.roomNumber}
@@ -1128,9 +988,10 @@ export default function RoomDetailScreen() {
         visible={showRefuseServiceModal}
         onClose={() => {
           setShowRefuseServiceModal(false);
-          setSelectedStatusText(undefined);
-          setRefuseServiceReason(undefined);
-          setRefuseServiceAtTimestamp(undefined);
+          // Cancelling drops the preview only. It used to also clear the reason
+          // and time, so backing out of the modal wiped an already-confirmed
+          // refusal — and left the DB row saying otherwise.
+          setPendingActivity(null);
         }}
         onConfirm={handleRefuseServiceConfirm}
         roomNumber={room.roomNumber}

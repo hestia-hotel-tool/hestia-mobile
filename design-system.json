@@ -13,6 +13,7 @@
       "inProgress": "#f0be1b",
       "cleaned": "#4a91fc",
       "inspected": "#41d541",
+      "paused": "#b0c0c6",
       "priority": "#ffebeb",
       "priorityText": "#f92424"
     },
@@ -33,7 +34,8 @@
       "white": "#ffffff",
       "accent": "#5a759d",
       "pink": "#ff46a3",
-      "muted": "#a9a9a9"
+      "muted": "#a9a9a9",
+      "link": "#3bc1f6"
     },
     "border": {
       "light": "#dbdbdb",
@@ -201,6 +203,11 @@
       "color": "#41d541",
       "backgroundColor": "#41d541",
       "icon": "inspected"
+    },
+    "paused": {
+      "color": "#b0c0c6",
+      "backgroundColor": "#b0c0c6",
+      "icon": "paused"
     },
     "priority": {
       "color": "#f92424",

@@ -8,16 +8,18 @@
  */
 
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, LayoutChangeEvent } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/theme';
 import { scaleX, CONTENT_AREA, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import { getRoomTypeConfig } from '../../constants/roomTypeConfigs';
+import { resolveGuestSlots } from '../../utils/guestSlots';
 import RoomDetailHeader from './RoomDetailHeader';
 import DetailTabNavigation from './DetailTabNavigation';
 import GuestInfoCard, { type GuestInfoCardCategory } from './GuestInfoCard';
 import NotesSection from './NotesSection';
 import LostAndFoundSection from './LostAndFoundSection';
 import AssignedToSection from './AssignedToSection';
+import TaskSection from './TaskSection';
 import ChecklistSection from './ChecklistSection';
 import RoomTicketsSection from './RoomTicketsSection';
 import HistorySection from './HistorySection';
@@ -51,29 +53,22 @@ export default function RoomDetailContent({
   specialInstructions,
   assignedTo,
   isAssigningStaff = false,
-  taskDescription,
+  tasks = [],
   notes = [],
   lostAndFoundItems,
   historyEvents = [],
   onBackPress,
   onStatusPress,
-  onStatusChange,
   onReassign,
   onAddNote,
-  onSaveNote,
   onAddTask,
-  onSaveTask,
+  onSeeMoreTask,
   onAddLostAndFoundItem,
   onDownloadHistoryReport,
   onResumePause,
   onReturnLaterElapsed,
   onClearRefuseService,
-  customStatusText,
-  pausedAt,
-  returnLaterAtTimestamp,
-  promiseTimeAtTimestamp,
-  refuseServiceAtTimestamp,
-  refuseServiceReason,
+  activity = { kind: 'none' },
   showWithLinenBadge = false,
   initialTab,
   departmentName,
@@ -84,54 +79,15 @@ export default function RoomDetailContent({
   const [activeTab, setActiveTab] = useState<DetailTab>(initialTab || 'Overview');
   const statusButtonRef = useRef<React.ComponentRef<typeof TouchableOpacity>>(null);
 
-  const [currentStatus, setCurrentStatus] = useState<RoomStatus>(status);
-  React.useEffect(() => {
-    setCurrentStatus(status);
-  }, [status]);
-
-  const handleStatusChange = (newStatus: RoomStatus) => {
-    setCurrentStatus(newStatus);
-    onStatusChange?.(newStatus);
-  };
+  /*
+   * `status` is used directly. It used to be mirrored into state and synced back
+   * with an effect, which only ever cost a second render — the screen owns the
+   * status and every change already arrives as a new prop.
+   */
+  const currentStatus: RoomStatus = status;
 
   const handleStatusPress: () => void = onStatusPress ?? (() => {});
   const handleBackPressSafe: () => void = onBackPress ?? (() => {});
-
-  const MAX_LINES = 2;
-  const LINE_HEIGHT = 18;
-  const [showSeeMore, setShowSeeMore] = useState(false);
-  const [textHeight, setTextHeight] = useState<number>(0);
-
-  const charsPerLine = 50;
-  const maxChars = MAX_LINES * charsPerLine;
-  const estimatedNeedsTruncation = taskDescription ? taskDescription.length > maxChars : false;
-
-  const handleFullTextLayout = (event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    setTextHeight(height);
-    const maxHeight = MAX_LINES * LINE_HEIGHT * scaleX;
-    setShowSeeMore(height > maxHeight);
-  };
-
-  React.useEffect(() => {
-    if (textHeight === 0 && taskDescription) {
-      setShowSeeMore(estimatedNeedsTruncation);
-    }
-  }, [taskDescription, textHeight, estimatedNeedsTruncation]);
-
-  const getDisplayText = () => {
-    if (!taskDescription) return '';
-    if (!showSeeMore) {
-      return taskDescription;
-    }
-    const truncated = taskDescription.substring(0, maxChars);
-    const lastSpace = truncated.lastIndexOf(' ');
-    return lastSpace > 0 ? truncated.substring(0, lastSpace) + '...' : truncated + '...';
-  };
-
-  const handleSeeMorePress = () => {
-    setShowSeeMore(false);
-  };
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -148,33 +104,15 @@ export default function RoomDetailContent({
     }
   };
 
-  const arrivalGuest = guests.find(g => g.type === 'Arrival');
-  const departureGuest = guests.find(g => g.type === 'Departure');
-  const stayoverGuest = guests.find(g => g.type === 'Stayover');
-  const turndownGuest = guests.find(g => g.type === 'Turndown');
-
-  const firstGuest =
-    roomType === 'ArrivalDeparture'
-      ? arrivalGuest
-      : roomType === 'Departure'
-        ? departureGuest
-        : roomType === 'Stayover'
-          ? stayoverGuest
-          : roomType === 'Turndown'
-            ? turndownGuest
-            : arrivalGuest;
-
-  const secondGuest = roomType === 'ArrivalDeparture' ? departureGuest : undefined;
+  const guestBlocks = useMemo(
+    () => resolveGuestSlots(roomType, guests, { fallbackSeed: roomId }),
+    [roomType, guests, roomId]
+  );
   const hasLostAndFoundItems = (lostAndFoundItems?.length ?? 0) > 0;
 
-  const showSpecialOnFirstGuest =
-    (roomType === 'ArrivalDeparture' && firstGuest?.type === 'Arrival') || roomType !== 'ArrivalDeparture';
-
-  const specialForFirst =
-    showSpecialOnFirstGuest && config.hasSpecialInstructions ? specialInstructions ?? undefined : undefined;
-
-  const showAssignedTaskCard = !!(assignedTo || taskDescription);
+  const showAssignedTaskCard = !!(assignedTo || tasks.length > 0);
   const showAssignedToHeading = showAssignedTaskCard;
+
 
   const handleTabPress = (tab: DetailTab) => {
     setActiveTab(tab);
@@ -191,14 +129,9 @@ export default function RoomDetailContent({
         onBackPress={handleBackPressSafe}
         onStatusPress={handleStatusPress}
         statusButtonRef={statusButtonRef}
-        customStatusText={customStatusText}
-        pausedAt={pausedAt}
+        activity={activity}
         onResumePause={onResumePause}
-        returnLaterAtTimestamp={returnLaterAtTimestamp}
         onReturnLaterElapsed={onReturnLaterElapsed}
-        promiseTimeAtTimestamp={promiseTimeAtTimestamp}
-        refuseServiceAtTimestamp={refuseServiceAtTimestamp}
-        refuseServiceReason={refuseServiceReason}
         onClearRefuseService={onClearRefuseService}
         isPriority={isPriority}
         flagged={flagged}
@@ -235,32 +168,25 @@ export default function RoomDetailContent({
           {activeTab === 'Overview' && (
             <>
               <View style={styles.overviewTop}>
-                {(firstGuest || secondGuest) && (
+                {guestBlocks.length > 0 && (
                   <>
                     <Text style={styles.guestInfoTitle}>Guest Info</Text>
 
-                    {firstGuest && (
-                      <GuestInfoCard
-                        guest={firstGuest.guest}
-                        category={guestCategoryFromType(firstGuest.type)}
-                        numberBadge={firstGuest.guest?.vipCode?.toString()}
-                        specialInstructions={specialForFirst}
-                      />
-                    )}
-
-                    {firstGuest && secondGuest && roomType === 'ArrivalDeparture' && (
-                      <View style={styles.fullBleedDivider} />
-                    )}
-
-                    {secondGuest && roomType === 'ArrivalDeparture' && (
-                      <GuestInfoCard
-                        guest={secondGuest.guest}
-                        category={guestCategoryFromType(secondGuest.type)}
-                        numberBadge={
-                          secondGuest.guest?.vipCode?.toString() || firstGuest?.guest?.vipCode?.toString()
-                        }
-                      />
-                    )}
+                    {guestBlocks.map((block, index) => (
+                      <React.Fragment key={`${block.slot.role}-${index}`}>
+                        {index > 0 && <View style={styles.fullBleedDivider} />}
+                        <GuestInfoCard
+                          guest={block.guest}
+                          category={guestCategoryFromType(block.slot.role)}
+                          numberBadge={block.numberBadge}
+                          specialInstructions={
+                            block.slot.showsSpecialInstructions
+                              ? specialInstructions ?? undefined
+                              : undefined
+                          }
+                        />
+                      </React.Fragment>
+                    ))}
 
                     <View style={styles.fullBleedDivider} />
                   </>
@@ -281,29 +207,14 @@ export default function RoomDetailContent({
                       isLoading={isAssigningStaff}
                     />
 
-                    {taskDescription ? <View style={styles.cardDivider} /> : null}
+                    {tasks.length > 0 ? <View style={styles.cardDivider} /> : null}
 
-                    {taskDescription ? (
-                      <View style={styles.taskSection}>
-                        <Text style={styles.taskTitle}>Task</Text>
-                        <Text
-                          style={[styles.taskText, styles.hiddenMeasureText]}
-                          onLayout={handleFullTextLayout}
-                        >
-                          {taskDescription}
-                        </Text>
-                        <Text style={styles.taskText} numberOfLines={!showSeeMore ? MAX_LINES : undefined}>
-                          {getDisplayText()}
-                          {showSeeMore && (
-                            <>
-                              {' '}
-                              <Text style={styles.seeMoreText} onPress={handleSeeMorePress}>
-                                see more
-                              </Text>
-                            </>
-                          )}
-                        </Text>
-                      </View>
+                    {tasks.length > 0 ? (
+                      <TaskSection
+                        tasks={tasks}
+                        onAddPress={onAddTask}
+                        onSeeMorePress={onSeeMoreTask}
+                      />
                     ) : null}
                   </View>
                 ) : null}

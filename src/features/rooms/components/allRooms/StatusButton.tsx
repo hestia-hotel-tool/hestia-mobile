@@ -1,10 +1,12 @@
 import React, { forwardRef } from 'react';
-import { TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
-import { RoomStatus, STATUS_CONFIGS } from '../../types/allRooms.types';
+import { TouchableOpacity, StyleSheet } from 'react-native';
+import { RoomDisplayStatus, STATUS_CONFIGS } from '../../types/allRooms.types';
 import { scaleX, STATUS_BUTTON, CARD_DIMENSIONS, STAFF_SECTION } from '../../constants/allRoomsStyles';
+import StatusPill from './StatusPill';
 
 interface StatusButtonProps {
-  status: RoomStatus;
+  /** The room's display status (houseKeepingStatus, or 'Paused' when paused — see getRoomDisplayStatus). */
+  status: RoomDisplayStatus;
   onPress: () => void;
   isPriority?: boolean;
   isArrivalDeparture?: boolean;
@@ -18,12 +20,10 @@ interface StatusButtonProps {
    */
   buttonTopOverridePx?: number;
   isLoading?: boolean;
-  /** Assignment paused: show pause icon on cream pill (Figma 2333-132, room list). */
-  assignmentPaused?: boolean;
 }
 
-const StatusButton = forwardRef<any, StatusButtonProps>(({ 
-  status, 
+const StatusButton = forwardRef<any, StatusButtonProps>(({
+  status,
   onPress,
   isPriority = false,
   isArrivalDeparture = false,
@@ -32,13 +32,12 @@ const StatusButton = forwardRef<any, StatusButtonProps>(({
   cardHeight,
   buttonTopOverridePx,
   isLoading = false,
-  assignmentPaused = false,
 }, ref) => {
   // Safety check: ensure status is valid and config exists
   if (!status || !STATUS_CONFIGS[status]) {
     return null; // Return null if status is invalid or config doesn't exist
   }
-  
+
   const config = STATUS_CONFIGS[status];
   const buttonWidth = STATUS_BUTTON.width * scaleX;
   const buttonHeight = STATUS_BUTTON.height * scaleX;
@@ -62,47 +61,9 @@ const StatusButton = forwardRef<any, StatusButtonProps>(({
     ? buttonTopOverridePx
     : legacyTop * scaleX;
 
-  if (assignmentPaused) {
-    return (
-      <TouchableOpacity
-        ref={ref}
-        style={[
-          styles.containerIconOnly,
-          {
-            width: buttonWidth,
-            height: buttonHeight,
-            borderRadius: STATUS_BUTTON.borderRadius * scaleX,
-            backgroundColor: '#ffffff',
-            borderWidth: 1,
-            borderColor: 'rgba(90,117,157,0.23)',
-            left: buttonLeft,
-            top,
-          },
-        ]}
-        onPress={onPress}
-        activeOpacity={0.8}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color="#5a759d" />
-        ) : (
-          <Image
-            source={require('../../../../../assets/icons/pause.png')}
-            style={[styles.iconPaused, { tintColor: '#000000' }]}
-            resizeMode="contain"
-          />
-        )}
-      </TouchableOpacity>
-    );
-  }
-
-  // Safety check: ensure config exists before rendering
-  if (!config) {
-    return null;
-  }
-
-  // Icon-only status button - always displays houseKeepingStatus (Dirty, In Progress, Cleaned, Inspected)
-  if (!config.icon) {
+  // Icon-only status button - always displays the room's display status
+  // (Dirty, In Progress, Cleaned, Inspected, or Paused).
+  if (!config.iconName) {
     return null;
   }
 
@@ -124,15 +85,14 @@ const StatusButton = forwardRef<any, StatusButtonProps>(({
       activeOpacity={0.8}
       disabled={isLoading}
     >
-      {isLoading ? (
-        <ActivityIndicator size="small" color="#FFF" />
-      ) : (
-        <Image
-          source={config.icon}
-          style={styles.iconLarge}
-          resizeMode="contain"
-        />
-      )}
+      <StatusPill
+        status={status}
+        scaleX={scaleX}
+        isLoading={isLoading}
+        showChevron
+        pillWidth={buttonWidth}
+        pillHeight={buttonHeight}
+      />
     </TouchableOpacity>
   );
 });
@@ -158,18 +118,6 @@ const styles = StyleSheet.create({
   dropdownIcon: {
     width: STATUS_BUTTON.icon.width * scaleX,
     height: STATUS_BUTTON.icon.height * scaleX,
-  },
-  icon: {
-    width: STATUS_BUTTON.icon.width * scaleX,
-    height: STATUS_BUTTON.icon.height * scaleX,
-  },
-  iconLarge: {
-    width: STATUS_BUTTON.iconInProgress.width * scaleX,
-    height: STATUS_BUTTON.iconInProgress.height * scaleX,
-  },
-  iconPaused: {
-    width: STATUS_BUTTON.icon.width * scaleX,
-    height: STATUS_BUTTON.icon.width * scaleX,
   },
 });
 

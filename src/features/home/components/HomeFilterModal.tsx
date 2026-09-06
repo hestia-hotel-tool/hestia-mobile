@@ -1,11 +1,9 @@
 import React, { useMemo, useEffect } from 'react';
-import { View, Text, Modal, TouchableOpacity, StyleSheet, Dimensions, Image, Platform } from 'react-native';
-import { BlurView } from 'expo-blur';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'react-native';
 import { colors, typography } from '@/theme';
+import { FilterModalOverlay } from '@/components/filters';
 import FilterSection from './FilterSection';
 import FloorsFilterSheet from './FloorsFilterSheet';
-import FilterCheckbox from './FilterCheckbox';
-import SeeRoomsButton from '@/components/ui/SeeRoomsButton';
 import { FilterState, FilterCounts, FilterOption } from '@/types/filter.types';
 import { getFloorLabel } from '@/utils/formatting';
 import { ShiftType } from '../types/home.types';
@@ -410,118 +408,21 @@ export default function HomeFilterModal({
     onClose();
   };
 
-  // Create dynamic styles based on calculated positions
-  const dynamicStyles = {
-    filterIconContainer: {
-      position: 'absolute' as const,
-      top: FILTER_ICON_TOP, // Position on top of overlay
-      right: 15 * scaleX, // Position on the right side
-      width: 40 * scaleX, // Match the increased size from HomeScreen
-      height: FILTER_ICON_HEIGHT, // Match the increased size from HomeScreen
-      justifyContent: 'center' as const,
-      alignItems: 'center' as const,
-      zIndex: 1002, // Higher than overlay (999) and modal (1000) to be on top
-    },
-    headerArea: {
-      position: 'absolute' as const,
-      top: 0,
-      left: 0,
-      right: 0,
-      height: HEADER_HEIGHT, // Header area - no blur
-      backgroundColor: 'transparent',
-      zIndex: 1001,
-    },
-    blurOverlay: {
-      position: 'absolute' as const,
-      // Figma node 2702:3183 — the header stays crisp, the blur begins below
-      // it. BLUR_TOP_OFFSET has always meant this; it just was not used here,
-      // so the blur reached 30px up into the header.
-      top: BLUR_TOP_OFFSET,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      zIndex: 999, // Below modal and filter icon
-    },
-    modalContainer: {
-      position: 'absolute' as const,
-      top: MODAL_TOP_OFFSET,
-      left: SCREEN_WIDTH * 0.05, // 5% of screen width
-      width: SCREEN_WIDTH * 0.9, // 90% of screen width
-      maxWidth: 400 * scaleX,
-      // Only the multi-section variant fills the screen. The floors sheet sizes
-      // to its content — pinning `bottom` here stretched it into a full-height
-      // panel with the sheet sitting at the top of it.
-      ...(shouldShowAMStyle ? null : { bottom: 20 * scaleX }),
-      zIndex: 1000, // On top of overlay
-    },
-  };
-
   return (
-    <Modal
-      transparent
+    <FilterModalOverlay
       visible={visible}
-      animationType="fade"
-      onRequestClose={onClose}
+      onClose={onClose}
+      blurTop={BLUR_TOP_OFFSET}
+      filterIconTop={FILTER_ICON_TOP}
+      onFilterIconPress={onFilterIconPress}
+      sheetTop={MODAL_TOP_OFFSET}
+      /* Only the multi-section variant fills the screen. The floors sheet sizes
+         to its content — pinning a bottom there stretched it into a full-height
+         panel with the sheet sitting at the top of it. */
+      sheetBottom={shouldShowAMStyle ? undefined : 20 * scaleX}
+      maxWidth={400 * scaleX}
     >
-      <View style={styles.backdrop}>
-        {/* Filter Icon - On top of overlay */}
-        {onFilterIconPress && (
-          <TouchableOpacity
-            style={dynamicStyles.filterIconContainer}
-            onPress={onFilterIconPress}
-            activeOpacity={0.7}
-          >
-            <Image
-              source={require('../../../../assets/icons/menu-icon.png')}
-              style={styles.filterIconImage}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-        )}
-        
-        {/* Header area - no blur, clickable to close */}
-        <TouchableOpacity
-          style={dynamicStyles.headerArea}
-          activeOpacity={1}
-          onPress={onClose}
-        />
-        
-        {/* Blurred area - below header and search section */}
-        {/*
-          iOS blurs the content behind the modal natively. Android cannot: since
-          expo-blur 56 its blur methods need a `blurTarget` ref pointing at a
-          BlurTargetView in the same view hierarchy, and a React Native Modal
-          renders in its own window — so there is nothing behind it to target.
-          Passing a blur method there logs a warning and silently falls back to
-          no blur, which left the backdrop almost invisible behind the 10%
-          scrim the design specifies over blurred content.
-
-          So Android gets an opaque-enough scrim instead of a broken blur.
-        */}
-        {Platform.OS === 'ios' ? (
-          <BlurView intensity={80} tint="light" style={dynamicStyles.blurOverlay}>
-            <View style={styles.blurScrim} />
-            <TouchableOpacity
-              style={styles.backdropTouchable}
-              activeOpacity={1}
-              onPress={onClose}
-            />
-          </BlurView>
-        ) : (
-          <View style={[dynamicStyles.blurOverlay, styles.androidScrim]}>
-            <TouchableOpacity
-              style={styles.backdropTouchable}
-              activeOpacity={1}
-              onPress={onClose}
-            />
-          </View>
-        )}
-
-        <View
-          style={dynamicStyles.modalContainer}
-          pointerEvents="box-none"
-        >
-          {shouldShowAMStyle ? (
+      {shouldShowAMStyle ? (
             <FloorsFilterSheet
               options={floorOptions}
               resultCount={displayResultCount}
@@ -634,34 +535,12 @@ export default function HomeFilterModal({
                 </View>
               </>
             </View>
-          )}
-        </View>
-      </View>
-    </Modal>
+      )}
+    </FilterModalOverlay>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-  },
-  blurScrim: {
-    ...StyleSheet.absoluteFill,
-    // Figma node 2702:3183. Was rgba(200,200,200,0.6) — six times this opacity,
-    // which greyed the whole screen and hid the blur underneath it. Only makes
-    // sense on top of a real blur, so iOS only.
-    backgroundColor: colors.background.overlay,
-  },
-  androidScrim: {
-    // Android's stand-in for the blur, not a design token: with no blur beneath
-    // it, the design's 10% scrim would be invisible. Tuned so content behind is
-    // muted but still legible as context.
-    backgroundColor: 'rgba(238, 240, 246, 0.88)',
-  },
-  backdropTouchable: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'transparent',
-  },
   modalContent: {
     flex: 1,
     backgroundColor: '#ffffff',
@@ -796,10 +675,5 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: typography.fontWeights.regular as any,
     color: colors.text.secondary, // Lighter grey color
-  },
-  filterIconImage: {
-    width: 32 * scaleX, // Match the increased size from HomeScreen
-    height: 16 * scaleX, // Match the increased size from HomeScreen (maintaining aspect ratio)
-    tintColor: colors.primary.main,
   },
 });

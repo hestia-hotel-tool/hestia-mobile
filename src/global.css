@@ -21,6 +21,7 @@
     --color-status-in-progress: #f0be1b;
     --color-status-cleaned: #4a91fc;
     --color-status-inspected: #41d541;
+    --color-status-paused: #b0c0c6;
     --color-status-priority: #ffebeb;
     --color-status-priority-text: #f92424;
 
@@ -42,6 +43,7 @@
     --color-ink-accent: #5a759d;
     --color-ink-pink: #ff46a3;
     --color-ink-muted: #a9a9a9;
+    --color-ink-link: #3bc1f6;
 
     /* Border */
     --color-border-light: #dbdbdb;

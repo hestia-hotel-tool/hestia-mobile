@@ -1,24 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
-import { scaleX, ROOM_DETAIL_HEADER } from '../../constants/roomDetailStyles';
-import { STATUS_CONFIGS } from '../../types/allRooms.types';
-import type { RoomStatus } from '../../types/allRooms.types';
+import { Icon } from '@/components/Icon';
+import {
+  scaleX,
+  ROOM_DETAIL_HEADER,
+  resolveRoomDetailHeaderTheme,
+  type HeaderOverlayIcon,
+} from '../../constants/roomDetailStyles';
+import { STATUS_CONFIGS, ROOM_ACTIVITY_LABEL } from '../../types/allRooms.types';
+import type { RoomStatus, RoomActivityState } from '../../types/allRooms.types';
+
+/**
+ * The three states with a bespoke overlay asset. The four core statuses and
+ * Paused render through STATUS_CONFIGS + <Icon> instead.
+ */
+const OVERLAY_ICONS: Record<HeaderOverlayIcon, any> = {
+  refuseService: require('../../../../../assets/icons/refuse-service.png'),
+  returnLater: require('../../../../../assets/icons/return-later.png'),
+  promisedTime: require('../../../../../assets/icons/promised-time-status.png'),
+};
 
 interface RoomDetailHeaderProps {
   roomNumber: string;
   roomCode: string;
   status: RoomStatus;
+  /**
+   * What the room is doing — paused, returning later, refused, or nothing.
+   *
+   * Replaces the eight props this used to take (`customStatusText`, `pausedAt`,
+   * `assignmentPaused`, and four timestamps). Those could describe states the
+   * data did not support, and `customStatusText` was built from whichever modal
+   * happened to be open.
+   */
+  activity: RoomActivityState;
   onBackPress: () => void;
   onStatusPress?: () => void;
   statusButtonRef?: React.RefObject<any>;
-  customStatusText?: string; // Custom status text to display (e.g., "Return Later", "Promise Time", "Refuse Service")
-  pausedAt?: string; // Time when room was paused (e.g., "11:22")
-  returnLaterAt?: string; // Deprecated: use returnLaterAtTimestamp for time + remaining
-  returnLaterAtTimestamp?: number; // Epoch ms when user will return; header shows time only + countdown
-  promiseTimeAtTimestamp?: number; // Epoch ms when room will be ready; header shows time + countdown
-  refuseServiceAtTimestamp?: number; // Epoch ms when service was refused; header shows time
-  refuseServiceReason?: string; // Selected reason or custom reason when Refuse Service is confirmed
   onResumePause?: () => void;
   onReturnLaterElapsed?: () => void;
   onClearRefuseService?: () => void;
@@ -28,20 +46,95 @@ interface RoomDetailHeaderProps {
   showWithLinenBadge?: boolean; // When true, show "with Linen" badge next to Stayover label
 }
 
+/** "2:30 PM" — the time the subtitle rows print. */
+function formatTime(ms: number): string {
+  return new Date(ms).toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+/** "14:05" — the 24-hour form the paused row has always shown. */
+function formatClock(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getHours().toString().padStart(2, '0')}:${d
+    .getMinutes()
+    .toString()
+    .padStart(2, '0')}`;
+}
+
+function formatRemaining(diffMs: number, withSeconds: boolean): string {
+  if (withSeconds) {
+    const totalMins = Math.floor(diffMs / 60000);
+    const secs = Math.floor((diffMs % 60000) / 1000);
+    if (totalMins >= 60) {
+      const hours = Math.floor(diffMs / 3600000);
+      const mins = Math.floor((diffMs % 3600000) / 60000);
+      return `${hours}h ${mins} min ${secs}s`;
+    }
+    return `${totalMins} mins ${secs}s`;
+  }
+  const totalMins = Math.max(0, Math.ceil(diffMs / 60000));
+  return totalMins >= 60
+    ? `${Math.floor(totalMins / 60)}h ${totalMins % 60} min`
+    : `${totalMins} mins`;
+}
+
+/**
+ * Live "time remaining" label for a deadline, or '' when there isn't one.
+ *
+ * Return Later and Promised Time each had their own copy of this; they differed
+ * only in tick rate and whether seconds show.
+ */
+function useCountdown(
+  targetMs: number | null,
+  opts: { withSeconds: boolean; onElapsed?: () => void }
+): string {
+  const { withSeconds, onElapsed } = opts;
+  const [label, setLabel] = useState('');
+  // Kept in a ref so a new callback identity doesn't restart the interval.
+  const onElapsedRef = React.useRef(onElapsed);
+  useEffect(() => {
+    onElapsedRef.current = onElapsed;
+  }, [onElapsed]);
+
+  useEffect(() => {
+    if (targetMs == null) {
+      setLabel('');
+      return;
+    }
+    let didFire = false;
+    const tick = () => {
+      const diff = targetMs - Date.now();
+      if (diff <= 0) {
+        setLabel(withSeconds ? '0h 0 min 0s' : '0 mins');
+        if (!didFire) {
+          didFire = true;
+          onElapsedRef.current?.();
+        }
+        return;
+      }
+      const next = formatRemaining(diff, withSeconds);
+      // Avoid pointless state churn (keeps the UI smooth on slower devices).
+      setLabel((prev) => (prev === next ? prev : next));
+    };
+    tick();
+    const id = setInterval(tick, withSeconds ? 1000 : 10_000);
+    return () => clearInterval(id);
+  }, [targetMs, withSeconds]);
+
+  return label;
+}
+
 export default function RoomDetailHeader({
   roomNumber,
   roomCode,
   status,
+  activity,
   onBackPress,
   onStatusPress,
   statusButtonRef,
-  customStatusText,
-  pausedAt,
-  returnLaterAt,
-  returnLaterAtTimestamp,
-  promiseTimeAtTimestamp,
-  refuseServiceAtTimestamp,
-  refuseServiceReason,
   onResumePause,
   onReturnLaterElapsed,
   onClearRefuseService,
@@ -51,149 +144,25 @@ export default function RoomDetailHeader({
   showWithLinenBadge = false,
 }: RoomDetailHeaderProps) {
   const statusConfig = STATUS_CONFIGS[status] ?? STATUS_CONFIGS.Dirty;
-  const isReturnLater = customStatusText === 'Return Later';
-  const isPromiseTime = customStatusText === 'Promise Time' || customStatusText === 'Promised Time';
-  /** Figma 2333-835: light blue header while choosing reason or after confirm */
-  const showRefuseServiceHeader =
-    customStatusText === 'Refuse Service' || refuseServiceReason != null;
-  const RS = ROOM_DETAIL_HEADER.refuseServiceLight;
-  const hasReturnLaterTime = isReturnLater && (returnLaterAtTimestamp != null || returnLaterAt);
-  const hasPromiseTimeTime = isPromiseTime && promiseTimeAtTimestamp != null;
-  const hasRefuseServiceTime = showRefuseServiceHeader && refuseServiceAtTimestamp != null;
+  const theme = resolveRoomDetailHeaderTheme(activity, status);
 
-  // Remaining countdown "X mins Y s" for Return Later, updates every second
-  const [returnLaterRemaining, setReturnLaterRemaining] = useState<string>('');
-  // Keep callback stable so countdown effect doesn't thrash.
-  const onReturnLaterElapsedRef = React.useRef(onReturnLaterElapsed);
-  useEffect(() => {
-    onReturnLaterElapsedRef.current = onReturnLaterElapsed;
-  }, [onReturnLaterElapsed]);
-  useEffect(() => {
-    if (!hasReturnLaterTime || returnLaterAtTimestamp == null) {
-      setReturnLaterRemaining('');
-      return;
-    }
-    let didFire = false;
-    const tick = () => {
-      const now = Date.now();
-      const diff = returnLaterAtTimestamp - now;
-      if (diff <= 0) {
-        setReturnLaterRemaining('0 mins');
-        if (!didFire) {
-          didFire = true;
-          onReturnLaterElapsedRef.current?.();
-        }
-        return;
-      }
-      const totalMins = Math.max(0, Math.ceil(diff / 60000));
-      const next = totalMins >= 60
-        ? `${Math.floor(totalMins / 60)}h ${totalMins % 60} min`
-        : `${totalMins} mins`;
-      // Avoid pointless state churn (keeps the UI smooth on slower devices).
-      setReturnLaterRemaining((prev) => (prev === next ? prev : next));
-    };
-    tick();
-    // Update at most once per 10s; the label is minute-based.
-    const id = setInterval(tick, 10_000);
-    return () => clearInterval(id);
-  }, [hasReturnLaterTime, returnLaterAtTimestamp]);
+  // Paused swaps the status glyph; every other activity keeps the room's own.
+  const iconConfig =
+    STATUS_CONFIGS[activity.kind === 'paused' ? 'Paused' : status] ?? STATUS_CONFIGS.Dirty;
+  const overlayIconSource = theme.overlayIcon ? OVERLAY_ICONS[theme.overlayIcon] : null;
+  const displayStatusText = ROOM_ACTIVITY_LABEL[activity.kind] ?? statusConfig.label;
 
-  // Use custom status text if provided; when pausedAt is set show "Paused"
-  const displayStatusText = pausedAt
-    ? 'Paused'
-    : showRefuseServiceHeader
-      ? 'Refused Service'
-      : (customStatusText || statusConfig.label);
-
-  // Paused: cream • Return Later / Promise Time: cream • Refused Service: light blue #e4eefe (Figma 2333-835)
-  const isPaused = !!(customStatusText === 'Pause' || pausedAt);
-  const headerBackgroundColor = isPaused
-    ? ROOM_DETAIL_HEADER.paused.headerBackground
-    : showRefuseServiceHeader
-      ? RS.headerBackground
-      : isReturnLater
-        ? ROOM_DETAIL_HEADER.returnLater.headerBackground
-        : isPromiseTime
-          ? ROOM_DETAIL_HEADER.returnLater.headerBackground
-          : statusConfig.color;
-
-  // Promise Time countdown (same format as Return Later: "2:30 PM · 30 mins 2s" or "1h 30 min 2s")
-  const [promiseTimeRemaining, setPromiseTimeRemaining] = useState<string>('');
-  useEffect(() => {
-    if (!hasPromiseTimeTime || promiseTimeAtTimestamp == null) {
-      setPromiseTimeRemaining('');
-      return;
-    }
-    const tick = () => {
-      const now = Date.now();
-      const diff = promiseTimeAtTimestamp - now;
-      if (diff <= 0) {
-        setPromiseTimeRemaining('0h 0 min 0s');
-        return;
-      }
-      const totalMins = Math.floor(diff / 60000);
-      const secs = Math.floor((diff % 60000) / 1000);
-      if (totalMins >= 60) {
-        const hours = Math.floor(diff / 3600000);
-        const mins = Math.floor((diff % 3600000) / 60000);
-        setPromiseTimeRemaining(`${hours}h ${mins} min ${secs}s`);
-      } else {
-        setPromiseTimeRemaining(`${totalMins} mins ${secs}s`);
-      }
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [hasPromiseTimeTime, promiseTimeAtTimestamp]);
-
-  const returnTimeOnly = returnLaterAtTimestamp != null
-    ? new Date(returnLaterAtTimestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    : '';
-  const promiseTimeOnly = promiseTimeAtTimestamp != null
-    ? new Date(promiseTimeAtTimestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    : '';
-  const refuseTimeOnly = refuseServiceAtTimestamp != null
-    ? new Date(refuseServiceAtTimestamp).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
-    : '';
-
-  // Determine which icon to use based on customStatusText, pausedAt, or status
-  const getStatusIcon = () => {
-    if (customStatusText === 'Pause' || pausedAt) {
-      return require('../../../../../assets/icons/pause.png');
-    }
-    if (customStatusText === 'Refuse Service' || refuseServiceReason) {
-      return require('../../../../../assets/icons/refuse-service.png');
-    }
-    if (customStatusText === 'Return Later') {
-      return require('../../../../../assets/icons/return-later.png');
-    }
-    if (customStatusText === 'Promise Time' || customStatusText === 'Promised Time') {
-      return require('../../../../../assets/icons/promised-time-status.png');
-    }
-    // Default to status-based icons
-    if (status === 'InProgress') {
-      return require('../../../../../assets/icons/in-progress-icon.png');
-    }
-    if (status === 'Dirty') {
-      return require('../../../../../assets/icons/dirty-status.png');
-    }
-    if (status === 'Cleaned') {
-      return require('../../../../../assets/icons/cleaned-icon.png');
-    }
-    if (status === 'Inspected') {
-      return require('../../../../../assets/icons/inspected-status-icon.png');
-    }
-    return statusConfig.icon;
-  };
-
-  const statusIconSource = getStatusIcon();
-  
-  // These icons have colored backgrounds, so don't apply tintColor
-  const iconsWithColor = ['Pause', 'Refuse Service', 'Return Later', 'Promise Time', 'Promised Time'];
-  const shouldTintIcon = !customStatusText || !iconsWithColor.includes(customStatusText);
+  const returnLaterRemaining = useCountdown(
+    activity.kind === 'returnLater' ? activity.dueAt : null,
+    { withSeconds: false, onElapsed: onReturnLaterElapsed }
+  );
+  const promiseTimeRemaining = useCountdown(
+    activity.kind === 'promisedTime' ? activity.dueAt : null,
+    { withSeconds: true }
+  );
 
   return (
-    <View style={[styles.headerContainer, { backgroundColor: headerBackgroundColor }]}>
+    <View style={[styles.headerContainer, { backgroundColor: theme.headerBackground }]}>
       {/* Back Button */}
       <TouchableOpacity
         style={styles.backButton}
@@ -205,15 +174,7 @@ export default function RoomDetailHeader({
           source={require('../../../../../assets/icons/back-arrow.png')}
           style={[
             styles.backArrow,
-            {
-              tintColor: isPaused
-                ? ROOM_DETAIL_HEADER.paused.backArrowTint
-                : showRefuseServiceHeader
-                  ? RS.backArrowTint
-                  : isReturnLater || isPromiseTime
-                    ? ROOM_DETAIL_HEADER.returnLater.backArrowTint
-                    : '#FFFFFF',
-            },
+            { tintColor: theme.backArrowTint },
           ]}
           resizeMode="contain"
         />
@@ -222,14 +183,7 @@ export default function RoomDetailHeader({
       {/* Room Number + optional flag badge (when room is flagged) */}
       <View style={styles.roomNumberRow}>
         <Text
-          style={[
-          styles.roomNumber,
-          isPaused && { color: ROOM_DETAIL_HEADER.paused.roomNumberColor },
-            showRefuseServiceHeader && { color: RS.roomNumberColor },
-            (isReturnLater || isPromiseTime) && !showRefuseServiceHeader && {
-              color: ROOM_DETAIL_HEADER.returnLater.roomNumberColor,
-            },
-          ]}
+          style={[styles.roomNumber, { color: theme.roomNumberColor }]}
         >
           Room {roomNumber}
         </Text>
@@ -246,13 +200,7 @@ export default function RoomDetailHeader({
 
       {/* Room Code */}
       <Text
-        style={[
-          styles.roomCode,
-          isPaused && { color: ROOM_DETAIL_HEADER.paused.roomCodeColor },
-          showRefuseServiceHeader && { color: RS.roomCodeColor },
-          (isReturnLater || isPromiseTime) &&
-            !showRefuseServiceHeader && { color: ROOM_DETAIL_HEADER.returnLater.roomCodeColor },
-        ]}
+        style={[styles.roomCode, { color: theme.roomCodeColor }]}
       >
         {roomCode}
       </Text>
@@ -261,13 +209,7 @@ export default function RoomDetailHeader({
       {frontOfficeLabel && (
         <View style={styles.frontOfficeLabelRow}>
           <Text
-            style={[
-              styles.frontOfficeLabel,
-              isPaused && { color: ROOM_DETAIL_HEADER.paused.roomCodeColor },
-              showRefuseServiceHeader && { color: RS.roomCodeColor },
-              (isReturnLater || isPromiseTime) &&
-                !showRefuseServiceHeader && { color: ROOM_DETAIL_HEADER.returnLater.roomCodeColor },
-            ]}
+            style={[styles.frontOfficeLabel, { color: theme.roomCodeColor }]}
           >
             {frontOfficeLabel}
           </Text>
@@ -290,75 +232,49 @@ export default function RoomDetailHeader({
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
         <>
-            {status === 'Dirty' && !customStatusText ? (
+            {overlayIconSource ? (
+              // These three overlays carry their own colour, so they are never tinted.
               <Image
-                source={statusIconSource}
-                style={[styles.statusIcon, styles.statusIconDirty]}
+                source={overlayIconSource}
+                style={styles.overlayStatusIcon}
                 resizeMode="contain"
               />
             ) : (
-              <Image
-                source={statusIconSource}
-                style={[
-                  styles.statusIcon,
-                  {
-                    tintColor: isPaused
-                      ? ROOM_DETAIL_HEADER.paused.statusTextAndIconColor
-                      : showRefuseServiceHeader
-                        ? RS.statusTextAndIconColor
-                        : isReturnLater || isPromiseTime
-                          ? ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor
-                          : shouldTintIcon
-                            ? '#FFFFFF'
-                            : undefined,
-                  },
-                ]}
-                resizeMode="contain"
+              <Icon
+                name={iconConfig.iconName}
+                size={iconConfig.glyphHeight * scaleX}
+                color={theme.statusTextAndIconColor}
+                style={{ marginRight: 8 * scaleX }}
               />
             )}
             <Text
               style={[
                 styles.statusText,
-                isPaused && { color: ROOM_DETAIL_HEADER.paused.statusTextAndIconColor },
-                showRefuseServiceHeader && {
-                  color: RS.statusTextAndIconColor,
-                  fontWeight: '700' as const,
-                  fontSize: 18 * scaleX,
-                },
-                (isReturnLater || isPromiseTime) &&
-                  !showRefuseServiceHeader && {
-                    color: ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor,
-                  },
+                { color: theme.statusTextAndIconColor },
+                theme.statusTextStyle,
               ]}
             >
               {displayStatusText}
             </Text>
             <Image
               source={require('../../../../../assets/icons/dropdown-arrow.png')}
-              style={[
-                styles.dropdownArrow,
-                isPaused && { tintColor: ROOM_DETAIL_HEADER.paused.statusTextAndIconColor },
-                showRefuseServiceHeader && { tintColor: RS.statusTextAndIconColor },
-                (isReturnLater || isPromiseTime) &&
-                  !showRefuseServiceHeader && {
-                    tintColor: ROOM_DETAIL_HEADER.returnLater.statusTextAndIconColor,
-                  },
-              ]}
+              style={[styles.dropdownArrow, { tintColor: theme.statusTextAndIconColor }]}
               resizeMode="contain"
             />
         </>
       </TouchableOpacity>
 
-      {/* Paused Time - show when paused (Figma 2333-132) */}
-      {pausedAt && (
+      {/*
+        The state line under the status.
+
+        These were four sibling blocks, each absolutely positioned at the same
+        top — so if two of the DB columns were ever set at once they overlapped
+        and rendered on top of each other. One state, one row.
+      */}
+      {activity.kind === 'paused' && (
         <View style={styles.pausedRow} pointerEvents="box-none">
-          <Text
-            style={[
-              styles.pausedTimeInline,
-              isPaused && { color: ROOM_DETAIL_HEADER.paused.pausedTimeColor },
-            ]}
-          >
-            Paused at: {pausedAt}
+          <Text style={[styles.pausedTimeInline, { color: theme.subtitleColor }]}>
+            {activity.since == null ? 'Paused' : `Paused at: ${formatClock(activity.since)}`}
           </Text>
           {!!onResumePause && (
             <TouchableOpacity
@@ -373,29 +289,24 @@ export default function RoomDetailHeader({
         </View>
       )}
 
-      {/* Return Later: time only (no date) + remaining e.g. "2:30 PM · 30 mins 2s" */}
-      {hasReturnLaterTime && (returnLaterAtTimestamp != null ? (
-        <Text pointerEvents="none" style={[styles.returnLaterAt, { color: ROOM_DETAIL_HEADER.returnLater.returnTimeColor }]}>
-          {returnTimeOnly}{returnLaterRemaining ? ` · ${returnLaterRemaining}` : ''}
-        </Text>
-      ) : returnLaterAt ? (
-        <Text pointerEvents="none" style={[styles.returnLaterAt, { color: ROOM_DETAIL_HEADER.returnLater.returnTimeColor }]}>
-          Return at {returnLaterAt}
-        </Text>
-      ) : null)}
-
-      {/* Promise Time: time only + remaining e.g. "2:30 PM · 30 mins 2s" */}
-      {hasPromiseTimeTime && (
-        <Text pointerEvents="none" style={[styles.returnLaterAt, { color: ROOM_DETAIL_HEADER.returnLater.returnTimeColor }]}>
-          {promiseTimeOnly}{promiseTimeRemaining ? ` · ${promiseTimeRemaining}` : ''}
+      {activity.kind === 'returnLater' && activity.dueAt != null && (
+        <Text pointerEvents="none" style={[styles.returnLaterAt, { color: theme.subtitleColor }]}>
+          {formatTime(activity.dueAt)}
+          {returnLaterRemaining ? ` · ${returnLaterRemaining}` : ''}
         </Text>
       )}
 
-      {/* Refused Service: reason line below status (Figma 2333-835) */}
-      {refuseServiceReason || hasRefuseServiceTime ? (
+      {activity.kind === 'promisedTime' && activity.dueAt != null && (
+        <Text pointerEvents="none" style={[styles.returnLaterAt, { color: theme.subtitleColor }]}>
+          {formatTime(activity.dueAt)}
+          {promiseTimeRemaining ? ` · ${promiseTimeRemaining}` : ''}
+        </Text>
+      )}
+
+      {activity.kind === 'refuseService' && (activity.reason != null || activity.at != null) && (
         <View style={styles.refuseRow} pointerEvents="box-none">
-          <Text pointerEvents="none" style={[styles.refuseText, { color: RS.subtitleColor }]}>
-            Refused: {refuseServiceReason ?? refuseTimeOnly}
+          <Text pointerEvents="none" style={[styles.refuseText, { color: theme.subtitleColor }]}>
+            Refused: {activity.reason ?? (activity.at != null ? formatTime(activity.at) : '')}
           </Text>
           {!!onClearRefuseService && (
             <TouchableOpacity
@@ -408,7 +319,7 @@ export default function RoomDetailHeader({
             </TouchableOpacity>
           )}
         </View>
-      ) : null}
+      )}
     </View>
   );
 }
@@ -542,14 +453,9 @@ const styles = StyleSheet.create({
     height: ROOM_DETAIL_HEADER.flagged.pill.dropdownArrow.height * scaleX,
     marginLeft: 8 * scaleX,
   },
-  statusIcon: {
+  overlayStatusIcon: {
     width: 24.367 * scaleX,
     height: 25.434 * scaleX,
-    marginRight: 8 * scaleX,
-  },
-  statusIconDirty: {
-    width: 40 * scaleX,
-    height: 40 * scaleX,
     marginRight: 8 * scaleX,
   },
   statusText: {

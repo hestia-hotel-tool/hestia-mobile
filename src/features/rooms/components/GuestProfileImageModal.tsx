@@ -1,14 +1,14 @@
 import React from 'react';
 import {
-  View,
   Image,
   StyleSheet,
   Modal,
-  TouchableOpacity,
+  Pressable,
   StatusBar,
   Dimensions,
   Platform,
 } from 'react-native';
+import { BlurBackdrop } from '@/components/ui/BlurBackdrop';
 
 export interface GuestProfileModalGuest {
   /** Image URL for the modal. Prefer a high-resolution URL so the 296×296 display stays sharp. */
@@ -37,6 +37,8 @@ interface GuestProfileImageModalProps {
 const IMAGE_SIZE = 296;
 const IMAGE_RADIUS = 5;
 const GAP_RIGHT_OF_ANCHOR = 8;
+/** Keep the box off the screen edge when it has to be clamped. */
+const SCREEN_MARGIN = 8;
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
@@ -55,10 +57,14 @@ export default function GuestProfileImageModal({
     left = anchorLayout.x + anchorLayout.width + GAP_RIGHT_OF_ANCHOR;
     top = anchorLayout.y + anchorLayout.height / 2 - IMAGE_SIZE / 2;
     // Clamp so the 296×296 box stays on screen
-    if (left + IMAGE_SIZE > screenWidth) left = screenWidth - IMAGE_SIZE;
-    if (left < 0) left = 0;
-    if (top < 0) top = 0;
-    if (top + IMAGE_SIZE > screenHeight) top = screenHeight - IMAGE_SIZE;
+    if (left + IMAGE_SIZE > screenWidth - SCREEN_MARGIN) {
+      left = screenWidth - IMAGE_SIZE - SCREEN_MARGIN;
+    }
+    if (left < SCREEN_MARGIN) left = SCREEN_MARGIN;
+    if (top < SCREEN_MARGIN) top = SCREEN_MARGIN;
+    if (top + IMAGE_SIZE > screenHeight - SCREEN_MARGIN) {
+      top = screenHeight - IMAGE_SIZE - SCREEN_MARGIN;
+    }
   } else {
     left = (screenWidth - IMAGE_SIZE) / 2;
     top = (screenHeight - IMAGE_SIZE) / 2;
@@ -68,77 +74,50 @@ export default function GuestProfileImageModal({
   const imageUri = guest.highResImageUrl ?? guest.imageUrl;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <StatusBar hidden={visible} />
-      <View style={styles.overlay}>
-        <TouchableOpacity
-          style={styles.touchableOverlay}
-          activeOpacity={1}
-          onPress={onClose}
+      {/*
+        The screen behind is blurred, not dimmed — Figma node 2582:735. It used
+        to be a flat 40% black scrim, which read as a lightbox rather than the
+        app's own overlay treatment.
+
+        The photo is a child of the backdrop, so it stays sharp: a BlurView
+        blurs what is behind it, never what it contains.
+      */}
+      <BlurBackdrop
+        onPress={onClose}
+        accessibilityLabel={guest.name ? `Close photo of ${guest.name}` : 'Close photo'}
+      >
+        <Pressable
+          // Swallows taps so pressing the photo itself does not dismiss it.
+          onPress={() => {}}
+          accessibilityRole="image"
+          accessibilityLabel={guest.name ? `Photo of ${guest.name}` : 'Guest photo'}
+          style={[
+            styles.imageWrap,
+            { left, top, width: IMAGE_SIZE, height: IMAGE_SIZE, borderRadius: IMAGE_RADIUS },
+          ]}
         >
-          <View
-            style={[
-              styles.imageWrap,
-              {
-                position: 'absolute',
-                left,
-                top,
-                width: IMAGE_SIZE,
-                height: IMAGE_SIZE,
-                borderRadius: IMAGE_RADIUS,
-              },
-            ]}
-            pointerEvents="box-none"
-          >
-            <TouchableOpacity
-              activeOpacity={1}
-              onPress={() => {}}
-              style={[styles.imageInner, { borderRadius: IMAGE_RADIUS }]}
-            >
-              <Image
-                source={{ uri: imageUri }}
-                style={[styles.enlargedImage, { borderRadius: IMAGE_RADIUS, width: IMAGE_SIZE, height: IMAGE_SIZE }]}
-                resizeMode="cover"
-                fadeDuration={0}
-                {...(Platform.OS === 'android' && { resizeMethod: 'resize' as const })}
-              />
-            </TouchableOpacity>
-          </View>
-        </TouchableOpacity>
-      </View>
+          <Image
+            source={{ uri: imageUri }}
+            style={[styles.enlargedImage, { borderRadius: IMAGE_RADIUS }]}
+            resizeMode="cover"
+            fadeDuration={0}
+            {...(Platform.OS === 'android' && { resizeMethod: 'resize' as const })}
+          />
+        </Pressable>
+      </BlurBackdrop>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  touchableOverlay: {
-    flex: 1,
-    width: '100%',
-    backgroundColor: 'rgba(0,0,0,0.4)',
-  },
   imageWrap: {
-    overflow: 'hidden',
-  },
-  imageInner: {
-    width: '100%',
-    height: '100%',
+    position: 'absolute',
     overflow: 'hidden',
   },
   enlargedImage: {
     width: '100%',
     height: '100%',
-    overflow: 'hidden',
   },
 });

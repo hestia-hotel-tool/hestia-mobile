@@ -26,9 +26,8 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   '(tabs)/(staff)': PERMISSIONS.STAFF_VIEW,
   '(tabs)/(settings)': PERMISSIONS.SETTINGS_VIEW,
 
-  // Room detail and its siblings read room data.
+  // Room detail reads room data.
   'room': PERMISSIONS.ROOMS_READ,
-  'arrival-departure': PERMISSIONS.ROOMS_READ,
 
   // Assigning is a distinct right — most roles can open a room but not reassign it.
   'assign-rooms': PERMISSIONS.ROOMS_REASSIGN,

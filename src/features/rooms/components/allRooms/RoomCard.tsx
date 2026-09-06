@@ -4,7 +4,7 @@ import { colors, typography } from '@/theme';
 import { scaleX } from '../../constants/allRoomsStyles';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
 import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
-import { FRONT_OFFICE_STATUS_ICONS, STATUS_CONFIGS } from '../../types/allRooms.types';
+import { FRONT_OFFICE_STATUS_ICONS, STATUS_CONFIGS, isRoomPaused, getRoomDisplayStatus } from '../../types/allRooms.types';
 import { getStayoverDisplayLabel, showStayoverWithLinenBadge } from '../../utils/stayoverLinen';
 import type { ShiftType } from '@features/home';
 import {
@@ -22,6 +22,7 @@ import GuestInfoSection from './GuestInfoSection';
 import GuestProfileImageModal from '@features/rooms/components/GuestProfileImageModal';
 import StaffSection from './StaffSection';
 import StatusButton from './StatusButton';
+import StatusPill from './StatusPill';
 import NotesSection from './NotesSection';
 
 /**
@@ -90,8 +91,9 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
   const isTurndown = room.frontOfficeStatus === 'Turndown';
   const isVacant = room.guests?.[0]?.isVacant === true;
   const isVacantTurndown = isTurndown && isVacant;
-  /** `room_assignments.work_status === 'paused'` — Figma 2333-132 cream card + pause control */
-  const isAssignmentPaused = room.roomAttendantAssigned?.assignmentWorkStatus === 'paused';
+  /** True when paused via either signal (room_assignments.work_status or rooms.paused_at) — Figma 2333-132 cream card + pause control */
+  const isAssignmentPaused = isRoomPaused(room);
+  const displayStatus = getRoomDisplayStatus(room);
   const hasNotes = !!room.notes;
   // Only show notes/rush container when there is at least one note, or rushed, or priority (per Figma)
   const showNotesSection =
@@ -322,25 +324,13 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
               Vacant
             </Text>
           </View>
-          {(isAssignmentPaused || STATUS_CONFIGS[room.houseKeepingStatus]?.icon) && (
+          {STATUS_CONFIGS[displayStatus]?.iconName && (
             <TouchableOpacity
               onPress={handleStatusPress}
               activeOpacity={0.8}
               style={styles.vacantStatusButton}
             >
-              {isAssignmentPaused ? (
-                <Image
-                  source={require('../../../../../assets/icons/pause.png')}
-                  style={styles.vacantStatusIconPaused}
-                  resizeMode="contain"
-                />
-              ) : (
-                <Image
-                  source={STATUS_CONFIGS[room.houseKeepingStatus].icon}
-                  style={styles.vacantStatusIcon}
-                  resizeMode="contain"
-                />
-              )}
+              <StatusPill status={displayStatus} scaleX={scaleX} />
             </TouchableOpacity>
           )}
         </View>
@@ -385,13 +375,14 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
         onAssignPress={room.roomAttendantAssigned == null ? () => onAssignStaffPress?.(room) : undefined}
         onStaffSectionPress={room.roomAttendantAssigned != null ? () => onAssignStaffPress?.(room) : undefined}
         isLoading={isAssigningStaff}
+        isPaused={isAssignmentPaused}
       />
 
       {/* Status Button - horizontally centered; vertically centered only on single-guest no-notes to avoid overlapping guest info */}
       {!isVacantTurndown && (
         <StatusButton
           ref={statusButtonRef}
-          status={room.houseKeepingStatus}
+          status={displayStatus}
           onPress={handleStatusPress}
           isPriority={room.isPriority}
           isArrivalDeparture={isArrivalDeparture}
@@ -400,7 +391,6 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
           cardHeight={cardHeight}
           buttonTopOverridePx={singleGuestStatusTopPx}
           isLoading={isChangingStatus}
-          assignmentPaused={isAssignmentPaused}
         />
       )}
 
@@ -657,15 +647,6 @@ const styles = StyleSheet.create({
   vacantStatusButton: {
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  vacantStatusIcon: {
-    width: STATUS_BUTTON.iconInProgress.width * scaleX,
-    height: STATUS_BUTTON.iconInProgress.height * scaleX,
-  },
-  vacantStatusIconPaused: {
-    width: STATUS_BUTTON.iconInProgress.width * scaleX,
-    height: STATUS_BUTTON.iconInProgress.height * scaleX,
-    tintColor: '#000000',
   },
 });
 

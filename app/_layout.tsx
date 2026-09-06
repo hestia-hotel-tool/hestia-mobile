@@ -128,7 +128,6 @@ export default function RootLayout() {
             <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
             <Stack.Screen name="room/[roomId]" />
             <Stack.Screen name="chat/[chatId]" />
-            <Stack.Screen name="arrival-departure/[id]" />
             <Stack.Screen name="assign-rooms" />
             <Stack.Screen name="new-chat" />
             <Stack.Screen name="create-chat-group" />

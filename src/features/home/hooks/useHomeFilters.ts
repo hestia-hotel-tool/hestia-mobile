@@ -195,15 +195,25 @@ export function useHomeFilters(initialFilters?: FilterState) {
     );
   }, [filters]);
 
-  // Ensure filters is always defined
-  const safeFilters: FilterState = {
-    ...defaultFilterState,
-    ...filters,
-    roomStates: filters?.roomStates || defaultFilterState.roomStates,
-    guests: filters?.guests || defaultFilterState.guests,
-    reservations: filters?.reservations || defaultFilterState.reservations,
-    floors: filters?.floors || defaultFilterState.floors,
-  };
+  /*
+   * Backfill any group a caller left off `initialFilters`.
+   *
+   * Memoised on `filters`: rebuilding it every render gave the returned object
+   * a new identity each time, which quietly defeated every `useMemo` and
+   * `useCallback` downstream that lists it as a dependency — option lists were
+   * rebuilt, and result counts recounted, on every keystroke and every tap.
+   */
+  const safeFilters: FilterState = useMemo(
+    () => ({
+      ...defaultFilterState,
+      ...filters,
+      roomStates: filters?.roomStates || defaultFilterState.roomStates,
+      guests: filters?.guests || defaultFilterState.guests,
+      reservations: filters?.reservations || defaultFilterState.reservations,
+      floors: filters?.floors || defaultFilterState.floors,
+    }),
+    [filters]
+  );
 
   return {
     filters: safeFilters,

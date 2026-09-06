@@ -13,11 +13,32 @@
  */
 
 // actions
+import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
+import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
+import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
+import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionPhone from '@assets/icons/actions/action-phone.svg';
+import ActionPriority from '@assets/icons/actions/action-priority.svg';
+import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
+import ActionRefuseService from '@assets/icons/actions/action-refuse-service.svg';
+import ActionReturnLater from '@assets/icons/actions/action-return-later.svg';
 import ActionSearch from '@assets/icons/actions/action-search.svg';
+import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
+import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
+// guest-status
+import GuestArrival from '@assets/icons/guest-status/guest-arrival.svg';
+import GuestDeparture from '@assets/icons/guest-status/guest-departure.svg';
+import GuestOccupied from '@assets/icons/guest-status/guest-occupied.svg';
+import GuestStayoverLinen from '@assets/icons/guest-status/guest-stayover-linen.svg';
+import GuestStayoverNoLinen from '@assets/icons/guest-status/guest-stayover-no-linen.svg';
+import GuestTurndown from '@assets/icons/guest-status/guest-turndown.svg';
+import GuestVacant from '@assets/icons/guest-status/guest-vacant.svg';
+// misc
+import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
+import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
 // nav
 import NavChat from '@assets/icons/nav/nav-chat.svg';
 import NavHome from '@assets/icons/nav/nav-home.svg';
@@ -25,18 +46,43 @@ import NavLostFound from '@assets/icons/nav/nav-lost-found.svg';
 import NavStaff from '@assets/icons/nav/nav-staff.svg';
 import NavTickets from '@assets/icons/nav/nav-tickets.svg';
 // room-status
+import StatusApproved from '@assets/icons/room-status/status-approved.svg';
+import StatusClean from '@assets/icons/room-status/status-clean.svg';
 import StatusCleaned from '@assets/icons/room-status/status-cleaned.svg';
 import StatusDirty from '@assets/icons/room-status/status-dirty.svg';
 import StatusInProgress from '@assets/icons/room-status/status-in-progress.svg';
 import StatusInspected from '@assets/icons/room-status/status-inspected.svg';
+import StatusPaused from '@assets/icons/room-status/status-paused.svg';
+import StatusVacuum from '@assets/icons/room-status/status-vacuum.svg';
 
 export const icons = {
   // actions
+  'action-add-note': ActionAddNote,
+  'action-add-photo': ActionAddPhoto,
+  'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
   'action-filter': ActionFilter,
+  'action-flag-outline': ActionFlagOutline,
   'action-flag': ActionFlag,
   'action-phone': ActionPhone,
+  'action-priority': ActionPriority,
+  'action-promised-time': ActionPromisedTime,
+  'action-refuse-service': ActionRefuseService,
+  'action-return-later': ActionReturnLater,
   'action-search': ActionSearch,
+  'action-thumbs-up': ActionThumbsUp,
+  'action-tooltip-tail': ActionTooltipTail,
+  // guest-status
+  'guest-arrival': GuestArrival,
+  'guest-departure': GuestDeparture,
+  'guest-occupied': GuestOccupied,
+  'guest-stayover-linen': GuestStayoverLinen,
+  'guest-stayover-no-linen': GuestStayoverNoLinen,
+  'guest-turndown': GuestTurndown,
+  'guest-vacant': GuestVacant,
+  // misc
+  'checklist-curtains': ChecklistCurtains,
+  'checklist-minibar': ChecklistMinibar,
   // nav
   'nav-chat': NavChat,
   'nav-home': NavHome,
@@ -44,10 +90,14 @@ export const icons = {
   'nav-staff': NavStaff,
   'nav-tickets': NavTickets,
   // room-status
+  'status-approved': StatusApproved,
+  'status-clean': StatusClean,
   'status-cleaned': StatusCleaned,
   'status-dirty': StatusDirty,
   'status-in-progress': StatusInProgress,
   'status-inspected': StatusInspected,
+  'status-paused': StatusPaused,
+  'status-vacuum': StatusVacuum,
 } as const;
 
 export type IconName = keyof typeof icons;
@@ -59,20 +109,43 @@ export type IconName = keyof typeof icons;
  * than forcing a square box and letterboxing the art at the wrong size.
  */
 export const ICON_ASPECT: Record<IconName, number> = {
+  'action-add-note': 1,
+  'action-add-photo': 1.0162,
+  'action-checkbox-checked': 1,
   'action-chevron': 0.5,
   'action-filter': 2,
+  'action-flag-outline': 0.7179,
   'action-flag': 1.1833,
   'action-phone': 1,
+  'action-priority': 1.1833,
+  'action-promised-time': 0.7398,
+  'action-refuse-service': 1,
+  'action-return-later': 0.8655,
   'action-search': 1,
+  'action-thumbs-up': 1.1265,
+  'action-tooltip-tail': 2.5831,
+  'guest-arrival': 1,
+  'guest-departure': 1,
+  'guest-occupied': 1,
+  'guest-stayover-linen': 1,
+  'guest-stayover-no-linen': 1,
+  'guest-turndown': 1,
+  'guest-vacant': 1,
+  'checklist-curtains': 1.931,
+  'checklist-minibar': 0.9987,
   'nav-chat': 1.0003,
   'nav-home': 1.0744,
   'nav-lost-found': 0.9066,
   'nav-staff': 1.0771,
   'nav-tickets': 0.8567,
+  'status-approved': 1.1265,
+  'status-clean': 1.0323,
   'status-cleaned': 1.0323,
   'status-dirty': 1.1075,
   'status-in-progress': 0.958,
   'status-inspected': 1.1265,
+  'status-paused': 1,
+  'status-vacuum': 0.958,
 };
 
 /**
@@ -80,16 +153,35 @@ export const ICON_ASPECT: Record<IconName, number> = {
  * Two-tone brand marks are absent here — recolouring them destroys the mark.
  */
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
+  'action-add-note',
+  'action-checkbox-checked',
   'action-chevron',
   'action-filter',
+  'action-flag-outline',
   'action-flag',
   'action-phone',
+  'action-priority',
+  'action-promised-time',
+  'action-refuse-service',
+  'action-return-later',
   'action-search',
+  'action-tooltip-tail',
+  'guest-occupied',
+  'guest-stayover-linen',
+  'guest-stayover-no-linen',
+  'guest-turndown',
+  'guest-vacant',
+  'checklist-curtains',
+  'checklist-minibar',
   'nav-chat',
   'nav-staff',
   'nav-tickets',
+  'status-approved',
+  'status-clean',
   'status-cleaned',
   'status-dirty',
   'status-in-progress',
   'status-inspected',
+  'status-paused',
+  'status-vacuum',
 ]);

@@ -15,41 +15,81 @@ import { RoomType, RoomTypeConfig } from '../types/roomDetail.types';
 export const ROOM_TYPE_CONFIGS: Record<RoomType, RoomTypeConfig> = {
   Arrival: {
     type: 'Arrival',
-    guestInfoStartTop: 303,
-    hasSpecialInstructions: true,
-    numberOfGuests: 1,
+    guestSlots: [
+      {
+        role: 'Arrival',
+        match: { by: 'timeLabel', timeLabel: 'ETA' },
+        fallbackIndex: 0,
+        showsSpecialInstructions: true,
+        numberBadge: 'own',
+      },
+    ],
     cardHeight: 206.09,
     lostAndFoundType: 'empty',
   },
   Departure: {
     type: 'Departure',
-    guestInfoStartTop: 303,
-    hasSpecialInstructions: false,
-    numberOfGuests: 1,
+    guestSlots: [
+      {
+        role: 'Departure',
+        match: { by: 'timeLabel', timeLabel: 'EDT' },
+        fallbackIndex: 0,
+        // A departing guest has no arrival instructions to show.
+        showsSpecialInstructions: false,
+        numberBadge: 'own',
+      },
+    ],
     cardHeight: 206.09,
     lostAndFoundType: 'empty',
   },
   ArrivalDeparture: {
     type: 'ArrivalDeparture',
-    guestInfoStartTop: 303,
-    hasSpecialInstructions: true,
-    numberOfGuests: 2,
+    /*
+     * Matched by index, not by ETA/EDT label, and deliberately so: the detail
+     * screen must list these two in the same order as the room card, or the
+     * names and photos silently swap between the two views.
+     */
+    guestSlots: [
+      {
+        role: 'Arrival',
+        match: { by: 'index', index: 0 },
+        showsSpecialInstructions: true,
+        numberBadge: 'own',
+      },
+      {
+        role: 'Departure',
+        match: { by: 'index', index: 1 },
+        // Instructions belong to the arriving guest, so only the first block shows them.
+        showsSpecialInstructions: false,
+        numberBadge: 'inheritFromFirst',
+      },
+    ],
     cardHeight: 206.09,
     lostAndFoundType: 'empty',
   },
   Stayover: {
     type: 'Stayover',
-    guestInfoStartTop: 310, // Figma 1772-406: Guest Info title at 310px
-    hasSpecialInstructions: true,
-    numberOfGuests: 1,
+    guestSlots: [
+      {
+        role: 'Stayover',
+        match: { by: 'index', index: 0 },
+        showsSpecialInstructions: true,
+        numberBadge: 'own',
+      },
+    ],
     cardHeight: 183,
     lostAndFoundType: 'withItems',
   },
   Turndown: {
     type: 'Turndown',
-    guestInfoStartTop: 310, // Figma 1772-601: same as Stayover
-    hasSpecialInstructions: true,
-    numberOfGuests: 1,
+    guestSlots: [
+      {
+        role: 'Turndown',
+        match: { by: 'index', index: 0 },
+        showsSpecialInstructions: true,
+        numberBadge: 'own',
+      },
+    ],
     cardHeight: 183,
     lostAndFoundType: 'withItems',
   },

@@ -66,7 +66,17 @@ function normalize(svg) {
   out = out.replace(/\s+preserveAspectRatio="[^"]*"/g, '');
   out = out.replace(/\s+overflow="[^"]*"/g, '');
   out = out.replace(/\s+style="[^"]*"/g, '');
-  out = out.replace(/\s+id="[^"]*"/g, '');
+
+  // Layer-name ids are noise, but an id something points at — a gradient behind
+  // `fill="url(#…)"`, a clipPath, a <use href="#…"> — is load-bearing. Dropping
+  // those leaves a dangling reference, and the shape renders as nothing at all.
+  const referenced = new Set(
+    [
+      ...svg.matchAll(/url\(#([^)\s"']+)\)/g),
+      ...svg.matchAll(/(?:xlink:)?href="#([^"]+)"/g),
+    ].map((m) => m[1])
+  );
+  out = out.replace(/\s+id="([^"]*)"/g, (attr, id) => (referenced.has(id) ? attr : ''));
 
   // Drop intrinsic size from the root only; keep viewBox so the glyph scales.
   out = out.replace(/<svg([^>]*)>/, (full, attrs) => {
