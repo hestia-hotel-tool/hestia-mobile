@@ -622,7 +622,7 @@
       "department": "housekeeping",
       "role": "full_access",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "supervisor"
     },
     {
       "key": "housekeeping_manager",
@@ -630,7 +630,7 @@
       "department": "housekeeping",
       "role": "full_access",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "supervisor"
     },
     {
       "key": "assistant_housekeeping_manager",
@@ -638,7 +638,7 @@
       "department": "housekeeping",
       "role": "full_access",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "supervisor"
     },
     {
       "key": "senior_supervisor",
