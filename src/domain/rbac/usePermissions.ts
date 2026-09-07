@@ -16,12 +16,14 @@ import type { Permission } from './permissions';
  * Fails closed: while `isLoading` is true the set is empty.
  */
 export function usePermissions() {
-  const { permissions, homeVariant, isLoading, error, refresh } = usePermissionContext();
+  const { permissions, homeVariant, roomsVariant, isLoading, error, refresh } =
+    usePermissionContext();
 
   return useMemo(
     () => ({
       permissions,
       homeVariant,
+      roomsVariant,
       isLoading,
       error,
       refresh,
@@ -29,6 +31,6 @@ export function usePermissions() {
       canAny: (list: readonly Permission[]) => list.some((p) => permissions.has(p)),
       canAll: (list: readonly Permission[]) => list.every((p) => permissions.has(p)),
     }),
-    [permissions, homeVariant, isLoading, error, refresh]
+    [permissions, homeVariant, roomsVariant, isLoading, error, refresh]
   );
 }

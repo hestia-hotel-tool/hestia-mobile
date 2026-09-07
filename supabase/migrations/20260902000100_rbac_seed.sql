@@ -195,7 +195,6 @@ SELECT r.id, p.id
   ('full_access', 'settings.manage'),
   ('full_access', 'tickets.close'),
   ('full_access', 'lost_and_found.manage'),
-  ('hk_room_attendant', 'tab.home.view'),
   ('hk_room_attendant', 'tab.rooms.view'),
   ('hk_room_attendant', 'rooms.read'),
   ('hk_room_attendant', 'tab.chat.view'),
@@ -377,71 +376,72 @@ SELECT r.id, p.id
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
 -- 7. Job titles. Display identity; permissions come from the role.
-INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant)
-SELECT v.key, v.name, d.id, r.id, v.home_variant
+INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant, rooms_variant)
+SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
   FROM (VALUES
-    ('executive_housekeeper', 'Executive Housekeeper', 'housekeeping', 'full_access', 'default'),
-    ('housekeeping_manager', 'Housekeeping Manager', 'housekeeping', 'full_access', 'default'),
-    ('assistant_housekeeping_manager', 'Assistant Housekeeping Manager', 'housekeeping', 'full_access', 'default'),
-    ('senior_supervisor', 'Senior Supervisor', 'housekeeping', 'full_access', 'default'),
-    ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default'),
-    ('coordinator', 'Coordinator', 'housekeeping', 'full_access', 'default'),
-    ('housekeeping_room_attendant', 'Housekeeping Room Attendant', 'housekeeping', 'hk_room_attendant', 'default'),
-    ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier'),
-    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default'),
-    ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default'),
-    ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default'),
-    ('assistant_director_of_rooms', 'Assistant Director Of Rooms', 'front_office', 'ops_senior', 'default'),
-    ('director_of_front_office', 'Director of Front Office', 'front_office', 'ops_senior', 'default'),
-    ('front_office_manager', 'Front Office Manager', 'front_office', 'ops_senior', 'default'),
-    ('assistant_front_office_manager', 'Assistant Front Office Manager', 'front_office', 'ops_senior', 'default'),
-    ('front_office_supervisor', 'Front Office Supervisor', 'front_office', 'ops_senior', 'default'),
-    ('front_office_agent', 'Front Office Agent', 'front_office', 'fo_agent', 'default'),
-    ('front_office_trainee', 'Front Office Trainee', 'front_office', 'fo_agent', 'default'),
-    ('night_manager', 'Night Manager', 'front_office', 'ops_senior', 'default'),
-    ('night_auditor', 'Night Auditor', 'front_office', 'ops_senior', 'default'),
-    ('night_agent', 'Night Agent', 'front_office', 'fo_agent', 'default'),
-    ('guest_relations_manager', 'Guest Relations Manager', 'front_office', 'ops_senior', 'default'),
-    ('guest_relations_supervisor', 'Guest Relations Supervisor', 'front_office', 'ops_senior', 'default'),
-    ('guest_relations_agent', 'Guest Relations Agent', 'front_office', 'fo_agent', 'default'),
-    ('head_concierge', 'Head Concierge', 'concierge', 'ops_senior', 'default'),
-    ('chief_concierge', 'Chief Concierge', 'concierge', 'ops_senior', 'default'),
-    ('concierge_manager', 'Concierge Manager', 'concierge', 'ops_senior', 'default'),
-    ('assistant_concierge_manager', 'Assistant Concierge Manager', 'concierge', 'ops_senior', 'default'),
-    ('concierge_supervisor', 'Concierge Supervisor', 'concierge', 'ops_senior', 'default'),
-    ('concierge_agent', 'Concierge Agent', 'concierge', 'concierge_agent', 'default'),
-    ('bellboy_supervisor', 'Bellboy Supervisor', 'concierge', 'concierge_agent', 'default'),
-    ('bellboy_agent', 'Bellboy Agent', 'concierge', 'concierge_agent', 'default'),
-    ('valet_supervisor', 'Valet Supervisor', 'concierge', 'concierge_agent', 'default'),
-    ('valet_attendant', 'Valet Attendant', 'concierge', 'concierge_agent', 'default'),
-    ('director_of_in_room_dining', 'Director Of In Room Dining', 'in_room_dining', 'ops_senior', 'default'),
-    ('in_room_dining_manager', 'In Room Dining Manager', 'in_room_dining', 'ops_senior', 'default'),
-    ('in_room_dining_assistant_manager', 'In Room Dining Assistant Manager', 'in_room_dining', 'ops_senior', 'default'),
-    ('in_room_dining_supervisor', 'In Room Dining Supervisor', 'in_room_dining', 'ops_senior', 'default'),
-    ('in_room_dining_waiter_waitress', 'In Room Dining Waiter/Waitress', 'in_room_dining', 'ops_senior', 'default'),
-    ('in_room_dining_order_taker', 'In Room Dining Order Taker', 'in_room_dining', 'ird_service', 'default'),
-    ('butler_in_room_dining', 'Butler In Room Dining', 'in_room_dining', 'ird_service', 'default'),
-    ('director_of_engineering', 'Director of Engineering', 'engineering', 'technical', 'engineering'),
-    ('assistant_director_of_engineering', 'Assistant Director Of Engineering', 'engineering', 'technical', 'engineering'),
-    ('engineering_supervisor', 'Engineering Supervisor', 'engineering', 'technical', 'engineering'),
-    ('shift_engineer', 'Shift Engineer', 'engineering', 'technical', 'engineering'),
-    ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default'),
-    ('it_manager', 'IT Manager', 'it', 'technical', 'default'),
-    ('assistant_it_manager', 'Assistant IT Manager', 'it', 'technical', 'default'),
-    ('it_supervisor', 'IT Supervisor', 'it', 'technical', 'default'),
-    ('it_agent', 'IT Agent', 'it', 'technical', 'default'),
-    ('general_manager', 'General Manager', 'executive', 'full_access', 'default'),
-    ('hotel_manager', 'Hotel Manager', 'executive', 'full_access', 'default'),
-    ('assistant_to_general_and_hotel_manager', 'Assistant to General & Hotel Manager', 'executive', 'full_access', 'default'),
-    ('fandb_kitchen_staff', 'F&B / Kitchen Staff', 'food_beverage', 'fnb_kitchen', 'default')
-  ) AS v(key, name, department_key, role_key, home_variant)
+    ('executive_housekeeper', 'Executive Housekeeper', 'housekeeping', 'full_access', 'default', 'default'),
+    ('housekeeping_manager', 'Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'default'),
+    ('assistant_housekeeping_manager', 'Assistant Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'default'),
+    ('senior_supervisor', 'Senior Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
+    ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
+    ('coordinator', 'Coordinator', 'housekeeping', 'full_access', 'default', 'supervisor'),
+    ('housekeeping_room_attendant', 'Housekeeping Room Attendant', 'housekeeping', 'hk_room_attendant', 'default', 'attendant'),
+    ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier', 'default'),
+    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'default'),
+    ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default', 'default'),
+    ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default', 'default'),
+    ('assistant_director_of_rooms', 'Assistant Director Of Rooms', 'front_office', 'ops_senior', 'default', 'default'),
+    ('director_of_front_office', 'Director of Front Office', 'front_office', 'ops_senior', 'default', 'default'),
+    ('front_office_manager', 'Front Office Manager', 'front_office', 'ops_senior', 'default', 'default'),
+    ('assistant_front_office_manager', 'Assistant Front Office Manager', 'front_office', 'ops_senior', 'default', 'default'),
+    ('front_office_supervisor', 'Front Office Supervisor', 'front_office', 'ops_senior', 'default', 'default'),
+    ('front_office_agent', 'Front Office Agent', 'front_office', 'fo_agent', 'default', 'default'),
+    ('front_office_trainee', 'Front Office Trainee', 'front_office', 'fo_agent', 'default', 'default'),
+    ('night_manager', 'Night Manager', 'front_office', 'ops_senior', 'default', 'default'),
+    ('night_auditor', 'Night Auditor', 'front_office', 'ops_senior', 'default', 'default'),
+    ('night_agent', 'Night Agent', 'front_office', 'fo_agent', 'default', 'default'),
+    ('guest_relations_manager', 'Guest Relations Manager', 'front_office', 'ops_senior', 'default', 'default'),
+    ('guest_relations_supervisor', 'Guest Relations Supervisor', 'front_office', 'ops_senior', 'default', 'default'),
+    ('guest_relations_agent', 'Guest Relations Agent', 'front_office', 'fo_agent', 'default', 'default'),
+    ('head_concierge', 'Head Concierge', 'concierge', 'ops_senior', 'default', 'default'),
+    ('chief_concierge', 'Chief Concierge', 'concierge', 'ops_senior', 'default', 'default'),
+    ('concierge_manager', 'Concierge Manager', 'concierge', 'ops_senior', 'default', 'default'),
+    ('assistant_concierge_manager', 'Assistant Concierge Manager', 'concierge', 'ops_senior', 'default', 'default'),
+    ('concierge_supervisor', 'Concierge Supervisor', 'concierge', 'ops_senior', 'default', 'default'),
+    ('concierge_agent', 'Concierge Agent', 'concierge', 'concierge_agent', 'default', 'default'),
+    ('bellboy_supervisor', 'Bellboy Supervisor', 'concierge', 'concierge_agent', 'default', 'default'),
+    ('bellboy_agent', 'Bellboy Agent', 'concierge', 'concierge_agent', 'default', 'default'),
+    ('valet_supervisor', 'Valet Supervisor', 'concierge', 'concierge_agent', 'default', 'default'),
+    ('valet_attendant', 'Valet Attendant', 'concierge', 'concierge_agent', 'default', 'default'),
+    ('director_of_in_room_dining', 'Director Of In Room Dining', 'in_room_dining', 'ops_senior', 'default', 'default'),
+    ('in_room_dining_manager', 'In Room Dining Manager', 'in_room_dining', 'ops_senior', 'default', 'default'),
+    ('in_room_dining_assistant_manager', 'In Room Dining Assistant Manager', 'in_room_dining', 'ops_senior', 'default', 'default'),
+    ('in_room_dining_supervisor', 'In Room Dining Supervisor', 'in_room_dining', 'ops_senior', 'default', 'default'),
+    ('in_room_dining_waiter_waitress', 'In Room Dining Waiter/Waitress', 'in_room_dining', 'ops_senior', 'default', 'default'),
+    ('in_room_dining_order_taker', 'In Room Dining Order Taker', 'in_room_dining', 'ird_service', 'default', 'default'),
+    ('butler_in_room_dining', 'Butler In Room Dining', 'in_room_dining', 'ird_service', 'default', 'default'),
+    ('director_of_engineering', 'Director of Engineering', 'engineering', 'technical', 'engineering', 'default'),
+    ('assistant_director_of_engineering', 'Assistant Director Of Engineering', 'engineering', 'technical', 'engineering', 'default'),
+    ('engineering_supervisor', 'Engineering Supervisor', 'engineering', 'technical', 'engineering', 'default'),
+    ('shift_engineer', 'Shift Engineer', 'engineering', 'technical', 'engineering', 'default'),
+    ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default'),
+    ('it_manager', 'IT Manager', 'it', 'technical', 'default', 'default'),
+    ('assistant_it_manager', 'Assistant IT Manager', 'it', 'technical', 'default', 'default'),
+    ('it_supervisor', 'IT Supervisor', 'it', 'technical', 'default', 'default'),
+    ('it_agent', 'IT Agent', 'it', 'technical', 'default', 'default'),
+    ('general_manager', 'General Manager', 'executive', 'full_access', 'default', 'default'),
+    ('hotel_manager', 'Hotel Manager', 'executive', 'full_access', 'default', 'default'),
+    ('assistant_to_general_and_hotel_manager', 'Assistant to General & Hotel Manager', 'executive', 'full_access', 'default', 'default'),
+    ('fandb_kitchen_staff', 'F&B / Kitchen Staff', 'food_beverage', 'fnb_kitchen', 'default', 'default')
+  ) AS v(key, name, department_key, role_key, home_variant, rooms_variant)
   JOIN public.departments d ON d.key = v.department_key
   JOIN public.roles r       ON r.key = v.role_key
 ON CONFLICT (key) DO UPDATE
   SET name          = EXCLUDED.name,
       department_id = EXCLUDED.department_id,
       role_id       = EXCLUDED.role_id,
-      home_variant  = EXCLUDED.home_variant;
+      home_variant  = EXCLUDED.home_variant,
+      rooms_variant = EXCLUDED.rooms_variant;
 
 -- 8. Give existing users a job title.
 --    Match the legacy role name captured in step 1 against a job title,
@@ -492,8 +492,8 @@ BEGIN
   IF n_perms  <> 34 THEN
     RAISE EXCEPTION 'expected 34 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 212 THEN
-    RAISE EXCEPTION 'expected 212 role_permissions, found %', n_grants;
+  IF n_grants <> 211 THEN
+    RAISE EXCEPTION 'expected 211 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

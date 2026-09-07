@@ -295,26 +295,27 @@ function generateSeedSql() {
 
   // -- job titles ----------------------------------------------------------
   w('-- 7. Job titles. Display identity; permissions come from the role.');
-  w('INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant)');
-  w('SELECT v.key, v.name, d.id, r.id, v.home_variant');
+  w('INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant, rooms_variant)');
+  w('SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant');
   w('  FROM (VALUES');
   w(
     matrix.jobTitles
       .map(
         (t) =>
           `    (${sql(t.key)}, ${sql(t.name)}, ${sql(t.department)}, ` +
-          `${sql(t.role)}, ${sql(t.homeVariant)})`
+          `${sql(t.role)}, ${sql(t.homeVariant)}, ${sql(t.roomsVariant)})`
       )
       .join(',\n')
   );
-  w('  ) AS v(key, name, department_key, role_key, home_variant)');
+  w('  ) AS v(key, name, department_key, role_key, home_variant, rooms_variant)');
   w('  JOIN public.departments d ON d.key = v.department_key');
   w('  JOIN public.roles r       ON r.key = v.role_key');
   w('ON CONFLICT (key) DO UPDATE');
   w('  SET name          = EXCLUDED.name,');
   w('      department_id = EXCLUDED.department_id,');
   w('      role_id       = EXCLUDED.role_id,');
-  w('      home_variant  = EXCLUDED.home_variant;');
+  w('      home_variant  = EXCLUDED.home_variant,');
+  w('      rooms_variant = EXCLUDED.rooms_variant;');
   w();
 
   // -- backfill ------------------------------------------------------------

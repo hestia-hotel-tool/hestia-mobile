@@ -5,6 +5,7 @@ import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home';
 import { scaleX } from '../../constants/allRoomsStyles';
 import { AMPMToggle } from '@features/home';
 import SearchInput from '@/components/ui/SearchInput';
+import RoomsProgressPill from './RoomsProgressPill';
 import type { ShiftType } from '@features/home';
 
 interface AllRoomsHeaderProps {
@@ -16,6 +17,11 @@ interface AllRoomsHeaderProps {
   onBackPress?: () => void; // Optional - navigation handler
   searchPlaceholder?: string | { bold: string; normal: string }; // Optional dynamic placeholder
   showFilterModal?: boolean; // Whether filter modal is open
+  /**
+   * Finished / total assigned, shown beside the title. Room attendants only —
+   * omit it and no pill is drawn.
+   */
+  progress?: { finished: number; total: number };
 }
 
 export default function AllRoomsHeader({
@@ -27,6 +33,7 @@ export default function AllRoomsHeader({
   onBackPress,
   searchPlaceholder = { bold: 'Search ', normal: 'by room number, guest name' },
   showFilterModal = false,
+  progress,
 }: AllRoomsHeaderProps) {
 
   return (
@@ -68,7 +75,13 @@ export default function AllRoomsHeader({
         ]}>
           All Rooms
         </Text>
-        
+
+        {progress && (
+          <View style={styles.progressSlot}>
+            <RoomsProgressPill finished={progress.finished} total={progress.total} />
+          </View>
+        )}
+
         <View style={styles.toggleContainer}>
           <AMPMToggle
             selected={selectedShift}
@@ -189,6 +202,14 @@ const styles = StyleSheet.create({
     width: 14 * scaleX, // Figma: 14px × 28px
     height: 28 * scaleX,
     // No rotation - using back-arrow.png directly as it already points left
+  },
+  progressSlot: {
+    // The title and the AM/PM toggle are both absolutely positioned in this row,
+    // so the pill has to be too. Sits just right of "All Rooms" (left 69, ~110
+    // wide) and clears the toggle, which starts around x=286.
+    position: 'absolute',
+    left: 190 * scaleX,
+    top: 62 * scaleX,
   },
   title: {
     fontSize: 24 * scaleX,

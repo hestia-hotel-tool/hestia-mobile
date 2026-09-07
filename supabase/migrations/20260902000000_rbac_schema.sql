@@ -109,6 +109,12 @@ CREATE TABLE IF NOT EXISTS public.job_titles (
   -- what a person's day looks like, not what they are allowed to do.
   home_variant  text NOT NULL DEFAULT 'default'
                 CHECK (home_variant IN ('default', 'engineering', 'hsk_portier')),
+  -- Same idea for the Rooms list: supervisors read it grouped by housekeeping
+  -- status with In Progress pinned, leadership reads it flat. Declared here so a
+  -- fresh database has the column before the seed populates it; existing
+  -- databases pick it up from 20260907000000_rooms_variant.sql instead.
+  rooms_variant text NOT NULL DEFAULT 'default'
+                CHECK (rooms_variant IN ('default', 'supervisor', 'attendant')),
   created_at    timestamp with time zone DEFAULT now(),
   updated_at    timestamp with time zone DEFAULT now()
 );

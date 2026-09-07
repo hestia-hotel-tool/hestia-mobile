@@ -39,6 +39,11 @@ import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { applyRoomFilters, hasAnyActiveFilter } from '../utils/roomFilters';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
+import { groupRoomsByStatus } from '../utils/roomGroups';
+import GroupedRoomsList from '../components/allRooms/GroupedRoomsList';
+import { usePermissions } from '@/domain/rbac';
+import { findBlockingInProgressRoom } from '../utils/attendantRules';
+import { useMessageModal } from '@/contexts/MessageModalContext';
 
 /** When user taps a status badge or priority badge on Home. */
 export type CategoryFilterParam = {
@@ -56,6 +61,7 @@ export default function AllRoomsScreen() {
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
   const { open: openAIChatOverlay } = useAIChatOverlay();
+  const messageModal = useMessageModal();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
   const initialShift = routeShift || getShiftFromTime();
@@ -101,15 +107,46 @@ export default function AllRoomsScreen() {
   const showBackButton = (route.params as any)?.showBackButton ?? false;
   const routeFilters = (route.params as any)?.filters as FilterState | undefined;
   const routeCategoryFilter = (route.params as any)?.categoryFilter as CategoryFilterParam | undefined;
+  /*
+   * Which Rooms list this person reads. Keyed off the job title rather than a
+   * permission: supervisors and attendants hold the same rights as the managers
+   * above them, only their day differs.
+   */
+  const { roomsVariant } = usePermissions();
+  /** Banded by housekeeping status with In Progress pinned — Figma 3838:1117 / 3838:1623. */
+  const isGroupedRooms = roomsVariant !== 'default';
+  const isAttendant = roomsVariant === 'attendant';
+
   const prioritizeMyAssignedRooms =
     (route.params as { prioritizeMyAssignedRooms?: boolean } | undefined)?.prioritizeMyAssignedRooms === true;
-  /** Filter/sort list while param is true (decoupled from badge count so list stays after notifications are marked read). */
-  const shouldPrioritizeAssignedOnly = prioritizeMyAssignedRooms;
+  /**
+   * Show only this user's rooms.
+   *
+   * Route param for everyone else — the Rooms tab sets it when you arrive from
+   * an assignment notification, and clears it on a normal tap. Attendants are
+   * never shown anyone else's rooms, so for them it is always on.
+   */
+  const shouldPrioritizeAssignedOnly = prioritizeMyAssignedRooms || isAttendant;
 
   const [assignedRoomIdsOrdered, setAssignedRoomIdsOrdered] = useState<string[]>([]);
   const [assignedRoomOrderLoading, setAssignedRoomOrderLoading] = useState(false);
   const [assignedRoomIdsForShiftOrdered, setAssignedRoomIdsForShiftOrdered] = useState<string[]>([]);
   const markedRoomAssignmentNotificationsReadRef = useRef(false);
+
+  /**
+   * Every room assigned to this user for the shift, before search or filters.
+   *
+   * The one-in-progress guard and the progress pill both read this rather than
+   * `filteredRooms`: a search must not be able to hide the room that is blocking,
+   * and filtering must not appear to change how much work is left.
+   */
+  const assignedRooms = useMemo(() => {
+    const roomsPM = displayData.roomsPM ?? [];
+    const usePMRooms = uiShift === 'PM' && Array.isArray(roomsPM) && roomsPM.length > 0;
+    const shiftRooms = usePMRooms ? roomsPM : (displayData.rooms ?? []);
+    const assignedIds = new Set(assignedRoomIdsForShiftOrdered.map(String));
+    return shiftRooms.filter((room) => assignedIds.has(String(room.id)));
+  }, [displayData.rooms, displayData.roomsPM, uiShift, assignedRoomIdsForShiftOrdered]);
 
   React.useEffect(() => {
     if (!shouldPrioritizeAssignedOnly || !session?.user?.id) {
@@ -363,10 +400,6 @@ export default function AllRoomsScreen() {
     // Filters are already applied via activeFilters, no need to navigate
   };
 
-  const handleGoToHomeWithFilters = (appliedFilters: FilterState) => {
-    setShowFilterModal(false);
-    navigation.navigate('(home)/index' as any, { filters: appliedFilters } as any);
-  };
 
   const handleAdvanceFilter = () => {
     // TODO: Navigate to advanced filter screen when implemented
@@ -524,6 +557,22 @@ export default function AllRoomsScreen() {
 
     // Map status option to RoomStatus
     const newStatus = mapStatusOptionToRoomStatus(statusOption);
+
+    // An attendant works one room at a time. Checked against every assigned room,
+    // not the filtered view, so a search cannot hide the room that is blocking.
+    if (isAttendant && newStatus === 'InProgress') {
+      const blocking = findBlockingInProgressRoom(assignedRooms, roomToUpdate.id);
+      if (blocking) {
+        setShowStatusModal(false);
+        setStatusButtonPosition(null);
+        messageModal.show({
+          title: 'Finish your current room first',
+          message: `Room ${blocking.roomNumber} is already in progress. Pause or complete it before starting Room ${roomToUpdate.roomNumber}.`,
+          buttons: [{ text: 'OK' }],
+        });
+        return;
+      }
+    }
 
     // Priority toggles: if already priority, clicking Priority resets to normal
     const isPriorityToggle = statusOption === 'Priority';
@@ -703,6 +752,27 @@ export default function AllRoomsScreen() {
     [computeRooms]
   );
 
+  const roomGroups = useMemo(
+    () => (isGroupedRooms ? groupRoomsByStatus(filteredRooms) : []),
+    [isGroupedRooms, filteredRooms]
+  );
+
+  /*
+   * How far through the shift an attendant is — Figma 3883:4994.
+   *
+   * Counted over everything assigned for the shift rather than over
+   * `filteredRooms`, so searching or filtering does not appear to change how much
+   * work is left. Held back while the assignment query is still running, since
+   * until it lands the denominator would read 0.
+   */
+  const attendantProgress = useMemo(() => {
+    if (!isAttendant || assignedRoomOrderLoading) return undefined;
+    const finished = assignedRooms.filter(
+      (room) => room.houseKeepingStatus === 'Cleaned' || room.houseKeepingStatus === 'Inspected'
+    ).length;
+    return { finished, total: assignedRooms.length };
+  }, [isAttendant, assignedRoomOrderLoading, assignedRooms]);
+
   const showNoMatchingRoomsEmptyState =
     filteredRooms.length === 0 &&
     (hasActiveFilters || (shouldPrioritizeAssignedOnly && !assignedRoomOrderLoading));
@@ -723,53 +793,26 @@ export default function AllRoomsScreen() {
       >
         {/* Scrollable Content with conditional blur */}
         <View style={styles.scrollContainer}>
-          <ScrollView
-            ref={scrollViewRef}
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={!showStatusModal}
-            contentInsetAdjustmentBehavior="automatic"
-            keyboardShouldPersistTaps="handled"
-            onScroll={(event) => {
-              // Track current scroll position
-              currentScrollYRef.current = event.nativeEvent.contentOffset.y;
-            }}
-            scrollEventThrottle={16}
-            refreshControl={
-              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-            }
-          >
-          {showNoMatchingRoomsEmptyState ? (
-            // Empty state card when filters don't match any rooms
-            <View style={[
-              styles.emptyStateCard,
-            ]}>
-              <View style={styles.emptyStateIconContainer}>
-                <View style={styles.emptyStateIconCircle}>
-                  <Image
-                    source={require('../../../../assets/icons/menu-icon.png')}
-                    style={styles.emptyStateIcon}
-                    resizeMode="contain"
-                    tintColor="#5a759d"
-                  />
-                </View>
-              </View>
-              <Text style={[
-                styles.emptyStateTitle,
-              ]}>
-                No rooms found
-              </Text>
-              <Text style={[
-                styles.emptyStateMessage,
-              ]}>
-                {shouldPrioritizeAssignedOnly
-                  ? 'No assigned rooms match this shift or filters.\nTry another shift or clear filters.'
-                  : `The chosen filter options do not match any rooms.${'\n'}Try adjusting your filters or search query.`}
-              </Text>
-            </View>
-          ) : (
-            filteredRooms.map((room) => (
+          {(() => {
+            // Shared by both variants so scroll tracking, the refresh control
+            // and the modal scroll-lock cannot drift between them.
+            const scrollProps = {
+              style: styles.scrollView,
+              contentContainerStyle: styles.scrollContent,
+              showsVerticalScrollIndicator: false,
+              scrollEnabled: !showStatusModal,
+              contentInsetAdjustmentBehavior: 'automatic' as const,
+              keyboardShouldPersistTaps: 'handled' as const,
+              onScroll: (event: any) => {
+                currentScrollYRef.current = event.nativeEvent.contentOffset.y;
+              },
+              scrollEventThrottle: 16,
+              refreshControl: (
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+              ),
+            };
+
+            const renderRoomCard = (room: RoomCardData) => (
               <RoomCard
                 key={room.id}
                 ref={(ref) => {
@@ -790,9 +833,48 @@ export default function AllRoomsScreen() {
                 isChangingStatus={changingStatusRoomId === room.id}
                 isAssigningStaff={assigningStaffRoomId === room.id}
               />
-            ))
-          )}
-        </ScrollView>
+            );
+
+            const emptyState = (
+              <View style={styles.emptyStateCard}>
+                <View style={styles.emptyStateIconContainer}>
+                  <View style={styles.emptyStateIconCircle}>
+                    <Image
+                      source={require('../../../../assets/icons/menu-icon.png')}
+                      style={styles.emptyStateIcon}
+                      resizeMode="contain"
+                      tintColor="#5a759d"
+                    />
+                  </View>
+                </View>
+                <Text style={styles.emptyStateTitle}>No rooms found</Text>
+                <Text style={styles.emptyStateMessage}>
+                  {shouldPrioritizeAssignedOnly
+                    ? 'No assigned rooms match this shift or filters.\nTry another shift or clear filters.'
+                    : 'The chosen filter options do not match any rooms.\nTry adjusting your filters or search query.'}
+                </Text>
+              </View>
+            );
+
+            if (isGroupedRooms && !showNoMatchingRoomsEmptyState) {
+              return (
+                <GroupedRoomsList
+                  groups={roomGroups}
+                  renderRoom={renderRoomCard}
+                  scrollProps={scrollProps}
+                  scrollRef={scrollViewRef}
+                />
+              );
+            }
+
+            return (
+              <ScrollView ref={scrollViewRef} {...scrollProps}>
+                {showNoMatchingRoomsEmptyState
+                  ? emptyState
+                  : filteredRooms.map(renderRoomCard)}
+              </ScrollView>
+            );
+          })()}
         
         {/* Blur Overlay for Status Modal - starts from bottom of target card, covers everything below including tabs */}
         {showStatusModal && selectedCardTop > 0 && (
@@ -818,6 +900,7 @@ export default function AllRoomsScreen() {
           onFilterPress={handleFilterPress}
           onBackPress={handleBackPress}
           showFilterModal={showFilterModal}
+          progress={attendantProgress}
         />
       </KeyboardAvoidingView>
 

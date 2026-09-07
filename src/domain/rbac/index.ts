@@ -20,6 +20,7 @@ export type {
   DepartmentDefinition,
   RightDefinition,
   HomeVariant,
+  RoomsVariant,
 } from './matrix';
 
 export { usePermissions } from './usePermissions';

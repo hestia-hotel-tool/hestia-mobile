@@ -27,12 +27,14 @@ import React, {
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@features/auth';
 import type { Permission } from '@/domain/rbac/permissions';
-import type { HomeVariant } from '@/domain/rbac/matrix';
+import type { HomeVariant, RoomsVariant } from '@/domain/rbac/matrix';
 
 interface PermissionContextValue {
   permissions: ReadonlySet<Permission>;
   /** Which HomeScreen layout this user sees. */
   homeVariant: HomeVariant;
+  /** Which Rooms list layout this user sees. */
+  roomsVariant: RoomsVariant;
   /** True until the first resolution completes. Gate on this, don't render an empty app. */
   isLoading: boolean;
   /** Set when resolution failed; the permission set is empty in that case. */
@@ -46,6 +48,7 @@ const EMPTY: ReadonlySet<Permission> = new Set<Permission>();
 const PermissionContext = createContext<PermissionContextValue>({
   permissions: EMPTY,
   homeVariant: 'default',
+  roomsVariant: 'default',
   isLoading: true,
   error: null,
   refresh: async () => {},
@@ -57,6 +60,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
 
   const [permissions, setPermissions] = useState<ReadonlySet<Permission>>(EMPTY);
   const [homeVariant, setHomeVariant] = useState<HomeVariant>('default');
+  const [roomsVariant, setRoomsVariant] = useState<RoomsVariant>('default');
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -91,9 +95,10 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         fn: string
       ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
 
-      const [permissionsResult, variantResult] = await Promise.all([
+      const [permissionsResult, variantResult, roomsVariantResult] = await Promise.all([
         rpc('get_my_permissions'),
         rpc('get_my_home_variant'),
+        rpc('get_my_rooms_variant'),
       ]);
 
       if (requestFor.current !== forUser) return; // superseded
@@ -103,6 +108,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       const keys = (permissionsResult.data ?? []) as Permission[];
       setPermissions(new Set(keys));
       setHomeVariant((variantResult.data as HomeVariant | null) ?? 'default');
+      setRoomsVariant((roomsVariantResult.data as RoomsVariant | null) ?? 'default');
       setError(
         keys.length === 0
           ? 'This account has no job title assigned, so it has no access yet.'
@@ -114,6 +120,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       console.warn('[PermissionProvider] failed to resolve permissions:', message);
       setPermissions(EMPTY); // fail closed
       setHomeVariant('default');
+      setRoomsVariant('default');
       setError('Could not load your permissions.');
     } finally {
       if (requestFor.current === forUser) setResolvedFor(forUser);
@@ -133,11 +140,12 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       // Only report permissions that belong to the user asking for them.
       permissions: canResolve && resolvedFor === userId ? permissions : EMPTY,
       homeVariant: canResolve && resolvedFor === userId ? homeVariant : 'default',
+      roomsVariant: canResolve && resolvedFor === userId ? roomsVariant : 'default',
       isLoading,
       error: canResolve ? error : null,
       refresh: resolve,
     }),
-    [canResolve, resolvedFor, userId, permissions, homeVariant, isLoading, error, resolve]
+    [canResolve, resolvedFor, userId, permissions, homeVariant, roomsVariant, isLoading, error, resolve]
   );
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;

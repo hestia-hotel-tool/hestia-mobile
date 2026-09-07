@@ -31,13 +31,16 @@ import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/
 import type { LostAndFoundItem } from '@features/lost-and-found';
 import type { RootStackParamList } from '@/types/navigation';
 import { useRoomsStore } from '../store/useRoomsStore';
-import { authService } from '@features/auth';
+import { authService, useAuth } from '@features/auth';
 import { notifyServer } from '@/lib/notifications';
 import { colors } from '@/theme';
 import { getMockHistoryEvents } from '@/mocks/mockHistoryData';
 import { generateHistoryReport } from '../utils/generateHistoryReport';
 import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';
 import { getDefaultTaskText } from '../utils/defaultTasks';
+import { findBlockingInProgressRoomForUser } from '../utils/attendantRules';
+import { usePermissions } from '@/domain/rbac';
+import { useMessageModal } from '@/contexts/MessageModalContext';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
 import { fetchStaffFromSupabase } from '@features/staff';
 import { supabase } from '@/lib/supabase';
@@ -91,6 +94,9 @@ export default function RoomDetailScreen() {
   const departmentName = params?.departmentName;
 
   const { updateRoom, updatingRoomId, data: roomsData } = useRoomsStore();
+  const { session } = useAuth();
+  const { roomsVariant } = usePermissions();
+  const messageModal = useMessageModal();
   const shift = roomsData?.selectedShift ?? 'AM';
 
   // If we already have a room object from navigation, keep it as the single source of truth
@@ -233,6 +239,28 @@ export default function RoomDetailScreen() {
   const roomType = fetchedRoomType ?? initialRoomType;
   /** Whether `room` is real data rather than the stand-in. Checked after the hooks. */
   const hasRoom = Boolean(fetchedRoom ?? initialRoom);
+
+  /**
+   * Refuses a second In Progress room for an attendant, naming the room that is
+   * in the way. Returns true when the caller should stop.
+   *
+   * Guards every path here that writes InProgress: the status list, and the
+   * Return Later and Refuse Service confirms, which both set it too.
+   */
+  const blockedBySecondInProgress = useCallback((): boolean => {
+    if (roomsVariant !== 'attendant') return false;
+    const roomsPM = roomsData?.roomsPM ?? [];
+    const usePMRooms = shift === 'PM' && Array.isArray(roomsPM) && roomsPM.length > 0;
+    const shiftRooms = usePMRooms ? roomsPM : (roomsData?.rooms ?? []);
+    const blocking = findBlockingInProgressRoomForUser(shiftRooms, room.id, session?.user?.id);
+    if (!blocking) return false;
+    messageModal.show({
+      title: 'Finish your current room first',
+      message: `Room ${blocking.roomNumber} is already in progress. Pause or complete it before starting Room ${room.roomNumber}.`,
+      buttons: [{ text: 'OK' }],
+    });
+    return true;
+  }, [roomsVariant, roomsData, shift, room.id, room.roomNumber, session?.user?.id, messageModal]);
 
   const roomGuests = room.guests || [];
   const isUpdating = updatingRoomId === room.id;
@@ -538,6 +566,11 @@ export default function RoomDetailScreen() {
     }
 
     const newStatus = mapStatusOptionToRoomStatus(statusOption);
+    if (newStatus === 'InProgress' && blockedBySecondInProgress()) {
+      setShowStatusModal(false);
+      setStatusButtonPosition(null);
+      return;
+    }
     setCurrentStatus(newStatus);
 
     // Pause enters an activity; every other status clears back to none. Either
@@ -560,6 +593,7 @@ export default function RoomDetailScreen() {
   };
 
   const handleReturnLaterConfirm = (returnTime: string, period: 'AM' | 'PM', taskDescription?: string, _formattedDateTime?: string, returnAtTimestamp?: number) => {
+    if (blockedBySecondInProgress()) return;
     console.log('Return Later confirmed for room:', room.roomNumber, 'at:', returnTime, period);
     
     if (taskDescription && taskDescription.trim()) {
@@ -614,6 +648,7 @@ export default function RoomDetailScreen() {
   };
 
   const handleRefuseServiceConfirm = (reason: string) => {
+    if (blockedBySecondInProgress()) return;
     const next: RoomActivityState = { kind: 'refuseService', at: Date.now(), reason };
     setActivity(next);
     setPendingActivity(null);

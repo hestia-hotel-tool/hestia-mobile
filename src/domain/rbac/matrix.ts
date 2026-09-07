@@ -91,6 +91,18 @@ export const ROLES: readonly RoleDefinition[] = matrix.roles;
 /** Which HomeScreen layout a person sees. A presentation concern, not a right. */
 export type HomeVariant = 'default' | 'engineering' | 'hsk_portier';
 
+/**
+ * Which Rooms list a person sees. Same idea as `HomeVariant` — it describes how
+ * someone works, not what they may do, so two titles can share a role and still
+ * differ here.
+ *
+ * `default` is the flat list. `supervisor` groups by housekeeping status and
+ * pins In Progress to the top (Figma 3838:1117). `attendant` is that same banded
+ * list narrowed to the rooms assigned to the person reading it, with a
+ * finished/total counter (Figma 3838:1623).
+ */
+export type RoomsVariant = 'default' | 'supervisor' | 'attendant';
+
 export interface JobTitleDefinition {
   key: string;
   name: string;
@@ -99,6 +111,7 @@ export interface JobTitleDefinition {
   /** `RoleDefinition['key']` */
   role: string;
   homeVariant: HomeVariant;
+  roomsVariant: RoomsVariant;
 }
 
 export const JOB_TITLES: readonly JobTitleDefinition[] = matrix.jobTitles as readonly JobTitleDefinition[];

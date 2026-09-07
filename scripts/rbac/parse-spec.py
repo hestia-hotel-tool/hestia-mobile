@@ -156,6 +156,32 @@ HOME_VARIANTS = {
     "shift_engineer": "engineering",
 }
 
+# Rooms list layout, same reasoning as HOME_VARIANTS: a presentation concern
+# keyed by title, not a right. Supervisors work the floor from the list, so they
+# get it grouped by housekeeping status with In Progress pinned to the top;
+# the housekeeping and executive leadership above them read the flat list.
+ROOMS_VARIANTS = {
+    "senior_supervisor": "supervisor",
+    "supervisor": "supervisor",
+    "coordinator": "supervisor",
+    # Room attendants get the same banded list, over their own rooms only.
+    "housekeeping_room_attendant": "attendant",
+}
+
+# Rights we knowingly set differently from the signed-off PDF.
+#
+# DELIBERATE SPEC DRIFT — do not remove without checking with whoever owns the
+# spec. The PDF grants Room Attendants the Dashboard, but the product decision is
+# that they work from the Rooms list only and never see Home. `dashboard` is the
+# sole source of `tab.home.view`, so clearing it here removes the Home tab, the
+# Home landing route and the Home deep link together, and nothing else.
+#
+# Applied after the PDF is parsed, so re-running the parser cannot silently
+# restore Home.
+RIGHT_OVERRIDES = {
+    "hk_room_attendant": {"dashboard": False},
+}
+
 # --- role identity, keyed by the set of titles that share a vector -----------
 ROLE_BY_MEMBER = [
     ("full_access",       "Full Access",              "Executive Housekeeper"),
@@ -244,7 +270,8 @@ def main():
             dept_key = PDF_DEPT_MAP[dept_label]
         tkey = slug(display)
         titles.append((tkey, display, dept_key, role_key,
-                       HOME_VARIANTS.get(tkey, "default")))
+                       HOME_VARIANTS.get(tkey, "default"),
+                       ROOMS_VARIANTS.get(tkey, "default")))
 
     # Ordered permission key list.
     perm_keys = []
@@ -282,20 +309,24 @@ def main():
                 "department": dept_key,
                 "role": role_key,
                 "homeVariant": variant,
+                "roomsVariant": rooms_variant,
             }
-            for tkey, display, dept_key, role_key, variant in titles
+            for tkey, display, dept_key, role_key, variant, rooms_variant in titles
         ],
     }
 
     for key, name, _probe in ROLE_BY_MEMBER:
         vec = next(v for v, rk in vec_to_role.items() if rk[0] == key)
+        rights = {r: bool(on) for r, on in zip(RIGHTS, vec)}
+        # Applied last so it wins over the parsed vector — see RIGHT_OVERRIDES.
+        rights.update(RIGHT_OVERRIDES.get(key, {}))
         doc["roles"].append(
             {
                 "key": key,
                 "name": name,
                 "description": ROLE_DESCRIPTIONS[key],
                 "titleCount": len(vectors[vec]),
-                "rights": {r: bool(on) for r, on in zip(RIGHTS, vec)},
+                "rights": rights,
             }
         )
 
