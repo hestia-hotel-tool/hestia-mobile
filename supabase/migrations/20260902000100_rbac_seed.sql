@@ -19,10 +19,28 @@
 BEGIN;
 
 -- 1. Remember who had which legacy role, before we delete those roles.
-CREATE TEMP TABLE legacy_user_roles ON COMMIT DROP AS
+--
+--    A plain table, not a TEMP ... ON COMMIT DROP one. The temp version is
+--    dropped at the first commit, which holds under `supabase db push`
+--    (one transaction for the file) but not in the Supabase SQL editor,
+--    where step 8 then fails with 42P01 relation does not exist. Making the
+--    seed depend on how it is invoked is a trap; this works under both.
+--
+--    Dropped again at the end of step 8. The leading DROP keeps a re-run
+--    clean if an earlier attempt aborted before that point.
+DROP TABLE IF EXISTS public._rbac_legacy_user_roles;
+CREATE TABLE public._rbac_legacy_user_roles AS
 SELECT u.id AS user_id, r.name AS role_name
   FROM public.users u
   JOIN public.roles r ON r.id = u.role_id;
+
+--    The public schema grants ALL ON TABLES to anon and authenticated by
+--    default (baseline_schema.sql:2338-2339), so a bare table here would be
+--    readable over the API with no RLS until it is dropped. It only lives
+--    for the length of this seed, but it maps user ids to role names, so
+--    close it off rather than rely on that being brief.
+REVOKE ALL ON public._rbac_legacy_user_roles FROM anon, authenticated;
+ALTER TABLE public._rbac_legacy_user_roles ENABLE ROW LEVEL SECURITY;
 
 -- 2. Retire the legacy vocabulary.
 --    The previous seed used different permission names (view_dashboard,
@@ -451,12 +469,14 @@ ON CONFLICT (key) DO UPDATE
 --    permissions, which is the correct fail-closed outcome.
 UPDATE public.users u
    SET job_title_id = jt.id
-  FROM legacy_user_roles l
+  FROM public._rbac_legacy_user_roles l
   JOIN public.job_titles jt
     ON regexp_replace(lower(jt.name), '[^a-z0-9]', '', 'g')
      = regexp_replace(lower(l.role_name),  '[^a-z0-9]', '', 'g')
  WHERE u.id = l.user_id
    AND u.job_title_id IS NULL;
+
+DROP TABLE IF EXISTS public._rbac_legacy_user_roles;
 
 -- Keep department in step with the assigned title.
 UPDATE public.users u

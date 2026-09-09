@@ -197,10 +197,28 @@ function generateSeedSql() {
 
   // -- capture legacy assignment -------------------------------------------
   w('-- 1. Remember who had which legacy role, before we delete those roles.');
-  w('CREATE TEMP TABLE legacy_user_roles ON COMMIT DROP AS');
+  w('--');
+  w('--    A plain table, not a TEMP ... ON COMMIT DROP one. The temp version is');
+  w('--    dropped at the first commit, which holds under `supabase db push`');
+  w('--    (one transaction for the file) but not in the Supabase SQL editor,');
+  w('--    where step 8 then fails with 42P01 relation does not exist. Making the');
+  w('--    seed depend on how it is invoked is a trap; this works under both.');
+  w('--');
+  w('--    Dropped again at the end of step 8. The leading DROP keeps a re-run');
+  w('--    clean if an earlier attempt aborted before that point.');
+  w('DROP TABLE IF EXISTS public._rbac_legacy_user_roles;');
+  w('CREATE TABLE public._rbac_legacy_user_roles AS');
   w('SELECT u.id AS user_id, r.name AS role_name');
   w('  FROM public.users u');
   w('  JOIN public.roles r ON r.id = u.role_id;');
+  w();
+  w('--    The public schema grants ALL ON TABLES to anon and authenticated by');
+  w('--    default (baseline_schema.sql:2338-2339), so a bare table here would be');
+  w('--    readable over the API with no RLS until it is dropped. It only lives');
+  w('--    for the length of this seed, but it maps user ids to role names, so');
+  w('--    close it off rather than rely on that being brief.');
+  w('REVOKE ALL ON public._rbac_legacy_user_roles FROM anon, authenticated;');
+  w('ALTER TABLE public._rbac_legacy_user_roles ENABLE ROW LEVEL SECURITY;');
   w();
 
   // -- retire legacy reference data ----------------------------------------
@@ -327,12 +345,14 @@ function generateSeedSql() {
   w('--    permissions, which is the correct fail-closed outcome.');
   w('UPDATE public.users u');
   w('   SET job_title_id = jt.id');
-  w('  FROM legacy_user_roles l');
+  w('  FROM public._rbac_legacy_user_roles l');
   w('  JOIN public.job_titles jt');
   w("    ON regexp_replace(lower(jt.name), '[^a-z0-9]', '', 'g')");
   w("     = regexp_replace(lower(l.role_name),  '[^a-z0-9]', '', 'g')");
   w(' WHERE u.id = l.user_id');
   w('   AND u.job_title_id IS NULL;');
+  w();
+  w('DROP TABLE IF EXISTS public._rbac_legacy_user_roles;');
   w();
   w('-- Keep department in step with the assigned title.');
   w('UPDATE public.users u');
