@@ -19,10 +19,23 @@ export {
 const STATUS_OPTION_IDS: StatusChangeOption[] = ['Dirty', 'InProgress', 'Cleaned', 'Inspected'];
 
 /**
- * Figma 2365:49 — the status list is 443.473 tall. AllRoomsScreen imports this
- * to decide how far to scroll so the card isn't clipped.
+ * How tall the status sheet actually renders, in design px.
+ *
+ * This is a *placement* estimate, not a size — the card is content-sized. It
+ * decides whether the popover opens below the pill or flips above it, and
+ * AllRoomsScreen imports it to work out how far to scroll. Both go wrong if it
+ * lies, so it is measured from the running app rather than taken from the file:
+ * 321pt on a 402pt-wide device is 351 design px.
+ *
+ * The frame draws 430 (path y=83.57 to y=513.57 — the 443.473 this used to be
+ * was the `Union` bbox, which includes the tail). Ours is shorter because the
+ * internal rhythm is tighter than the design's: the frame spaces its rows ~29px
+ * apart against our 16, and pads 33.5/34.5 top and bottom against our 24.
+ * Adopting those would land back on ~430, but it also makes the sheet 79px
+ * taller, which on this screen leaves too little room for the card it points
+ * at.
  */
-export const STATUS_MODAL_HEIGHT = 443.473;
+export const STATUS_MODAL_HEIGHT = 351;
 
 /**
  * Roughly how tall the clean checklist stands — Figma 2584:1276 draws 678.968
@@ -63,6 +76,11 @@ interface StatusChangeModalProps {
   buttonPosition?: PopoverAnchor; // Status button position on screen
   showTriangle?: boolean; // Whether to show the triangle pointer (default: true)
   headerHeight?: number; // Header height in design pixels (default: 232, use 217 for AllRoomsScreen)
+  /**
+   * Window y in real px where the blur starts — pass the tapped card's measured
+   * bottom to keep that card sharp, per Figma 406-1783. Forwarded untouched.
+   */
+  blurTop?: number | null;
   /** When provided, shows the Flag room row and calls this when the user toggles it */
   onFlagToggle?: (flagged: boolean) => void;
   /** Optional hooks for the checklist's photo and note rows. */
@@ -83,6 +101,7 @@ export default function StatusChangeModal({
   buttonPosition,
   showTriangle = true,
   headerHeight = 232,
+  blurTop,
   onFlagToggle,
   onAddPhoto,
   onAddNotes,
@@ -119,6 +138,7 @@ export default function StatusChangeModal({
       onClose={handleClose}
       buttonPosition={buttonPosition}
       headerHeight={headerHeight}
+      blurTop={blurTop}
       showTriangle={showTriangle}
       contentHeight={isChecklist ? CLEAN_CHECKLIST_HEIGHT : STATUS_MODAL_HEIGHT}
       clampHeight={isChecklist}

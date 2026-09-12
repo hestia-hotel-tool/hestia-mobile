@@ -126,3 +126,17 @@ export const formatDatesOfStay = (datesOfStay: { from: string; to: string } | un
   return `${formatPart(datesOfStay.from)} - ${formatPart(datesOfStay.to)}`;
 };
 
+/**
+ * The same range with no spaces around the dash: "07/10-15/10".
+ *
+ * What the room card actually shows — Figma 3883:5592 and 3838:1329. The spaced
+ * form is ~8px wider at 14px Helvetica, which is enough to push the occupancy
+ * count off a 402pt-wide card.
+ *
+ * A separate export rather than a change to `formatDatesOfStay`, because that
+ * one also feeds the room-detail guest card and this pass has no design for it.
+ */
+export const formatDatesOfStayCompact = (
+  datesOfStay: { from: string; to: string } | undefined | null
+): string => formatDatesOfStay(datesOfStay).replace(' - ', '-');
+

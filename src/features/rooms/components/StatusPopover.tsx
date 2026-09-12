@@ -25,12 +25,29 @@ const { height: SCREEN_HEIGHT } = Dimensions.get('window');
  */
 export const STATUS_MODAL_WIDTH = 416;
 export const STATUS_MODAL_LEFT = 11;
-/** Gap between the status button and the card when it opens below it. */
-export const STATUS_MODAL_SPACING = 70;
+/**
+ * Gap between the status button and the card when it opens below it.
+ *
+ * The tail occupies the 13.54px directly above the sheet, so the clear space
+ * between the pill and the tail's tip is this minus TAIL_HEIGHT — about 22px
+ * here.
+ *
+ * A deliberate step away from the frame, at the user's request: Figma 406-1783
+ * puts the pill's bottom at y=437 and the tail's tip at y=447.76, only ~10.8px
+ * apart, which reads as the tail touching the button on a real device.
+ */
+export const STATUS_MODAL_SPACING = 36;
 
-/** Figma 866:224 — the speech-bubble tail, a wide rounded triangle. */
-const TAIL_WIDTH = 51.619;
-const TAIL_HEIGHT = 19.984;
+/**
+ * Figma 406-1783 — the speech-bubble tail, a wide rounded triangle.
+ *
+ * Measured from the `Union` shape's own path (bases at x=404.573 and x=442.391,
+ * apex at y=70.04 against a sheet top of y=83.57) rather than the layer's
+ * bounding box, which is inflated by the drop-shadow filter. The old 51.619 x
+ * 19.984 came from that bbox.
+ */
+const TAIL_WIDTH = 37.82;
+const TAIL_HEIGHT = 13.54;
 
 export type PopoverAnchor = { x: number; y: number; width: number; height: number } | null;
 
@@ -39,8 +56,17 @@ export type StatusPopoverProps = {
   onClose: () => void;
   /** The measured status button, in window coordinates. Anchors card and tail. */
   buttonPosition?: PopoverAnchor;
-  /** Screen header height in design px — the strip left unblurred above the card. */
+  /** Screen header height in design px — the popover never opens above this. */
   headerHeight?: number;
+  /**
+   * Window y, in real px, where the blur starts. Everything above it stays
+   * sharp.
+   *
+   * The design keeps the tapped card crisp and blurs only from its bottom edge
+   * down (Figma 406-1783), so callers pass the card's measured bottom. Omitted,
+   * the blur falls back to starting below the screen header.
+   */
+  blurTop?: number | null;
   showTriangle?: boolean;
   /**
    * Card height in design px. Only drives placement — whether the card opens
@@ -82,6 +108,7 @@ export default function StatusPopover({
   onClose,
   buttonPosition,
   headerHeight = 232,
+  blurTop,
   showTriangle = true,
   contentHeight,
   clampHeight = false,
@@ -120,6 +147,19 @@ export default function StatusPopover({
   /** The tallest the card may be here, so a long checklist scrolls instead of clipping. */
   const maxCardHeight = SCREEN_HEIGHT - HEADER_HEIGHT - insets.bottom - 24 * scaleX;
 
+  /**
+   * Where the blur begins. The popover is *not* positioned relative to this.
+   *
+   * It used to be: the card was a child of the backdrop, so every offset was
+   * backdrop-relative and the blur's origin and the card's origin were the same
+   * number. That cannot express the design, where the sheet's top (y=461) sits
+   * *above* the card's bottom (y=545) where the blur starts — the popover
+   * deliberately overlaps the card it belongs to. So the two are now
+   * independent: the blur is a sibling with its own `top`, and everything below
+   * is in plain window coordinates.
+   */
+  const blurRegionTop = blurTop != null && blurTop > 0 ? blurTop : HEADER_HEIGHT;
+
   let modalTopPosition: number;
   let modalLeft: number;
   let triangleLeft: number;
@@ -127,47 +167,49 @@ export default function StatusPopover({
   const triangleBottomOffset = modalHeight - 1 * scaleX;
   let trianglePlacement: 'top' | 'bottom' = 'top';
 
+  // Never let the card ride up under the screen header.
+  const minTop = HEADER_HEIGHT;
+
   if (showTriangle && buttonPosition) {
-    // buttonPosition.y is the top of the button from the window top. The card is
-    // positioned inside the backdrop, which starts HEADER_HEIGHT down, so the
-    // button has to be converted into backdrop-relative coordinates first.
     const spacing = STATUS_MODAL_SPACING * scaleX;
-    const buttonTopRelative = buttonPosition.y - HEADER_HEIGHT;
-    const buttonBottomRelative = buttonTopRelative + buttonPosition.height;
+    const buttonBottom = buttonPosition.y + buttonPosition.height;
 
     // Prefer opening below; if it would overflow, flip above.
-    const desiredBelowTop = buttonBottomRelative + spacing;
-    const desiredAboveTop = buttonTopRelative - spacing - modalHeight;
-    const maxTop = Math.max(
-      0,
-      SCREEN_HEIGHT - HEADER_HEIGHT - modalHeight - insets.bottom - 12 * scaleX
-    );
+    const desiredBelowTop = buttonBottom + spacing;
+    const desiredAboveTop = buttonPosition.y - spacing - modalHeight;
+    const maxTop = Math.max(minTop, SCREEN_HEIGHT - modalHeight - insets.bottom - 12 * scaleX);
 
     if (desiredBelowTop <= maxTop) {
       modalTopPosition = desiredBelowTop;
       trianglePlacement = 'top';
-    } else if (desiredAboveTop >= 0) {
+    } else if (desiredAboveTop >= minTop) {
       modalTopPosition = desiredAboveTop;
       trianglePlacement = 'bottom';
     } else {
-      modalTopPosition = Math.min(Math.max(0, desiredBelowTop), maxTop);
+      modalTopPosition = Math.min(Math.max(minTop, desiredBelowTop), maxTop);
       trianglePlacement = 'top';
     }
 
     modalLeft = STATUS_MODAL_LEFT * scaleX;
 
-    // Tail centred on the button, in design px here and scaled again in the style.
+    // Tail centred on the button. One real-px value now — it used to be divided
+    // by scaleX here and multiplied again in the style, a round trip that was
+    // only ever correct by accident.
     const buttonCenterX = buttonPosition.x + buttonPosition.width / 2;
-    const tailHalfWidth = (TAIL_WIDTH / 2) * scaleX;
-    triangleLeft = (buttonCenterX - modalLeft - tailHalfWidth) / scaleX;
+    const rawTailLeft = buttonCenterX - modalLeft - (TAIL_WIDTH / 2) * scaleX;
+    // Keep it on the card: the card is horizontally fixed, so a pill near
+    // either screen edge would otherwise push the tail off the corner radius.
+    const tailInset = 12 * scaleX;
+    const maxTailLeft = (STATUS_MODAL_WIDTH - TAIL_WIDTH) * scaleX - tailInset;
+    triangleLeft = Math.min(Math.max(tailInset, rawTailLeft), Math.max(tailInset, maxTailLeft));
   } else {
     // Flush against the bottom of the header.
     modalLeft = STATUS_MODAL_LEFT * scaleX;
-    modalTopPosition = 0;
+    modalTopPosition = minTop;
     triangleLeft = 0;
   }
 
-  modalTopPosition = Math.max(0, modalTopPosition);
+  modalTopPosition = Math.max(minTop, modalTopPosition);
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -183,67 +225,83 @@ export default function StatusPopover({
       statusBarTranslucent={Platform.OS === 'android'}
     >
       <Animated.View style={{ flex: 1, opacity: opacityAnim }}>
-        {/* Header area — left unblurred */}
-        <View style={[styles.headerArea, { height: HEADER_HEIGHT }]} />
+        {/* The sharp region: the screen header, the list above the tapped card,
+            and the card itself. Nothing is drawn over it — it only has to stay
+            crisp and still dismiss on tap, the way FilterModalOverlay's own
+            strip above `blurTop` does. */}
+        <Pressable
+          style={[styles.sharpRegion, { height: blurRegionTop }]}
+          onPress={() => dismiss()}
+          accessibilityRole="button"
+          accessibilityLabel="Close status options"
+        />
 
         {/* Lighter than the app's usual wash — the card is a menu over content
             the user is still reading, not a lightbox. */}
         <BlurBackdrop
-          top={HEADER_HEIGHT}
+          top={blurRegionTop}
           intensity={20}
           onPress={() => dismiss()}
           accessibilityLabel="Close status options"
-        >
-          <Animated.View
-            style={[
-              styles.modalWrapper,
-              { top: modalTopPosition, left: modalLeft, transform: [{ translateY }] },
-            ]}
-            pointerEvents="box-none"
-          >
-            {showTriangle && (
-              <View
-                style={[
-                  styles.trianglePointer,
-                  {
-                    left: triangleLeft * scaleX,
-                    top: trianglePlacement === 'top' ? triangleTopOffset : triangleBottomOffset,
-                    transform: [{ rotate: trianglePlacement === 'top' ? '0deg' : '180deg' }],
-                  },
-                ]}
-                pointerEvents="none"
-              >
-                <Icon name="action-tooltip-tail" size={TAIL_HEIGHT * scaleX} color="#ffffff" />
-              </View>
-            )}
+        />
 
-            <Pressable
+        {/* A sibling of the blur, not a child: see `blurRegionTop` above. */}
+        <Animated.View
+          style={[
+            styles.modalWrapper,
+            { top: modalTopPosition, left: modalLeft, transform: [{ translateY }] },
+          ]}
+          pointerEvents="box-none"
+        >
+          {showTriangle && (
+            <View
               style={[
-                styles.modalContainer,
-                clampHeight && { maxHeight: maxCardHeight },
-                !showTriangle && styles.modalContainerNoGap,
+                styles.trianglePointer,
+                {
+                  left: triangleLeft,
+                  top: trianglePlacement === 'top' ? triangleTopOffset : triangleBottomOffset,
+                  transform: [{ rotate: trianglePlacement === 'top' ? '0deg' : '180deg' }],
+                },
               ]}
-              onPress={() => {}}
-              onStartShouldSetResponder={() => true}
+              pointerEvents="none"
             >
-              {children(dismiss)}
-            </Pressable>
-          </Animated.View>
-        </BlurBackdrop>
+              {/* Both dimensions pinned. The registered glyph's own aspect is
+                  2.583 against the design tail's 2.793, so deriving the width
+                  from the height would draw it ~3px narrow. */}
+              <Icon
+                name="action-tooltip-tail"
+                width={TAIL_WIDTH * scaleX}
+                height={TAIL_HEIGHT * scaleX}
+                color="#ffffff"
+              />
+            </View>
+          )}
+
+          <Pressable
+            style={[
+              styles.modalContainer,
+              clampHeight && { maxHeight: maxCardHeight },
+              !showTriangle && styles.modalContainerNoGap,
+            ]}
+            onPress={() => {}}
+            onStartShouldSetResponder={() => true}
+          >
+            {children(dismiss)}
+          </Pressable>
+        </Animated.View>
       </Animated.View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
-  headerArea: {
+  sharpRegion: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    // Height is set inline from the headerHeight prop.
+    // Height is set inline — the card's measured bottom, or the header height.
     backgroundColor: 'transparent',
-    zIndex: 1001,
   },
   modalWrapper: {
     position: 'absolute',
@@ -258,9 +316,12 @@ const styles = StyleSheet.create({
   modalContainer: {
     width: '100%',
     backgroundColor: '#ffffff',
-    borderRadius: 12 * scaleX,
-    padding: 20 * scaleX,
-    paddingBottom: 16 * scaleX,
+    // 9, not 12: the sheet path's corner arcs run exactly 9px
+    // (x 477.1 -> 486.1 against y 83.57 -> 92.57).
+    borderRadius: 9 * scaleX,
+    // 24: the title's box starts at x=35 against a sheet left edge of x=11.
+    padding: 24 * scaleX,
+    paddingBottom: 24 * scaleX,
     shadowColor: 'rgba(100, 131, 176, 0.4)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 1,
@@ -271,6 +332,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 0,
     borderTopRightRadius: 0,
     marginTop: 0,
-    paddingTop: 20 * scaleX,
+    paddingTop: 24 * scaleX,
   },
 });

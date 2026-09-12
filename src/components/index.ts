@@ -26,6 +26,8 @@ export type { SegmentedToggleProps, SegmentedOption } from './ui/SegmentedToggle
 export { Avatar } from './ui/Avatar';
 export type { AvatarProps } from './ui/Avatar';
 export { default as SearchInput } from './ui/SearchInput';
+export { SearchAndFilterBar } from './ui/SearchAndFilterBar';
+export type { SearchAndFilterBarProps } from './ui/SearchAndFilterBar';
 export { default as SeeRoomsButton } from './ui/SeeRoomsButton';
 
 // layout

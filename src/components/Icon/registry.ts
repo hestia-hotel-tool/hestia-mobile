@@ -31,6 +31,7 @@ import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
 // guest-status
 import GuestArrival from '@assets/icons/guest-status/guest-arrival.svg';
 import GuestDeparture from '@assets/icons/guest-status/guest-departure.svg';
+import GuestOccupancy from '@assets/icons/guest-status/guest-occupancy.svg';
 import GuestOccupied from '@assets/icons/guest-status/guest-occupied.svg';
 import GuestStayoverLinen from '@assets/icons/guest-status/guest-stayover-linen.svg';
 import GuestStayoverNoLinen from '@assets/icons/guest-status/guest-stayover-no-linen.svg';
@@ -75,6 +76,7 @@ export const icons = {
   // guest-status
   'guest-arrival': GuestArrival,
   'guest-departure': GuestDeparture,
+  'guest-occupancy': GuestOccupancy,
   'guest-occupied': GuestOccupied,
   'guest-stayover-linen': GuestStayoverLinen,
   'guest-stayover-no-linen': GuestStayoverNoLinen,
@@ -126,6 +128,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-tooltip-tail': 2.5831,
   'guest-arrival': 1,
   'guest-departure': 1,
+  'guest-occupancy': 1.0769,
   'guest-occupied': 1,
   'guest-stayover-linen': 1,
   'guest-stayover-no-linen': 1,
@@ -166,6 +169,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-return-later',
   'action-search',
   'action-tooltip-tail',
+  'guest-occupancy',
   'guest-occupied',
   'guest-stayover-linen',
   'guest-stayover-no-linen',

@@ -651,15 +651,16 @@ export default function HomeScreen() {
       categories.push(buildCategory('Departures', 'departures', '#f92424', departureRooms));
       categories.push(buildCategory('Turndown', 'turndown', '#4a91fc', turndownRooms));
     } else {
-      // AM shift: Flagged, Arrivals, Departures, StayOvers — hide Turndown from AM buckets
+      // AM shift: Flagged, Arrivals, StayOvers — Figma 2702:3231, in that order.
+      // Departures is deliberately absent: the design's third card is StayOvers,
+      // so a Departures card here pushed StayOvers below the fold. Turndown is a
+      // PM bucket and is filtered out of the AM room set entirely.
       rooms = rooms.filter((r) => r.frontOfficeStatus !== 'Turndown');
       const flaggedRooms = rooms.filter((r) => !!r.flagged);
       const arrivalRooms = rooms.filter((r) => r.frontOfficeStatus === 'Arrival' || r.frontOfficeStatus === 'Arrival/Departure');
-      const departureRooms = rooms.filter((r) => r.frontOfficeStatus === 'Departure' || r.frontOfficeStatus === 'Arrival/Departure');
       const stayOverRooms = rooms.filter((r) => r.frontOfficeStatus === 'Stayover');
       categories.push(buildCategory('Flagged', 'flagged', '#6e1eee', flaggedRooms));
       categories.push(buildCategory('Arrivals', 'arrivals', '#41d541', arrivalRooms));
-      categories.push(buildCategory('Departures', 'departures', '#f92424', departureRooms));
       categories.push(buildCategory('StayOvers', 'stayovers', '#8d908d', stayOverRooms));
     }
 

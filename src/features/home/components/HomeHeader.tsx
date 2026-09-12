@@ -39,9 +39,12 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
 
   return (
     <View
-      // gap-2xl, not gap-lg: node 2702:3468 hangs a country flag off the
-      // avatar's bottom-right, so the design leaves 25px before the name.
-      className="w-full flex-row items-center gap-2xl bg-surface-dashboard px-xl pb-xl"
+      // gap-lg, not the design's 25px. That reserve exists because node
+      // 2702:3468 hangs a country flag off the avatar's bottom-right — but
+      // `Avatar` draws no flag, so the space was being held for something
+      // nothing renders, at the cost of 8pt off the title column. Restore
+      // `gap-2xl` if the flag is ever implemented.
+      className="w-full flex-row items-center gap-lg bg-surface-dashboard px-xl pb-xl"
       // Status bar height is a runtime value, so it stays a style.
       style={{ paddingTop: insets.top + 12 }}
     >
@@ -55,10 +58,17 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
           {name ?? 'Staff'}
         </Text>
         {!!role && (
-          <Text
-            className="font-hestia-primary text-hestia-md text-ink-primary"
-            numberOfLines={1}
-          >
+          // One line, at 12px rather than the design's 14px.
+          //
+          // The design draws "Executive Housekeeper" at 14px on a 440pt frame.
+          // This column is ~142pt on a 402pt device — 40pt of the frame goes to
+          // the narrower screen — and 14px clipped the title to "Executive
+          // Housekee...". 12px fits it, and fits "Housekeeping Manager" too.
+          //
+          // "Assistant Housekeeping Manager" still ellipsizes: at ~30
+          // characters it needs about 9px on one line here, which is past
+          // legible. Ellipsis beats both a wrap and unreadable text.
+          <Text className="font-hestia-primary text-hestia-sm text-ink-primary" numberOfLines={1}>
             {role}
           </Text>
         )}

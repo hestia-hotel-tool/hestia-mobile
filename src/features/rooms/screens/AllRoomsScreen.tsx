@@ -12,7 +12,10 @@ import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { RoomCardData, StatusChangeOption, mapStatusOptionToRoomStatus, isRoomPaused } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
+import { RoomsHeader } from '../components/allRooms/RoomsHeader';
+import { useUser } from '@features/account';
 import RoomCard from '../components/allRooms/RoomCard';
+import { RoomListCard } from '../components/roomsList';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import StatusChangeModal, { STATUS_MODAL_HEIGHT, STATUS_MODAL_SPACING } from '../components/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
@@ -28,7 +31,6 @@ import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
 } from '../services/rooms';
-import { BlurView } from 'expo-blur';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategoryName } from '@features/home';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
@@ -44,6 +46,7 @@ import GroupedRoomsList from '../components/allRooms/GroupedRoomsList';
 import { usePermissions } from '@/domain/rbac';
 import { findBlockingInProgressRoom } from '../utils/attendantRules';
 import { useMessageModal } from '@/contexts/MessageModalContext';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** When user taps a status badge or priority badge on Home. */
 export type CategoryFilterParam = {
@@ -62,6 +65,7 @@ export default function AllRoomsScreen() {
   const userProfile = useUserStore((s) => s.profile);
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const messageModal = useMessageModal();
+  const insets = useSafeAreaInsets();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
   const initialShift = routeShift || getShiftFromTime();
@@ -113,6 +117,60 @@ export default function AllRoomsScreen() {
    * above them, only their day differs.
    */
   const { roomsVariant } = usePermissions();
+  const { user: profile } = useUser();
+  /**
+   * Supervisors and housekeeping leadership get the profile header — Figma
+   * 3883:5570 / 3838:1117. It has no back arrow and no "All Rooms" title, and
+   * it sits in the flex flow, so the list needs no top padding. The other
+   * variants stay on the legacy absolute header until their own design pass.
+   */
+  const useProfileHeader = roomsVariant === 'supervisor';
+  const [profileHeaderHeight, setProfileHeaderHeight] = useState<number | null>(null);
+  /**
+   * Both status modals take `headerHeight` in *design* pixels and multiply it by
+   * `scaleX` themselves, so a measured real-px height has to be divided back out
+   * or the modals shrink by the scale factor. Dividing here keeps the modals
+   * untouched; removing their internal `* scaleX` is the tidier fix and is
+   * tracked with the rest of the scaleX removal.
+   */
+  const modalHeaderHeight =
+    useProfileHeader && profileHeaderHeight != null ? profileHeaderHeight / scaleX : 217;
+  /**
+   * Window y where the status popover's blur begins — the tapped card's bottom
+   * edge, so that card stays sharp (Figma 406-1783). Null until measured, which
+   * makes the popover fall back to blurring from below the screen header.
+   */
+  const statusBlurTop =
+    selectedCardTop > 0 && selectedCardHeight > 0 ? selectedCardTop + selectedCardHeight : null;
+  /*
+   * Measure the tapped card when the popover opens, not when the pill is
+   * pressed.
+   *
+   * `handleStatusPress` may scroll the list first to make room for the popover,
+   * and that moves the card — but every one of its branches only flips
+   * `showStatusModal` once the scroll has settled and the pill has been
+   * re-measured. Hanging off that flag therefore measures the card in its final
+   * position, in one place, instead of at all eight call sites.
+   */
+  React.useEffect(() => {
+    if (!showStatusModal || !selectedRoomForStatusChange) {
+      setSelectedCardTop(0);
+      setSelectedCardHeight(0);
+      return;
+    }
+    const cardRef = cardRefs.current[selectedRoomForStatusChange.id];
+    if (!cardRef?.measureInWindow) return;
+    cardRef.measureInWindow((_x: number, y: number, _w: number, height: number) => {
+      // Android returns zeros for a view it has collapsed out of the native
+      // tree; leaving the state at 0 falls the popover back to a header-anchored
+      // blur rather than putting the seam in the wrong place.
+      if (typeof y === 'number' && !Number.isNaN(y) && height > 0) {
+        setSelectedCardTop(y);
+        setSelectedCardHeight(height);
+      }
+    });
+  }, [showStatusModal, selectedRoomForStatusChange]);
+
   /** Banded by housekeeping status with In Progress pinned — Figma 3838:1117 / 3838:1623. */
   const isGroupedRooms = roomsVariant !== 'default';
   const isAttendant = roomsVariant === 'attendant';
@@ -419,137 +477,135 @@ export default function AllRoomsScreen() {
     navigation.navigate('room/[roomId]', { room, roomType, roomId: room.id } as any);
   };
 
+  /**
+   * The room whose pill was tapped, held for one layout pass before the popover
+   * opens.
+   *
+   * Tapping hides the "Rooms" title, which shortens the header and reflows the
+   * list beneath it. Measuring the pill inside the tap handler — as this used
+   * to — read a position the card no longer occupied by the time the popover
+   * drew, so the tail pointed at empty space. Staging the room here lets the
+   * reflow land first; the effect below measures once the layout has settled.
+   */
+  const [pendingStatusRoom, setPendingStatusRoom] = useState<RoomCardData | null>(null);
+
   const handleStatusPress = (room: RoomCardData) => {
-    // Store current scroll position before any changes
+    setPendingStatusRoom(room);
+  };
+
+  React.useEffect(() => {
+    if (!pendingStatusRoom) return;
+    const room = pendingStatusRoom;
     const savedScrollY = currentScrollYRef.current;
-    
-    // Measure status button position
-    const statusButtonRef = statusButtonRefs.current[room.id];
-    if (statusButtonRef) {
-      statusButtonRef.measureInWindow((x: number, y: number, width: number, height: number) => {
-        const buttonBottom = y + height;
-        // Imported from StatusChangeModal so these can't drift apart again.
-        const spacing = STATUS_MODAL_SPACING * scaleX;
-        const modalHeight = STATUS_MODAL_HEIGHT * scaleX;
-        const modalTop = buttonBottom + spacing;
-        const modalBottom = modalTop + modalHeight;
-        const marginFromBottom = 20 * scaleX; // Desired margin from bottom nav
-        const maxModalBottom = SCREEN_HEIGHT - BOTTOM_NAV_HEIGHT - marginFromBottom;
-        
-        // Check if modal would be cut off at the bottom
-        const wouldBeCutOff = modalBottom > maxModalBottom;
-        
-        // Store room and position
-        const roomData = room;
-        const initialPosition = { x, y, width, height };
-        
-        if (wouldBeCutOff && scrollViewRef.current) {
-          // Calculate how much we need to scroll up
-          // We want modal bottom to be at maxModalBottom
-          const desiredModalBottom = maxModalBottom;
-          const desiredModalTop = desiredModalBottom - modalHeight;
-          const desiredButtonBottom = desiredModalTop - spacing;
-          const desiredButtonTop = desiredButtonBottom - height;
-          
-          // Calculate how much the button needs to move up
-          const buttonMoveUp = y - desiredButtonTop;
-          
-          if (buttonMoveUp > 0) {
-            // Store original scroll position
-            setOriginalScrollY(savedScrollY);
-            
-            // Calculate new scroll position (scroll up by the amount button needs to move)
-            const newScrollY = Math.max(0, savedScrollY + buttonMoveUp);
-            
-            // Scroll up to make room for modal
-            scrollViewRef.current?.scrollTo({
-              y: newScrollY,
-              animated: true,
-            });
-            
-            // Wait for scroll to complete, then measure button again and show modal
-            setTimeout(() => {
-              const buttonRefAfterScroll = statusButtonRefs.current[roomData.id];
-              if (buttonRefAfterScroll) {
-                try {
-                  buttonRefAfterScroll.measureInWindow((x2: number, y2: number, width2: number, height2: number) => {
-                    if (x2 !== undefined && y2 !== undefined && !isNaN(x2) && !isNaN(y2)) {
-                      setStatusButtonPosition({ x: x2, y: y2, width: width2, height: height2 });
-                      setSelectedRoomForStatusChange(roomData);
-                      setShowStatusModal(true);
-                    } else {
-                      // Fallback: use original position
-                      setStatusButtonPosition(initialPosition);
-                      setSelectedRoomForStatusChange(roomData);
-                      setShowStatusModal(true);
-                    }
-                  });
-                } catch (error) {
-                  console.log('Error measuring button after scroll:', error);
-                  setStatusButtonPosition(initialPosition);
-                  setSelectedRoomForStatusChange(roomData);
-                  setShowStatusModal(true);
-                }
-              } else {
-                setStatusButtonPosition(initialPosition);
-                setSelectedRoomForStatusChange(roomData);
-                setShowStatusModal(true);
-              }
-            }, 400);
-          } else {
-            // No scroll needed
-            setOriginalScrollY(0);
-            setStatusButtonPosition(initialPosition);
-            setSelectedRoomForStatusChange(roomData);
-            setShowStatusModal(true);
-          }
-        } else {
-          // Modal fits, no scroll needed
-          setOriginalScrollY(0);
-          setStatusButtonPosition(initialPosition);
-          setSelectedRoomForStatusChange(roomData);
-          setShowStatusModal(true);
+    let cancelled = false;
+
+    /** A ref's window rect, or null when it cannot be measured. */
+    const measure = (ref: any): Promise<{ x: number; y: number; width: number; height: number } | null> =>
+      new Promise((resolve) => {
+        if (!ref?.measureInWindow) {
+          resolve(null);
+          return;
+        }
+        try {
+          ref.measureInWindow((x: number, y: number, width: number, height: number) => {
+            const bad = [x, y, width, height].some(
+              (v) => typeof v !== 'number' || Number.isNaN(v)
+            );
+            // Android reports zeros for a view it has collapsed out of the
+            // native tree; treat that as unmeasurable rather than as the origin.
+            resolve(bad || height <= 0 ? null : { x, y, width, height });
+          });
+        } catch {
+          resolve(null);
         }
       });
-    } else {
-      // Fallback: use card position if button ref not available
-      const cardRef = cardRefs.current[room.id];
-      if (cardRef) {
-        cardRef.measureInWindow((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-          // Estimate button position from card position
-          const isArrivalDeparture = room.frontOfficeStatus === 'Arrival/Departure';
-          let buttonLeft: number;
-          let buttonTop: number;
-          if (isArrivalDeparture) {
-            buttonLeft = 255;
-            buttonTop = 114;
-          } else if (room.notes) {
-            buttonLeft = 256;
-            buttonTop = 74;
-          } else if (room.frontOfficeStatus === 'Departure') {
-            buttonLeft = 262;
-            buttonTop = 81;
-          } else {
-            buttonLeft = 270;
-            buttonTop = 87;
-          }
-          const buttonX = pageX + buttonLeft * scaleX;
-          const buttonY = pageY + buttonTop * scaleX;
-          setStatusButtonPosition({ 
-            x: buttonX, 
-            y: buttonY, 
-            width: 134 * scaleX, 
-            height: 70 * scaleX 
-          });
-          setSelectedRoomForStatusChange(room);
-          setShowStatusModal(true);
-        });
-      } else {
-        setSelectedRoomForStatusChange(room);
-        setShowStatusModal(true);
+
+    /** Two frames: one for the title to unmount, one for the list to settle. */
+    const afterLayout = () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+      );
+
+    const open = (anchor: { x: number; y: number; width: number; height: number } | null) => {
+      if (cancelled) return;
+      setStatusButtonPosition(anchor);
+      setSelectedRoomForStatusChange(room);
+      setShowStatusModal(true);
+      setPendingStatusRoom(null);
+    };
+
+    const run = async () => {
+      await afterLayout();
+      if (cancelled) return;
+
+      const pill = await measure(statusButtonRefs.current[room.id]);
+      if (cancelled) return;
+      if (!pill) {
+        // No anchor: the popover falls back to sitting flush under the header.
+        setOriginalScrollY(0);
+        open(null);
+        return;
       }
-    }
-  };
+
+      const spacing = STATUS_MODAL_SPACING * scaleX;
+      const modalHeight = STATUS_MODAL_HEIGHT * scaleX;
+      /*
+       * The same bound StatusPopover clamps to, so the screen's prediction and
+       * the popover's placement cannot disagree. They used to: this side
+       * reserved the bottom nav plus 20, the popover only the safe area plus 12.
+       */
+      const maxModalBottom = SCREEN_HEIGHT - insets.bottom - 12 * scaleX;
+      const overflow = pill.y + pill.height + spacing + modalHeight - maxModalBottom;
+
+      if (overflow <= 0 || !scrollViewRef.current) {
+        setOriginalScrollY(0);
+        open(pill);
+        return;
+      }
+
+      /*
+       * Scroll up so the popover fits, but never so far that the card it points
+       * at leaves the viewport — the blur seam is anchored to that card's bottom
+       * edge, and a card behind the header would put the seam above the list.
+       */
+      const headerBottom =
+        useProfileHeader && profileHeaderHeight != null ? profileHeaderHeight : 0;
+      const card = await measure(cardRefs.current[room.id]);
+      if (cancelled) return;
+      const cardBottom = card ? card.y + card.height : pill.y + pill.height;
+      const maxMoveUp = Math.max(0, cardBottom - headerBottom);
+      const moveUp = Math.min(overflow, maxMoveUp);
+
+      if (moveUp <= 0) {
+        setOriginalScrollY(0);
+        open(pill);
+        return;
+      }
+
+      setOriginalScrollY(savedScrollY);
+      scrollViewRef.current.scrollTo({ y: Math.max(0, savedScrollY + moveUp), animated: true });
+
+      // No scroll-end callback on a plain ScrollView, so wait out the animation
+      // and re-measure; the pre-scroll rect is the fallback.
+      await new Promise<void>((resolve) => setTimeout(resolve, 350));
+      if (cancelled) return;
+      const settled = await measure(statusButtonRefs.current[room.id]);
+      if (cancelled) return;
+      open(settled ?? pill);
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    pendingStatusRoom,
+    scaleX,
+    SCREEN_HEIGHT,
+    insets.bottom,
+    useProfileHeader,
+    profileHeaderHeight,
+  ]);
 
   const handleStatusSelect = async (statusOption: StatusChangeOption, roomOverride?: RoomCardData | null) => {
     const roomToUpdate = roomOverride ?? selectedRoomForStatusChange;
@@ -791,17 +847,54 @@ export default function AllRoomsScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
+        {useProfileHeader && !showFilterModal && (
+          <View onLayout={(e) => setProfileHeaderHeight(e.nativeEvent.layout.height)}>
+            <RoomsHeader
+              name={profile?.name}
+              role={profile?.role}
+              avatarUrl={profile?.avatar}
+              shift={displayData.selectedShift}
+              onShiftChange={handleShiftToggle}
+              searchQuery={searchQuery}
+              onSearch={handleSearch}
+              onFilterPress={handleFilterPress}
+              progress={attendantProgress}
+              titleHidden={pendingStatusRoom != null || showStatusModal || showInspectedModal}
+            />
+          </View>
+        )}
+
         {/* Scrollable Content with conditional blur */}
-        <View style={styles.scrollContainer}>
+        <View
+          style={[
+            styles.scrollContainer,
+            // The list must be clipped once the header is a real sibling above
+            // it. `scrollContainer` carries `overflow: 'visible'`, which was
+            // there because the legacy header was absolutely positioned *over*
+            // the list — with the header in the flow, the same rule let list
+            // content paint upward across it, so a card overlapped the profile
+            // band and the "Rooms" title landed on top of a band heading.
+            useProfileHeader && styles.scrollContainerClipped,
+          ]}
+        >
           {(() => {
             // Shared by both variants so scroll tracking, the refresh control
             // and the modal scroll-lock cannot drift between them.
             const scrollProps = {
               style: styles.scrollView,
-              contentContainerStyle: styles.scrollContent,
+              contentContainerStyle: [
+                styles.scrollContent,
+                // The in-flow header already occupies this space.
+                useProfileHeader && styles.scrollContentInFlowHeader,
+              ],
               showsVerticalScrollIndicator: false,
               scrollEnabled: !showStatusModal,
-              contentInsetAdjustmentBehavior: 'automatic' as const,
+              // 'never' with the header in the flow: the header owns the
+              // safe area (HomeHeader pads by insets.top), so letting iOS
+              // adjust the list as well inset it twice.
+              contentInsetAdjustmentBehavior: (useProfileHeader
+                ? 'never'
+                : 'automatic') as 'never' | 'automatic',
               keyboardShouldPersistTaps: 'handled' as const,
               onScroll: (event: any) => {
                 currentScrollYRef.current = event.nativeEvent.contentOffset.y;
@@ -812,28 +905,45 @@ export default function AllRoomsScreen() {
               ),
             };
 
-            const renderRoomCard = (room: RoomCardData) => (
-              <RoomCard
-                key={room.id}
-                ref={(ref) => {
-                  if (ref) {
-                    cardRefs.current[room.id] = ref;
-                  }
-                }}
-                room={room}
-                onPress={() => handleRoomPress(room)}
-                onStatusPress={() => handleStatusPress(room)}
-                onAssignStaffPress={handleAssignStaffPress}
-                statusButtonRef={(ref) => {
-                  if (ref) {
-                    statusButtonRefs.current[room.id] = ref;
-                  }
-                }}
-                selectedShift={displayData.selectedShift}
-                isChangingStatus={changingStatusRoomId === room.id}
-                isAssigningStaff={assigningStaffRoomId === room.id}
-              />
-            );
+            const renderRoomCard = (room: RoomCardData) =>
+              useProfileHeader ? (
+                <View key={room.id} style={styles.roomCardSlot}>
+                  <RoomListCard
+                    room={room}
+                    onPress={() => handleRoomPress(room)}
+                    onStatusPress={() => handleStatusPress(room)}
+                    onAssignPress={() => handleAssignStaffPress(room)}
+                    isChangingStatus={changingStatusRoomId === room.id}
+                    measureRef={(ref) => {
+                      if (ref) cardRefs.current[room.id] = ref;
+                    }}
+                    statusPillRef={(ref) => {
+                      if (ref) statusButtonRefs.current[room.id] = ref;
+                    }}
+                  />
+                </View>
+              ) : (
+                <RoomCard
+                  key={room.id}
+                  ref={(ref) => {
+                    if (ref) {
+                      cardRefs.current[room.id] = ref;
+                    }
+                  }}
+                  room={room}
+                  onPress={() => handleRoomPress(room)}
+                  onStatusPress={() => handleStatusPress(room)}
+                  onAssignStaffPress={handleAssignStaffPress}
+                  statusButtonRef={(ref) => {
+                    if (ref) {
+                      statusButtonRefs.current[room.id] = ref;
+                    }
+                  }}
+                  selectedShift={displayData.selectedShift}
+                  isChangingStatus={changingStatusRoomId === room.id}
+                  isAssigningStaff={assigningStaffRoomId === room.id}
+                />
+              );
 
             const emptyState = (
               <View style={styles.emptyStateCard}>
@@ -875,33 +985,28 @@ export default function AllRoomsScreen() {
               </ScrollView>
             );
           })()}
-        
-        {/* Blur Overlay for Status Modal - starts from bottom of target card, covers everything below including tabs */}
-        {showStatusModal && selectedCardTop > 0 && (
-          <BlurView 
-            intensity={80} 
-            style={[
-              styles.statusModalBlurOverlay,
-              { top: selectedCardTop + selectedCardHeight }
-            ]} 
-            tint="light"
-          >
-            <View style={styles.blurOverlayDarkener} />
-          </BlurView>
-        )}
+        {/* The status modal's blur is drawn by StatusPopover, anchored at
+            `statusBlurTop`. A second copy used to be sketched here, gated on
+            `selectedCardTop > 0` while nothing ever set it — so it never
+            rendered once. The measurement it wanted now lives in the effect
+            above and is passed down instead. */}
         </View>
 
-        {/* Header - Fixed at top (no blur) */}
-        <AllRoomsHeader
-          selectedShift={displayData.selectedShift}
-          onShiftToggle={handleShiftToggle}
-          onSearch={handleSearch}
-          searchQuery={searchQuery}
-          onFilterPress={handleFilterPress}
-          onBackPress={handleBackPress}
-          showFilterModal={showFilterModal}
-          progress={attendantProgress}
-        />
+        {/* Header. The legacy one is absolute and painted last so it sits over
+            the list; the profile header is a normal flex child, rendered above
+            the list further up this tree. */}
+        {!useProfileHeader && (
+          <AllRoomsHeader
+            selectedShift={displayData.selectedShift}
+            onShiftToggle={handleShiftToggle}
+            onSearch={handleSearch}
+            searchQuery={searchQuery}
+            onFilterPress={handleFilterPress}
+            onBackPress={handleBackPress}
+            showFilterModal={showFilterModal}
+            progress={attendantProgress}
+          />
+        )}
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
@@ -937,7 +1042,8 @@ export default function AllRoomsScreen() {
         currentStatus={selectedRoomForStatusChange?.houseKeepingStatus || 'InProgress'}
         room={selectedRoomForStatusChange || undefined}
         buttonPosition={statusButtonPosition}
-        headerHeight={217} // AllRoomsScreen header height
+        headerHeight={modalHeaderHeight}
+        blurTop={statusBlurTop}
         onFlagToggle={(flagged) => {
           if (selectedRoomForStatusChange) {
             setSelectedRoomForStatusChange((prev) => (prev ? { ...prev, flagged } : null));
@@ -982,7 +1088,7 @@ export default function AllRoomsScreen() {
           }
         }}
         buttonPosition={buttonPositionForInspection}
-        headerHeight={217}
+        headerHeight={modalHeaderHeight}
         showTriangle={true}
       />
 
@@ -1040,24 +1146,18 @@ function buildAllRoomsStyles(scaleX: number) {
     paddingBottom: 152 * scaleX + 20 * scaleX, // Bottom nav height + extra padding
     overflow: 'visible', // Allow content to overflow on iOS
   },
-  contentBlurOverlay: {
-    position: 'absolute',
-    top: 217 * scaleX, // Start below header
-    left: 0,
-    right: 0,
-    bottom: 152 * scaleX, // Stop above bottom nav
-    zIndex: 1,
+  scrollContentInFlowHeader: {
+    paddingTop: 0,
   },
-  statusModalBlurOverlay: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0, // Extends to bottom of screen, covering tabs
-    zIndex: 1,
+  scrollContainerClipped: {
+    overflow: 'hidden',
   },
-  blurOverlayDarkener: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(200, 200, 200, 0.6)',
+  roomCardSlot: {
+    // The design insets cards 9px and stacks them 16px apart. The card this
+    // replaces carried its own marginHorizontal/marginBottom; the new one is
+    // `w-full` and lets the list own the gutter.
+    paddingHorizontal: 9,
+    paddingBottom: 16,
   },
   emptyStateCard: {
     width: CARD_DIMENSIONS.width * scaleX,

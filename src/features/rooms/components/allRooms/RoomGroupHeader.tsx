@@ -1,12 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View as RNView, Text as RNText, StyleSheet } from 'react-native';
+import { View, Text } from '@/tw';
 import { typography } from '@/theme';
 import { Icon, type IconName } from '@/components/Icon';
 import { scaleX } from '../../constants/allRoomsStyles';
-
-/** Figma 3838:1510 — centred label over a hairline rule spanning the list. */
-const RULE_INSET = 29;
-const LABEL_SIZE = 18;
 
 /** Figma 3838:1575 — the pinned band's coloured cap. */
 const STRIP_HEIGHT = 73;
@@ -20,16 +17,31 @@ export type RoomGroupHeaderProps = {
 };
 
 /**
- * A plain band heading — Priority, Dirty, Cleaned, Inspected, Paused.
+ * A plain band heading — Paused, In Progress, Priority, Dirty, Cleaned,
+ * Inspected. Figma 3883:5953 (Paused) and 3883:5968 (Inspected).
  *
- * The label carries the band's colour; the rule underneath is neutral, so a run
- * of headings reads as one list rather than a stack of coloured blocks.
+ * A hairline, the label, a hairline — the rules flank the label at its own
+ * vertical centre rather than running underneath it, and they take the band's
+ * colour, not a neutral grey. Both were checked against the exported vectors:
+ * the Paused rule strokes #B0C0C6 and the Inspected rule #41D541, each matching
+ * its own label.
+ *
+ * `flex-1` on the rules reproduces the design's asymmetric spans (139/138px
+ * under "Paused", 119/119 under "Cleaned") for free — the label takes its
+ * natural width at any label length and any device width, so the two rules
+ * always balance.
  */
 export function RoomGroupHeader({ label, color }: RoomGroupHeaderProps) {
   return (
-    <View style={styles.plainContainer}>
-      <Text style={[styles.plainLabel, { color }]}>{label}</Text>
-      <View style={styles.rule} />
+    <View className="flex-row items-center gap-2xl px-3xl pb-2xl pt-3xl">
+      <View className="h-px flex-1" style={{ backgroundColor: color }} />
+      <Text
+        className="font-hestia-secondary text-hestia-3xl font-bold"
+        style={{ color }}
+      >
+        {label}
+      </Text>
+      <View className="h-px flex-1" style={{ backgroundColor: color }} />
     </View>
   );
 }
@@ -50,33 +62,16 @@ export type RoomGroupStripProps = {
  */
 export function RoomGroupStrip({ label, color, iconName, iconColor }: RoomGroupStripProps) {
   return (
-    <View style={[styles.strip, { backgroundColor: color }]}>
-      <View style={styles.disc}>
+    <RNView style={[styles.strip, { backgroundColor: color }]}>
+      <RNView style={styles.disc}>
         <Icon name={iconName} size={24 * scaleX} color={iconColor} />
-      </View>
-      <Text style={styles.stripLabel}>{label}</Text>
-    </View>
+      </RNView>
+      <RNText style={styles.stripLabel}>{label}</RNText>
+    </RNView>
   );
 }
 
 const styles = StyleSheet.create({
-  plainContainer: {
-    alignItems: 'center',
-    paddingTop: 20 * scaleX,
-    paddingBottom: 4 * scaleX,
-  },
-  plainLabel: {
-    fontSize: LABEL_SIZE * scaleX,
-    fontFamily: typography.fontFamily.secondary,
-    fontWeight: typography.fontWeights.bold as any,
-    marginBottom: 12 * scaleX,
-  },
-  rule: {
-    height: StyleSheet.hairlineWidth,
-    alignSelf: 'stretch',
-    marginHorizontal: RULE_INSET * scaleX,
-    backgroundColor: '#e3e3e3',
-  },
   strip: {
     flexDirection: 'row',
     alignItems: 'center',

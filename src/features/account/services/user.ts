@@ -12,6 +12,7 @@ import { getMyHotelId } from '@/lib/tenant';
 export type UserProfileRow = {
   full_name?: string;
   avatar_url?: string;
+  job_titles?: { name: string } | null;
   roles?: { name: string } | null;
   departments?: { name: string } | null;
 };
@@ -36,15 +37,28 @@ export async function getProfile(userId: string, sessionFallback: UserProfile): 
   try {
     const { data, error } = await supabase
       .from('users')
-      .select('full_name, avatar_url, roles(name), departments(name)')
+      .select('full_name, avatar_url, job_titles(name), roles(name), departments(name)')
       .eq('id', userId)
       .single();
 
     if (error || !data) return sessionFallback;
-    const row = data as UserProfileRow;
+    // `as unknown` because the generated schema in src/types/supabase.ts predates
+    // users.job_title_id, so it types the job_titles embed as a SelectQueryError.
+    // The relation exists and the query returns the name at runtime; regenerating
+    // the types is tracked separately (it currently breaks typecheck elsewhere).
+    const row = data as unknown as UserProfileRow;
     return {
       name: row.full_name || sessionFallback.name,
-      role: row.roles?.name || row.departments?.name || sessionFallback.role,
+      // The job title is the person's displayed identity — Figma 2702:3231 shows
+      // "Executive Housekeeper", not the department. `users.role_id` is
+      // deprecated and no longer written (see AGENT.md and scripts/seedUsers.js),
+      // so `roles(name)` is always null now and this used to fall through to
+      // `departments(name)`, rendering every housekeeper as plain "Housekeeping".
+      role:
+        row.job_titles?.name ||
+        row.roles?.name ||
+        row.departments?.name ||
+        sessionFallback.role,
       department: row.departments?.name || sessionFallback.department,
       avatar: row.avatar_url ?? sessionFallback.avatar,
       hasFlag: sessionFallback.hasFlag,
