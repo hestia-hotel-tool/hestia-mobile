@@ -26,7 +26,6 @@ import {
   markAllRoomAssignmentNotificationsRead,
 } from '@/lib/inAppNotifications';
 import { notifyServer } from '@/lib/notifications';
-import { useUserStore } from '@features/account/store/useUserStore';
 import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
@@ -35,7 +34,7 @@ import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategoryName } from '@features/home';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
-import { CARD_DIMENSIONS, CARD_COLORS } from '../constants/allRoomsStyles';
+import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
@@ -46,6 +45,8 @@ import GroupedRoomsList from '../components/allRooms/GroupedRoomsList';
 import { usePermissions } from '@/domain/rbac';
 import { findBlockingInProgressRoom } from '../utils/attendantRules';
 import { useMessageModal } from '@/contexts/MessageModalContext';
+import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
+import { ROOMS_LIST_CHROME } from '../constants/roomsListChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** When user taps a status badge or priority badge on Home. */
@@ -62,7 +63,6 @@ type AllRoomsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '
 export default function AllRoomsScreen() {
   const navigation = useNavigation<AllRoomsScreenNavigationProp>();
   const { session } = useAuth();
-  const userProfile = useUserStore((s) => s.profile);
   const { open: openAIChatOverlay } = useAIChatOverlay();
   const messageModal = useMessageModal();
   const insets = useSafeAreaInsets();
@@ -80,22 +80,14 @@ export default function AllRoomsScreen() {
     fetchRooms(initialShift);
   }, [initialShift, fetchRooms]);
 
-  const loadRoomsData = React.useCallback((shift: ShiftType) => { fetchRooms(shift); }, [fetchRooms]);
-
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('Rooms');
-  const [showStatusModal, setShowStatusModal] = useState(false);
   const [showInspectedModal, setShowInspectedModal] = useState(false);
   const [roomForInspection, setRoomForInspection] = useState<RoomCardData | null>(null);
   const [buttonPositionForInspection, setButtonPositionForInspection] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
-  const [selectedRoomForStatusChange, setSelectedRoomForStatusChange] = useState<RoomCardData | null>(null);
   const [roomToAssign, setRoomToAssign] = useState<RoomCardData | null>(null);
   const [showAssignStaffModal, setShowAssignStaffModal] = useState(false);
-  const [selectedCardTop, setSelectedCardTop] = useState<number>(0);
-  const [selectedCardHeight, setSelectedCardHeight] = useState<number>(0);
-  const [statusButtonPosition, setStatusButtonPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [originalScrollY, setOriginalScrollY] = useState<number>(0); // Store original scroll position before modal opens
   const [changingStatusRoomId, setChangingStatusRoomId] = useState<string | null>(null); // Track which room is updating status
   const [assigningStaffRoomId, setAssigningStaffRoomId] = useState<string | null>(null); // Track which room is assigning staff
   const currentScrollYRef = useRef<number>(0); // Track current scroll position
@@ -106,8 +98,6 @@ export default function AllRoomsScreen() {
   const scaleX = windowWidth / DESIGN_WIDTH;
   const styles = useMemo(() => buildAllRoomsStyles(scaleX), [scaleX]);
 
-  // Check if we came from a stack navigation (show back button) or tab navigation (don't show)
-  const showBackButton = (route.params as any)?.showBackButton ?? false;
   const routeFilters = (route.params as any)?.filters as FilterState | undefined;
   const routeCategoryFilter = (route.params as any)?.categoryFilter as CategoryFilterParam | undefined;
   /*
@@ -123,7 +113,8 @@ export default function AllRoomsScreen() {
    * it sits in the flex flow, so the list needs no top padding. The other
    * variants stay on the legacy absolute header until their own design pass.
    */
-  const useProfileHeader = roomsVariant === 'supervisor';
+  const chrome = ROOMS_LIST_CHROME[roomsVariant];
+  const useProfileHeader = chrome.profileHeader;
   const [profileHeaderHeight, setProfileHeaderHeight] = useState<number | null>(null);
   /**
    * Both status modals take `headerHeight` in *design* pixels and multiply it by
@@ -139,40 +130,10 @@ export default function AllRoomsScreen() {
    * edge, so that card stays sharp (Figma 406-1783). Null until measured, which
    * makes the popover fall back to blurring from below the screen header.
    */
-  const statusBlurTop =
-    selectedCardTop > 0 && selectedCardHeight > 0 ? selectedCardTop + selectedCardHeight : null;
-  /*
-   * Measure the tapped card when the popover opens, not when the pill is
-   * pressed.
-   *
-   * `handleStatusPress` may scroll the list first to make room for the popover,
-   * and that moves the card — but every one of its branches only flips
-   * `showStatusModal` once the scroll has settled and the pill has been
-   * re-measured. Hanging off that flag therefore measures the card in its final
-   * position, in one place, instead of at all eight call sites.
-   */
-  React.useEffect(() => {
-    if (!showStatusModal || !selectedRoomForStatusChange) {
-      setSelectedCardTop(0);
-      setSelectedCardHeight(0);
-      return;
-    }
-    const cardRef = cardRefs.current[selectedRoomForStatusChange.id];
-    if (!cardRef?.measureInWindow) return;
-    cardRef.measureInWindow((_x: number, y: number, _w: number, height: number) => {
-      // Android returns zeros for a view it has collapsed out of the native
-      // tree; leaving the state at 0 falls the popover back to a header-anchored
-      // blur rather than putting the seam in the wrong place.
-      if (typeof y === 'number' && !Number.isNaN(y) && height > 0) {
-        setSelectedCardTop(y);
-        setSelectedCardHeight(height);
-      }
-    });
-  }, [showStatusModal, selectedRoomForStatusChange]);
 
   /** Banded by housekeeping status with In Progress pinned — Figma 3838:1117 / 3838:1623. */
-  const isGroupedRooms = roomsVariant !== 'default';
-  const isAttendant = roomsVariant === 'attendant';
+  const isGroupedRooms = chrome.banded;
+  const isAttendant = chrome.assignedOnly;
 
   const prioritizeMyAssignedRooms =
     (route.params as { prioritizeMyAssignedRooms?: boolean } | undefined)?.prioritizeMyAssignedRooms === true;
@@ -451,18 +412,6 @@ export default function AllRoomsScreen() {
     setShowFilterModal(false);
   };
 
-  const handleGoToResults = (appliedFilters: FilterState) => {
-    setLocalFilters(appliedFilters);
-    setShowFilterModal(false);
-    // Filters are already applied via activeFilters, no need to navigate
-  };
-
-
-  const handleAdvanceFilter = () => {
-    // TODO: Navigate to advanced filter screen when implemented
-    console.log('Advanced filter');
-  };
-
   const handleBackPress = () => {
     navigation.goBack();
   };
@@ -486,137 +435,32 @@ export default function AllRoomsScreen() {
    * drew, so the tail pointed at empty space. Staging the room here lets the
    * reflow land first; the effect below measures once the layout has settled.
    */
-  const [pendingStatusRoom, setPendingStatusRoom] = useState<RoomCardData | null>(null);
-
-  /** The popover is opening or open — the card is being lifted for it. */
-  const statusOverlayActive = pendingStatusRoom != null || showStatusModal;
-
-  const handleStatusPress = (room: RoomCardData) => {
-    setPendingStatusRoom(room);
-  };
-
-  React.useEffect(() => {
-    if (!pendingStatusRoom) return;
-    const room = pendingStatusRoom;
-    const savedScrollY = currentScrollYRef.current;
-    let cancelled = false;
-
-    /** A ref's window rect, or null when it cannot be measured. */
-    const measure = (ref: any): Promise<{ x: number; y: number; width: number; height: number } | null> =>
-      new Promise((resolve) => {
-        if (!ref?.measureInWindow) {
-          resolve(null);
-          return;
-        }
-        try {
-          ref.measureInWindow((x: number, y: number, width: number, height: number) => {
-            const bad = [x, y, width, height].some(
-              (v) => typeof v !== 'number' || Number.isNaN(v)
-            );
-            // Android reports zeros for a view it has collapsed out of the
-            // native tree; treat that as unmeasurable rather than as the origin.
-            resolve(bad || height <= 0 ? null : { x, y, width, height });
-          });
-        } catch {
-          resolve(null);
-        }
-      });
-
-    /** Two frames: one for the title to unmount, one for the list to settle. */
-    const afterLayout = () =>
-      new Promise<void>((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
-      );
-
-    const open = (anchor: { x: number; y: number; width: number; height: number } | null) => {
-      if (cancelled) return;
-      setStatusButtonPosition(anchor);
-      setSelectedRoomForStatusChange(room);
-      setShowStatusModal(true);
-      setPendingStatusRoom(null);
-    };
-
-    const run = async () => {
-      await afterLayout();
-      if (cancelled) return;
-
-      const pill = await measure(statusButtonRefs.current[room.id]);
-      if (cancelled) return;
-      if (!pill) {
-        // No anchor: the popover falls back to sitting flush under the header.
-        setOriginalScrollY(0);
-        open(null);
-        return;
-      }
-
-      const spacing = STATUS_MODAL_SPACING * scaleX;
-      const modalHeight = STATUS_MODAL_HEIGHT * scaleX;
-      /*
-       * The same bound StatusPopover clamps to, so the screen's prediction and
-       * the popover's placement cannot disagree. They used to: this side
-       * reserved the bottom nav plus 20, the popover only the safe area plus 12.
-       */
-      const maxModalBottom = SCREEN_HEIGHT - insets.bottom - 12 * scaleX;
-      const overflow = pill.y + pill.height + spacing + modalHeight - maxModalBottom;
-
-      if (overflow <= 0 || !scrollViewRef.current) {
-        setOriginalScrollY(0);
-        open(pill);
-        return;
-      }
-
-      /*
-       * Scroll up as far as the popover needs, and let the card ride over the
-       * search field to get there.
-       *
-       * The card is not clipped while the popover is up (see
-       * `statusOverlayActive`), so it floats above the header instead of being
-       * cut off at it — which is what makes this possible. Capping the scroll at
-       * the card's top instead, to keep it below the header, could not fit a
-       * capped card: an In Progress row wants 129pt of scroll and had only 78pt
-       * of headroom, a 51pt shortfall against the 73px its status cap adds. That
-       * forced the popover to flip above the pill and cover the card's own
-       * header rows.
-       *
-       * The floor stops short of the profile band so the card never reaches the
-       * name or the notch — only the search field it is meant to cover.
-       */
-      const card = await measure(cardRefs.current[room.id]);
-      if (cancelled) return;
-      const cardTop = card ? card.y : pill.y;
-      const floor = insets.top + 96;
-      const maxMoveUp = Math.max(0, cardTop - floor);
-      const moveUp = Math.min(overflow, maxMoveUp);
-
-      if (moveUp <= 0) {
-        setOriginalScrollY(0);
-        open(pill);
-        return;
-      }
-
-      setOriginalScrollY(savedScrollY);
-      scrollViewRef.current.scrollTo({ y: Math.max(0, savedScrollY + moveUp), animated: true });
-
-      // No scroll-end callback on a plain ScrollView, so wait out the animation
-      // and re-measure; the pre-scroll rect is the fallback.
-      await new Promise<void>((resolve) => setTimeout(resolve, 350));
-      if (cancelled) return;
-      const settled = await measure(statusButtonRefs.current[room.id]);
-      if (cancelled) return;
-      open(settled ?? pill);
-    };
-
-    void run();
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    pendingStatusRoom,
+  /**
+   * Placing the status sheet against the pill that opened it.
+   *
+   * All of the measure/scroll/re-measure sequence lives in the hook so every
+   * Rooms variant gets it from one place — see `useStatusPopoverAnchor`.
+   */
+  const statusPopover = useStatusPopoverAnchor({
+    scrollRef: scrollViewRef,
+    cardRefs,
+    pillRefs: statusButtonRefs,
+    scrollOffsetRef: currentScrollYRef,
     scaleX,
-    SCREEN_HEIGHT,
-    insets.bottom,
-    useProfileHeader,
-  ]);
+    screenHeight: SCREEN_HEIGHT,
+    topInset: insets.top,
+    bottomInset: insets.bottom,
+    sheetHeight: STATUS_MODAL_HEIGHT,
+    spacing: STATUS_MODAL_SPACING,
+  });
+
+  // Read under the names the rest of the screen already uses.
+  const showStatusModal = statusPopover.isOpen;
+  const selectedRoomForStatusChange = statusPopover.room;
+  const statusButtonPosition = statusPopover.anchor;
+  const statusBlurTop = statusPopover.blurTop;
+  const statusOverlayActive = statusPopover.overlayActive;
+  const handleStatusPress = statusPopover.open;
 
   const handleStatusSelect = async (statusOption: StatusChangeOption, roomOverride?: RoomCardData | null) => {
     const roomToUpdate = roomOverride ?? selectedRoomForStatusChange;
@@ -630,8 +474,7 @@ export default function AllRoomsScreen() {
     if (isAttendant && newStatus === 'InProgress') {
       const blocking = findBlockingInProgressRoom(assignedRooms, roomToUpdate.id);
       if (blocking) {
-        setShowStatusModal(false);
-        setStatusButtonPosition(null);
+        statusPopover.close();
         messageModal.show({
           title: 'Finish your current room first',
           message: `Room ${blocking.roomNumber} is already in progress. Pause or complete it before starting Room ${roomToUpdate.roomNumber}.`,
@@ -666,8 +509,7 @@ export default function AllRoomsScreen() {
     }
 
     // Reset state
-    setShowStatusModal(false);
-    setSelectedRoomForStatusChange(null);
+    statusPopover.close();
     setShowInspectedModal(false);
     setRoomForInspection(null);
     setButtonPositionForInspection(null);
@@ -870,7 +712,7 @@ export default function AllRoomsScreen() {
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}
               progress={attendantProgress}
-              titleHidden={pendingStatusRoom != null || showStatusModal || showInspectedModal}
+              titleHidden={statusOverlayActive || showInspectedModal}
             />
           </View>
         )}
@@ -926,7 +768,7 @@ export default function AllRoomsScreen() {
             };
 
             const renderRoomCard = (room: RoomCardData) =>
-              useProfileHeader ? (
+              chrome.rebuiltCard ? (
                 <View key={room.id} style={styles.roomCardSlot}>
                   <RoomListCard
                     room={room}
@@ -1035,22 +877,7 @@ export default function AllRoomsScreen() {
       {/* Status Change Modal */}
       <StatusChangeModal
         visible={showStatusModal}
-        onClose={() => {
-          setShowStatusModal(false);
-          setSelectedRoomForStatusChange(null);
-          setStatusButtonPosition(null);
-          
-          // Restore original scroll position if we scrolled
-          if (originalScrollY > 0 && scrollViewRef.current) {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollTo({
-                y: originalScrollY,
-                animated: true,
-              });
-              setOriginalScrollY(0); // Reset after restoring
-            }, 100); // Small delay to ensure modal close animation completes
-          }
-        }}
+        onClose={statusPopover.close}
         onStatusSelect={handleStatusSelect}
         onInspectedSelect={() => {
           if (selectedRoomForStatusChange) {
@@ -1066,7 +893,7 @@ export default function AllRoomsScreen() {
         blurTop={statusBlurTop}
         onFlagToggle={(flagged) => {
           if (selectedRoomForStatusChange) {
-            setSelectedRoomForStatusChange((prev) => (prev ? { ...prev, flagged } : null));
+            statusPopover.patchRoom((current) => ({ ...current, flagged }));
             updateRoom(selectedRoomForStatusChange.id, { flagged }).catch((e) =>
               console.warn('Failed to update room flag in Supabase', e)
             );
@@ -1081,15 +908,7 @@ export default function AllRoomsScreen() {
           setShowInspectedModal(false);
           setRoomForInspection(null);
           setButtonPositionForInspection(null);
-          if (originalScrollY > 0 && scrollViewRef.current) {
-            setTimeout(() => {
-              scrollViewRef.current?.scrollTo({
-                y: originalScrollY,
-                animated: true,
-              });
-              setOriginalScrollY(0);
-            }, 100);
-          }
+          statusPopover.close();
         }}
         onComplete={() => handleStatusSelect('Inspected', roomForInspection)}
         onReject={() => {

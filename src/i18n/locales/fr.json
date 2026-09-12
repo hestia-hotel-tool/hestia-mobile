@@ -18,6 +18,8 @@
     "title": "Connexion",
     "emailLabel": "E-mail professionnel",
     "passwordLabel": "Mot de passe",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "signIn": "Se connecter",
     "recoverPassword": "Mot de passe oublié",
     "supportTitle": "Service client",

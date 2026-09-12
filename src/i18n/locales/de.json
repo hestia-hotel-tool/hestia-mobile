@@ -18,6 +18,8 @@
     "title": "Anmelden",
     "emailLabel": "Geschäftliche E-Mail",
     "passwordLabel": "Passwort",
+    "showPassword": "Passwort anzeigen",
+    "hidePassword": "Passwort ausblenden",
     "signIn": "Anmelden",
     "recoverPassword": "Passwort zurücksetzen",
     "supportTitle": "Kundenservice",

@@ -18,6 +18,8 @@
     "title": "Accedi",
     "emailLabel": "E-mail aziendale",
     "passwordLabel": "Password",
+    "showPassword": "Mostra password",
+    "hidePassword": "Nascondi password",
     "signIn": "Accedi",
     "recoverPassword": "Recupera password",
     "supportTitle": "Servizio clienti",

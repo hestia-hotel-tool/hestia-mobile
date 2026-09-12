@@ -18,6 +18,8 @@
     "title": "Log in",
     "emailLabel": "Company email",
     "passwordLabel": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "signIn": "Sign In",
     "recoverPassword": "Recover Password",
     "supportTitle": "Customer Service",

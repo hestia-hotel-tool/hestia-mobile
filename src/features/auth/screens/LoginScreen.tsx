@@ -29,6 +29,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [passwordVisible, setPasswordVisible] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -160,15 +161,35 @@ export default function LoginScreen() {
           <Text className="mt-lg font-hestia-primary text-hestia-2xl text-ink-primary">
             {t('login.passwordLabel')}
           </Text>
-          <TextInput
-            className="mt-sm h-[70px] bg-surface-primary px-md font-hestia-primary text-hestia-2xl font-light text-ink-primary"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            textContentType="password"
-            autoComplete="current-password"
-            accessibilityLabel={t('login.passwordLabel')}
-          />
+          {/* The field keeps the email input's box; the toggle sits inside it,
+              so the two rows stay the same 70px height and square corners. */}
+          <View className="mt-sm h-[70px] flex-row items-center bg-surface-primary">
+            <TextInput
+              className="h-full flex-1 px-md font-hestia-primary text-hestia-2xl font-light text-ink-primary"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry={!passwordVisible}
+              textContentType="password"
+              autoComplete="current-password"
+              accessibilityLabel={t('login.passwordLabel')}
+            />
+            <Pressable
+              onPress={() => setPasswordVisible((visible) => !visible)}
+              hitSlop={12}
+              className="h-full justify-center px-md"
+              accessibilityRole="button"
+              accessibilityState={{ selected: passwordVisible }}
+              accessibilityLabel={
+                passwordVisible ? t('login.hidePassword') : t('login.showPassword')
+              }
+            >
+              <Icon
+                name={passwordVisible ? 'action-eye-off' : 'action-eye'}
+                size={18}
+                color={colors.primary.main}
+              />
+            </Pressable>
+          </View>
 
           {!!error && (
             <Text className="mt-md font-hestia-primary text-hestia-md text-status-dirty">{error}</Text>

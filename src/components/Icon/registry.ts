@@ -17,6 +17,8 @@ import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
 import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
+import ActionEyeOff from '@assets/icons/actions/action-eye-off.svg';
+import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
 import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
@@ -62,6 +64,8 @@ export const icons = {
   'action-add-photo': ActionAddPhoto,
   'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
+  'action-eye-off': ActionEyeOff,
+  'action-eye': ActionEye,
   'action-filter': ActionFilter,
   'action-flag-outline': ActionFlagOutline,
   'action-flag': ActionFlag,
@@ -115,6 +119,8 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-add-photo': 1.0162,
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
+  'action-eye-off': 1.2,
+  'action-eye': 1.5,
   'action-filter': 2,
   'action-flag-outline': 0.7179,
   'action-flag': 1.1833,
@@ -159,6 +165,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-add-note',
   'action-checkbox-checked',
   'action-chevron',
+  'action-eye-off',
+  'action-eye',
   'action-filter',
   'action-flag-outline',
   'action-flag',
