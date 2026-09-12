@@ -167,8 +167,22 @@ export default function StatusPopover({
   const triangleBottomOffset = modalHeight - 1 * scaleX;
   let trianglePlacement: 'top' | 'bottom' = 'top';
 
-  // Never let the card ride up under the screen header.
+  /** Opening *below* the pill keeps the screen header clear. */
   const minTop = HEADER_HEIGHT;
+  /**
+   * Opening *above* it does not have to.
+   *
+   * The popover is a `Modal` — its own window, drawn over the whole screen — so
+   * nothing stops it covering the header, and a flipped card that has to clear
+   * the header usually cannot fit at all. Requiring that was why capped cards
+   * misbehaved: an In Progress card carries a 73px status cap, which pushes its
+   * pill ~73px further down, so the sheet no longer fits below it, and the
+   * flip above was rejected for want of header clearance. Neither branch
+   * qualified, placement fell through to the bottom clamp, and the tail was
+   * left pointing at a pill the sheet had already covered.
+   */
+  const minTopAbove = insets.top + 8 * scaleX;
+  let placementFloor = minTop;
 
   if (showTriangle && buttonPosition) {
     const spacing = STATUS_MODAL_SPACING * scaleX;
@@ -182,9 +196,10 @@ export default function StatusPopover({
     if (desiredBelowTop <= maxTop) {
       modalTopPosition = desiredBelowTop;
       trianglePlacement = 'top';
-    } else if (desiredAboveTop >= minTop) {
+    } else if (desiredAboveTop >= minTopAbove) {
       modalTopPosition = desiredAboveTop;
       trianglePlacement = 'bottom';
+      placementFloor = minTopAbove;
     } else {
       modalTopPosition = Math.min(Math.max(minTop, desiredBelowTop), maxTop);
       trianglePlacement = 'top';
@@ -209,7 +224,7 @@ export default function StatusPopover({
     triangleLeft = 0;
   }
 
-  modalTopPosition = Math.max(minTop, modalTopPosition);
+  modalTopPosition = Math.max(placementFloor, modalTopPosition);
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],

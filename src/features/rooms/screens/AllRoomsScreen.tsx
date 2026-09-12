@@ -104,7 +104,6 @@ export default function AllRoomsScreen() {
   const scrollViewRef = useRef<ScrollView>(null);
   const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
   const scaleX = windowWidth / DESIGN_WIDTH;
-  const BOTTOM_NAV_HEIGHT = 152 * scaleX;
   const styles = useMemo(() => buildAllRoomsStyles(scaleX), [scaleX]);
 
   // Check if we came from a stack navigation (show back button) or tab navigation (don't show)
@@ -489,6 +488,9 @@ export default function AllRoomsScreen() {
    */
   const [pendingStatusRoom, setPendingStatusRoom] = useState<RoomCardData | null>(null);
 
+  /** The popover is opening or open — the card is being lifted for it. */
+  const statusOverlayActive = pendingStatusRoom != null || showStatusModal;
+
   const handleStatusPress = (room: RoomCardData) => {
     setPendingStatusRoom(room);
   };
@@ -564,16 +566,26 @@ export default function AllRoomsScreen() {
       }
 
       /*
-       * Scroll up so the popover fits, but never so far that the card it points
-       * at leaves the viewport — the blur seam is anchored to that card's bottom
-       * edge, and a card behind the header would put the seam above the list.
+       * Scroll up as far as the popover needs, and let the card ride over the
+       * search field to get there.
+       *
+       * The card is not clipped while the popover is up (see
+       * `statusOverlayActive`), so it floats above the header instead of being
+       * cut off at it — which is what makes this possible. Capping the scroll at
+       * the card's top instead, to keep it below the header, could not fit a
+       * capped card: an In Progress row wants 129pt of scroll and had only 78pt
+       * of headroom, a 51pt shortfall against the 73px its status cap adds. That
+       * forced the popover to flip above the pill and cover the card's own
+       * header rows.
+       *
+       * The floor stops short of the profile band so the card never reaches the
+       * name or the notch — only the search field it is meant to cover.
        */
-      const headerBottom =
-        useProfileHeader && profileHeaderHeight != null ? profileHeaderHeight : 0;
       const card = await measure(cardRefs.current[room.id]);
       if (cancelled) return;
-      const cardBottom = card ? card.y + card.height : pill.y + pill.height;
-      const maxMoveUp = Math.max(0, cardBottom - headerBottom);
+      const cardTop = card ? card.y : pill.y;
+      const floor = insets.top + 96;
+      const maxMoveUp = Math.max(0, cardTop - floor);
       const moveUp = Math.min(overflow, maxMoveUp);
 
       if (moveUp <= 0) {
@@ -604,7 +616,6 @@ export default function AllRoomsScreen() {
     SCREEN_HEIGHT,
     insets.bottom,
     useProfileHeader,
-    profileHeaderHeight,
   ]);
 
   const handleStatusSelect = async (statusOption: StatusChangeOption, roomOverride?: RoomCardData | null) => {
@@ -874,7 +885,16 @@ export default function AllRoomsScreen() {
             // the list — with the header in the flow, the same rule let list
             // content paint upward across it, so a card overlapped the profile
             // band and the "Rooms" title landed on top of a band heading.
-            useProfileHeader && styles.scrollContainerClipped,
+            /*
+             * ...except while the status popover is up. Then the tapped card is
+             * deliberately scrolled over the search field, and a clip would cut
+             * it off at the header instead. Safe to lift here and nowhere else:
+             * the list is frozen (`scrollEnabled: !showStatusModal`), so nothing
+             * can drift across the header the way free scrolling did. The list
+             * is a later sibling than the header, so unclipping is all it takes
+             * to paint above it — no z-index needed.
+             */
+            useProfileHeader && !statusOverlayActive && styles.scrollContainerClipped,
           ]}
         >
           {(() => {
