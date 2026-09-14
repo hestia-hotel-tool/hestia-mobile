@@ -157,10 +157,20 @@ HOME_VARIANTS = {
 }
 
 # Rooms list layout, same reasoning as HOME_VARIANTS: a presentation concern
-# keyed by title, not a right. Supervisors work the floor from the list, so they
-# get it grouped by housekeeping status with In Progress pinned to the top;
-# the housekeeping and executive leadership above them read the flat list.
+# keyed by title, not a right.
+#
+# Housekeeping leadership and supervisors read the same banded screen; only
+# supervisors get the In Progress band pinned to the top, because they work the
+# floor from it. Everyone else reads the flat list.
+#
+# The three leadership titles are listed explicitly even though they were once
+# left to the `default` fallback: they were later given the banded screen by
+# hand in matrix.json, and omitting them here meant re-running this parser
+# silently reverted that.
 ROOMS_VARIANTS = {
+    "executive_housekeeper": "leadership",
+    "housekeeping_manager": "leadership",
+    "assistant_housekeeping_manager": "leadership",
     "senior_supervisor": "supervisor",
     "supervisor": "supervisor",
     "coordinator": "supervisor",

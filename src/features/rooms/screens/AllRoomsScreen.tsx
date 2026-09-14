@@ -833,6 +833,7 @@ export default function AllRoomsScreen() {
                 <GroupedRoomsList
                   groups={roomGroups}
                   renderRoom={renderRoomCard}
+                  stickyInProgress={chrome.stickyInProgress}
                   scrollProps={scrollProps}
                   scrollRef={scrollViewRef}
                 />

@@ -26,13 +26,44 @@ export type RoomsListChrome = {
    * `allRooms/RoomCard` and its absolute `scaleX` geometry.
    */
   rebuiltCard: boolean;
+  /**
+   * Pin the In Progress band to the top, so the rooms being worked right now
+   * stay in reach while the rest of the list scrolls under them.
+   *
+   * Figma marks the In Progress card `sticky top-0` (node 3838:1572). This is
+   * the single difference between `leadership` and `supervisor`.
+   */
+  stickyInProgress: boolean;
 };
 
 export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
   /** Everyone outside housekeeping operations: a flat list of every room. */
-  default: { profileHeader: false, banded: false, assignedOnly: false, rebuiltCard: false },
-  /** Housekeeping leadership and supervisors — Figma 3883:5570 / 3838:1117. */
-  supervisor: { profileHeader: true, banded: true, assignedOnly: false, rebuiltCard: true },
+  default: {
+    profileHeader: false,
+    banded: false,
+    assignedOnly: false,
+    rebuiltCard: false,
+    stickyInProgress: false,
+  },
+  /** Housekeeping leadership — Figma 3883:5570. */
+  leadership: {
+    profileHeader: true,
+    banded: true,
+    assignedOnly: false,
+    rebuiltCard: true,
+    stickyInProgress: false,
+  },
+  /**
+   * Supervisors — Figma 3838:1117. The same screen as `leadership` bar one
+   * column: they work the floor from this list, so In Progress stays pinned.
+   */
+  supervisor: {
+    profileHeader: true,
+    banded: true,
+    assignedOnly: false,
+    rebuiltCard: true,
+    stickyInProgress: true,
+  },
   /**
    * Room attendants — the banded list narrowed to their own rooms.
    *
@@ -40,7 +71,13 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
    * against the rebuild, and neither has the progress pill's placement. Flip
    * these two when it has been.
    */
-  attendant: { profileHeader: false, banded: true, assignedOnly: true, rebuiltCard: false },
+  attendant: {
+    profileHeader: false,
+    banded: true,
+    assignedOnly: true,
+    rebuiltCard: false,
+    stickyInProgress: false,
+  },
 };
 
 export default ROOMS_LIST_CHROME;

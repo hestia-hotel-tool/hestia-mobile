@@ -45,6 +45,33 @@ interface PermissionContextValue {
 
 const EMPTY: ReadonlySet<Permission> = new Set<Permission>();
 
+const ROOMS_VARIANTS: ReadonlySet<string> = new Set<RoomsVariant>([
+  'default',
+  'leadership',
+  'supervisor',
+  'attendant',
+]);
+
+/**
+ * Narrow the RPC's raw text to a variant this build knows, or fall back.
+ *
+ * `get_my_rooms_variant()` returns plain `text`, and this used to cast it
+ * straight into the union. That is fine until a variant is added: the database
+ * is migrated ahead of the app stores, so an older bundle reads a value it has
+ * never heard of, and the screen that looks it up in a `Record<RoomsVariant, …>`
+ * gets `undefined` and crashes on first property access. Falling back to the
+ * flat list degrades instead.
+ */
+function asRoomsVariant(value: unknown): RoomsVariant {
+  if (typeof value === 'string' && ROOMS_VARIANTS.has(value)) {
+    return value as RoomsVariant;
+  }
+  if (value != null) {
+    console.warn(`[PermissionProvider] unknown rooms variant "${String(value)}"; using default.`);
+  }
+  return 'default';
+}
+
 const PermissionContext = createContext<PermissionContextValue>({
   permissions: EMPTY,
   homeVariant: 'default',
@@ -108,7 +135,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       const keys = (permissionsResult.data ?? []) as Permission[];
       setPermissions(new Set(keys));
       setHomeVariant((variantResult.data as HomeVariant | null) ?? 'default');
-      setRoomsVariant((roomsVariantResult.data as RoomsVariant | null) ?? 'default');
+      setRoomsVariant(asRoomsVariant(roomsVariantResult.data));
       setError(
         keys.length === 0
           ? 'This account has no job title assigned, so it has no access yet.'

@@ -397,9 +397,9 @@ ON CONFLICT (role_id, permission_id) DO NOTHING;
 INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant, rooms_variant)
 SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
   FROM (VALUES
-    ('executive_housekeeper', 'Executive Housekeeper', 'housekeeping', 'full_access', 'default', 'supervisor'),
-    ('housekeeping_manager', 'Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'supervisor'),
-    ('assistant_housekeeping_manager', 'Assistant Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'supervisor'),
+    ('executive_housekeeper', 'Executive Housekeeper', 'housekeeping', 'full_access', 'default', 'leadership'),
+    ('housekeeping_manager', 'Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'leadership'),
+    ('assistant_housekeeping_manager', 'Assistant Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'leadership'),
     ('senior_supervisor', 'Senior Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('coordinator', 'Coordinator', 'housekeeping', 'full_access', 'default', 'supervisor'),

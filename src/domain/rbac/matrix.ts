@@ -96,12 +96,19 @@ export type HomeVariant = 'default' | 'engineering' | 'hsk_portier';
  * someone works, not what they may do, so two titles can share a role and still
  * differ here.
  *
- * `default` is the flat list. `supervisor` groups by housekeeping status and
- * pins In Progress to the top (Figma 3838:1117). `attendant` is that same banded
- * list narrowed to the rooms assigned to the person reading it, with a
- * finished/total counter (Figma 3838:1623).
+ * `default` is the flat list.
+ *
+ * `leadership` and `supervisor` are the same banded screen — Figma 3883:5570
+ * and 3838:1117 are the same design bar the profile text — and differ in one
+ * respect: `supervisor` pins the In Progress band to the top so the rooms being
+ * worked right now stay in reach while the rest of the list scrolls under them
+ * (node 3838:1572 is marked `sticky top-0`). Supervisors work the floor from
+ * this screen; the housekeeping leadership above them read it.
+ *
+ * `attendant` is that same banded list narrowed to the rooms assigned to the
+ * person reading it, with a finished/total counter (Figma 3838:1623).
  */
-export type RoomsVariant = 'default' | 'supervisor' | 'attendant';
+export type RoomsVariant = 'default' | 'leadership' | 'supervisor' | 'attendant';
 
 export interface JobTitleDefinition {
   key: string;
