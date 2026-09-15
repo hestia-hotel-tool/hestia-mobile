@@ -32,6 +32,7 @@
     --color-surface-tertiary: #f1f6fc;
     --color-surface-card: #f9fafc;
     --color-surface-activity: #f1f3f6;
+    --color-surface-ai-mic: #eff4fb;
     --color-surface-header: #e4eefe;
     --color-surface-dashboard: #e3e8f0;
     --color-surface-overlay: rgba(228, 228, 228, 0.1);
@@ -46,6 +47,7 @@
     --color-ink-pink: #ff46a3;
     --color-ink-muted: #a9a9a9;
     --color-ink-link: #3bc1f6;
+    --color-ink-faint: #d9d9d9;
 
     /* Border */
     --color-border-light: #dbdbdb;
@@ -53,6 +55,8 @@
     --color-border-dark: #e6e6e6;
     --color-border-card: rgba(90, 117, 157, 0.23);
     --color-border-control: #c6c5c5;
+    --color-border-ai-panel-start: #ff4dd8;
+    --color-border-ai-panel-end: #3bc1f6;
 
     /* Badge */
     --color-badge-eta: #e9f7e9;

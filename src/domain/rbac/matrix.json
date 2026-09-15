@@ -704,7 +704,7 @@
       "department": "housekeeping",
       "role": "hk_houseman",
       "homeVariant": "hsk_portier",
-      "roomsVariant": "attendant"
+      "roomsVariant": "leadership"
     },
     {
       "key": "housekeeping_laundry_attendant",
@@ -728,7 +728,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "assistant_director_of_rooms",
@@ -736,7 +736,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "director_of_front_office",
@@ -744,7 +744,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "front_office_manager",
@@ -752,7 +752,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "assistant_front_office_manager",
@@ -760,7 +760,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "front_office_supervisor",
@@ -768,7 +768,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "front_office_agent",
@@ -776,7 +776,7 @@
       "department": "front_office",
       "role": "fo_agent",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "front_office_trainee",
@@ -784,7 +784,7 @@
       "department": "front_office",
       "role": "fo_agent",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "night_manager",
@@ -792,7 +792,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "night_auditor",
@@ -800,7 +800,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "night_agent",
@@ -808,7 +808,7 @@
       "department": "front_office",
       "role": "fo_agent",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "guest_relations_manager",
@@ -816,7 +816,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "guest_relations_supervisor",
@@ -824,7 +824,7 @@
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "guest_relations_agent",
@@ -832,7 +832,7 @@
       "department": "front_office",
       "role": "fo_agent",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "leadership"
     },
     {
       "key": "head_concierge",

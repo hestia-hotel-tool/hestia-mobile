@@ -176,9 +176,42 @@ ROOMS_VARIANTS = {
     "coordinator": "supervisor",
     # Attendants get the same banded list, over their own rooms only.
     "housekeeping_room_attendant": "attendant",
-    "housekeeping_porter_houseman": "attendant",
     "housekeeping_laundry_attendant": "attendant",
     "housekeeping_public_area_attendant": "attendant",
+    # The porter is the exception among the attendant titles: they work the
+    # whole floor rather than a room list of their own, so they read every room.
+    # That is `leadership` — the same banded screen, minus the assigned-only
+    # narrowing and its finished/total pill — and it is what the porter's frame
+    # (3859:1041) draws: a copy of the executive housekeeper's screen, cards
+    # assigned to other people, no counter beside the title.
+    #
+    # They keep no Home tab, which is a right (`dashboard`) and independent of
+    # this.
+    "housekeeping_porter_houseman": "leadership",
+    # The whole Front Office department reads the same banded screen as
+    # housekeeping leadership — Figma 3859:1919, which is the executive
+    # housekeeper's frame (3883:5570) duplicated with the header text changed,
+    # down to its duplicated "Paused" heading.
+    #
+    # All 14 titles in the department, not just the front desk: they share two
+    # roles and one department, so splitting them would be arbitrary. Reading
+    # the banded list is not the same as being allowed to act on it — none of
+    # them holds `rooms.status.update`, and the status pill is gated on that
+    # permission in AllRoomsScreen rather than on the variant.
+    "director_of_rooms": "leadership",
+    "assistant_director_of_rooms": "leadership",
+    "director_of_front_office": "leadership",
+    "front_office_manager": "leadership",
+    "assistant_front_office_manager": "leadership",
+    "front_office_supervisor": "leadership",
+    "front_office_agent": "leadership",
+    "front_office_trainee": "leadership",
+    "night_manager": "leadership",
+    "night_auditor": "leadership",
+    "night_agent": "leadership",
+    "guest_relations_manager": "leadership",
+    "guest_relations_supervisor": "leadership",
+    "guest_relations_agent": "leadership",
 }
 
 # Rights we knowingly set differently from the signed-off PDF.

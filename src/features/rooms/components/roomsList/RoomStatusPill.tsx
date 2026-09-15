@@ -8,6 +8,11 @@ import { ROOM_CARD } from './roomCardLayout';
 
 export type RoomStatusPillProps = {
   status: RoomDisplayStatus;
+  /**
+   * Opens the status menu. Omit it for a reader who may not change housekeeping
+   * status: the pill then draws as a badge — glyph centred, no chevron, not a
+   * tap target — which is how Front Office's frame (3859:1919) shows it.
+   */
   onPress?: () => void;
   /**
    * `priority` is the pale variant on a priority card — Figma 3883:5794: an
@@ -45,19 +50,54 @@ export function RoomStatusPill({
   const isPriority = tone === 'priority';
   const glyphColor = isPriority ? colors.status.dirty : colors.text.white;
 
+  /*
+   * The chevron means "this opens the status menu", so it appears only where
+   * the pill actually does.
+   *
+   * Measured off the frames rather than assumed. Comparing the executive
+   * housekeeper's Rooms screen (3883:5570) against Front Office's (3859:1919),
+   * which is otherwise the same frame pixel for pixel: on the 134pt pill the
+   * housekeeper's glyph sits at offset 20 with a chevron at 85, while Front
+   * Office's single glyph is centred on the pill and there is no chevron. Front
+   * Office holds no `rooms.status.update`, so their pill is a status badge.
+   *
+   * The priority pill is centred and chevron-less in *both* frames — it flags
+   * attention rather than offering the next status — which is what this
+   * component's own prop doc already claimed while the markup did the opposite.
+   */
+  const showChevron = !!onPress && !isPriority;
+
   return (
-    <RNView ref={measureRef} collapsable={false}>
+    <RNView
+      ref={measureRef}
+      collapsable={false}
+      /*
+       * Swallow the touch when the pill is not a control.
+       *
+       * A disabled `Pressable` does not claim the responder, so without this
+       * the press falls through to the card behind it and opens room detail —
+       * tapping a status badge would silently navigate. Claiming the responder
+       * here makes the click do nothing at all, which is what "cannot change
+       * status" should feel like.
+       */
+      onStartShouldSetResponder={onPress ? undefined : () => true}
+    >
       <Pressable
         onPress={onPress}
         disabled={loading || !onPress}
-        accessibilityRole="button"
+        accessibilityRole={showChevron ? 'button' : 'image'}
         accessibilityLabel={isPriority ? 'Priority room' : `Status: ${config.label ?? status}`}
-        // Spread, not centred. Measured off the priority pill (node 3838:1341,
-        // whose red-on-pale glyphs scan cleanly where white-on-amber does not):
-        // the glyph's left edge sits at x=21 and the chevron's right edge at
-        // x=105 of 134, so the two sit apart with the ground showing between
-        // them. Centring them as a pair bunched both into the middle.
-        className="flex-row items-center justify-between rounded-7xl pl-[21px] pr-[28px]"
+        // Spread when there are two marks, centred when there is one. Measured
+        // off the priority pill (node 3838:1341, whose red-on-pale glyphs scan
+        // cleanly where white-on-amber does not): the glyph's left edge sits at
+        // x=21 and the chevron's right edge at x=105 of 134, so the two sit
+        // apart with the ground showing between them. Centring them as a pair
+        // bunched both into the middle.
+        className={
+          showChevron
+            ? 'flex-row items-center justify-between rounded-7xl pl-[21px] pr-[28px]'
+            : 'flex-row items-center justify-center rounded-7xl'
+        }
         style={{
           width: ROOM_CARD.pill.width,
           height: ROOM_CARD.pill.height,
@@ -77,10 +117,7 @@ export function RoomStatusPill({
               size={isPriority ? 28 : (config.glyphHeight ?? 25.4)}
               color={glyphColor}
             />
-            {/* Every pill has the chevron, the priority one included — it is
-                red on #ffebeb there rather than white.
-                
-                Two nested views on purpose. The registered chevron points
+            {/* Two nested views on purpose. The registered chevron points
                 right, so it is rotated -90deg to aim it down — but a transform
                 does not change layout size: the icon lays out 13 wide and 26
                 tall, then paints 26 wide and 13 tall, overflowing its own box
@@ -89,11 +126,13 @@ export function RoomStatusPill({
                 past it, landing the chevron ~8pt right of the design. The outer
                 view carries the rotated footprint (26x13, against the design's
                 25x12) so layout and paint agree. */}
-            <View className="items-center justify-center" style={{ width: 26, height: 13 }}>
-              <View style={{ transform: [{ rotate: '-90deg' }] }}>
-                <Icon name="action-chevron" size={26} color={glyphColor} />
+            {showChevron && (
+              <View className="items-center justify-center" style={{ width: 26, height: 13 }}>
+                <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                  <Icon name="action-chevron" size={26} color={glyphColor} />
+                </View>
               </View>
-            </View>
+            )}
           </>
         )}
       </Pressable>

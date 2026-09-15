@@ -12,7 +12,6 @@ import ChatHeader from '../components/ChatHeader';
 import ChatItem, { ChatItemData } from '../components/ChatItem';
 import NotificationItem, { NotificationItemData } from '../components/NotificationItem';
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { useChatStore } from '../store/useChatStore';
 import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -40,7 +39,6 @@ type ChatScreenNavigationProp = CompositeNavigationProp<
 
 export default function ChatScreen() {
   const navigation = useNavigation<ChatScreenNavigationProp>();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
   const [activeTab, setActiveTab] = useState('Chat');
@@ -187,10 +185,6 @@ export default function ChatScreen() {
   );
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 

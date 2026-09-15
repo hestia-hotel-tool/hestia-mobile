@@ -7,7 +7,6 @@ import { colors, typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { useAuth } from '@features/auth';
 import { useUserStore } from '@features/account/store/useUserStore';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
 import { useDesignScale } from '@/hooks/useDesignScale';
@@ -19,7 +18,6 @@ export default function SettingsScreen() {
   const styles = useMemo(() => buildSettingsStyles(scaleX), [scaleX]);
   const navigation = useNavigation<SettingsScreenNavigationProp>();
   const route = useRoute();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const { signOut } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
   const [activeTab, setActiveTab] = useState('Settings');
@@ -55,10 +53,6 @@ export default function SettingsScreen() {
   );
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 

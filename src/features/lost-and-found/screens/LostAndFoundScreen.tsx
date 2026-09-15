@@ -10,7 +10,6 @@ import LostAndFoundTabs from '../components/LostAndFoundTabs';
 import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/LostAndFoundItemCard';
 import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
 import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { useUserStore } from '@features/account/store/useUserStore';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
 import {
@@ -49,7 +48,6 @@ export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
   const insets = useSafeAreaInsets();
   const route = useRoute();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const userProfile = useUserStore((s) => s.profile);
   const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
   const [activeTab, setActiveTab] = useState('LostAndFound');
@@ -284,10 +282,6 @@ export default function LostAndFoundScreen() {
   );
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 

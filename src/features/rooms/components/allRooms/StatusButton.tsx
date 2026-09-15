@@ -7,7 +7,8 @@ import StatusPill from './StatusPill';
 interface StatusButtonProps {
   /** The room's display status (houseKeepingStatus, or 'Paused' when paused — see getRoomDisplayStatus). */
   status: RoomDisplayStatus;
-  onPress: () => void;
+  /** Omitted when the reader may not change status; the button then inerts. */
+  onPress?: () => void;
   isPriority?: boolean;
   isArrivalDeparture?: boolean;
   hasNotes?: boolean;
@@ -83,7 +84,7 @@ const StatusButton = forwardRef<any, StatusButtonProps>(({
       ]}
       onPress={onPress}
       activeOpacity={0.8}
-      disabled={isLoading}
+      disabled={isLoading || !onPress}
     >
       <StatusPill
         status={status}

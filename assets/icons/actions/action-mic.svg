@@ -1,0 +1,17 @@
+<svg viewBox="0 0 38.5604 49.9024" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!--
+  The microphone on the AI assistant panel — Figma node 3910:1494.
+
+  Exported as `#FF46A3` (the ink-pink token) and re-authored as `currentColor`
+  so it registers tintable: it is a single-colour mark, unlike the two-tone AI
+  house. Callers pass the colour; the panel passes ink-pink to match the design.
+
+  The 4pt stroke is centred, so the paths sit exactly 2 inside the viewBox on
+  every side and the box contains the stroke with nothing clipped. The export's
+  `preserveAspectRatio="none"` is dropped — it would stretch the glyph whenever
+  the box is not its native 38.56x49.9 ratio.
+-->
+<path d="M27.9203 23.1856C27.9203 25.5267 27.01 27.772 25.3897 29.4275C23.7694 31.0829 21.5717 32.0129 19.2802 32.0129C16.9887 32.0129 14.7911 31.0829 13.1708 29.4275C11.5504 27.772 10.6401 25.5267 10.6401 23.1856V10.8273C10.6401 8.48618 11.5504 6.24091 13.1708 4.58546C14.7911 2.93002 16.9887 2 19.2802 2C21.5717 2 23.7694 2.93002 25.3897 4.58546C27.01 6.24091 27.9203 8.48618 27.9203 10.8273V23.1856Z" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M36.5604 24.9507C36.5649 27.0386 36.1658 29.1069 35.3858 31.0367C34.6059 32.9666 33.4605 34.7201 32.0154 36.1964C30.5704 37.6728 28.8541 38.843 26.9652 39.6399C25.0762 40.4367 23.0518 40.8445 21.0082 40.8399H17.5522C15.5086 40.8445 13.4842 40.4367 11.5953 39.6399C9.70632 38.843 7.99006 37.6728 6.545 36.1964C5.09994 34.7201 3.95455 32.9666 3.1746 31.0367C2.39464 29.1069 1.99548 27.0386 2.00004 24.9507" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M19.2803 40.8405V47.9024" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -42,7 +42,12 @@ import NotesSection from './NotesSection';
 interface RoomCardProps {
   room: RoomCardData;
   onPress: () => void;
-  onStatusPress: () => void;
+  /**
+   * Omitted when the reader cannot change housekeeping status, which makes the
+   * status button a badge rather than a control — the same contract
+   * `RoomStatusPill` uses on the rebuilt card.
+   */
+  onStatusPress?: () => void;
   onAssignStaffPress?: (room: RoomCardData) => void;
   onLayout?: (event: any) => void;
   statusButtonRef?: (ref: any) => void;
@@ -72,6 +77,7 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
   };
 
   const handleStatusPress = () => {
+    if (!onStatusPress) return;
     statusButtonPressRef.current = true;
     onStatusPress();
   };

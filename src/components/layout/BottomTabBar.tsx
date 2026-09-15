@@ -10,11 +10,20 @@ import { useDesignScale } from '@/hooks/useDesignScale';
 import { useBottomTabBadges } from '../../hooks/useBottomTabBadges';
 import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
 import type { HomeVariant } from '@/domain/rbac/matrix';
+import type { IconName } from '@/components/Icon';
+import { useAIChatOverlay } from '@features/ai-agent';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 
 interface BottomTabBarProps {
   activeTab: string;
+  /**
+   * Called when a tab is pressed, for the screen to record as active and
+   * navigate.
+   *
+   * `AIHome` never reaches this: the tab bar opens the assistant itself, so a
+   * screen cannot forget to wire it and cannot mark a routeless tab active.
+   */
   onTabPress?: (tab: string, options?: TabPressOptions) => void;
   onMorePress?: () => void;
 }
@@ -58,6 +67,11 @@ const UNGATED_TABS = new Set<string>(['AIHome']);
  * (node 3843:151) reads Home, Tickets, Chat, AI, Rooms, because engineering is
  * ticket-driven and holds no Rooms right at all.
  *
+ * What they *do* agree on is the AI button: all three place it directly after
+ * Chat, the porter frame (3859:1497) included. So that position is the one part
+ * of the order which does not vary, and it is why AIHome is not simply left to
+ * fall last out of MAIN_TABS.
+ *
  * Keyed on `HomeVariant` because that field already means "what a person's day
  * looks like" rather than what they may do — the same reason it selects the
  * dashboard.
@@ -66,9 +80,16 @@ const UNGATED_TABS = new Set<string>(['AIHome']);
  * added to MAIN_TABS or the More menu still appears without being listed here.
  */
 const TAB_ORDER_BY_VARIANT: Record<HomeVariant, readonly string[]> = {
-  default: ['Home', 'Rooms', 'Chat', 'Tickets', 'AIHome'],
-  hsk_portier: ['Home', 'Rooms', 'Chat', 'Tickets', 'AIHome'],
-  engineering: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms'],
+  default: ['Home', 'Rooms', 'Chat', 'AIHome', 'Tickets', 'LostAndFound', 'Staff'],
+  /*
+   * Identical to `default` on purpose. The porter's frame (3859:1041) is that
+   * order with Home removed, and permission filtering already removes it —
+   * `hk_houseman` holds no `tab.home.view`. The row is spelled out rather than
+   * deleted because the Record requires the key, and because "the porter needs
+   * nothing bespoke" is worth recording.
+   */
+  hsk_portier: ['Home', 'Rooms', 'Chat', 'AIHome', 'Tickets', 'LostAndFound', 'Staff'],
+  engineering: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms', 'LostAndFound', 'Staff'],
 };
 
 const MAIN_TABS = [
@@ -104,7 +125,15 @@ const MAIN_TABS = [
   },
   {
     id: 'AIHome',
-    icon: require('@assets/icons/ai-home-icon.png'),
+    /*
+     * The one tab drawn from the registry rather than a PNG.
+     *
+     * Node 3859:1498 is a #FF46A3 -> #5A759D gradient mark inside a gradient
+     * ring. The PNG it replaces was a flat pink approximation, and `TabBarItem`
+     * tints PNGs to the active/inactive colour, so it rendered as a single flat
+     * house — neither the design's gradient nor its ring.
+     */
+    iconName: 'nav-ai' as const,
     label: '',
     iconWidth: 56,
     iconHeight: 56,
@@ -118,6 +147,9 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
   const { can, homeVariant } = usePermissions();
+  // Safe here: the tab bar only ever renders inside `(tabs)` screens, which all
+  // sit under AppProviders — the hook throws outside its provider.
+  const { open: openAIChatOverlay } = useAIChatOverlay();
 
   const tabs = useMemo(
     () => {
@@ -169,9 +201,21 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
   };
 
   const handleTabPress = (tabId: string, options?: TabPressOptions) => {
-    // AI Home is not a navigable route - let the screen handle it (opens the AI overlay).
+    /*
+     * AI Home has no route: it opens the assistant over whatever is on screen.
+     *
+     * Handled here rather than delegated. This used to call `onTabPress(tabId)`
+     * and leave it to the screen, which meant the same four lines were repeated
+     * in all seven screens that render a tab bar — and because `onTabPress` is
+     * optional, a new screen that forgot them got a silently dead AI button
+     * with no type error.
+     *
+     * `onTabPress` is deliberately NOT called: the screens' handlers end with
+     * `setActiveTab(tab)`, so forwarding an id that has no route would light up
+     * a tab the user cannot be on.
+     */
     if (tabId === 'AIHome') {
-      onTabPress?.(tabId);
+      openAIChatOverlay();
       return;
     }
     onTabPress?.(tabId, options);
@@ -246,6 +290,7 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
           >
             <TabBarItem
               icon={tab.icon}
+              iconName={'iconName' in tab ? (tab as { iconName?: IconName }).iconName : undefined}
               label={tab.label}
               active={activeTab === tab.id}
               badge={

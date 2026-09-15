@@ -13,7 +13,6 @@ import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { NativeStackNavigationProp } from 'expo-router';
 import { colors, typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { useUserStore } from '@features/account/store/useUserStore';
 import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
@@ -74,7 +73,6 @@ function mapUserToStaffMember(u: User): StaffMember {
 export default function StaffScreen() {
   const navigation = useNavigation<StaffScreenNavigationProp>();
   const route = useRoute();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const userProfile = useUserStore((s) => s.profile);
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
@@ -231,10 +229,6 @@ export default function StaffScreen() {
   );
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 

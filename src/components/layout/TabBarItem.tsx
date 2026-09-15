@@ -2,9 +2,21 @@ import React, { useMemo } from 'react';
 import { View, Text, Image, StyleSheet, Platform, Pressable } from 'react-native';
 import { colors, typography } from '@/theme';
 import { useDesignScale } from '@/hooks/useDesignScale';
+import { Icon, type IconName } from '@/components/Icon';
 
 interface TabBarItemProps {
-  icon: any;
+  /** Legacy PNG, tinted to the active/inactive colour. Ignored when `iconName` is set. */
+  icon?: any;
+  /**
+   * A registered SVG from the icon registry, drawn instead of `icon`.
+   *
+   * Rendered untinted, because the mark that needed this is the AI assistant
+   * button (`nav-ai`) — a two-tone gradient over a gradient ring, which the
+   * `Image` path's `tintColor` flattens to a single flat colour. The other tabs
+   * are single-colour PNGs that tint correctly, so they are left alone; this is
+   * the seam for moving them to SVG one at a time.
+   */
+  iconName?: IconName;
   label: string;
   active?: boolean;
   badge?: number;
@@ -18,6 +30,7 @@ interface TabBarItemProps {
 
 export default function TabBarItem({
   icon,
+  iconName,
   label,
   active = false,
   badge,
@@ -61,7 +74,16 @@ export default function TabBarItem({
       <View style={styles.contentWrapper}>
         <View style={styles.iconWrapper}>
           <View style={styles.iconContainer}>
-            <Image source={icon} style={iconStyle} resizeMode="contain" />
+            {iconName ? (
+              // No `color`: this path exists for marks that carry their own.
+              <Icon
+                name={iconName}
+                size={Math.round((iconHeight ?? 56) * ns)}
+                opacity={finalOpacity}
+              />
+            ) : (
+              <Image source={icon} style={iconStyle} resizeMode="contain" />
+            )}
             {badge !== undefined && badge > 0 ? (
               <View style={styles.badgeContainer}>
                 <View style={styles.badge}>

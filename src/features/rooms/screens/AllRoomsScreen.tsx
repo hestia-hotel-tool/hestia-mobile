@@ -9,7 +9,6 @@ import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { RoomCardData, StatusChangeOption, mapStatusOptionToRoomStatus, isRoomPaused } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
@@ -42,7 +41,7 @@ import { applyRoomFilters, hasAnyActiveFilter } from '../utils/roomFilters';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
 import GroupedRoomsList from '../components/allRooms/GroupedRoomsList';
-import { usePermissions } from '@/domain/rbac';
+import { usePermissions, PERMISSIONS } from '@/domain/rbac';
 import { findBlockingInProgressRoom } from '../utils/attendantRules';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
@@ -63,7 +62,6 @@ type AllRoomsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '
 export default function AllRoomsScreen() {
   const navigation = useNavigation<AllRoomsScreenNavigationProp>();
   const { session } = useAuth();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const messageModal = useMessageModal();
   const insets = useSafeAreaInsets();
   const route = useRoute();
@@ -105,7 +103,20 @@ export default function AllRoomsScreen() {
    * permission: supervisors and attendants hold the same rights as the managers
    * above them, only their day differs.
    */
-  const { roomsVariant } = usePermissions();
+  const { roomsVariant, can } = usePermissions();
+  /*
+   * Whether the status pill is a control or just a badge.
+   *
+   * Keyed on the right, not on the variant: Front Office and the porter read
+   * the same banded screen as housekeeping leadership but hold no
+   * `rooms.status.update`, so the screen someone reads and the actions they may
+   * take are separate questions. Both card generations treat a missing handler
+   * as "not a button", so withholding it is the whole gate.
+   *
+   * This is client-side only. The `rooms` RLS policy is tenant-scoped and does
+   * not check this permission, so it stops the affordance, not the write.
+   */
+  const canChangeStatus = can(PERMISSIONS.ROOMS_STATUS_UPDATE);
   const { user: profile } = useUser();
   /**
    * Supervisors and housekeeping leadership get the profile header — Figma
@@ -526,10 +537,6 @@ export default function AllRoomsScreen() {
   );
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 
@@ -773,7 +780,7 @@ export default function AllRoomsScreen() {
                   <RoomListCard
                     room={room}
                     onPress={() => handleRoomPress(room)}
-                    onStatusPress={() => handleStatusPress(room)}
+                    onStatusPress={canChangeStatus ? () => handleStatusPress(room) : undefined}
                     onAssignPress={() => handleAssignStaffPress(room)}
                     isChangingStatus={changingStatusRoomId === room.id}
                     measureRef={(ref) => {
@@ -794,7 +801,7 @@ export default function AllRoomsScreen() {
                   }}
                   room={room}
                   onPress={() => handleRoomPress(room)}
-                  onStatusPress={() => handleStatusPress(room)}
+                  onStatusPress={canChangeStatus ? () => handleStatusPress(room) : undefined}
                   onAssignStaffPress={handleAssignStaffPress}
                   statusButtonRef={(ref) => {
                     if (ref) {

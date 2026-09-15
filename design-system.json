@@ -24,6 +24,7 @@
       "tertiary": "#f1f6fc",
       "card": "#f9fafc",
       "activity": "#f1f3f6",
+      "aiMic": "#eff4fb",
       "header": "#e4eefe",
       "dashboard": "#e3e8f0",
       "overlay": "rgba(228, 228, 228, 0.1)"
@@ -37,14 +38,17 @@
       "accent": "#5a759d",
       "pink": "#ff46a3",
       "muted": "#a9a9a9",
-      "link": "#3bc1f6"
+      "link": "#3bc1f6",
+      "faint": "#d9d9d9"
     },
     "border": {
       "light": "#dbdbdb",
       "medium": "#e3e3e3",
       "dark": "#e6e6e6",
       "card": "rgba(90, 117, 157, 0.23)",
-      "control": "#c6c5c5"
+      "control": "#c6c5c5",
+      "aiPanelStart": "#ff4dd8",
+      "aiPanelEnd": "#3bc1f6"
     },
     "badge": {
       "eta": "#e9f7e9",

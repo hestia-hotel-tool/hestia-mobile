@@ -13,7 +13,6 @@ import type { ShiftType } from '../types/home.types';
 import { useAuth } from '@features/auth';
 import { useUserStore } from '@features/account';
 import { userProfileFromSession } from '@features/account';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { useRoomsStore } from '@features/rooms';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import type { MoreMenuItemId } from '@/types/more.types';
@@ -85,7 +84,6 @@ export default function HomeScreen() {
   const styles = useMemo(() => buildHomeScreenStyles(scaleX), [scaleX]);
   const navigation = useNavigation<HomeScreenNavigationProp>();
   const route = useRoute();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
   const { homeVariant } = usePermissions();
 
@@ -550,10 +548,6 @@ export default function HomeScreen() {
   };
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 

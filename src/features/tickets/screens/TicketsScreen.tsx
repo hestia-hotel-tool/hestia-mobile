@@ -24,7 +24,6 @@ import TicketsTabs from '../components/TicketsTabs';
 import TicketCard from '../components/TicketCard';
 import EmptyTicketsState from '../components/EmptyTicketsState';
 import type { TicketStatusAnchorLayout } from '../components/TicketCard';
-import { useAIChatOverlay } from '@features/ai-agent';
 import { TicketTab, TicketData, TicketsScreenData, TicketStatus } from '../types/tickets.types';
 import {
   TICKETS_HEADER,
@@ -79,7 +78,6 @@ export default function TicketsScreen() {
   const navigation = useNavigation<TicketsScreenNavigationProp>();
   const stackNavigation = useNavigation<StackNavigationProp>();
   const route = useRoute();
-  const { open: openAIChatOverlay } = useAIChatOverlay();
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
@@ -173,10 +171,6 @@ export default function TicketsScreen() {
   );
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    if (tab === 'AIHome') {
-      openAIChatOverlay();
-      return;
-    }
     setActiveTab(tab); // Update immediately
   };
 

@@ -1,0 +1,12 @@
+<svg viewBox="0 0 27 7.15176" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!--
+  The three-dot indicator under the assistant's name — Figma node 3910:1485.
+
+  `currentColor` rather than the exported `#D9D9D9`, so it registers tintable
+  and can carry state later (it is the natural place for a "thinking" tint).
+  The middle dot really is fractionally wider in the design (rx 3.5 vs 3).
+-->
+<ellipse cx="3" cy="3.57585" rx="3" ry="3.57585" fill="currentColor"/>
+<ellipse cx="13.5" cy="3.57585" rx="3.5" ry="3.57585" fill="currentColor"/>
+<ellipse cx="24" cy="3.57585" rx="3" ry="3.57585" fill="currentColor"/>
+</svg>

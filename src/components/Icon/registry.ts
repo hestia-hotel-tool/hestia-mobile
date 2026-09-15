@@ -22,6 +22,7 @@ import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
 import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
+import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionPhone from '@assets/icons/actions/action-phone.svg';
 import ActionPriority from '@assets/icons/actions/action-priority.svg';
 import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
@@ -41,9 +42,12 @@ import GuestStayoverNoLinen from '@assets/icons/guest-status/guest-stayover-no-l
 import GuestTurndown from '@assets/icons/guest-status/guest-turndown.svg';
 import GuestVacant from '@assets/icons/guest-status/guest-vacant.svg';
 // misc
+import AiAssistantMark from '@assets/icons/misc/ai-assistant-mark.svg';
+import AiTypingDots from '@assets/icons/misc/ai-typing-dots.svg';
 import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
 import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
 // nav
+import NavAi from '@assets/icons/nav/nav-ai.svg';
 import NavChat from '@assets/icons/nav/nav-chat.svg';
 import NavHome from '@assets/icons/nav/nav-home.svg';
 import NavLostFound from '@assets/icons/nav/nav-lost-found.svg';
@@ -70,6 +74,7 @@ export const icons = {
   'action-filter': ActionFilter,
   'action-flag-outline': ActionFlagOutline,
   'action-flag': ActionFlag,
+  'action-mic': ActionMic,
   'action-phone': ActionPhone,
   'action-priority': ActionPriority,
   'action-promised-time': ActionPromisedTime,
@@ -89,9 +94,12 @@ export const icons = {
   'guest-turndown': GuestTurndown,
   'guest-vacant': GuestVacant,
   // misc
+  'ai-assistant-mark': AiAssistantMark,
+  'ai-typing-dots': AiTypingDots,
   'checklist-curtains': ChecklistCurtains,
   'checklist-minibar': ChecklistMinibar,
   // nav
+  'nav-ai': NavAi,
   'nav-chat': NavChat,
   'nav-home': NavHome,
   'nav-lost-found': NavLostFound,
@@ -126,6 +134,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-filter': 2,
   'action-flag-outline': 0.7179,
   'action-flag': 1.1833,
+  'action-mic': 0.7727,
   'action-phone': 1,
   'action-priority': 1.1833,
   'action-promised-time': 0.7398,
@@ -143,8 +152,11 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'guest-stayover-no-linen': 1,
   'guest-turndown': 1,
   'guest-vacant': 1,
+  'ai-assistant-mark': 0.9778,
+  'ai-typing-dots': 3.7753,
   'checklist-curtains': 1.931,
   'checklist-minibar': 0.9987,
+  'nav-ai': 1,
   'nav-chat': 1.0003,
   'nav-home': 1.0744,
   'nav-lost-found': 0.9066,
@@ -173,6 +185,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-filter',
   'action-flag-outline',
   'action-flag',
+  'action-mic',
   'action-phone',
   'action-priority',
   'action-promised-time',
@@ -186,6 +199,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'guest-stayover-no-linen',
   'guest-turndown',
   'guest-vacant',
+  'ai-typing-dots',
   'checklist-curtains',
   'checklist-minibar',
   'nav-chat',

@@ -1,0 +1,40 @@
+<svg viewBox="0 0 44 45" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!--
+  The assistant's mark as it appears on the AI panel — Figma node 3910:1469.
+
+  The light-surface twin of `nav-ai`: same house-and-"AI" drawing, different
+  fades. Here the house and the ring run #FF46A3 -> white so they dissolve into
+  the white card; in the tab bar they run to #5A759D over the bar's own ground.
+  Same glyph, so it is not worth redrawing — but not the same asset either,
+  which is why both are registered.
+
+  Stripped of the export's artefacts, as with nav-ai: a 44x45 #1E1E1E backdrop
+  and a 440x1231 white page rect with the clip path pinning them.
+
+  Two-tone by design, so NOT tintable — it must never be handed a `color`.
+-->
+<g>
+  <path d="M26.1002 22.9727V28.4395H23.6031V25.7061H17.7766V22.9727H26.1002Z" fill="url(#aiMarkBar)"/>
+  <path d="M32.0457 17.4502V32.0053H14.0842L17.7116 17.8777L20.2124 18.5701L17.4527 29.3181H29.4577V18.9977L21.0466 13.93L12.6356 18.9977V32.0832H10.0476V17.4502L21.0466 10.8232L32.0457 17.4502Z" fill="url(#aiMarkHouse)"/>
+  <path d="M32.5583 9.69727H33.2682V13.1908H32.5583V9.69727Z" fill="url(#aiMarkI)"/>
+  <path d="M31.1827 12.4727H29.9231L29.6864 13.1908H28.9395L30.1597 9.69727H30.967L32.1779 13.1908H31.4031L31.1827 12.4727ZM30.9832 11.8706L30.5564 10.496L30.1156 11.8706H30.9832Z" fill="url(#aiMarkA)"/>
+  <path d="M22 0.5C33.864 0.5 43.4999 10.3291 43.5 22.4766C43.5 34.6242 33.8641 44.4531 22 44.4531C10.1359 44.4531 0.5 34.6242 0.5 22.4766C0.500115 10.3291 10.136 0.5 22 0.5Z" stroke="url(#aiMarkRing)"/>
+</g>
+<defs>
+<linearGradient id="aiMarkBar" x1="21.9384" y1="22.9727" x2="21.7544" y2="29.568" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF46A3"/><stop offset="1" stop-color="white"/>
+</linearGradient>
+<linearGradient id="aiMarkHouse" x1="21.0466" y1="10.8232" x2="19.9944" y2="36.4485" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF46A3"/><stop offset="1" stop-color="white"/>
+</linearGradient>
+<linearGradient id="aiMarkI" x1="32.9133" y1="9.69727" x2="32.0682" y2="13.7385" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF46A3"/><stop offset="1" stop-color="#5A759D"/>
+</linearGradient>
+<linearGradient id="aiMarkA" x1="30.5587" y1="9.69727" x2="30.3658" y2="13.9064" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF46A3"/><stop offset="1" stop-color="#5A759D"/>
+</linearGradient>
+<linearGradient id="aiMarkRing" x1="22" y1="0" x2="22" y2="44.9536" gradientUnits="userSpaceOnUse">
+<stop stop-color="#FF46A3"/><stop offset="1" stop-color="white"/>
+</linearGradient>
+</defs>
+</svg>
