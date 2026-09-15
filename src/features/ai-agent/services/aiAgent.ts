@@ -1,6 +1,12 @@
 /**
- * AI agent: transcribe voice note and respond to text.
- * Replace with real LLM (e.g. OpenAI) or Supabase Edge Function.
+ * AI agent: transcribe a voice note and respond.
+ * Replace with a real LLM (e.g. OpenAI) or a Supabase Edge Function.
+ *
+ * Voice only. `sendTextToAgent` lived here until the assistant panel was
+ * rebuilt to Figma 3910:1496, which has no text field — nothing called it
+ * afterwards. It was six lines returning a canned string, so it goes rather
+ * than lingering as a second unused stub; restoring it is trivial if the
+ * design brings typing back.
  */
 
 export interface VoiceNoteResult {
@@ -23,14 +29,4 @@ export async function transcribeAndRespond(audioUri: string): Promise<VoiceNoteR
     response:
       "I received your voice note. Connect a transcription service (e.g. Whisper) and an LLM in services/aiAgent.ts to get real transcript and responses.",
   };
-}
-
-/**
- * Send text to AI agent and get response.
- * TODO: Call your LLM API (e.g. OpenAI, Supabase Edge Function).
- */
-export async function sendTextToAgent(text: string): Promise<string> {
-  await new Promise((r) => setTimeout(r, 800));
-  // Placeholder: real implementation would POST text to your API and return the model reply
-  return `I received: "${text}". Connect an LLM in services/aiAgent.ts sendTextToAgent() for real responses.`;
 }

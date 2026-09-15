@@ -4,9 +4,7 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-} from 'react-native';
+  StyleSheet } from 'react-native';
 import { typography } from '@/theme';
 import { scaleX } from '../constants/lostAndFoundStyles';
 

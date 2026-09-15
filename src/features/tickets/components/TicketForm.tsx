@@ -12,8 +12,7 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRouter } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRouter , NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useToast } from '@/contexts/ToastContext';
@@ -23,8 +22,7 @@ import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@/types/navigation';
-import { getDepartments } from '@/lib/departments';
-import { DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
+import { getDepartments , DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -122,7 +120,6 @@ export default function TicketForm({
   departmentName = 'Engineering',
   onSubmitSuccess,
 }: TicketFormProps) {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const router = useRouter();
   const toast = useToast();
 

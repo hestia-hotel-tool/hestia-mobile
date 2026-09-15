@@ -2,8 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '@/theme';
-import { scaleX } from '../constants/lostAndFoundStyles';
-import {
+import { scaleX ,
   LOST_AND_FOUND_TABS,
   LOST_AND_FOUND_COLORS,
   LOST_AND_FOUND_TYPOGRAPHY,

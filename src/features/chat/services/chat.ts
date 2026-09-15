@@ -266,14 +266,14 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
     string,
     { id: string; chat_id: string; content: string | null; created_at: string | null; sender_id: string; users?: { full_name: string | null } | null }
   >();
-  for (const row of (messageRows ?? []) as Array<{
+  for (const row of (messageRows ?? []) as {
     id: string;
     chat_id: string;
     content: string | null;
     created_at: string | null;
     sender_id: string;
     users?: { full_name: string | null } | null;
-  }>) {
+  }[]) {
     if (!lastByChatId.has(row.chat_id)) lastByChatId.set(row.chat_id, row);
   }
 
@@ -286,13 +286,13 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
 
   const othersByChatId = new Map<
     string,
-    Array<{ user_id: string; users: { full_name: string | null; avatar_url: string | null } | null }>
+    { user_id: string; users: { full_name: string | null; avatar_url: string | null } | null }[]
   >();
-  for (const r of (participantRowsAll ?? []) as Array<{
+  for (const r of (participantRowsAll ?? []) as {
     chat_id: string;
     user_id: string;
     users: { full_name: string | null; avatar_url: string | null } | null;
-  }>) {
+  }[]) {
     const list = othersByChatId.get(r.chat_id) ?? [];
     list.push({ user_id: r.user_id, users: r.users });
     othersByChatId.set(r.chat_id, list);
@@ -307,10 +307,10 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
       lastMsg?.sender_id === userId ? 'You:' : lastMsg?.users?.full_name ? `${lastMsg.users.full_name}:` : '';
 
     const allOthers = othersByChatId.get(chat.id) ?? [];
-    const others = (chat.type === 'group' ? allOthers.slice(0, 3) : allOthers.slice(0, 1)) as Array<{
+    const others = (chat.type === 'group' ? allOthers.slice(0, 3) : allOthers.slice(0, 1)) as {
       user_id: string;
       users: { full_name: string | null; avatar_url: string | null } | null;
-    }>;
+    }[];
 
     const displayName =
       chat.type === 'group'
@@ -423,11 +423,11 @@ export async function getGroupParticipants(chatId: string): Promise<GroupPartici
     .select('user_id, role, users(full_name, avatar_url)')
     .eq('chat_id', chatId);
   if (error || !data) return [];
-  const rows = data as unknown as Array<{
+  const rows = data as unknown as {
     user_id: string;
     role: string;
     users: { full_name: string | null; avatar_url: string | null } | null;
-  }>;
+  }[];
   return rows.map((r) => ({
     user_id: r.user_id,
     full_name: r.users?.full_name ?? null,

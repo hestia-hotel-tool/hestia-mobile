@@ -243,8 +243,6 @@ function formatTime(timestamp: string): string {
   const date = new Date(timestamp);
   const now = new Date();
   const diff = now.getTime() - date.getTime();
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(diff / 3600000);
   
   // Format as HH:MM (24-hour format)
   const hours24 = date.getHours();

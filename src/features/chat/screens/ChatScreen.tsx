@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
-import { useNavigation, useFocusEffect } from 'expo-router';
+import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
-import { NativeStackNavigationProp } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BlurView } from 'expo-blur';
 import { typography } from '@/theme';
@@ -20,6 +19,8 @@ import { useUserStore } from '@features/account/store/useUserStore';
 import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
+import type { RootStackParamList } from '@/types/navigation';
+
 type MainTabsParamList = {
   '(home)/index': undefined;
   '(rooms)/index': undefined;
@@ -29,8 +30,6 @@ type MainTabsParamList = {
   '(staff)/index': undefined;
   '(settings)/index': undefined;
 };
-
-import type { RootStackParamList } from '@/types/navigation';
 
 type ChatScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, '(chats)/index'>,

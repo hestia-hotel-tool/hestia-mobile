@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
-import { REASSIGN_MODAL, scaleX } from '../../constants/reassignModalStyles';
+import { scaleX } from '../../constants/reassignModalStyles';
 import { StaffMember, ReassignTab } from '@features/staff';
 import StaffListItem from './StaffListItem';
 import { colors } from '@/theme';

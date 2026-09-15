@@ -1,7 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, KeyboardAvoidingView, Platform } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@/theme';
 import { ShiftType } from '@features/home';

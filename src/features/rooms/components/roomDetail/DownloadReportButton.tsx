@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { Text, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
 import { typography } from '@/theme';
 import { scaleX, HISTORY_SECTION } from '../../constants/roomDetailStyles';
 

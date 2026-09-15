@@ -4,10 +4,8 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  Image,
   StyleSheet,
-  Pressable,
-} from 'react-native';
+  Pressable } from 'react-native';
 import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 

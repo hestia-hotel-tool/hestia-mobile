@@ -187,7 +187,7 @@ async function uploadLostAndFoundImage(hotelId: string, imageUri: string): Promi
   if (uploadError || !uploadData?.path) {
     const maxAttempts = 3;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const result = await supabase.storage
         .from(LOST_AND_FOUND_BUCKET)
         .upload(fileName, body, { contentType, upsert: false });
@@ -199,7 +199,7 @@ async function uploadLostAndFoundImage(hotelId: string, imageUri: string): Promi
       const isTransientNetwork = message.includes('Network request failed');
       if (!isTransientNetwork || attempt === maxAttempts) break;
       console.warn('[lostAndFound] Upload attempt failed, retrying', { attempt, maxAttempts, message });
-      // eslint-disable-next-line no-await-in-loop
+       
       await new Promise((r) => setTimeout(r, attempt * 800));
     }
   }

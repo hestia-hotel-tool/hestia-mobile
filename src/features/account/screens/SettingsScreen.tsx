@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
-import { BlurView } from 'expo-blur';
-import { colors, typography } from '@/theme';
+import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
+import { colors } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { useAuth } from '@features/auth';
 import { useUserStore } from '@features/account/store/useUserStore';

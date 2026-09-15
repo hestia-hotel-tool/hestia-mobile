@@ -1,12 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
-import { scaleX } from '../constants/ticketsStyles';
-import {
-  TICKETS_TABS,
-  TICKETS_COLORS,
-  TICKETS_TYPOGRAPHY,
-} from '../constants/ticketsStyles';
+import { scaleX ,
+  TICKETS_TABS } from '../constants/ticketsStyles';
 import type { TicketTab } from '../types/tickets.types';
 
 interface TicketsTabsProps {
@@ -45,7 +41,6 @@ export default function TicketsTabs({ selectedTab, onTabPress }: TicketsTabsProp
     
     if (selectedTabPos.width === 0) {
       // Fallback to calculated width if not measured yet
-      const textWidth = textWidths[selectedTab] || (selectedTabConfig.width * scaleX);
       return { left: 0, width: (selectedTabConfig.indicatorWidth || selectedTabConfig.width) * scaleX };
     }
     
@@ -70,7 +65,6 @@ export default function TicketsTabs({ selectedTab, onTabPress }: TicketsTabsProp
         style={styles.tabsWrapper}
       >
         {tabs.map((tab, index) => {
-          const tabConfig = TICKETS_TABS.tabs[tab.id];
           const isLast = index === tabs.length - 1;
           
           return (

@@ -1,0 +1,20 @@
+<svg viewBox="0 0 13.0002 7.46164" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!--
+  The shafted arrow on a guest photo's corner disc — Figma 3883:5588.
+
+  Points left, which is the arrival direction; departure is this same mark
+  mirrored, exactly as the design builds it (both nodes export to identical
+  geometry, the flip living on the parent). Rendering one asset twice keeps the
+  two arrows the same drawing.
+
+  Not the same thing as `guest-arrival` / `guest-departure`, which are a person
+  outline beside a coloured arrow and are still correct where they are used —
+  the Rooms filter sheet. This is the badge mark: a bare arrow, white on the
+  filled disc, so it is authored `currentColor` and registers tintable.
+
+  The exported white stroke becomes currentColor; the viewBox is the design's
+  12 x 6.46 group plus the 0.5 stroke inset on each side.
+-->
+<path d="M12.5002 3.73105H0.5" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3.73082 0.5L0.5 3.73082L3.73082 6.96164" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

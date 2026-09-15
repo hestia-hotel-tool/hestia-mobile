@@ -1,6 +1,5 @@
 import React from 'react';
-import { TouchableOpacity, Text, View, StyleSheet } from 'react-native';
-import { Dimensions } from 'react-native';
+import { TouchableOpacity, Text, View, StyleSheet , Dimensions } from 'react-native';
 import { typography } from '@/theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

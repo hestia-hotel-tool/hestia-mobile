@@ -17,11 +17,9 @@ import {
   ActivityIndicator,
   ActionSheetIOS,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRoute, useNavigation, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets , SafeAreaView } from 'react-native-safe-area-context';
+import { useRoute, useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
-import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { BlurView } from 'expo-blur';
 import {
@@ -36,7 +34,7 @@ import { ChatMessage } from '@/types';
 import MessageBubble from '../components/MessageBubble';
 import ChatHeader from '../components/ChatHeader';
 import { colors } from '@/theme';
-import { scaleX, CHAT_HEADER, CHAT_HEADER_BAR_HEIGHT } from '../constants/chatStyles';
+import { scaleX, CHAT_HEADER_BAR_HEIGHT } from '../constants/chatStyles';
 import {
   getCurrentUserId,
   getChatById,

@@ -9,9 +9,8 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { useNavigation, useRoute } from 'expo-router';
+import { useNavigation, useRoute , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
-import { NativeStackNavigationProp } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';

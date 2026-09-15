@@ -42,8 +42,6 @@ export default function HistorySection({
 
     sortedEvents.forEach((event) => {
       const eventDate = normalizeDate(event.timestamp);
-      const todayNormalized = normalizeDate(today);
-      const yesterdayNormalized = normalizeDate(yesterday);
 
       const key = `${eventDate.getFullYear()}-${eventDate.getMonth()}-${eventDate.getDate()}`;
       if (!dateMap.has(key)) {

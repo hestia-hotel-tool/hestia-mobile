@@ -13,9 +13,8 @@ import {
   TextInput,
   useWindowDimensions,
 } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
-import { NativeStackNavigationProp } from 'expo-router';
 import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@/types/navigation';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';

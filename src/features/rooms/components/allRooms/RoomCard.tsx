@@ -1,13 +1,7 @@
 import React, { forwardRef, useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { colors, typography } from '@/theme';
-import { scaleX } from '../../constants/allRoomsStyles';
-import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
-import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
-import { FRONT_OFFICE_STATUS_ICONS, STATUS_CONFIGS, isRoomPaused, getRoomDisplayStatus } from '../../types/allRooms.types';
-import { getStayoverDisplayLabel, showStayoverWithLinenBadge } from '../../utils/stayoverLinen';
-import type { ShiftType } from '@features/home';
-import {
+import { scaleX ,
   CARD_DIMENSIONS,
   CARD_COLORS,
   ROOM_HEADER,
@@ -18,6 +12,11 @@ import {
   STATUS_BUTTON,
   CONTENT_OFFSET_TOP,
 } from '../../constants/allRoomsStyles';
+import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
+import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
+import { FRONT_OFFICE_STATUS_ICONS, STATUS_CONFIGS, isRoomPaused, getRoomDisplayStatus } from '../../types/allRooms.types';
+import { getStayoverDisplayLabel, showStayoverWithLinenBadge } from '../../utils/stayoverLinen';
+import type { ShiftType } from '@features/home';
 import GuestInfoSection from './GuestInfoSection';
 import GuestProfileImageModal from '@features/rooms/components/GuestProfileImageModal';
 import StaffSection from './StaffSection';
@@ -92,7 +91,6 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
   // Card type detection
   const isArrivalDeparture = room.frontOfficeStatus === 'Arrival/Departure';
   const isDeparture = room.frontOfficeStatus === 'Departure';
-  const isArrival = room.frontOfficeStatus === 'Arrival';
   const isStayover = room.frontOfficeStatus === 'Stayover';
   const isTurndown = room.frontOfficeStatus === 'Turndown';
   const isVacant = room.guests?.[0]?.isVacant === true;

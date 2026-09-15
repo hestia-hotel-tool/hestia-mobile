@@ -1,0 +1,19 @@
+<svg viewBox="0 0 17.3218 9.1507" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!--
+  The bed on a stayover guest's corner disc — Figma 3883:5849 ("Group 508"),
+  exported at its own 17.3218 x 9.1507 and left at that size.
+
+  Headboard arc, mattress, two legs. The mattress is `fill="none"` where the
+  export had `fill="#3BC1F6"`: that hex is the disc it sits on, so painting it
+  is the same as leaving it clear, and clear keeps the mark usable on any disc
+  colour.
+
+  Distinct from `guest-stayover-linen` / `guest-stayover-no-linen`, which are a
+  person-and-padlock drawing still used by the Rooms filter sheet. This is the
+  badge mark, white on the filled disc, so it is authored `currentColor`.
+-->
+<path d="M15.4144 4.38061C15.4144 2.23741 13.677 0.5 11.5338 0.5H6.30577C3.98397 0.5 2.10177 2.38219 2.10177 4.704" stroke="currentColor"/>
+<rect x="0.500114" y="3.94824" width="16.3217" height="4.00169" rx="2.00085" fill="none" stroke="currentColor"/>
+<rect x="1.47919" y="7.92453" width="0.350333" height="1.051" stroke="currentColor" stroke-width="0.350333"/>
+<rect x="15.4927" y="7.92453" width="0.350333" height="1.051" stroke="currentColor" stroke-width="0.350333"/>
+</svg>

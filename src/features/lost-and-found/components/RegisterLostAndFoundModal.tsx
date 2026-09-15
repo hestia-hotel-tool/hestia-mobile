@@ -17,7 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { typography } from '@/theme';
-import { REGISTER_FORM, scaleX, LOST_AND_FOUND_COLORS } from '../constants/lostAndFoundStyles';
+import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStaffFromSupabase } from '@features/staff';
 import { authService } from '@features/auth';
@@ -126,14 +126,6 @@ export default function RegisterLostAndFoundModal({
   const messageModal = useMessageModal();
   const [selectedLocation, setSelectedLocation] = useState<'room' | 'publicArea'>('room');
   // Default to current date and time
-  const getCurrentDateTime = () => {
-    const now = new Date();
-    return {
-      date: now,
-      hour: now.getHours(),
-      minute: now.getMinutes(),
-    };
-  };
   const [selectedDate, setSelectedDate] = useState<Date>(() => {
     const now = new Date();
     return now;
@@ -400,7 +392,6 @@ export default function RegisterLostAndFoundModal({
       ref.current.measureInWindow((x: number, y: number, width: number, height: number) => {
         const fieldBottom = y + height;
         const screenHeight = Dimensions.get('window').height;
-        const headerHeight = REGISTER_FORM.header.height * scaleX;
         // Use actual modal maxHeight from constants (200px scaled)
         const modalHeight = REGISTER_FORM.step2.locationDropdown.modal.maxHeight * scaleX;
         const spacing = 10 * scaleX; // Gap between field and modal
@@ -416,7 +407,6 @@ export default function RegisterLostAndFoundModal({
         if (modalBottom > availableSpace && scrollViewRef.current) {
           // Calculate how much we need to scroll
           // We want the modal to fit fully on screen with padding
-          const overflow = modalBottom - availableSpace;
           // Calculate desired position: field should be high enough that modal fits
           // desiredFieldBottom + spacing + modalHeight <= availableSpace
           // desiredFieldBottom <= availableSpace - spacing - modalHeight

@@ -4,13 +4,12 @@
  */
 
 import type { HomeScreenData } from '@features/home';
-import type { AllRoomsScreenData } from '../types/allRooms.types';
+import type { AllRoomsScreenData , StaffInfo } from '../types/allRooms.types';
 import type { TicketsScreenData } from '@features/tickets';
 import type { ChatItemData } from '@features/chat';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomStateUpdate } from './rooms';
 import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets';
-import type { StaffInfo } from '../types/allRooms.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getToast } from '@/utils/toast';
 

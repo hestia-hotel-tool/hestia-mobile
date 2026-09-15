@@ -4,7 +4,6 @@ import { typography } from '@/theme';
 import { BlurView } from 'expo-blur';
 import { scaleX } from '../constants/chatStyles';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export type NewChatMenuOption = 'createGroup' | 'newChat';
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, Modal, TouchableOpacity, Text, Pressable, useWindowDimensions, Image, TextInput } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
-import { BlurView } from 'expo-blur';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import LostAndFoundHeader from '../components/LostAndFoundHeader';
@@ -15,9 +14,7 @@ import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/
 import {
   LOST_AND_FOUND_SPACING,
   LOST_AND_FOUND_COLORS,
-  LOST_AND_FOUND_DIVIDER,
-  scaleX,
-} from '../constants/lostAndFoundStyles';
+  scaleX } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@/types/navigation';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -370,12 +367,12 @@ export default function LostAndFoundScreen() {
           const pendingId = pendingInsertedItemIdRef.current;
           const maxAttempts = pendingId ? 3 : 1;
           for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-            // eslint-disable-next-line no-await-in-loop
+             
             await loadItems('focus');
             if (!pendingId) break;
             const hasIt = itemsRef.current.some((it) => it.id === pendingId);
             if (hasIt) break;
-            // eslint-disable-next-line no-await-in-loop
+             
             await new Promise((r) => setTimeout(r, attempt * 600));
           }
         } finally {

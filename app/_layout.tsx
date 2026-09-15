@@ -1,6 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { StyleSheet } from 'react-native';
-import { Stack } from 'expo-router';
+import { Stack , router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -15,7 +15,6 @@ import {
 } from '@/lib/notificationIncoming';
 import { setupNotificationPresentation } from '@/lib/notifications';
 import type { PushData } from '@/lib/notifications';
-import { router } from 'expo-router';
 import * as NativeSplash from 'expo-splash-screen';
 
 // Keep the native splash up until the first screen has painted, so there is no

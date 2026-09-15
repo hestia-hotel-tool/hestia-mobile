@@ -58,13 +58,13 @@ export async function getActivityLogsForRoom(input: {
   roomId: string;
   limit?: number;
 }): Promise<
-  Array<{
+  {
     id: string;
     action: string;
     created_at: string | null;
     user_id: string | null;
     users: { full_name: string | null; avatar_url: string | null } | null;
-  }>
+  }[]
 > {
   if (!isSupabaseConfigured) return [];
   if (!input.roomId || !isValidUUID(input.roomId)) return [];
@@ -89,13 +89,13 @@ export async function getActivityLogsForRecord(input: {
   recordId: string;
   limit?: number;
 }): Promise<
-  Array<{
+  {
     id: string;
     action: string;
     created_at: string | null;
     user_id: string | null;
     users: { full_name: string | null; avatar_url: string | null } | null;
-  }>
+  }[]
 > {
   if (!isSupabaseConfigured) return [];
   if (!input.recordId || !isValidUUID(input.recordId)) return [];
@@ -122,14 +122,14 @@ export async function getRecentActivityLogs(input: {
   actionIlike?: string;
   limit?: number;
 }): Promise<
-  Array<{
+  {
     id: string;
     action: string;
     created_at: string | null;
     user_id: string | null;
     record_id: string | null;
     users: { full_name: string | null; avatar_url: string | null } | null;
-  }>
+  }[]
 > {
   if (!isSupabaseConfigured) return [];
 

@@ -9,8 +9,7 @@ import {
   Image,
   ActivityIndicator,
 } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { colors, typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { useUserStore } from '@features/account/store/useUserStore';
@@ -241,10 +240,6 @@ export default function StaffScreen() {
     }
   };
 
-  const handleSearch = () => {
-    // TODO: Implement search functionality
-    console.log('Search pressed');
-  };
 
   const handleStaffTabPress = (tab: StaffTab) => {
     setSelectedTab(tab);

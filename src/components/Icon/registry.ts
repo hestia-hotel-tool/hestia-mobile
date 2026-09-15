@@ -34,9 +34,11 @@ import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
 import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
 // guest-status
 import GuestArrival from '@assets/icons/guest-status/guest-arrival.svg';
+import GuestArrow from '@assets/icons/guest-status/guest-arrow.svg';
 import GuestDeparture from '@assets/icons/guest-status/guest-departure.svg';
 import GuestOccupancy from '@assets/icons/guest-status/guest-occupancy.svg';
 import GuestOccupied from '@assets/icons/guest-status/guest-occupied.svg';
+import GuestStayoverBed from '@assets/icons/guest-status/guest-stayover-bed.svg';
 import GuestStayoverLinen from '@assets/icons/guest-status/guest-stayover-linen.svg';
 import GuestStayoverNoLinen from '@assets/icons/guest-status/guest-stayover-no-linen.svg';
 import GuestTurndown from '@assets/icons/guest-status/guest-turndown.svg';
@@ -86,9 +88,11 @@ export const icons = {
   'action-tooltip-tail': ActionTooltipTail,
   // guest-status
   'guest-arrival': GuestArrival,
+  'guest-arrow': GuestArrow,
   'guest-departure': GuestDeparture,
   'guest-occupancy': GuestOccupancy,
   'guest-occupied': GuestOccupied,
+  'guest-stayover-bed': GuestStayoverBed,
   'guest-stayover-linen': GuestStayoverLinen,
   'guest-stayover-no-linen': GuestStayoverNoLinen,
   'guest-turndown': GuestTurndown,
@@ -145,9 +149,11 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-thumbs-up': 1.1265,
   'action-tooltip-tail': 2.5831,
   'guest-arrival': 1,
+  'guest-arrow': 1.7423,
   'guest-departure': 1,
   'guest-occupancy': 1.0769,
   'guest-occupied': 1,
+  'guest-stayover-bed': 1.8929,
   'guest-stayover-linen': 1,
   'guest-stayover-no-linen': 1,
   'guest-turndown': 1,
@@ -193,8 +199,10 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-return-later',
   'action-search',
   'action-tooltip-tail',
+  'guest-arrow',
   'guest-occupancy',
   'guest-occupied',
+  'guest-stayover-bed',
   'guest-stayover-linen',
   'guest-stayover-no-linen',
   'guest-turndown',

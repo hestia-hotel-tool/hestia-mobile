@@ -6,8 +6,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRoute, useNavigation, router } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { useRoute, useNavigation, router , NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
 import StatusChangeModal from '../components/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
@@ -42,7 +41,6 @@ import { findBlockingInProgressRoomForUser } from '../utils/attendantRules';
 import { usePermissions } from '@/domain/rbac';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
-import { fetchStaffFromSupabase } from '@features/staff';
 import { supabase } from '@/lib/supabase';
 import { buildFriendlyRoomHistoryMessage, getRoomHistoryEvents, logRoomHistoryEvent } from '../services/roomHistory';
 
@@ -772,14 +770,7 @@ export default function RoomDetailScreen() {
     } as any);
   };
 
-  const handleLostAndFoundTitlePress = () => {
-    navigation.navigate('(tabs)/(lost_and_found)' as any, {});
-  };
 
-  const handleLostAndFoundItemPress = (item: LostAndFoundItem) => {
-    console.log('Lost & Found item pressed:', item.itemName);
-    // TODO: Navigate to item detail or show modal
-  };
 
   const handleReassign = () => {
     console.log('handleReassign called, opening ReassignModal');

@@ -5,7 +5,6 @@ import { normalizedScaleX } from '@/utils/responsive';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
-const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 
 interface MoreMenuItemProps {
   icon: any;

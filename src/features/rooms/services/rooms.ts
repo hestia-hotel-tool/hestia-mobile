@@ -70,7 +70,6 @@ type ReservationGuestRow = {
 };
 
 /** Shift row from Supabase */
-type ShiftRow = { id: string; name: string; start_time: string; end_time: string };
 /** Room assignment row with user info */
 type RoomAssignmentRow = {
   room_id: string;
@@ -80,12 +79,6 @@ type RoomAssignmentRow = {
   users: { full_name: string; avatar_url: string | null } | null;
 };
 
-const DEFAULT_STAFF: StaffInfo = {
-  initials: 'N/A',
-  name: 'Not Assigned',
-  statusText: 'Not Started',
-  statusColor: '#1e1e1e',
-};
 
 /** Map `room_assignments.work_status` + user row to `StaffInfo` (incl. paused). */
 function staffInfoFromAssignment(row: {
@@ -187,11 +180,6 @@ async function fetchRoomAssignmentsForShift(shift: 'AM' | 'PM'): Promise<Map<str
   return map;
 }
 
-function safeStatus<T extends string>(value: string | null | undefined, allowed: readonly T[]): T {
-  if (value && allowed.includes(value as T)) return value as T;
-  return allowed[0] as T;
-}
-
 /** Canonical house_keeping_status values for display (RoomStatus). */
 const HOUSE_KEEPING_CANONICAL: Record<string, import('../types/allRooms.types').RoomStatus> = {
   dirty: 'Dirty',
@@ -270,7 +258,7 @@ function mapToGuestInfo(
 
 function mapRoomToCard(
   room: RoomRow,
-  reservations: Array<{ res: ReservationRow; guest: GuestRow | null }>,
+  reservations: { res: ReservationRow; guest: GuestRow | null }[],
   attendant: StaffInfo | null,
   notesAgg: RoomNotesAggregate | null
 ): RoomCardData {
@@ -353,10 +341,10 @@ const fetchRoomNotesAggregate = async (roomIds: string[]): Promise<Map<string, R
 
   if (error) return map;
 
-  const rows = (data ?? []) as Array<{
+  const rows = (data ?? []) as {
     room_id: string;
     users: { full_name: string | null; avatar_url: string | null } | null;
-  }>;
+  }[];
   for (const roomId of roomIds) {
     const roomRows = rows.filter((r) => r.room_id === roomId);
     const count = roomRows.length;
@@ -508,13 +496,13 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
       guestLinksByResId.set(rg.reservation_id, list);
     }
 
-    const missingGuestLinks: Array<{
+    const missingGuestLinks: {
       room_number: string;
       reservation_id: string;
       front_office_status: string | null;
       arrival_date: string;
       departure_date: string;
-    }> = [];
+    }[] = [];
 
     for (const res of reservations) {
       const links = guestLinksByResId.get(res.id) ?? [];
@@ -564,7 +552,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     console.log('[rooms] debug logging failed', e);
   }
 
-  const resByRoom = new Map<string, Array<{ res: ReservationRow; guest: GuestRow | null }>>();
+  const resByRoom = new Map<string, { res: ReservationRow; guest: GuestRow | null }[]>();
   for (const rg of reservationGuests) {
     const res = rg.reservations ?? (reservations.find((r) => r.id === rg.reservation_id) ?? null);
     const guest = rg.guests ?? null;
@@ -1020,12 +1008,12 @@ export interface ReservationDetail {
   reservation_status: string | null;
   front_office_status: string | null;
   promised_time: string | null;
-  guests: Array<{
+  guests: {
     id: string;
     full_name: string;
     vip_code: string | null;
     image_url: string | null;
-  }>;
+  }[];
 }
 
 export interface RoomNoteDetail {

@@ -1,22 +1,19 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Pressable, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Pressable, Text } from 'react-native';
 import { useDesignScale } from '@/hooks/useDesignScale';
-import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
 import { HOME_CHROME } from '../constants/homeChrome';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
-import { NativeStackNavigationProp } from 'expo-router';
 import { colors } from '@/theme';
 
-import type { ShiftType } from '../types/home.types';
+import type { ShiftType , CategorySection } from '../types/home.types';
 import { useAuth } from '@features/auth';
-import { useUserStore } from '@features/account';
-import { userProfileFromSession } from '@features/account';
-import { useRoomsStore } from '@features/rooms';
+import { useUserStore , userProfileFromSession } from '@features/account';
+import { useRoomsStore , dashboardService , getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt, getRoomNumbersByIds } from '@features/rooms';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
-import type { MoreMenuItemId } from '@/types/more.types';
-import type { RootStackParamList } from '@/types/navigation';
+import type { } from '@/types/more.types';
+import type { RootStackParamList , MainTabsParamList } from '@/types/navigation';
 import HomeHeader from '../components/HomeHeader';
 import HousekeepingDashboard from '../components/HousekeepingDashboard';
 import { usePermissions } from '@/domain/rbac';
@@ -29,16 +26,12 @@ import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import HomeFilterModal from '../components/HomeFilterModal';
 import { FilterState, FilterCounts } from '@/types/filter.types';
-import type { CategorySection } from '../types/home.types';
 import type { RoomCardData } from '@features/rooms';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
-import { dashboardService } from '@features/rooms';
-import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt, getRoomNumbersByIds } from '@features/rooms';
 import { getLatestPausedAssignment } from '../services/home';
 
-import type { MainTabsParamList } from '@/types/navigation';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, '(home)/index'>,
@@ -192,13 +185,13 @@ export default function HomeScreen() {
   }>({ total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 });
 
   const [engineeringRecent, setEngineeringRecent] = useState<
-    Array<{
+    {
       id: string;
       roomLabel: string;
       message: string;
       timeLabel: string;
       status: TicketActivityKey;
-    }>
+    }[]
   >([]);
 
   /**
@@ -312,14 +305,14 @@ export default function HomeScreen() {
   }>({ total: 0, dirty: 0, inProgress: 0, cleaned: 0, inspected: 0, priority: 0, progressText: '0/0' });
 
   const [portierRows, setPortierRows] = useState<
-    Array<{
+    {
       label: string;
       count: number;
       icon: any;
       circleBg: string;
       iconTint?: string;
       flipIconHorizontal?: boolean;
-    }>
+    }[]
   >([]);
 
   const refreshPortierHome = React.useCallback(async () => {
@@ -416,14 +409,14 @@ export default function HomeScreen() {
       refuseServiceText = reason ? String(reason) : '—';
     }
 
-    const candidates: Array<{
+    const candidates: {
       type: 'paused' | 'returnLater' | 'refused';
       roomId?: string;
       roomLabel?: string;
       timeIso?: string;
       timeMs: number;
       subText?: string;
-    }> = [
+    }[] = [
       {
         type: 'paused',
         roomId: pausedRoomLabel ? (workingRooms.find((r) => `Room ${r.roomNumber}` === pausedRoomLabel)?.id ?? undefined) : undefined,
@@ -539,13 +532,7 @@ export default function HomeScreen() {
     setShowFilterModal(true);
   };
 
-  const handleBellPress = () => {
-    navigation.navigate('(chats)/index' as any);
-  };
 
-  const handleProfilePress = () => {
-    navigation.navigate('user-profile/index', { user: safeUser });
-  };
 
   const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
     setActiveTab(tab); // Update immediately
@@ -557,8 +544,6 @@ export default function HomeScreen() {
     const usePMRooms = uiShift === 'PM' && Array.isArray(roomsPM) && roomsPM.length > 0;
     const sourceRooms = usePMRooms ? roomsPM : (roomsForHome.rooms ?? []);
     const uid = session?.user?.id;
-    const hasAssignedRooms =
-      !!uid && Array.isArray(sourceRooms) && sourceRooms.some((r) => String(r.roomAttendantAssigned?.userId ?? '') === String(uid));
     navigation.navigate('(rooms)/index', {
       showBackButton: true,
       filters: activeFilters,
@@ -575,8 +560,6 @@ export default function HomeScreen() {
     const usePMRooms = uiShift === 'PM' && Array.isArray(roomsPM) && roomsPM.length > 0;
     const sourceRooms = usePMRooms ? roomsPM : (roomsForHome.rooms ?? []);
     const uid = session?.user?.id;
-    const hasAssignedRooms =
-      !!uid && Array.isArray(sourceRooms) && sourceRooms.some((r) => String(r.roomAttendantAssigned?.userId ?? '') === String(uid));
     navigation.navigate('(rooms)/index', {
       showBackButton: true,
       filters: activeFilters,
@@ -593,8 +576,6 @@ export default function HomeScreen() {
     const usePMRooms = uiShift === 'PM' && Array.isArray(roomsPM) && roomsPM.length > 0;
     const sourceRooms = usePMRooms ? roomsPM : (roomsForHome.rooms ?? []);
     const uid = session?.user?.id;
-    const hasAssignedRooms =
-      !!uid && Array.isArray(sourceRooms) && sourceRooms.some((r) => String(r.roomAttendantAssigned?.userId ?? '') === String(uid));
     navigation.navigate('(rooms)/index', {
       showBackButton: true,
       filters: activeFilters,

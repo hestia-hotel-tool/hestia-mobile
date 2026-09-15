@@ -1,7 +1,6 @@
 import React from 'react';
 import { ScrollView, StyleSheet, KeyboardAvoidingView, Platform, View, Text, ActivityIndicator } from 'react-native';
-import { useNavigation } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { useNavigation , NativeStackNavigationProp } from 'expo-router';
 import { RootStackParamList } from '@/types/navigation';
 import { colors, typography } from '@/theme';
 import { scaleX, CONTENT_AREA } from '../../constants/roomDetailStyles';
@@ -21,7 +20,6 @@ export default function RoomTicketsSection({
   departmentName,
   roomId,
 }: RoomTicketsSectionProps) {
-  const navigation = useNavigation<NavigationProp>();
   const [latestTicket, setLatestTicket] = React.useState<TicketData | null>(null);
   const [loadingLatest, setLoadingLatest] = React.useState(false);
 

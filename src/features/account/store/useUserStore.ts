@@ -3,7 +3,7 @@
  */
 
 import { create } from 'zustand';
-import { getProfile, userProfileFromSession, updateAvatar } from '../services/user';
+import { getProfile, updateAvatar } from '../services/user';
 import type { UserProfile } from '@features/home';
 
 interface UserState {

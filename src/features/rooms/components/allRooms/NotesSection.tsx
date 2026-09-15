@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { colors, typography } from '@/theme';
+import { typography } from '@/theme';
 import { NotesInfo } from '../../types/allRooms.types';
 import { scaleX, NOTES_SECTION } from '../../constants/allRoomsStyles';
 
@@ -37,9 +37,6 @@ export default function NotesSection({ notes, isArrivalDeparture = false, isPrio
   const badgePos = isArrivalDeparture 
     ? NOTES_SECTION.badge.positions.arrivalDeparture 
     : NOTES_SECTION.badge.positions.withNotes;
-  const textPos = isArrivalDeparture 
-    ? NOTES_SECTION.text.positions.arrivalDeparture 
-    : NOTES_SECTION.text.positions.withNotes;
 
   const rushedIconPos = isArrivalDeparture
     ? NOTES_SECTION.rushedIcon.positions.arrivalDeparture

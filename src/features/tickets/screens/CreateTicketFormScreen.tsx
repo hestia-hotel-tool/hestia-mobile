@@ -14,20 +14,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
-import { useNavigation, useRoute, useRouter } from 'expo-router';
+import { useNavigation, useRoute, useRouter , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
-import { NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account';
 import type { User } from '@/types';
-import { DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
+import { DEPARTMENT_NAME_TO_ICON , getDepartments } from '@/lib/departments';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { getDepartments } from '@/lib/departments';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -106,12 +103,6 @@ export default function CreateTicketFormScreen() {
   const paramRoomNumber = route.params?.roomNumber;
   const paramIsPublicArea = route.params?.isPublicArea;
   const paramPublicAreaName = route.params?.publicAreaName;
-  const paramGuestName = route.params?.guestName;
-  const paramCheckIn = route.params?.checkIn;
-  const paramCheckOut = route.params?.checkOut;
-  const paramGuestCount = route.params?.guestCount;
-  const paramVipCode = route.params?.vipCode;
-  const paramGuestImageUrl = route.params?.guestImageUrl;
   const toast = useToast();
 
   // Form state

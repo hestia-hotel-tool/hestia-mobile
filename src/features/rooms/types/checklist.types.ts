@@ -33,11 +33,11 @@ export interface ChecklistData {
 
 export interface ChecklistSubmissionData {
   roomNumber: string;
-  items: Array<{
+  items: {
     id: string;
     name: string;
     quantity: number;
-  }>;
+  }[];
   registeredBy: string;
   registeredAt: string;
 }

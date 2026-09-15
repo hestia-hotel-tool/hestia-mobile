@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
-import { CHECKLIST_SECTION, scaleX } from '../../constants/checklistStyles';
+import { scaleX } from '../../constants/checklistStyles';
 
 interface ChecklistFooterProps {
   registeredBy: {

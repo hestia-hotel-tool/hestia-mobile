@@ -14,9 +14,8 @@ import {
   PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute } from 'expo-router';
+import { useNavigation, useRoute , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
-import { NativeStackNavigationProp } from 'expo-router';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
@@ -45,12 +44,12 @@ interface RoomData {
   vip_code?: string;
   image_url?: string;
   front_office_status?: string;
-  guests?: Array<{
+  guests?: {
     id?: string;
     full_name?: string;
     vip_code?: string;
     image_url?: string;
-  }>;
+  }[];
 }
 
 function getInitials(name?: string): string {

@@ -20,20 +20,66 @@ export type GuestRowKind =
   | 'vacant';
 
 /**
- * `tint` is deliberately absent for arrival and departure.
+ * The disc on the photo's corner: a filled circle in the status colour with a
+ * white mark on it.
  *
- * Those two glyphs are two-tone — they carry their own #41D541 and #F92424 and
- * are not in `TINTABLE_ICONS`, so `<Icon color=…>` warns in dev and changes
- * nothing. The rest are single-colour and need telling what to be.
+ * That way round, and measured off Figma 3883:5570 rather than assumed — the
+ * app had it inverted, drawing a white disc with a coloured mark. Sampling the
+ * frame: arrival is a 20px `#41d541` disc, departure a 20px `#f92424` disc, and
+ * stayover a **29px** `#3bc1f6` one. The mark is white in every case.
+ *
+ * Arrival and departure share one arrow, mirrored — `guest-arrival` and
+ * `guest-departure` are a different drawing (a person beside an arrow) that the
+ * Rooms filter sheet still uses correctly, so they are left alone.
+ *
+ * `size` overrides the default disc (`ROOM_CARD.guest.badge`, 20);
+ * `glyph` is the mark's height inside it. Turndown, occupied
+ * and vacant do not appear in this frame, so they take the same treatment at
+ * the default size with their existing colours — worth checking against a frame
+ * that shows them.
  */
-const BADGE: Record<GuestRowKind, { icon: IconName; tint?: string }> = {
-  arrival: { icon: 'guest-arrival' },
-  departure: { icon: 'guest-departure' },
-  'stayover-linen': { icon: 'guest-stayover-linen', tint: colors.text.link },
-  'stayover-no-linen': { icon: 'guest-stayover-no-linen', tint: colors.text.link },
-  turndown: { icon: 'guest-turndown', tint: colors.primary.main },
-  occupied: { icon: 'guest-occupied', tint: colors.primary.main },
-  vacant: { icon: 'guest-vacant', tint: colors.text.muted },
+type BadgeSpec = {
+  icon: IconName;
+  background: string;
+  /** Disc diameter. 20 unless the design draws it larger. */
+  size?: number;
+  /** Mark height inside the disc. */
+  glyph?: number;
+  /** Mirrored horizontally — departure is the arrival arrow flipped. */
+  flip?: boolean;
+};
+
+const BADGE: Record<GuestRowKind, BadgeSpec> = {
+  arrival: { icon: 'guest-arrow', background: colors.status.inspected, glyph: 7.46 },
+  departure: { icon: 'guest-arrow', background: colors.status.dirty, glyph: 7.46, flip: true },
+  /*
+   * Both stayover kinds draw the same bed, on the default 20px disc.
+   *
+   * A knowing deviation: the frame draws this disc at 29 (3883:5849) where
+   * arrival and departure are 20, and we match the 20 so the three badges are
+   * one size. The bed is scaled by the same 20/29 so it keeps the proportion it
+   * has in the design — 17.3218 x 9.1507 inside 29 is 60% of the disc, and
+   * 6.3108 here keeps it at 60% of 20. `Icon` derives the width from the
+   * registered aspect.
+   *
+   * One mark for both kinds: the frame has exactly one stayover disc and the
+   * design system has no linen/no-linen variants. The app still tells them
+   * apart in data — `getStayoverWithLinen` picks the kind — they just look
+   * alike until the design gives the second mark.
+   */
+  'stayover-linen': {
+    icon: 'guest-stayover-bed',
+    background: colors.text.link,
+    glyph: 6.3108,
+  },
+  'stayover-no-linen': {
+    icon: 'guest-stayover-bed',
+    background: colors.text.link,
+    glyph: 6.3108,
+  },
+  turndown: { icon: 'guest-turndown', background: colors.primary.main },
+  occupied: { icon: 'guest-occupied', background: colors.primary.main },
+  vacant: { icon: 'guest-vacant', background: colors.text.muted },
 };
 
 export type GuestRowProps = {
@@ -74,6 +120,7 @@ export function GuestRow({
   onImagePress,
 }: GuestRowProps) {
   const badge = BADGE[kind];
+  const discSize = badge.size ?? ROOM_CARD.guest.badge;
   const PhotoContainer = onImagePress ? Pressable : View;
 
   return (
@@ -96,14 +143,16 @@ export function GuestRow({
           ) : null}
         </View>
         <View
-          className="absolute -bottom-[6px] -right-[6px] items-center justify-center rounded-full bg-surface-primary"
-          style={{ width: ROOM_CARD.guest.badge, height: ROOM_CARD.guest.badge }}
+          className="absolute -bottom-1.5 -right-1.5 items-center justify-center rounded-full"
+          style={{ width: discSize, height: discSize, backgroundColor: badge.background }}
         >
-          <Icon
-            name={badge.icon}
-            size={ROOM_CARD.guest.badge}
-            {...(badge.tint ? { color: badge.tint } : {})}
-          />
+          <View {...(badge.flip ? { style: { transform: [{ scaleX: -1 }] } } : {})}>
+            <Icon
+              name={badge.icon}
+              size={badge.glyph ?? discSize * 0.62}
+              color={colors.text.white}
+            />
+          </View>
         </View>
       </PhotoContainer>
 

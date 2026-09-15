@@ -13,8 +13,7 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
-import { useNavigation } from 'expo-router';
-import { NativeStackNavigationProp } from 'expo-router';
+import { useNavigation , NativeStackNavigationProp } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/types/navigation';
 import type { User } from '@/types';
