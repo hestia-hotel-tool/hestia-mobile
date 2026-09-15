@@ -80,7 +80,6 @@ export default function TicketsScreen() {
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-  const [activeTab, setActiveTab] = useState('Tickets');
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
   const [ticketsData, setTicketsData] = useState<TicketsScreenData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -150,28 +149,21 @@ export default function TicketsScreen() {
     loadTickets();
   }, [loadTickets]);
 
-  // Sync activeTab with current route
+  // Refresh on return to the tab, and clear the tickets badge. This used to sit
+  // alongside a dead `activeTab` resync that compared `route.name` against
+  // 'Tickets' — a name the router never uses. The resync is gone; the refresh
+  // is the part that was doing real work.
   useFocusEffect(
     React.useCallback(() => {
-      const routeName = route.name as string;
-      if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
-        setActiveTab(routeName);
-      }
-
-      // When navigated with an explicit initialTab (e.g. after creating a ticket),
-      // prefer that over the stored selection.
       const params = (route as any).params as { initialTab?: TicketTab } | undefined;
-      const overrideInitialTab = params?.initialTab;
-
-      // Refresh when returning to the tab (no full-screen loader).
-      loadTickets(overrideInitialTab, { silent: true });
+      // An explicit initialTab (e.g. after creating a ticket) wins over the
+      // stored selection.
+      loadTickets(params?.initialTab, { silent: true });
       void markAllTicketTagNotificationsRead().then(() => invalidateNotificationBadges());
     }, [route, loadTickets])
   );
 
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
-  };
+
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -615,7 +607,7 @@ export default function TicketsScreen() {
       <TicketsTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
 
       {/* Bottom Navigation */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
     </View>
   );
 }

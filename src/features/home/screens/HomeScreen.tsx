@@ -102,7 +102,6 @@ export default function HomeScreen() {
   const [activeFilters, setActiveFilters] = useState<FilterState | undefined>(
     (route.params as any)?.filters as FilterState | undefined
   );
-  const [activeTab, setActiveTab] = useState('Home');
   const [searchQuery, setSearchQuery] = useState('');
   const [refreshing, setRefreshing] = useState(false);
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -507,15 +506,6 @@ export default function HomeScreen() {
     void refreshPortierHome();
   }, [refreshPortierHome]);
 
-  // Sync activeTab with current route
-  useFocusEffect(
-    React.useCallback(() => {
-      const routeName = route.name as string;
-      if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
-        setActiveTab(routeName);
-      }
-    }, [route.name])
-  );
 
   const handleShiftToggle = (shift: ShiftType) => {
     setHomeData(prev => ({ ...prev, selectedShift: shift }));
@@ -534,9 +524,6 @@ export default function HomeScreen() {
 
 
 
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
-  };
 
   const handleCategoryPress = (category: CategorySection) => {
     const uiShift = homeData.selectedShift;
@@ -683,10 +670,9 @@ export default function HomeScreen() {
     setHomeData((prev) => ({ ...prev, categories: derivedCategories }));
   }, [derivedCategories]);
 
-  React.useEffect(() => {
-    fetchRooms(effectiveShift);
-  }, [effectiveShift, fetchRooms]);
-
+  // One fetch, not two. There was an identical `useEffect` beside this with the
+  // same body and the same deps; `useFocusEffect` already runs on mount, so
+  // every mount and every shift change fired the whole pipeline twice.
   useFocusEffect(
     React.useCallback(() => {
       fetchRooms(effectiveShift);
@@ -695,7 +681,8 @@ export default function HomeScreen() {
 
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
-    await fetchRooms(effectiveShift);
+    // Pull-to-refresh means "go and look", so it ignores the staleness window.
+    await fetchRooms(effectiveShift, { force: true });
     await refreshEngineeringHome();
     await refreshPortierHome();
     setRefreshing(false);
@@ -1109,7 +1096,7 @@ export default function HomeScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
 
       {/* Filter Modal */}
       <HomeFilterModal

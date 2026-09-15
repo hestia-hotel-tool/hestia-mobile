@@ -1,6 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRoute, NativeStackNavigationProp } from 'expo-router';
 import { colors } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { useAuth } from '@features/auth';
@@ -18,7 +18,6 @@ export default function SettingsScreen() {
   const route = useRoute();
   const { signOut } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
-  const [activeTab, setActiveTab] = useState('Settings');
 
   const messageModal = useMessageModal();
   const handleSignOut = () => {
@@ -38,20 +37,6 @@ export default function SettingsScreen() {
         },
       ],
     });
-  };
-
-  // Sync activeTab with current route
-  useFocusEffect(
-    React.useCallback(() => {
-      const routeName = route.name as string;
-      if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
-        setActiveTab(routeName);
-      }
-    }, [route.name])
-  );
-
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
   };
 
   const handleBack = () => {
@@ -77,7 +62,7 @@ export default function SettingsScreen() {
         
       </View>
       
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
     </View>
   );
 }

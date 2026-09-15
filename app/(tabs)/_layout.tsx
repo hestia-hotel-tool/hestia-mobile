@@ -12,6 +12,14 @@ export default function TabLayout() {
         screenOptions={{
           headerShown: false,
           tabBarStyle: { display: 'none' },
+          /*
+           * Tab screens stay mounted for the life of the session, and without
+           * this every one of them re-renders on every state change — the Rooms
+           * list kept re-rendering its cards while the user was reading Chat.
+           * Freezing suspends React work for a blurred screen; it does not
+           * unmount it, so state, scroll position and subscriptions survive.
+           */
+          freezeOnBlur: true,
         }}
       >
         <Tabs.Screen name="(home)" options={{ title: 'Home' }} />

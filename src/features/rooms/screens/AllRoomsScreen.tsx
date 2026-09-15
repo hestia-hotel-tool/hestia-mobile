@@ -40,6 +40,7 @@ import { applyRoomFilters, hasAnyActiveFilter } from '../utils/roomFilters';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
 import GroupedRoomsList from '../components/allRooms/GroupedRoomsList';
+import { RoomRow } from '../components/allRooms/RoomRow';
 import { usePermissions, PERMISSIONS } from '@/domain/rbac';
 import { findBlockingInProgressRoom } from '../utils/attendantRules';
 import { useMessageModal } from '@/contexts/MessageModalContext';
@@ -68,7 +69,16 @@ export default function AllRoomsScreen() {
   const initialShift = routeShift || getShiftFromTime();
   const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, setSelectedShift, setRoomAttendant } = useRoomsStore();
 
-  const displayData = allRoomsData ?? { selectedShift: initialShift, rooms: [], roomsPM: [] };
+  /*
+   * Memoised, because this is read by the `filteredRooms` memo and by every
+   * card. As a bare object literal it was a new identity on every render, so
+   * every downstream memo keyed on it recomputed and no card could ever bail
+   * out — the empty fallback alone invalidated the list.
+   */
+  const displayData = useMemo(
+    () => allRoomsData ?? { selectedShift: initialShift, rooms: [], roomsPM: [] },
+    [allRoomsData, initialShift]
+  );
   // UI shift follows the selected shift. Do not coerce PM->AM during AM hours; that breaks
   // assignment-based navigation (HSK Portier) and can lead to empty results.
   const uiShift: ShiftType = (displayData.selectedShift ?? initialShift) as ShiftType;
@@ -78,7 +88,6 @@ export default function AllRoomsScreen() {
   }, [initialShift, fetchRooms]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeTab, setActiveTab] = useState('Rooms');
   const [showInspectedModal, setShowInspectedModal] = useState(false);
   const [roomForInspection, setRoomForInspection] = useState<RoomCardData | null>(null);
   const [buttonPositionForInspection, setButtonPositionForInspection] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -90,6 +99,15 @@ export default function AllRoomsScreen() {
   const currentScrollYRef = useRef<number>(0); // Track current scroll position
   const cardRefs = useRef<{ [key: string]: any }>({});
   const statusButtonRefs = useRef<{ [key: string]: any }>({});
+
+  // Stable, so a card's `ref` callback keeps its identity across renders and
+  // React stops detaching and re-attaching it on every commit. See `RoomRow`.
+  const registerCardRef = useCallback((roomId: string, ref: unknown) => {
+    cardRefs.current[roomId] = ref;
+  }, []);
+  const registerPillRef = useCallback((roomId: string, ref: unknown) => {
+    statusButtonRefs.current[roomId] = ref;
+  }, []);
   const scrollViewRef = useRef<ScrollView>(null);
   const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
   const scaleX = windowWidth / DESIGN_WIDTH;
@@ -201,9 +219,13 @@ export default function AllRoomsScreen() {
   }, [shouldPrioritizeAssignedOnly, session?.user?.id, uiShift]);
 
   // Opening Rooms from the assignment badge: mark inbox rows read once so the tab badge clears (like Tickets).
+  //
+  // No route-name guard. There was one — `route.name !== 'Rooms'` — but the
+  // route is named `(rooms)/index`, so it never matched and this never ran:
+  // the badge stayed lit after opening the tab. `useFocusEffect` already scopes
+  // this to the Rooms screen being focused, so the check bought nothing anyway.
   useFocusEffect(
     React.useCallback(() => {
-      if (route.name !== 'Rooms') return;
       if (!prioritizeMyAssignedRooms) {
         markedRoomAssignmentNotificationsReadRef.current = false;
         return;
@@ -211,7 +233,7 @@ export default function AllRoomsScreen() {
       if (markedRoomAssignmentNotificationsReadRef.current) return;
       markedRoomAssignmentNotificationsReadRef.current = true;
       void markAllRoomAssignmentNotificationsRead().then(() => invalidateNotificationBadges());
-    }, [route.name, prioritizeMyAssignedRooms])
+    }, [prioritizeMyAssignedRooms])
   );
 
   // Initialize local filters: merge route filters with categoryFilter.roomState when coming from Home badge tap
@@ -297,10 +319,12 @@ export default function AllRoomsScreen() {
     setShowFilterModal(true);
   };
 
-  const handleAssignStaffPress = (room: RoomCardData) => {
+  // `useCallback` because every card holds this: a fresh identity re-renders
+  // the whole list through `RoomRow`'s memo.
+  const handleAssignStaffPress = useCallback((room: RoomCardData) => {
     setRoomToAssign(room);
     setShowAssignStaffModal(true);
-  };
+  }, []);
 
   const handleAssignStaffSelect = async (staffId: string) => {
     if (!roomToAssign) return;
@@ -426,14 +450,18 @@ export default function AllRoomsScreen() {
     navigation.goBack();
   };
 
-  const handleRoomPress = (room: RoomCardData) => {
-    // Shared with RoomDetailScreen, so the list and the detail screen can no
-    // longer disagree about which layout a room gets.
-    const roomType = mapFrontOfficeToRoomType(room.frontOfficeStatus, room.guests?.length ?? 0);
+  // `useCallback` for the same reason as `handleAssignStaffPress`.
+  const handleRoomPress = useCallback(
+    (room: RoomCardData) => {
+      // Shared with RoomDetailScreen, so the list and the detail screen can no
+      // longer disagree about which layout a room gets.
+      const roomType = mapFrontOfficeToRoomType(room.frontOfficeStatus, room.guests?.length ?? 0);
 
-    // Navigate to Room Detail; pass roomId so screen can fetch full details via getRoomDetailsById
-    navigation.navigate('room/[roomId]', { room, roomType, roomId: room.id } as any);
-  };
+      // Navigate to Room Detail; pass roomId so screen can fetch full details via getRoomDetailsById
+      navigation.navigate('room/[roomId]', { room, roomType, roomId: room.id } as any);
+    },
+    [navigation]
+  );
 
   /**
    * The room whose pill was tapped, held for one layout pass before the popover
@@ -525,22 +553,11 @@ export default function AllRoomsScreen() {
     setButtonPositionForInspection(null);
   };
 
-  // Sync activeTab with current route
-  useFocusEffect(
-    React.useCallback(() => {
-      const routeName = route.name as string;
-      if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
-        setActiveTab(routeName);
-      }
-    }, [route.name])
-  );
 
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
-  };
 
   const onRefresh = React.useCallback(() => {
-    fetchRooms(uiShift);
+    // Pull-to-refresh means "go and look", so it ignores the staleness window.
+    fetchRooms(uiShift, { force: true });
   }, [fetchRooms, uiShift]);
 
   /**
@@ -773,45 +790,25 @@ export default function AllRoomsScreen() {
               ),
             };
 
-            const renderRoomCard = (room: RoomCardData) =>
-              chrome.rebuiltCard ? (
-                <View key={room.id} style={styles.roomCardSlot}>
-                  <RoomListCard
-                    room={room}
-                    onPress={() => handleRoomPress(room)}
-                    onStatusPress={canChangeStatus ? () => handleStatusPress(room) : undefined}
-                    onAssignPress={() => handleAssignStaffPress(room)}
-                    isChangingStatus={changingStatusRoomId === room.id}
-                    measureRef={(ref) => {
-                      if (ref) cardRefs.current[room.id] = ref;
-                    }}
-                    statusPillRef={(ref) => {
-                      if (ref) statusButtonRefs.current[room.id] = ref;
-                    }}
-                  />
-                </View>
-              ) : (
-                <RoomCard
-                  key={room.id}
-                  ref={(ref) => {
-                    if (ref) {
-                      cardRefs.current[room.id] = ref;
-                    }
-                  }}
-                  room={room}
-                  onPress={() => handleRoomPress(room)}
-                  onStatusPress={canChangeStatus ? () => handleStatusPress(room) : undefined}
-                  onAssignStaffPress={handleAssignStaffPress}
-                  statusButtonRef={(ref) => {
-                    if (ref) {
-                      statusButtonRefs.current[room.id] = ref;
-                    }
-                  }}
-                  selectedShift={displayData.selectedShift}
-                  isChangingStatus={changingStatusRoomId === room.id}
-                  isAssigningStaff={assigningStaffRoomId === room.id}
-                />
-              );
+            const renderRoomCard = (room: RoomCardData) => (
+              <RoomRow
+                key={room.id}
+                room={room}
+                rebuilt={chrome.rebuiltCard}
+                selectedShift={displayData.selectedShift}
+                canChangeStatus={canChangeStatus}
+                isChangingStatus={changingStatusRoomId === room.id}
+                isAssigningStaff={assigningStaffRoomId === room.id}
+                onPress={handleRoomPress}
+                onStatusPress={handleStatusPress}
+                onAssignPress={handleAssignStaffPress}
+                registerCardRef={registerCardRef}
+                registerPillRef={registerPillRef}
+                RebuiltCard={RoomListCard}
+                LegacyCard={RoomCard}
+                slotStyle={styles.roomCardSlot}
+              />
+            );
 
             const emptyState = (
               <View style={styles.emptyStateCard}>
@@ -879,7 +876,7 @@ export default function AllRoomsScreen() {
       </KeyboardAvoidingView>
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
 
       {/* Status Change Modal */}
       <StatusChangeModal

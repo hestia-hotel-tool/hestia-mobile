@@ -40,7 +40,6 @@ export default function ChatScreen() {
   const navigation = useNavigation<ChatScreenNavigationProp>();
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
-  const [activeTab, setActiveTab] = useState('Chat');
   const [showNewChatMenu, setShowNewChatMenu] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const { chats, loading, fetchChats, applyIncomingMessageToChatList } = useChatStore();
@@ -183,9 +182,6 @@ export default function ChatScreen() {
     }, [loadChats, loadTopNotification])
   );
 
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
-  };
 
   const handleSearch = (text: string) => {
     setSearchQuery(text);
@@ -303,7 +299,7 @@ export default function ChatScreen() {
       />
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
 
       {/* New Chat Menu */}
       <NewChatMenu

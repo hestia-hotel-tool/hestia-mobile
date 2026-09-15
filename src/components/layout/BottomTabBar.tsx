@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, StyleSheet, ScrollView, LayoutChangeEvent, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from 'expo-router';
+import { useNavigation, useRoute } from 'expo-router';
 import { colors } from '@/theme';
 import TabBarItem from './TabBarItem';
 import { MORE_MENU_OPTIONS } from '@/types/more.types';
@@ -15,19 +15,20 @@ import { useAIChatOverlay } from '@features/ai-agent';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 
-interface BottomTabBarProps {
-  activeTab: string;
-  /**
-   * Called when a tab is pressed, for the screen to record as active and
-   * navigate.
-   *
-   * `AIHome` never reaches this: the tab bar opens the assistant itself, so a
-   * screen cannot forget to wire it and cannot mark a routeless tab active.
-   */
-  onTabPress?: (tab: string, options?: TabPressOptions) => void;
-  onMorePress?: () => void;
-}
-
+/*
+ * No props.
+ *
+ * There were two, `activeTab` and `onTabPress`, and each screen owned a piece
+ * of the bar's state: local `activeTab` state, a focus effect to resync it, and
+ * a `handleTabPress` that navigated and then set it. The resync compared
+ * `route.name` against `'Home'` / `'Rooms'` — names the router never uses (the
+ * real ones are `'(home)/index'` etc.), so it never fired and a screen kept
+ * whatever tab was last pressed: Home -> Rooms -> Home left Home highlighting
+ * Rooms.
+ *
+ * The bar now reads the route itself, which cannot go stale and costs the
+ * leaving screen no re-render on press.
+ */
 /** Registered expo-router route name for each tab's screen. */
 const TAB_ROUTE_NAMES: Record<string, string> = {
   Home: '(home)/index',
@@ -38,6 +39,11 @@ const TAB_ROUTE_NAMES: Record<string, string> = {
   Staff: '(staff)/index',
   Settings: '(settings)/index',
 };
+
+/** Route name -> tab id, inverted from the map above so the two cannot drift. */
+const ROUTE_TO_TAB: Record<string, string> = Object.fromEntries(
+  Object.entries(TAB_ROUTE_NAMES).map(([tab, route]) => [route, tab])
+);
 
 /** Route name used as the `returnToTab` param, keyed by the currently active tab. */
 const TAB_RETURN_ROUTE: Record<string, ReturnToTab> = {
@@ -140,9 +146,22 @@ const MAIN_TABS = [
   },
 ];
 
-export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: BottomTabBarProps) {
+export default function BottomTabBar() {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  /*
+   * The bar's own route is the source of truth for which tab is active — there
+   * is one of these bars per mounted screen, and seven copies of a boolean
+   * cannot be kept in step. Deriving it also means a press no longer has to
+   * re-render the screen it is leaving just to update its highlight.
+   *
+   * `useRoute()`, not `useSegments()`. Segments describe the router's current
+   * location, so every one of the seven mounted bars re-renders on every
+   * navigation — the opposite of what this change is for. `useRoute()` returns
+   * the route this bar is rendered inside, which never changes for the life of
+   * the screen: each copy is correct by construction and re-renders never.
+   */
+  const activeTab = ROUTE_TO_TAB[useRoute().name] ?? 'Home';
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
@@ -204,23 +223,24 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
     /*
      * AI Home has no route: it opens the assistant over whatever is on screen.
      *
-     * Handled here rather than delegated. This used to call `onTabPress(tabId)`
-     * and leave it to the screen, which meant the same four lines were repeated
-     * in all seven screens that render a tab bar — and because `onTabPress` is
-     * optional, a new screen that forgot them got a silently dead AI button
-     * with no type error.
-     *
-     * `onTabPress` is deliberately NOT called: the screens' handlers end with
-     * `setActiveTab(tab)`, so forwarding an id that has no route would light up
-     * a tab the user cannot be on.
+     * Handled here rather than delegated. This used to call out to the screen's
+     * own `onTabPress`, which meant the same four lines were repeated in all
+     * seven screens that render a tab bar — and because the prop was optional,
+     * a new screen that forgot them got a silently dead AI button with no type
+     * error.
      */
     if (tabId === 'AIHome') {
       openAIChatOverlay();
       return;
     }
-    onTabPress?.(tabId, options);
     const routeName = TAB_ROUTE_NAMES[tabId];
     if (!routeName) return;
+    /*
+     * Re-tapping the tab you are on used to re-dispatch `navigate` with fresh
+     * params, which changed `route.params` identity and re-ran every focus
+     * effect keyed on it — a full refetch for a press that changes nothing.
+     */
+    if (tabId === activeTab) return;
     if (tabId === 'Rooms') {
       (navigation as any).navigate(routeName, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,

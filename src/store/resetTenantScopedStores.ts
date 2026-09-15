@@ -1,7 +1,8 @@
 import { useChatStore } from '@features/chat';
-import { useRoomsStore } from '@features/rooms';
+import { useRoomsStore, clearShiftIdCache, clearRoomsFetchCache } from '@features/rooms';
 import { useUserStore } from '@features/account';
 import { clearCachedHotelId } from '@/lib/tenant';
+import { clearBottomTabBadgeCounts } from '@/hooks/useBottomTabBadges';
 
 /**
  * Clear all cached client state that must never bleed across tenants/users.
@@ -12,9 +13,18 @@ import { clearCachedHotelId } from '@/lib/tenant';
  * to reset the stores without it, so a user switch that did not go through
  * signOut() left `getMyHotelId()` returning the previous user's hotel. Keeping
  * both here means the two can no longer drift apart.
+ *
+ * The rooms service's shift-id cache is here for the same reason — shift rows
+ * belong to a hotel, so a stale entry would assign rooms to the previous
+ * tenant's shift. `clearRoomsFetchCache()` does the same for the rooms list's
+ * staleness marker, and also invalidates any fetch already in flight so it
+ * cannot write the previous tenant's rooms into the freshly cleared store.
  */
 export function resetTenantScopedStores() {
   clearCachedHotelId();
+  clearShiftIdCache();
+  clearRoomsFetchCache();
+  clearBottomTabBadgeCounts();
 
   useRoomsStore.setState(
     {
@@ -23,6 +33,8 @@ export function resetTenantScopedStores() {
       refreshing: false,
       error: null,
       updatingRoomId: null,
+      lastFetchedAt: null,
+      lastFetchedShift: null,
     }
   );
 

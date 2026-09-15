@@ -76,7 +76,6 @@ export default function StaffScreen() {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
   
-  const [activeTab, setActiveTab] = useState('Staff');
   const [selectedTab, setSelectedTab] = useState<StaffTab>('shifts');
   const [departmentStaff, setDepartmentStaff] = useState<StaffMember[]>([]);
   const [departmentLoading, setDepartmentLoading] = useState(true);
@@ -215,21 +214,15 @@ export default function StaffScreen() {
     };
   }, [selectedTab, departmentStaff, activeStatKind, statsRefreshKey]);
 
-  // Sync activeTab with current route
+  // Refresh per-staff stats on return (e.g. after assigning rooms). Kept from a
+  // focus effect whose `activeTab` resync half never fired.
   useFocusEffect(
     React.useCallback(() => {
-      const routeName = route.name as string;
-      if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
-        setActiveTab(routeName);
-      }
-      // Refresh per-staff stats when returning to the screen (e.g. after assigning rooms).
       setStatsRefreshKey((k) => k + 1);
-    }, [route.name])
+    }, [])
   );
 
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
-  };
+
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -595,7 +588,7 @@ export default function StaffScreen() {
 
       </View>
 
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
     </View>
   );
 }

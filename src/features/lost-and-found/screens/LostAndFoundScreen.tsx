@@ -47,7 +47,6 @@ export default function LostAndFoundScreen() {
   const route = useRoute();
   const userProfile = useUserStore((s) => s.profile);
   const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
-  const [activeTab, setActiveTab] = useState('LostAndFound');
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
   const [items, setItems] = useState<LostAndFoundItem[]>([]);
   const itemsRef = React.useRef<LostAndFoundItem[]>([]);
@@ -266,21 +265,16 @@ export default function LostAndFoundScreen() {
     }
   }, [params?.openRegisterModal, navigation]);
 
-  // Sync activeTab with current route
+  // Reload on return to this tab; after the first load this is non-blocking
+  // (header spinner only). Preserved from a focus effect whose other half — an
+  // `activeTab` resync against route names the router never emits — was dead.
   useFocusEffect(
     React.useCallback(() => {
-      const routeName = route.name as string;
-      if (routeName === 'Home' || routeName === 'Rooms' || routeName === 'Chat' || routeName === 'Tickets') {
-        setActiveTab(routeName);
-      }
-      // Reload when returning to this tab; after first load this is non-blocking (header spinner only)
       loadItems('focus');
-    }, [route.name, loadItems])
+    }, [loadItems])
   );
 
-  const handleTabPress = (tab: string, _options?: { fromRoomsAssignmentBadge?: boolean }) => {
-    setActiveTab(tab); // Update immediately
-  };
+
 
   const handleBackPress = () => {
     if (navigation.canGoBack()) {
@@ -599,7 +593,7 @@ export default function LostAndFoundScreen() {
       <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
 
       {/* Bottom Navigation */}
-      <BottomTabBar activeTab={activeTab} onTabPress={handleTabPress} />
+      <BottomTabBar />
 
       {/* Register Modal */}
       <RegisterLostAndFoundModal
