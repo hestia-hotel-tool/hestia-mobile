@@ -107,8 +107,14 @@ CREATE TABLE IF NOT EXISTS public.job_titles (
   -- right: it replaces the `department === 'engineering'` string comparison in
   -- HomeScreen. Lives on the title rather than the role because it describes
   -- what a person's day looks like, not what they are allowed to do.
+  -- 'dining' is listed here as well as in 20260915000000_dining_home_variant.sql
+  -- because a fresh database runs the seed immediately after this table is
+  -- created, long before that delta migration widens the constraint — the seed
+  -- would write a value this CHECK forbade and the install would fail. Deployed
+  -- databases never re-run this statement and pick the value up from the delta
+  -- instead. Same arrangement as `rooms_variant`'s 'leadership' below.
   home_variant  text NOT NULL DEFAULT 'default'
-                CHECK (home_variant IN ('default', 'engineering', 'hsk_portier')),
+                CHECK (home_variant IN ('default', 'engineering', 'dining', 'hsk_portier')),
   -- Same idea for the Rooms list: supervisors read it grouped by housekeeping
   -- status with In Progress pinned, leadership reads it flat. Declared here so a
   -- fresh database has the column before the seed populates it; existing

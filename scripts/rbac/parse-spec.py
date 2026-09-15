@@ -154,6 +154,25 @@ HOME_VARIANTS = {
     "assistant_director_of_engineering": "engineering",
     "engineering_supervisor": "engineering",
     "shift_engineer": "engineering",
+    # In Room Dining reads the same ticket dashboard as engineering, over its
+    # own department's tickets — Figma 3859:3355, which is the engineering frame
+    # (3843-52) with the header text changed and the rooms search pill kept.
+    #
+    # The whole department, following engineering: all four titles of the
+    # engineering department took that variant while IT, a separate department
+    # on the same spec vector, stayed on `default`. These seven share one
+    # department and already hold the frame's exact tab set — Home, Tickets,
+    # Chat, Rooms, Lost & Found and no Staff — so splitting them by seniority
+    # would be arbitrary. The dashboard counts the reader's own assigned
+    # tickets, which is as meaningful for an order taker as for the manager the
+    # frame happens to name.
+    "director_of_in_room_dining": "dining",
+    "in_room_dining_manager": "dining",
+    "in_room_dining_assistant_manager": "dining",
+    "in_room_dining_supervisor": "dining",
+    "in_room_dining_waiter_waitress": "dining",
+    "in_room_dining_order_taker": "dining",
+    "butler_in_room_dining": "dining",
 }
 
 # Rooms list layout, same reasoning as HOME_VARIANTS: a presentation concern

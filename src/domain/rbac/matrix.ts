@@ -88,8 +88,17 @@ export interface RoleDefinition {
 
 export const ROLES: readonly RoleDefinition[] = matrix.roles;
 
-/** Which HomeScreen layout a person sees. A presentation concern, not a right. */
-export type HomeVariant = 'default' | 'engineering' | 'hsk_portier';
+/**
+ * Which HomeScreen layout a person sees. A presentation concern, not a right.
+ *
+ * `engineering` and `dining` are the same ticket dashboard over different
+ * departments' tickets, and they stay separate values rather than collapsing
+ * into one `tickets` variant: the department a dashboard counts is part of what
+ * the variant means, and the two differ elsewhere too — engineering has no
+ * Rooms tab, so its search field looks through tickets where dining's looks
+ * through rooms. See `HOME_CHROME`.
+ */
+export type HomeVariant = 'default' | 'engineering' | 'dining' | 'hsk_portier';
 
 /**
  * Which Rooms list a person sees. Same idea as `HomeVariant` — it describes how

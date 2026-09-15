@@ -12,7 +12,7 @@ const AVATAR_SIZE = 59;
  */
 const LINE_HEIGHT = 15;
 
-export type EngineeringRecentActivityItemProps = {
+export type TicketActivityItemProps = {
   roomLabel: string;
   message: string;
   timeLabel: string;
@@ -26,7 +26,8 @@ export type EngineeringRecentActivityItemProps = {
 };
 
 /**
- * One row of the engineering dashboard's Recent activity list — Figma 3843:131.
+ * One row of a ticket dashboard's Recent activity list — Figma 3843:131
+ * (engineering) and 3859:3420 (In Room Dining), which draw it identically.
  *
  * The status circle, the room over the message, and the time on the right.
  *
@@ -35,12 +36,12 @@ export type EngineeringRecentActivityItemProps = {
  * was labelled `unsolved` and drawn in a grey that appeared nowhere else. It
  * now names the same states as the card above it.
  */
-export function EngineeringRecentActivityItem({
+export function TicketActivityItem({
   roomLabel,
   message,
   timeLabel,
   status = 'neutral',
-}: EngineeringRecentActivityItemProps) {
+}: TicketActivityItemProps) {
   return (
     <View
       className="mb-md w-full flex-row items-center rounded-xl bg-surface-activity px-lg"
@@ -81,4 +82,4 @@ export function EngineeringRecentActivityItem({
   );
 }
 
-export default EngineeringRecentActivityItem;
+export default TicketActivityItem;

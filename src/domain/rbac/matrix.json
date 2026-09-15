@@ -919,7 +919,7 @@
       "name": "Director Of In Room Dining",
       "department": "in_room_dining",
       "role": "ops_senior",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {
@@ -927,7 +927,7 @@
       "name": "In Room Dining Manager",
       "department": "in_room_dining",
       "role": "ops_senior",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {
@@ -935,7 +935,7 @@
       "name": "In Room Dining Assistant Manager",
       "department": "in_room_dining",
       "role": "ops_senior",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {
@@ -943,7 +943,7 @@
       "name": "In Room Dining Supervisor",
       "department": "in_room_dining",
       "role": "ops_senior",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {
@@ -951,7 +951,7 @@
       "name": "In Room Dining Waiter/Waitress",
       "department": "in_room_dining",
       "role": "ops_senior",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {
@@ -959,7 +959,7 @@
       "name": "In Room Dining Order Taker",
       "department": "in_room_dining",
       "role": "ird_service",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {
@@ -967,7 +967,7 @@
       "name": "Butler In Room Dining",
       "department": "in_room_dining",
       "role": "ird_service",
-      "homeVariant": "default",
+      "homeVariant": "dining",
       "roomsVariant": "default"
     },
     {

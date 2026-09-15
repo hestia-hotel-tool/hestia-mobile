@@ -96,6 +96,14 @@ const TAB_ORDER_BY_VARIANT: Record<HomeVariant, readonly string[]> = {
    */
   hsk_portier: ['Home', 'Rooms', 'Chat', 'AIHome', 'Tickets', 'LostAndFound', 'Staff'],
   engineering: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms', 'LostAndFound', 'Staff'],
+  /*
+   * The same order as engineering, and for the same reason: a ticket dashboard
+   * puts Tickets next to Home. Figma 3859:3355 draws Home, Tickets, Chat, AI,
+   * Rooms, Lost & Found — Staff is absent there because neither dining role
+   * holds `tab.staff.view`, not because the row omits it, so the permission
+   * filter already removes it.
+   */
+  dining: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms', 'LostAndFound', 'Staff'],
 };
 
 const MAIN_TABS = [

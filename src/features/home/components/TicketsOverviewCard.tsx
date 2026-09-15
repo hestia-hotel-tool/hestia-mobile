@@ -5,10 +5,10 @@ import type { TicketStatusKey } from '@/components';
 
 /** Node 3843:67 — the divider sits 79px below the card's top edge. */
 const HEADER_HEIGHT = 79;
-/** Node 3843:70, "8 Tickets", matching the housekeeping card's title box. */
+/** Node 3843:70, "{n} Tickets", matching the housekeeping card's title box. */
 const TITLE_LINE_HEIGHT = 23;
 
-export type EngineeringTicketsOverviewCardProps = {
+export type TicketsOverviewCardProps = {
   total: number;
   priority: number;
   unsolved: number;
@@ -21,7 +21,8 @@ export type EngineeringTicketsOverviewCardProps = {
 };
 
 /**
- * The engineering dashboard's ticket summary — Figma 3843:67.
+ * The ticket dashboard's summary card — Figma 3843:67 (engineering) and
+ * 3859:3355 (In Room Dining), which draw it identically.
  *
  * "{total} Tickets", a divider, then Priority / Unsolved / Solved / Out of
  * Order as counted circles. Structurally the housekeeping `CategoryCard` with a
@@ -32,7 +33,7 @@ export type EngineeringTicketsOverviewCardProps = {
  * arithmetic, hardcoded hex and two `require()`'d PNGs — plus a progress bar
  * that the design does not have and whose value nothing read.
  */
-export function EngineeringTicketsOverviewCard({
+export function TicketsOverviewCard({
   total,
   priority,
   unsolved,
@@ -42,7 +43,7 @@ export function EngineeringTicketsOverviewCard({
   onPressUnsolved,
   onPressSolved,
   onPressOutOfOrder,
-}: EngineeringTicketsOverviewCardProps) {
+}: TicketsOverviewCardProps) {
   const counts: Record<TicketStatusKey, number> = {
     priority,
     unsolved,
@@ -84,4 +85,4 @@ export function EngineeringTicketsOverviewCard({
   );
 }
 
-export default EngineeringTicketsOverviewCard;
+export default TicketsOverviewCard;

@@ -72,9 +72,19 @@ function asRoomsVariant(value: unknown): RoomsVariant {
   return 'default';
 }
 
+/*
+ * Must list every member of `HomeVariant`.
+ *
+ * A union type has no runtime form, so this cannot be derived from it, and a
+ * missing member is not a type error — `Set<HomeVariant>` only rejects values
+ * that are *not* variants, never notices one left out. Anything missing here is
+ * silently downgraded to `default` with a console warning, which is what
+ * happened when `dining` was added.
+ */
 const HOME_VARIANTS: ReadonlySet<string> = new Set<HomeVariant>([
   'default',
   'engineering',
+  'dining',
   'hsk_portier',
 ]);
 

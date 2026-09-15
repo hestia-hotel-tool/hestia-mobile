@@ -18,8 +18,8 @@ import HomeHeader from '../components/HomeHeader';
 import HousekeepingDashboard from '../components/HousekeepingDashboard';
 import { usePermissions } from '@/domain/rbac';
 import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
-import { EngineeringTicketsOverviewCard } from '../components/EngineeringTicketsOverviewCard';
-import { EngineeringRecentActivityItem } from '../components/EngineeringRecentActivityItem';
+import { TicketsOverviewCard } from '../components/TicketsOverviewCard';
+import { TicketActivityItem } from '../components/TicketActivityItem';
 import type { TicketActivityKey } from '@/components';
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
@@ -39,9 +39,9 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
 >;
 
 /**
- * How many engineering activity rows to fetch, and to add each time "Load more"
- * is pressed. The frame (3843-52) shows two rows, but that is the sample data —
- * what it actually establishes is that the list is paged.
+ * How many ticket-dashboard activity rows to fetch, and to add each time "Load
+ * more" is pressed. The frames (3843-52, 3859:3355) show two rows, but that is
+ * the sample data — what they actually establish is that the list is paged.
  */
 const ACTIVITY_PAGE_SIZE = 5;
 
@@ -168,14 +168,25 @@ export default function HomeScreen() {
   // department's display string. AGENT.md forbids branching on role or
   // department names, and the old comparison broke the moment a hotel renamed
   // "HSK Portier" or a title moved department.
-  const isEngineeringUser = homeVariant === 'engineering';
   const isHskPortierUser = homeVariant === 'hsk_portier';
   // The parts of the screen that differ by variant without differing in kind —
   // see HOME_CHROME. `homeVariant` is narrowed by `asHomeVariant` before it
   // reaches here, so this lookup cannot come back undefined.
   const chrome = HOME_CHROME[homeVariant];
 
-  const [engineeringCounts, setEngineeringCounts] = useState<{
+  /*
+   * Engineering and In Room Dining read the same dashboard over their own
+   * department's tickets — Figma 3843-52 and 3859:3355.
+   *
+   * Keyed on the chrome's `ticketDepartment` rather than on `homeVariant ===
+   * 'engineering'`, so adding a third department is a row in HOME_CHROME
+   * instead of another branch down here. `null` means the housekeeping category
+   * dashboard.
+   */
+  const ticketDepartment = chrome.ticketDepartment;
+  const isTicketDashboard = ticketDepartment !== null;
+
+  const [ticketCounts, setTicketCounts] = useState<{
     total: number;
     priority: number;
     unsolved: number;
@@ -183,7 +194,7 @@ export default function HomeScreen() {
     outOfOrder: number;
   }>({ total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 });
 
-  const [engineeringRecent, setEngineeringRecent] = useState<
+  const [ticketRecent, setTicketRecent] = useState<
     {
       id: string;
       roomLabel: string;
@@ -199,31 +210,34 @@ export default function HomeScreen() {
    * button hides once a fetch comes back short, which is the only reliable
    * signal that there is nothing further to read.
    */
-  const [engineeringActivityLimit, setEngineeringActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
-  const [engineeringActivityExhausted, setEngineeringActivityExhausted] = useState(false);
+  const [ticketActivityLimit, setTicketActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
+  const [ticketActivityExhausted, setTicketActivityExhausted] = useState(false);
 
-  const refreshEngineeringHome = React.useCallback(async () => {
-    if (!isEngineeringUser) return;
+  const refreshTicketDashboard = React.useCallback(async () => {
+    if (!isTicketDashboard) return;
 
     try {
       const ticketsData = await dashboardService.getTicketsData();
       const uid = session?.user?.id;
-      const engineeringTickets = (ticketsData?.tickets ?? [])
-        .filter((t: any) => (t?.category ?? '').toLowerCase() === 'engineering')
-        // Engineering Home: only tickets assigned to the signed-in user.
+      const department = (ticketDepartment ?? '').toLowerCase();
+      const departmentTickets = (ticketsData?.tickets ?? [])
+        // A ticket's `category` is its department's display name — see
+        // `HomeChrome.ticketDepartment`. Compared lowercased at both ends.
+        .filter((t: any) => (t?.category ?? '').toLowerCase() === department)
+        // This dashboard counts only tickets assigned to the signed-in user.
         .filter((t: any) => (!!uid ? String(t?.assignedToId ?? '') === String(uid) : false));
 
-      const total = engineeringTickets.length;
-      const priority = engineeringTickets.reduce(
+      const total = departmentTickets.length;
+      const priority = departmentTickets.reduce(
         (sum: number, t: any) => sum + ((t?.priority ?? '').toLowerCase() === 'urgent' ? 1 : 0),
         0
       );
-      const unsolved = engineeringTickets.reduce((sum: number, t: any) => sum + (t?.status === 'unsolved' ? 1 : 0), 0);
-      const solved = engineeringTickets.reduce((sum: number, t: any) => sum + (t?.status === 'done' ? 1 : 0), 0);
-      const outOfOrder = engineeringTickets.reduce((sum: number, t: any) => sum + (t?.status === 'ofo' ? 1 : 0), 0);
-      setEngineeringCounts({ total, priority, unsolved, solved, outOfOrder });
+      const unsolved = departmentTickets.reduce((sum: number, t: any) => sum + (t?.status === 'unsolved' ? 1 : 0), 0);
+      const solved = departmentTickets.reduce((sum: number, t: any) => sum + (t?.status === 'done' ? 1 : 0), 0);
+      const outOfOrder = departmentTickets.reduce((sum: number, t: any) => sum + (t?.status === 'ofo' ? 1 : 0), 0);
+      setTicketCounts({ total, priority, unsolved, solved, outOfOrder });
     } catch (e) {
-      console.warn('[HomeScreen] Failed to load engineering ticket counts', e);
+      console.warn('[HomeScreen] Failed to load ticket dashboard counts', e);
     }
 
     try {
@@ -231,10 +245,10 @@ export default function HomeScreen() {
       // the correlation, so read table_name='tickets' and map by room_id.
       const logs = await getRecentActivityLogs({
         tableName: 'tickets',
-        limit: engineeringActivityLimit,
+        limit: ticketActivityLimit,
       });
       // Short of what we asked for means the table has no more to give.
-      setEngineeringActivityExhausted((logs ?? []).length < engineeringActivityLimit);
+      setTicketActivityExhausted((logs ?? []).length < ticketActivityLimit);
       const roomIds = Array.from(new Set((logs ?? []).map((l: any) => l.room_id).filter(Boolean)));
       const roomNumberById = await getRoomNumbersByIds(roomIds);
 
@@ -272,15 +286,15 @@ export default function HomeScreen() {
         })
         .filter((x: any) => x.roomLabel && x.message);
 
-      setEngineeringRecent(items as any);
+      setTicketRecent(items as any);
     } catch (e) {
-      console.warn('[HomeScreen] Failed to load engineering recent activity', e);
+      console.warn('[HomeScreen] Failed to load ticket dashboard recent activity', e);
     }
-  }, [isEngineeringUser, session?.user?.id, engineeringActivityLimit]);
+  }, [isTicketDashboard, ticketDepartment, session?.user?.id, ticketActivityLimit]);
 
   useEffect(() => {
-    void refreshEngineeringHome();
-  }, [refreshEngineeringHome]);
+    void refreshTicketDashboard();
+  }, [refreshTicketDashboard]);
 
   const [portierOverview, setPortierOverview] = useState<{
     total: number;
@@ -683,10 +697,10 @@ export default function HomeScreen() {
     setRefreshing(true);
     // Pull-to-refresh means "go and look", so it ignores the staleness window.
     await fetchRooms(effectiveShift, { force: true });
-    await refreshEngineeringHome();
+    await refreshTicketDashboard();
     await refreshPortierHome();
     setRefreshing(false);
-  }, [fetchRooms, effectiveShift, refreshEngineeringHome, refreshPortierHome]);
+  }, [fetchRooms, effectiveShift, refreshTicketDashboard, refreshPortierHome]);
 
   // Calculate filter counts from homeData (use derivedCategories when categories not yet synced for current shift)
   const filterCounts: FilterCounts = useMemo(() => {
@@ -878,21 +892,21 @@ export default function HomeScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
           >
-            {isEngineeringUser ? (
+            {isTicketDashboard ? (
               <>
                 <View style={{ paddingTop: 12 * scaleX, paddingBottom: 24 * scaleX }}>
-                  <Text style={[styles.engineeringTitle]}>Tickets Overview</Text>
-                  <EngineeringTicketsOverviewCard
-                    total={engineeringCounts.total}
-                    priority={engineeringCounts.priority}
-                    unsolved={engineeringCounts.unsolved}
-                    solved={engineeringCounts.solved}
-                    outOfOrder={engineeringCounts.outOfOrder}
+                  <Text style={[styles.ticketDashboardTitle]}>Tickets Overview</Text>
+                  <TicketsOverviewCard
+                    total={ticketCounts.total}
+                    priority={ticketCounts.priority}
+                    unsolved={ticketCounts.unsolved}
+                    solved={ticketCounts.solved}
+                    outOfOrder={ticketCounts.outOfOrder}
                     onPressPriority={() => {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
-                        category: 'engineering',
+                        category: ticketDepartment ?? undefined,
                         statusFilter: 'priority',
                       });
                     }}
@@ -900,7 +914,7 @@ export default function HomeScreen() {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
-                        category: 'engineering',
+                        category: ticketDepartment ?? undefined,
                         statusFilter: 'unsolved',
                       });
                     }}
@@ -908,7 +922,7 @@ export default function HomeScreen() {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
-                        category: 'engineering',
+                        category: ticketDepartment ?? undefined,
                         statusFilter: 'done',
                       });
                     }}
@@ -916,23 +930,23 @@ export default function HomeScreen() {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'myTickets',
                         assignedToMeOnly: true,
-                        category: 'engineering',
+                        category: ticketDepartment ?? undefined,
                         statusFilter: 'ofo',
                       });
                     }}
                   />
 
-                  <Text style={styles.engineeringRecentTitle}>Recent activity</Text>
-                  {engineeringRecent.length === 0 ? (
-                    <EngineeringRecentActivityItem
+                  <Text style={styles.ticketDashboardRecentTitle}>Recent activity</Text>
+                  {ticketRecent.length === 0 ? (
+                    <TicketActivityItem
                       roomLabel="—"
                       message="No recent ticket activity"
                       timeLabel=""
                       status="neutral"
                     />
                   ) : (
-                    engineeringRecent.map((it) => (
-                      <EngineeringRecentActivityItem
+                    ticketRecent.map((it) => (
+                      <TicketActivityItem
                         key={it.id}
                         roomLabel={it.roomLabel}
                         message={it.message}
@@ -944,15 +958,15 @@ export default function HomeScreen() {
 
                   {/* Node 3856:1009. Hidden once the table has no more rows,
                       so it never sits there doing nothing. */}
-                  {!engineeringActivityExhausted && engineeringRecent.length > 0 && (
+                  {!ticketActivityExhausted && ticketRecent.length > 0 && (
                     <Pressable
                       onPress={() =>
-                        setEngineeringActivityLimit((limit) => limit + ACTIVITY_PAGE_SIZE)
+                        setTicketActivityLimit((limit) => limit + ACTIVITY_PAGE_SIZE)
                       }
                       accessibilityRole="button"
-                      style={styles.engineeringLoadMore}
+                      style={styles.ticketDashboardLoadMore}
                     >
-                      <Text style={styles.engineeringLoadMoreText}>Load more</Text>
+                      <Text style={styles.ticketDashboardLoadMoreText}>Load more</Text>
                     </Pressable>
                   )}
                 </View>
@@ -1135,7 +1149,7 @@ function buildHomeScreenStyles(scaleX: number) {
     paddingTop: 8,
     paddingBottom: 172, // clears the bottom tab bar
   },
-  engineeringTitle: {
+  ticketDashboardTitle: {
     fontSize: 20 * scaleX,
     fontFamily: 'Helvetica',
     fontWeight: '700' as any,
@@ -1147,7 +1161,7 @@ function buildHomeScreenStyles(scaleX: number) {
   // Nodes 3843:53 and 3856:1010 are the same run: 20px bold #1e1e1e in a 21px
   // box. This was 14px Inter regular #000000, which matched neither the other
   // title above it nor the frame.
-  engineeringRecentTitle: {
+  ticketDashboardRecentTitle: {
     fontSize: 20 * scaleX,
     fontFamily: 'Helvetica',
     fontWeight: '700' as any,
@@ -1157,13 +1171,13 @@ function buildHomeScreenStyles(scaleX: number) {
     marginLeft: 20 * scaleX,
   },
   // Node 3856:1009 — centred under the last row.
-  engineeringLoadMore: {
+  ticketDashboardLoadMore: {
     alignSelf: 'center',
     paddingVertical: 12 * scaleX,
     paddingHorizontal: 20 * scaleX,
     marginTop: 20 * scaleX,
   },
-  engineeringLoadMoreText: {
+  ticketDashboardLoadMoreText: {
     fontSize: 13 * scaleX,
     fontFamily: 'Helvetica',
     fontWeight: '700' as any,
