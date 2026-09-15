@@ -174,22 +174,35 @@ ROOMS_VARIANTS = {
     "senior_supervisor": "supervisor",
     "supervisor": "supervisor",
     "coordinator": "supervisor",
-    # Room attendants get the same banded list, over their own rooms only.
+    # Attendants get the same banded list, over their own rooms only.
     "housekeeping_room_attendant": "attendant",
+    "housekeeping_porter_houseman": "attendant",
+    "housekeeping_laundry_attendant": "attendant",
+    "housekeeping_public_area_attendant": "attendant",
 }
 
 # Rights we knowingly set differently from the signed-off PDF.
 #
 # DELIBERATE SPEC DRIFT — do not remove without checking with whoever owns the
-# spec. The PDF grants Room Attendants the Dashboard, but the product decision is
-# that they work from the Rooms list only and never see Home. `dashboard` is the
-# sole source of `tab.home.view`, so clearing it here removes the Home tab, the
-# Home landing route and the Home deep link together, and nothing else.
+# spec. The PDF grants the attendant roles the Dashboard, but the product
+# decision is that they work from the Rooms list only and never see Home.
+# `dashboard` is the sole source of `tab.home.view`, so clearing it here removes
+# the Home tab, the Home landing route and the Home deep link together, and
+# nothing else.
+#
+# `hk_public_area` additionally *gains* `rooms`, which the PDF withholds: the
+# same decision gives every attendant a Rooms list narrowed to their own
+# assignments, and that title had no Rooms tab at all. This one is a widening
+# rather than a narrowing, so it deserves the closest look if the spec is ever
+# reconciled.
 #
 # Applied after the PDF is parsed, so re-running the parser cannot silently
 # restore Home.
 RIGHT_OVERRIDES = {
     "hk_room_attendant": {"dashboard": False},
+    "hk_houseman": {"dashboard": False},
+    "hk_laundry": {"dashboard": False},
+    "hk_public_area": {"dashboard": False, "rooms": True},
 }
 
 # --- role identity, keyed by the set of titles that share a vector -----------
@@ -217,8 +230,41 @@ ROLE_DESCRIPTIONS = {
     "fo_agent": "Front desk agents and trainees.",
     "concierge_agent": "Concierge, bell desk and valet floor staff.",
     "ird_service": "In-room dining order takers and butlers.",
-    "technical": "Engineering and IT. Ticket-driven.",
+    "technical": "IT. Ticket-driven.",
+    "engineering": "Engineering. Ticket-driven, works from Home rather than Rooms.",
     "fnb_kitchen": "Chat, tickets and lost & found only.",
+}
+
+# --- roles the product splits off a shared spec vector -----------------------
+#
+# The PDF gives all nine Engineering and IT titles one identical 18-right
+# vector, which is why they collapsed into a single `technical` role. The
+# product decision is that Engineering does not use the Rooms screen at all —
+# they work from their own ticket dashboard (Figma 3843-52) — while IT keeps it.
+#
+# A right cannot vary by title, only by role, so Engineering needs a role of its
+# own. It has no vector of its own to be parsed from, so it borrows `technical`'s
+# and overrides the part that differs.
+#
+# DELIBERATE SPEC DRIFT, same standing as RIGHT_OVERRIDES: the signed-off PDF
+# grants these four titles Rooms. Do not remove without checking with whoever
+# owns the spec.
+DERIVED_ROLES = {
+    "engineering": {
+        "from": "technical",
+        "name": "Engineering",
+        "rights": {"rooms": False},
+    },
+}
+
+# Titles moved off the role their spec vector resolves to, onto a derived one.
+# Applied after the vector lookup, so re-running the parser cannot silently put
+# Engineering back on `technical` and hand them the Rooms tab again.
+ROLE_TITLE_OVERRIDES = {
+    "director_of_engineering": "engineering",
+    "assistant_director_of_engineering": "engineering",
+    "engineering_supervisor": "engineering",
+    "shift_engineer": "engineering",
 }
 
 
@@ -279,9 +325,21 @@ def main():
         else:
             dept_key = PDF_DEPT_MAP[dept_label]
         tkey = slug(display)
+        # A title may be moved off the role its vector resolves to — see
+        # ROLE_TITLE_OVERRIDES.
+        role_key = ROLE_TITLE_OVERRIDES.get(tkey, role_key)
         titles.append((tkey, display, dept_key, role_key,
                        HOME_VARIANTS.get(tkey, "default"),
                        ROOMS_VARIANTS.get(tkey, "default")))
+
+    # Every derived role must actually own titles, and must not have emptied
+    # the role it was split from — either would mean an override typo.
+    title_counts = collections.Counter(role_key for _, _, _, role_key, _, _ in titles)
+    for derived, spec in DERIVED_ROLES.items():
+        if not title_counts[derived]:
+            sys.exit(f"derived role {derived!r} owns no titles; check ROLE_TITLE_OVERRIDES")
+        if not title_counts[spec["from"]]:
+            sys.exit(f"derived role {derived!r} left {spec['from']!r} with no titles")
 
     # Ordered permission key list.
     perm_keys = []
@@ -325,17 +383,29 @@ def main():
         ],
     }
 
-    for key, name, _probe in ROLE_BY_MEMBER:
-        vec = next(v for v, rk in vec_to_role.items() if rk[0] == key)
+    # Parsed roles, then the roles derived from them. A derived role is emitted
+    # after its source so the source's own rights are never affected.
+    emitted = [(key, name, key) for key, name, _probe in ROLE_BY_MEMBER]
+    emitted += [(key, spec["name"], spec["from"]) for key, spec in DERIVED_ROLES.items()]
+
+    for key, name, vector_owner in emitted:
+        vec = next(v for v, rk in vec_to_role.items() if rk[0] == vector_owner)
         rights = {r: bool(on) for r, on in zip(RIGHTS, vec)}
-        # Applied last so it wins over the parsed vector — see RIGHT_OVERRIDES.
+        # Applied last so they win over the parsed vector — see RIGHT_OVERRIDES
+        # and DERIVED_ROLES. A derived role's own overrides come second, so it
+        # can differ from the role it borrowed the vector from.
         rights.update(RIGHT_OVERRIDES.get(key, {}))
+        if key in DERIVED_ROLES:
+            rights.update(DERIVED_ROLES[key]["rights"])
         doc["roles"].append(
             {
                 "key": key,
                 "name": name,
                 "description": ROLE_DESCRIPTIONS[key],
-                "titleCount": len(vectors[vec]),
+                # Counted from the titles actually assigned, not from the
+                # vector: a derived role shares its source's vector, so
+                # `len(vectors[vec])` would credit both with all of them.
+                "titleCount": title_counts[key],
                 "rights": rights,
             }
         )

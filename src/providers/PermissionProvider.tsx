@@ -72,6 +72,31 @@ function asRoomsVariant(value: unknown): RoomsVariant {
   return 'default';
 }
 
+const HOME_VARIANTS: ReadonlySet<string> = new Set<HomeVariant>([
+  'default',
+  'engineering',
+  'hsk_portier',
+]);
+
+/**
+ * The same narrowing for `get_my_home_variant()`.
+ *
+ * This was a bare cast for as long as `HomeScreen` only compared the value with
+ * `===`, where an unknown string harmlessly falls through to the default
+ * branch. `HOME_CHROME` is a `Record<HomeVariant, …>`, so an unknown value now
+ * yields `undefined` and crashes on first property access — exactly the case
+ * `asRoomsVariant` above exists for.
+ */
+function asHomeVariant(value: unknown): HomeVariant {
+  if (typeof value === 'string' && HOME_VARIANTS.has(value)) {
+    return value as HomeVariant;
+  }
+  if (value != null) {
+    console.warn(`[PermissionProvider] unknown home variant "${String(value)}"; using default.`);
+  }
+  return 'default';
+}
+
 const PermissionContext = createContext<PermissionContextValue>({
   permissions: EMPTY,
   homeVariant: 'default',
@@ -134,7 +159,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
 
       const keys = (permissionsResult.data ?? []) as Permission[];
       setPermissions(new Set(keys));
-      setHomeVariant((variantResult.data as HomeVariant | null) ?? 'default');
+      setHomeVariant(asHomeVariant(variantResult.data));
       setRoomsVariant(asRoomsVariant(roomsVariantResult.data));
       setError(
         keys.length === 0

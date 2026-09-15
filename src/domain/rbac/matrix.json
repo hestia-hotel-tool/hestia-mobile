@@ -386,7 +386,7 @@
       "description": "Support role: rooms, notes and history, no status changes.",
       "titleCount": 1,
       "rights": {
-        "dashboard": true,
+        "dashboard": false,
         "rooms": true,
         "chat": true,
         "tickets": true,
@@ -412,7 +412,7 @@
       "description": "Linen duties. No chat.",
       "titleCount": 1,
       "rights": {
-        "dashboard": true,
+        "dashboard": false,
         "rooms": true,
         "chat": false,
         "tickets": true,
@@ -438,8 +438,8 @@
       "description": "Public areas only. No room access.",
       "titleCount": 1,
       "rights": {
-        "dashboard": true,
-        "rooms": false,
+        "dashboard": false,
+        "rooms": true,
         "chat": true,
         "tickets": true,
         "lostAndFound": true,
@@ -565,8 +565,8 @@
     {
       "key": "technical",
       "name": "Technical",
-      "description": "Engineering and IT. Ticket-driven.",
-      "titleCount": 9,
+      "description": "IT. Ticket-driven.",
+      "titleCount": 5,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -612,6 +612,32 @@
         "reservationStatus": false,
         "rush": false,
         "flagged": false
+      }
+    },
+    {
+      "key": "engineering",
+      "name": "Engineering",
+      "description": "Engineering. Ticket-driven, works from Home rather than Rooms.",
+      "titleCount": 4,
+      "rights": {
+        "dashboard": true,
+        "rooms": false,
+        "chat": true,
+        "tickets": true,
+        "lostAndFound": true,
+        "staff": false,
+        "settings": true,
+        "reassign": false,
+        "changeHousekeepingStatus": false,
+        "notes": true,
+        "specialInstructions": true,
+        "history": true,
+        "checklist": false,
+        "credits": false,
+        "frontOfficeStatus": true,
+        "reservationStatus": true,
+        "rush": true,
+        "flagged": true
       }
     }
   ],
@@ -678,7 +704,7 @@
       "department": "housekeeping",
       "role": "hk_houseman",
       "homeVariant": "hsk_portier",
-      "roomsVariant": "default"
+      "roomsVariant": "attendant"
     },
     {
       "key": "housekeeping_laundry_attendant",
@@ -686,7 +712,7 @@
       "department": "housekeeping",
       "role": "hk_laundry",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "attendant"
     },
     {
       "key": "housekeeping_public_area_attendant",
@@ -694,7 +720,7 @@
       "department": "housekeeping",
       "role": "hk_public_area",
       "homeVariant": "default",
-      "roomsVariant": "default"
+      "roomsVariant": "attendant"
     },
     {
       "key": "director_of_rooms",
@@ -948,7 +974,7 @@
       "key": "director_of_engineering",
       "name": "Director of Engineering",
       "department": "engineering",
-      "role": "technical",
+      "role": "engineering",
       "homeVariant": "engineering",
       "roomsVariant": "default"
     },
@@ -956,7 +982,7 @@
       "key": "assistant_director_of_engineering",
       "name": "Assistant Director Of Engineering",
       "department": "engineering",
-      "role": "technical",
+      "role": "engineering",
       "homeVariant": "engineering",
       "roomsVariant": "default"
     },
@@ -964,7 +990,7 @@
       "key": "engineering_supervisor",
       "name": "Engineering Supervisor",
       "department": "engineering",
-      "role": "technical",
+      "role": "engineering",
       "homeVariant": "engineering",
       "roomsVariant": "default"
     },
@@ -972,7 +998,7 @@
       "key": "shift_engineer",
       "name": "Shift Engineer",
       "department": "engineering",
-      "role": "technical",
+      "role": "engineering",
       "homeVariant": "engineering",
       "roomsVariant": "default"
     },

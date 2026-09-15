@@ -1,81 +1,84 @@
-import React, { useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { typography } from '@/theme';
-import { useDesignScale } from '@/hooks/useDesignScale';
+import React from 'react';
+import { View, Text } from '@/tw';
+import { StatusBubble } from '@/components';
+import { TICKET_ACTIVITY_STATUS, type TicketActivityKey } from '@/components';
 
-export default function EngineeringRecentActivityItem({
-  roomLabel,
-  message,
-  timeLabel,
-  state = 'neutral',
-}: {
+/** Node 3843:131 — the row is 96 tall with a 59px avatar. */
+const ROW_HEIGHT = 96;
+const AVATAR_SIZE = 59;
+/**
+ * Nodes 3843:142 and :146 are 15px line boxes around 13px type — the box, not
+ * the font size. Pinned so the row height holds on both platforms.
+ */
+const LINE_HEIGHT = 15;
+
+export type EngineeringRecentActivityItemProps = {
   roomLabel: string;
   message: string;
   timeLabel: string;
-  state?: 'solved' | 'unsolved' | 'neutral';
-}) {
-  const { scaleX } = useDesignScale();
-  const styles = useMemo(() => buildStyles(scaleX), [scaleX]);
-  const dotColor = state === 'solved' ? '#41d541' : state === 'unsolved' ? '#c6c5c5' : '#c6c5c5';
+  /**
+   * Which ticket state the event moved to. The activity avatar is the same
+   * circle the overview card draws, so a solved ticket reads identically in
+   * both places — which is the point of sharing the table rather than passing
+   * a colour.
+   */
+  status?: TicketActivityKey;
+};
 
+/**
+ * One row of the engineering dashboard's Recent activity list — Figma 3843:131.
+ *
+ * The status circle, the room over the message, and the time on the right.
+ *
+ * The previous version took a `state` of `'solved' | 'unsolved' | 'neutral'`
+ * and turned it into a bordered dot with its own hex values, so "Out of Order"
+ * was labelled `unsolved` and drawn in a grey that appeared nowhere else. It
+ * now names the same states as the card above it.
+ */
+export function EngineeringRecentActivityItem({
+  roomLabel,
+  message,
+  timeLabel,
+  status = 'neutral',
+}: EngineeringRecentActivityItemProps) {
   return (
-    <View style={styles.container}>
-      <View style={[styles.dot, { borderColor: dotColor, backgroundColor: state === 'solved' ? '#41d541' : '#ffffff' }]} />
-      <View style={styles.textCol}>
-        <Text style={styles.roomLabel}>{roomLabel}</Text>
-        <Text style={styles.message} numberOfLines={1}>
+    <View
+      className="mb-md w-full flex-row items-center rounded-xl bg-surface-activity px-lg"
+      style={{ height: ROW_HEIGHT }}
+    >
+      <StatusBubble
+        spec={TICKET_ACTIVITY_STATUS[status]}
+        size={AVATAR_SIZE}
+        showLabel={false}
+        accessibilityLabel={roomLabel}
+      />
+
+      <View className="ml-md min-w-0 flex-1">
+        <Text
+          className="font-hestia-primary text-hestia-base font-bold text-ink-accent"
+          style={{ lineHeight: LINE_HEIGHT }}
+          numberOfLines={1}
+        >
+          {roomLabel}
+        </Text>
+        <Text
+          className="mt-xs font-hestia-primary text-hestia-base text-ink-primary"
+          style={{ lineHeight: LINE_HEIGHT }}
+          numberOfLines={1}
+        >
           {message}
         </Text>
       </View>
-      <Text style={styles.time}>{timeLabel}</Text>
+
+      <Text
+        className="ml-sm font-hestia-primary text-hestia-base font-bold text-ink-accent"
+        style={{ lineHeight: LINE_HEIGHT }}
+        numberOfLines={1}
+      >
+        {timeLabel}
+      </Text>
     </View>
   );
 }
 
-function buildStyles(scaleX: number) {
-  return StyleSheet.create({
-    container: {
-      width: 394 * scaleX,
-      height: 57 * scaleX,
-      borderRadius: 86 * scaleX,
-      backgroundColor: 'rgba(205,211,221,0.28)',
-      alignSelf: 'center',
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 12 * scaleX,
-      marginBottom: 12 * scaleX,
-    },
-    dot: {
-      width: 34 * scaleX,
-      height: 34 * scaleX,
-      borderRadius: 17 * scaleX,
-      borderWidth: 9 * scaleX,
-      marginRight: 12 * scaleX,
-    },
-    textCol: {
-      flex: 1,
-      minWidth: 0,
-    },
-    roomLabel: {
-      fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.bold as any,
-      color: '#5a759d',
-      marginBottom: 2 * scaleX,
-    },
-    message: {
-      fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.regular as any,
-      color: '#1e1e1e',
-    },
-    time: {
-      fontSize: 13 * scaleX,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.bold as any,
-      color: '#5a759d',
-      marginLeft: 8 * scaleX,
-    },
-  });
-}
-
+export default EngineeringRecentActivityItem;

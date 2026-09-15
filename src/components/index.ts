@@ -21,6 +21,19 @@ export { CountBadge } from './ui/CountBadge';
 export type { CountBadgeProps } from './ui/CountBadge';
 export { StatusCircle, ROOM_STATUS, ROOM_STATUS_ORDER } from './ui/StatusCircle';
 export type { StatusCircleProps, RoomStatusKey } from './ui/StatusCircle';
+export { StatusBubble } from './ui/StatusBubble';
+export type { StatusBubbleProps, StatusSpec } from './ui/StatusBubble';
+export {
+  TicketStatusCircle,
+  TICKET_STATUS,
+  TICKET_STATUS_ORDER,
+  TICKET_ACTIVITY_STATUS,
+} from './ui/TicketStatusCircle';
+export type {
+  TicketStatusCircleProps,
+  TicketStatusKey,
+  TicketActivityKey,
+} from './ui/TicketStatusCircle';
 export { SegmentedToggle } from './ui/SegmentedToggle';
 export type { SegmentedToggleProps, SegmentedOption } from './ui/SegmentedToggle';
 export { Avatar } from './ui/Avatar';

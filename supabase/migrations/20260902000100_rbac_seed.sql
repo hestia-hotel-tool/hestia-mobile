@@ -5,7 +5,7 @@
 --
 -- Source spec: hestia-roles-2026-01-03.pdf
 -- 54 job titles across 8 departments,
--- collapsing to 11 distinct permission profiles.
+-- collapsing to 12 distinct permission profiles.
 --
 -- Idempotent: safe to re-run. Reference data is upserted by key, and
 -- role_permissions is rebuilt from scratch so a revoked grant is actually
@@ -166,8 +166,9 @@ INSERT INTO public.roles (key, name, description) VALUES
   ('fo_agent', 'Front Office Agent', 'Front desk agents and trainees.'),  -- 4 titles
   ('concierge_agent', 'Concierge Agent', 'Concierge, bell desk and valet floor staff.'),  -- 5 titles
   ('ird_service', 'In-Room Dining Service', 'In-room dining order takers and butlers.'),  -- 2 titles
-  ('technical', 'Technical', 'Engineering and IT. Ticket-driven.'),  -- 9 titles
-  ('fnb_kitchen', 'F&B / Kitchen', 'Chat, tickets and lost & found only.')  -- 1 title
+  ('technical', 'Technical', 'IT. Ticket-driven.'),  -- 5 titles
+  ('fnb_kitchen', 'F&B / Kitchen', 'Chat, tickets and lost & found only.'),  -- 1 title
+  ('engineering', 'Engineering', 'Engineering. Ticket-driven, works from Home rather than Rooms.')  -- 4 titles
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
@@ -232,7 +233,6 @@ SELECT r.id, p.id
   ('hk_room_attendant', 'rooms.history.export'),
   ('hk_room_attendant', 'rooms.checklist.view'),
   ('hk_room_attendant', 'rooms.checklist.complete'),
-  ('hk_houseman', 'tab.home.view'),
   ('hk_houseman', 'tab.rooms.view'),
   ('hk_houseman', 'rooms.read'),
   ('hk_houseman', 'tab.chat.view'),
@@ -249,7 +249,6 @@ SELECT r.id, p.id
   ('hk_houseman', 'rooms.notes.create'),
   ('hk_houseman', 'rooms.history.view'),
   ('hk_houseman', 'rooms.history.export'),
-  ('hk_laundry', 'tab.home.view'),
   ('hk_laundry', 'tab.rooms.view'),
   ('hk_laundry', 'rooms.read'),
   ('hk_laundry', 'tab.tickets.view'),
@@ -263,7 +262,8 @@ SELECT r.id, p.id
   ('hk_laundry', 'rooms.notes.create'),
   ('hk_laundry', 'rooms.history.view'),
   ('hk_laundry', 'rooms.history.export'),
-  ('hk_public_area', 'tab.home.view'),
+  ('hk_public_area', 'tab.rooms.view'),
+  ('hk_public_area', 'rooms.read'),
   ('hk_public_area', 'tab.chat.view'),
   ('hk_public_area', 'chat.create'),
   ('hk_public_area', 'chat.groups.manage'),
@@ -389,7 +389,27 @@ SELECT r.id, p.id
   ('fnb_kitchen', 'tab.lost_and_found.view'),
   ('fnb_kitchen', 'lost_and_found.read'),
   ('fnb_kitchen', 'lost_and_found.register'),
-  ('fnb_kitchen', 'tab.settings.view')
+  ('fnb_kitchen', 'tab.settings.view'),
+  ('engineering', 'tab.home.view'),
+  ('engineering', 'tab.chat.view'),
+  ('engineering', 'chat.create'),
+  ('engineering', 'chat.groups.manage'),
+  ('engineering', 'tab.tickets.view'),
+  ('engineering', 'tickets.create'),
+  ('engineering', 'tickets.update'),
+  ('engineering', 'tab.lost_and_found.view'),
+  ('engineering', 'lost_and_found.read'),
+  ('engineering', 'lost_and_found.register'),
+  ('engineering', 'tab.settings.view'),
+  ('engineering', 'rooms.notes.view'),
+  ('engineering', 'rooms.notes.create'),
+  ('engineering', 'rooms.special_instructions.view'),
+  ('engineering', 'rooms.history.view'),
+  ('engineering', 'rooms.history.export'),
+  ('engineering', 'rooms.front_office_status.view'),
+  ('engineering', 'rooms.reservation_status.view'),
+  ('engineering', 'rooms.rush.toggle'),
+  ('engineering', 'rooms.flag.toggle')
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
@@ -404,9 +424,9 @@ SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
     ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('coordinator', 'Coordinator', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('housekeeping_room_attendant', 'Housekeeping Room Attendant', 'housekeeping', 'hk_room_attendant', 'default', 'attendant'),
-    ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier', 'default'),
-    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'default'),
-    ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default', 'default'),
+    ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier', 'attendant'),
+    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'attendant'),
+    ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default', 'attendant'),
     ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default', 'default'),
     ('assistant_director_of_rooms', 'Assistant Director Of Rooms', 'front_office', 'ops_senior', 'default', 'default'),
     ('director_of_front_office', 'Director of Front Office', 'front_office', 'ops_senior', 'default', 'default'),
@@ -438,10 +458,10 @@ SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
     ('in_room_dining_waiter_waitress', 'In Room Dining Waiter/Waitress', 'in_room_dining', 'ops_senior', 'default', 'default'),
     ('in_room_dining_order_taker', 'In Room Dining Order Taker', 'in_room_dining', 'ird_service', 'default', 'default'),
     ('butler_in_room_dining', 'Butler In Room Dining', 'in_room_dining', 'ird_service', 'default', 'default'),
-    ('director_of_engineering', 'Director of Engineering', 'engineering', 'technical', 'engineering', 'default'),
-    ('assistant_director_of_engineering', 'Assistant Director Of Engineering', 'engineering', 'technical', 'engineering', 'default'),
-    ('engineering_supervisor', 'Engineering Supervisor', 'engineering', 'technical', 'engineering', 'default'),
-    ('shift_engineer', 'Shift Engineer', 'engineering', 'technical', 'engineering', 'default'),
+    ('director_of_engineering', 'Director of Engineering', 'engineering', 'engineering', 'engineering', 'default'),
+    ('assistant_director_of_engineering', 'Assistant Director Of Engineering', 'engineering', 'engineering', 'engineering', 'default'),
+    ('engineering_supervisor', 'Engineering Supervisor', 'engineering', 'engineering', 'engineering', 'default'),
+    ('shift_engineer', 'Shift Engineer', 'engineering', 'engineering', 'engineering', 'default'),
     ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default'),
     ('it_manager', 'IT Manager', 'it', 'technical', 'default', 'default'),
     ('assistant_it_manager', 'Assistant IT Manager', 'it', 'technical', 'default', 'default'),
@@ -503,8 +523,8 @@ BEGIN
   SELECT count(*) INTO n_titles FROM public.job_titles;
   SELECT count(*) INTO n_perms  FROM public.permissions;
   SELECT count(*) INTO n_grants FROM public.role_permissions;
-  IF n_roles  <> 11 THEN
-    RAISE EXCEPTION 'expected 11 roles, found %', n_roles;
+  IF n_roles  <> 12 THEN
+    RAISE EXCEPTION 'expected 12 roles, found %', n_roles;
   END IF;
   IF n_titles <> 54 THEN
     RAISE EXCEPTION 'expected 54 job titles, found %', n_titles;
@@ -512,8 +532,8 @@ BEGIN
   IF n_perms  <> 34 THEN
     RAISE EXCEPTION 'expected 34 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 211 THEN
-    RAISE EXCEPTION 'expected 211 role_permissions, found %', n_grants;
+  IF n_grants <> 230 THEN
+    RAISE EXCEPTION 'expected 230 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

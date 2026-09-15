@@ -65,17 +65,19 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     stickyInProgress: true,
   },
   /**
-   * Room attendants — the banded list narrowed to their own rooms.
+   * The attendant titles — Room Attendant, Porter/Houseman, Laundry and Public
+   * Area. Figma 3838-1623: the same banded screen as leadership, narrowed to
+   * the rooms assigned to the reader and carrying a finished/total pill beside
+   * the title. These titles have no Home tab, so this is where they land.
    *
-   * Still on the legacy card and header: its own frame has not been checked
-   * against the rebuild, and neither has the progress pill's placement. Flip
-   * these two when it has been.
+   * `profileHeader` and `rebuiltCard` were held back until that frame could be
+   * checked against the rebuild; it has been, and it is the same screen.
    */
   attendant: {
-    profileHeader: false,
+    profileHeader: true,
     banded: true,
     assignedOnly: true,
-    rebuiltCard: false,
+    rebuiltCard: true,
     stickyInProgress: false,
   },
 };

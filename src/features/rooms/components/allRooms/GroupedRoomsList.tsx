@@ -12,13 +12,24 @@ import { RoomGroupHeader } from './RoomGroupHeader';
 import type { RoomGroup } from '../../utils/roomGroups';
 
 /**
- * How much of the window the floating band may take before it scrolls inside
+ * How much of the *list* the floating band may take before it scrolls inside
  * itself.
  *
  * Nine in-progress rooms measure ~2767pt against an 874pt screen, so it has to
- * be bounded by something. A fraction of the window keeps the list beneath it
- * usable at any device size; the band this replaces used a flat `maxHeight: 264`
+ * be bounded by something. The band this replaces used a flat `maxHeight: 264`
  * that came from reading a single 422x264 card as a whole band.
+ *
+ * The fraction is of the list's own height, not the window's, because the two
+ * are far apart here: the profile header, search field and "Rooms" title take
+ * the top third of the screen, so on an iPhone 16 Pro the list measures 562pt
+ * against an 874pt window. Against the window the cap came out at 350 and the
+ * band, heading included, stood 428pt tall — over three quarters of the list it
+ * was supposed to leave usable. Against the list it is 225, and the band is
+ * 303pt: one In Progress card pinned with ~260pt still scrolling beneath it.
+ *
+ * The cap bounds the cards, not the whole band — the heading sits above it. A
+ * card runs to ~264pt, so netting the heading off would pin less than one whole
+ * card, which defeats the point of pinning.
  */
 const PINNED_MAX_FRACTION = 0.4;
 
@@ -97,7 +108,18 @@ export function GroupedRoomsList({
    * around it never lays out at all.
    */
   const [contentHeight, setContentHeight] = useState(0);
-  const cap = Math.round(windowHeight * PINNED_MAX_FRACTION);
+
+  /*
+   * The list's own height, so the cap is a fraction of the space the band
+   * actually shares. Falls back to the window for the first frame only.
+   */
+  const [listHeight, setListHeight] = useState(0);
+
+  const measureList = useCallback((event: LayoutChangeEvent) => {
+    setListHeight(event.nativeEvent.layout.height);
+  }, []);
+
+  const cap = Math.round((listHeight || windowHeight) * PINNED_MAX_FRACTION);
   const floatHeight = contentHeight > 0 ? Math.min(cap, contentHeight) : cap;
 
   const handleScroll = useCallback(
@@ -124,7 +146,7 @@ export function GroupedRoomsList({
     group.rooms.map((room) => <React.Fragment key={room.id}>{renderRoom(room)}</React.Fragment>);
 
   return (
-    <View className="flex-1">
+    <View className="flex-1" onLayout={measureList}>
       <ScrollView
         ref={scrollRef}
         {...scrollProps}

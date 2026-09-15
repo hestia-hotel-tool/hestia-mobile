@@ -1,7 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity, Image, KeyboardAvoidingView, Platform, Pressable, Text } from 'react-native';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '../constants/homeLayout';
+import { HOME_CHROME } from '../constants/homeChrome';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -21,8 +22,9 @@ import HomeHeader from '../components/HomeHeader';
 import HousekeepingDashboard from '../components/HousekeepingDashboard';
 import { usePermissions } from '@/domain/rbac';
 import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
-import EngineeringTicketsOverviewCard from '../components/EngineeringTicketsOverviewCard';
-import EngineeringRecentActivityItem from '../components/EngineeringRecentActivityItem';
+import { EngineeringTicketsOverviewCard } from '../components/EngineeringTicketsOverviewCard';
+import { EngineeringRecentActivityItem } from '../components/EngineeringRecentActivityItem';
+import type { TicketActivityKey } from '@/components';
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
 import BottomTabBar from '@/components/layout/BottomTabBar';
@@ -43,6 +45,13 @@ type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabsParamList, '(home)/index'>,
   NativeStackNavigationProp<RootStackParamList>
 >;
+
+/**
+ * How many engineering activity rows to fetch, and to add each time "Load more"
+ * is pressed. The frame (3843-52) shows two rows, but that is the sample data —
+ * what it actually establishes is that the list is paged.
+ */
+const ACTIVITY_PAGE_SIZE = 5;
 
 /**
  * Rooms on the floors selected in the filter sheet.
@@ -171,6 +180,10 @@ export default function HomeScreen() {
   // "HSK Portier" or a title moved department.
   const isEngineeringUser = homeVariant === 'engineering';
   const isHskPortierUser = homeVariant === 'hsk_portier';
+  // The parts of the screen that differ by variant without differing in kind —
+  // see HOME_CHROME. `homeVariant` is narrowed by `asHomeVariant` before it
+  // reaches here, so this lookup cannot come back undefined.
+  const chrome = HOME_CHROME[homeVariant];
 
   const [engineeringCounts, setEngineeringCounts] = useState<{
     total: number;
@@ -186,9 +199,18 @@ export default function HomeScreen() {
       roomLabel: string;
       message: string;
       timeLabel: string;
-      state: 'solved' | 'unsolved' | 'neutral';
+      status: TicketActivityKey;
     }>
   >([]);
+
+  /**
+   * How many activity rows to ask the server for — Figma 3843:1009 puts a
+   * "Load more" under the list. Held in state and grown a page at a time; the
+   * button hides once a fetch comes back short, which is the only reliable
+   * signal that there is nothing further to read.
+   */
+  const [engineeringActivityLimit, setEngineeringActivityLimit] = useState(ACTIVITY_PAGE_SIZE);
+  const [engineeringActivityExhausted, setEngineeringActivityExhausted] = useState(false);
 
   const refreshEngineeringHome = React.useCallback(async () => {
     if (!isEngineeringUser) return;
@@ -217,7 +239,12 @@ export default function HomeScreen() {
     try {
       // Ticket activity now records the ticket as the entity and the room as
       // the correlation, so read table_name='tickets' and map by room_id.
-      const logs = await getRecentActivityLogs({ tableName: 'tickets', limit: 10 });
+      const logs = await getRecentActivityLogs({
+        tableName: 'tickets',
+        limit: engineeringActivityLimit,
+      });
+      // Short of what we asked for means the table has no more to give.
+      setEngineeringActivityExhausted((logs ?? []).length < engineeringActivityLimit);
       const roomIds = Array.from(new Set((logs ?? []).map((l: any) => l.room_id).filter(Boolean)));
       const roomNumberById = await getRoomNumbersByIds(roomIds);
 
@@ -236,9 +263,13 @@ export default function HomeScreen() {
               ? `${String(createdAt.getHours()).padStart(2, '0')}:${String(createdAt.getMinutes()).padStart(2, '0')}`
               : '';
 
-          const state =
+          // Named for the same states the overview card counts, so the two
+          // halves of the screen cannot describe one ticket differently. The
+          // old mapping called Out of Order "unsolved".
+          const status: TicketActivityKey =
             /status to\s+solved|status to\s+done/i.test(action) ? 'solved' :
-            /out of order|status to\s+ofo/i.test(action) ? 'unsolved' :
+            /out of order|status to\s+ofo/i.test(action) ? 'outOfOrder' :
+            /status to\s+unsolved/i.test(action) ? 'unsolved' :
             'neutral';
 
           return {
@@ -246,17 +277,16 @@ export default function HomeScreen() {
             roomLabel: roomNum ? `Room ${roomNum}` : 'Room',
             message: `${staffName} ${action.charAt(0).toLowerCase()}${action.slice(1)}`,
             timeLabel,
-            state,
+            status,
           };
         })
-        .filter((x: any) => x.roomLabel && x.message)
-        .slice(0, 2);
+        .filter((x: any) => x.roomLabel && x.message);
 
       setEngineeringRecent(items as any);
     } catch (e) {
       console.warn('[HomeScreen] Failed to load engineering recent activity', e);
     }
-  }, [isEngineeringUser, session?.user?.id]);
+  }, [isEngineeringUser, session?.user?.id, engineeringActivityLimit]);
 
   useEffect(() => {
     void refreshEngineeringHome();
@@ -866,7 +896,10 @@ export default function HomeScreen() {
             onChangeText={handleSearch}
             onFilterPress={handleFilterPress}
             placeholderLead="Search"
-            placeholderRest="Rooms, Guests, Floors etc"
+            placeholderRest={
+              chrome.searchTarget === 'tickets' ? 'Tickets, Rooms, Floors etc' : 'Rooms, Guests, Floors etc'
+            }
+            size={chrome.searchSize}
             className="px-lg py-md"
           />
         )}
@@ -927,13 +960,13 @@ export default function HomeScreen() {
                     }}
                   />
 
-                  <Text style={styles.engineeringRecentTitle}>Recent Activity</Text>
+                  <Text style={styles.engineeringRecentTitle}>Recent activity</Text>
                   {engineeringRecent.length === 0 ? (
                     <EngineeringRecentActivityItem
                       roomLabel="—"
                       message="No recent ticket activity"
                       timeLabel=""
-                      state="neutral"
+                      status="neutral"
                     />
                   ) : (
                     engineeringRecent.map((it) => (
@@ -942,9 +975,23 @@ export default function HomeScreen() {
                         roomLabel={it.roomLabel}
                         message={it.message}
                         timeLabel={it.timeLabel}
-                        state={it.state}
+                        status={it.status}
                       />
                     ))
+                  )}
+
+                  {/* Node 3856:1009. Hidden once the table has no more rows,
+                      so it never sits there doing nothing. */}
+                  {!engineeringActivityExhausted && engineeringRecent.length > 0 && (
+                    <Pressable
+                      onPress={() =>
+                        setEngineeringActivityLimit((limit) => limit + ACTIVITY_PAGE_SIZE)
+                      }
+                      accessibilityRole="button"
+                      style={styles.engineeringLoadMore}
+                    >
+                      <Text style={styles.engineeringLoadMoreText}>Load more</Text>
+                    </Pressable>
                   )}
                 </View>
               </>
@@ -1135,14 +1182,30 @@ function buildHomeScreenStyles(scaleX: number) {
     marginTop: 0,
     marginBottom: 16 * scaleX,
   },
+  // Nodes 3843:53 and 3856:1010 are the same run: 20px bold #1e1e1e in a 21px
+  // box. This was 14px Inter regular #000000, which matched neither the other
+  // title above it nor the frame.
   engineeringRecentTitle: {
-    fontSize: 14 * scaleX,
-    fontFamily: 'Inter',
-    fontWeight: '400' as any,
-    color: '#000000',
+    fontSize: 20 * scaleX,
+    fontFamily: 'Helvetica',
+    fontWeight: '700' as any,
+    color: '#1e1e1e',
     marginTop: 16 * scaleX,
     marginBottom: 12 * scaleX,
     marginLeft: 20 * scaleX,
+  },
+  // Node 3856:1009 — centred under the last row.
+  engineeringLoadMore: {
+    alignSelf: 'center',
+    paddingVertical: 12 * scaleX,
+    paddingHorizontal: 20 * scaleX,
+    marginTop: 20 * scaleX,
+  },
+  engineeringLoadMoreText: {
+    fontSize: 13 * scaleX,
+    fontFamily: 'Helvetica',
+    fontWeight: '700' as any,
+    color: '#5a759d',
   },
   portierTitle: {
     fontSize: 20 * scaleX,

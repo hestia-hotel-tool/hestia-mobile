@@ -28,6 +28,7 @@ import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
 import ActionRefuseService from '@assets/icons/actions/action-refuse-service.svg';
 import ActionReturnLater from '@assets/icons/actions/action-return-later.svg';
 import ActionSearch from '@assets/icons/actions/action-search.svg';
+import ActionThumbsDown from '@assets/icons/actions/action-thumbs-down.svg';
 import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
 import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
 // guest-status
@@ -75,6 +76,7 @@ export const icons = {
   'action-refuse-service': ActionRefuseService,
   'action-return-later': ActionReturnLater,
   'action-search': ActionSearch,
+  'action-thumbs-down': ActionThumbsDown,
   'action-thumbs-up': ActionThumbsUp,
   'action-tooltip-tail': ActionTooltipTail,
   // guest-status
@@ -130,6 +132,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-refuse-service': 1,
   'action-return-later': 0.8655,
   'action-search': 1,
+  'action-thumbs-down': 1.1265,
   'action-thumbs-up': 1.1265,
   'action-tooltip-tail': 2.5831,
   'guest-arrival': 1,

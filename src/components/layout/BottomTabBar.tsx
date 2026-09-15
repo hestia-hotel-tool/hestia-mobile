@@ -9,6 +9,7 @@ import type { ReturnToTab } from '@/types/navigation';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { useBottomTabBadges } from '../../hooks/useBottomTabBadges';
 import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
+import type { HomeVariant } from '@/domain/rbac/matrix';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 
@@ -47,6 +48,28 @@ const TAB_RETURN_ROUTE: Record<string, ReturnToTab> = {
  * TAB_PERMISSION or it will not render.
  */
 const UNGATED_TABS = new Set<string>(['AIHome']);
+
+/**
+ * Tab order, by the variant that describes how a person works.
+ *
+ * The frames do not agree on one order, and the disagreement is deliberate:
+ * each puts the role's primary workspace immediately after Home. Housekeeping
+ * (node 3883:6323) reads Home, Rooms, Chat, AI, Tickets; engineering
+ * (node 3843:151) reads Home, Tickets, Chat, AI, Rooms, because engineering is
+ * ticket-driven and holds no Rooms right at all.
+ *
+ * Keyed on `HomeVariant` because that field already means "what a person's day
+ * looks like" rather than what they may do — the same reason it selects the
+ * dashboard.
+ *
+ * Ids missing from a row keep their position from the unsorted list, so a tab
+ * added to MAIN_TABS or the More menu still appears without being listed here.
+ */
+const TAB_ORDER_BY_VARIANT: Record<HomeVariant, readonly string[]> = {
+  default: ['Home', 'Rooms', 'Chat', 'Tickets', 'AIHome'],
+  hsk_portier: ['Home', 'Rooms', 'Chat', 'Tickets', 'AIHome'],
+  engineering: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms'],
+};
 
 const MAIN_TABS = [
   {
@@ -94,7 +117,7 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
-  const { can } = usePermissions();
+  const { can, homeVariant } = usePermissions();
 
   const tabs = useMemo(
     () => {
@@ -111,13 +134,23 @@ export default function BottomTabBar({ activeTab, onTabPress, onMorePress }: Bot
       // RBAC: fail CLOSED. A tab id with no entry in TAB_PERMISSION is hidden
       // unless it is explicitly listed as ungated, so forgetting to register a
       // new tab cannot silently expose it to every role.
-      return all.filter((t) => {
+      const permitted = all.filter((t) => {
         if (UNGATED_TABS.has(t.id)) return true;
         const permission = TAB_PERMISSION[t.id];
         return !!permission && can(permission);
       });
+
+      // Order by the role's workspace — see TAB_ORDER_BY_VARIANT. Unlisted ids
+      // sort after the listed ones, keeping their original relative order,
+      // which `sort` guarantees since it is stable.
+      const order = TAB_ORDER_BY_VARIANT[homeVariant] ?? TAB_ORDER_BY_VARIANT.default;
+      const rank = (id: string) => {
+        const i = order.indexOf(id);
+        return i === -1 ? Number.MAX_SAFE_INTEGER : i;
+      };
+      return permitted.sort((a, b) => rank(a.id) - rank(b.id));
     },
-    [can]
+    [can, homeVariant]
   );
 
   const scrollRef = useRef<ScrollView | null>(null);
