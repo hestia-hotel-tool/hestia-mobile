@@ -13,7 +13,7 @@ import {
   ActivityIndicator,
   ScrollView,
 } from 'react-native';
-import { useNavigation, useRoute } from 'expo-router';
+import { useNavigation, useRoute, router } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -102,7 +102,10 @@ export default function UserProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             await signOut();
-            (navigation as any).reset?.({ index: 0, routes: [{ name: 'Login' }] });
+            // Same fix as SettingsScreen: there is no route named 'Login', so
+            // the old `reset` was a no-op that left the user on the signed-in
+            // stack. `replace` so it cannot be swiped back into.
+            router.replace('/(auth)/login');
           },
         },
       ],

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { useNavigation, useRoute, NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRoute, router, NativeStackNavigationProp } from 'expo-router';
 import { colors } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { useAuth } from '@features/auth';
@@ -31,8 +31,21 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             await signOut();
-            const rootNav = navigation.getParent();
-            rootNav?.reset({ index: 0, routes: [{ name: 'Login' }] });
+            /*
+             * `router.replace`, not a navigator `reset`.
+             *
+             * This used to reset the parent navigator to a route named
+             * `'Login'`, which is a leftover from the pre-expo-router
+             * navigator: the root Stack's routes are `index`, `(auth)`,
+             * `(tabs)` and the modals, so nothing answered to that name and
+             * RESET fell through every navigator with a dev-only warning —
+             * leaving the user signed out but still sitting on the tabs.
+             *
+             * `replace` rather than `push` so the signed-in stack is not left
+             * behind a back gesture. Same call SplashScreen and RouteGuard
+             * already make.
+             */
+            router.replace('/(auth)/login');
           },
         },
       ],
