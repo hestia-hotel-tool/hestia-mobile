@@ -20,7 +20,7 @@ import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { resolveGuestImageUrls } from '@/lib/guests';
-import { listRoomsWithReservationGuests } from '@features/rooms';
+import { listRoomsWithReservationGuests } from '@features/rooms/services/rooms';
 import {
   CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,

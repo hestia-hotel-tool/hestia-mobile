@@ -1,8 +1,9 @@
-import { useChatStore } from '@features/chat';
-import { useRoomsStore, clearShiftIdCache, clearRoomsFetchCache } from '@features/rooms';
-import { useUserStore } from '@features/account';
+import { useChatStore } from '@features/chat/store/useChatStore';
+import { clearShiftIdCache } from '@features/rooms/services/rooms';
+import { useRoomsStore, clearRoomsFetchCache } from '@features/rooms/store/useRoomsStore';
+import { useUserStore } from '@features/account/store/useUserStore';
 import { clearCachedHotelId } from '@/lib/tenant';
-import { clearBottomTabBadgeCounts } from '@/hooks/useBottomTabBadges';
+import { clearBottomTabBadgeCounts } from '@/store/bottomTabBadgeCounts';
 
 /**
  * Clear all cached client state that must never bleed across tenants/users.

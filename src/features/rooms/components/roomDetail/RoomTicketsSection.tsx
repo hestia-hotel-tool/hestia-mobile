@@ -4,7 +4,10 @@ import { useNavigation , NativeStackNavigationProp } from 'expo-router';
 import { RootStackParamList } from '@/types/navigation';
 import { colors, typography } from '@/theme';
 import { scaleX, CONTENT_AREA } from '../../constants/roomDetailStyles';
-import { TicketForm, TicketCard, getLatestTicketForRoom, type TicketData } from '@features/tickets';
+import TicketCard from '@features/tickets/components/TicketCard';
+import TicketForm from '@features/tickets/components/TicketForm';
+import { getLatestTicketForRoom } from '@features/tickets/services/tickets';
+import type { TicketData } from '@features/tickets/types/tickets.types';
 
 interface RoomTicketsSectionProps {
   roomNumber: string;

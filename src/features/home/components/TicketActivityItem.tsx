@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from '@/tw';
-import { StatusBubble } from '@/components';
-import { TICKET_ACTIVITY_STATUS, type TicketActivityKey } from '@/components';
+import { StatusBubble } from '@/components/ui/StatusBubble';
+import { TICKET_ACTIVITY_STATUS, type TicketActivityKey } from '@/components/ui/TicketStatusCircle';
 
 /** Node 3843:131 — the row is 96 tall with a 59px avatar. */
 const ROW_HEIGHT = 96;

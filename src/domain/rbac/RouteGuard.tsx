@@ -14,7 +14,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ActivityIndicator } from 'react-native';
 import { Redirect, useSegments, useRouter } from 'expo-router';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { usePermissions } from './usePermissions';
 import { resolveRoutePermission } from './routePermissions';
 import { resolveLandingRoute } from './landing';

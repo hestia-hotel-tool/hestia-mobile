@@ -4,7 +4,8 @@ import { router } from 'expo-router';
 import { View, Text, Pressable } from '@/tw';
 import { colors } from '@/theme';
 import LogoMark from '@assets/brand/logo-mark.svg';
-import { usePermissions, resolveLandingRoute } from '@/domain/rbac';
+import { resolveLandingRoute } from '@/domain/rbac/landing';
+import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useTranslation } from '@/providers/I18nProvider';
 import { useAuth } from '../hooks/useAuth';
 

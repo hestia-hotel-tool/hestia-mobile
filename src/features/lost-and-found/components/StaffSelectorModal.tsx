@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
-import { StaffMember } from '@features/staff';
+import { StaffMember } from '@features/staff/types/staff.types';
 
 interface StaffSelectorModalProps {
   visible: boolean;

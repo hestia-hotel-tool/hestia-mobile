@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, ScrollView, StyleSheet, ActivityIndicator } from 'react-native';
 import { scaleX } from '../../constants/reassignModalStyles';
-import { StaffMember, ReassignTab } from '@features/staff';
+import { StaffMember, ReassignTab } from '@features/staff/types/staff.types';
 import StaffListItem from './StaffListItem';
 import { colors } from '@/theme';
 

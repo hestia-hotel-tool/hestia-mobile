@@ -33,11 +33,11 @@ import {
   TICKET_STATUS_POPOVER,
   scaleX,
 } from '../constants/ticketsStyles';
-import { dashboardService } from '@features/rooms';
+import { dashboardService } from '@features/rooms/services/dashboard';
 import { updateTicketStatus, updateTicketDueAt, updateTicketPriority, updateTicketAssignee } from '../services/tickets';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { getUsersByDepartment } from '@features/account/services/user';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { useUserStore } from '@features/account/store/useUserStore';
 import type { User } from '@/types';
 import { typography } from '@/theme';

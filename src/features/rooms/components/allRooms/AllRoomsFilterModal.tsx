@@ -7,7 +7,8 @@ import {
   type RoomsFilterSection,
 } from '@/components/filters';
 import { FilterState, FilterCounts } from '@/types/filter.types';
-import { useHomeFilters, HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home';
+import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home/constants/homeLayout';
+import { useHomeFilters } from '@features/home/hooks/useHomeFilters';
 
 const DESIGN_WIDTH = 440;
 

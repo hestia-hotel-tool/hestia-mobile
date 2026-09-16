@@ -4,9 +4,9 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { getProfile, userProfileFromSession } from '../services/user';
-import type { UserProfile } from '@features/home';
+import type { UserProfile } from '@features/home/types/home.types';
 
 const DEFAULT_PROFILE: UserProfile = {
   name: 'User',

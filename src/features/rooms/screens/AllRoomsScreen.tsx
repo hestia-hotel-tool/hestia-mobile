@@ -3,7 +3,7 @@ import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@/theme';
-import { ShiftType } from '@features/home';
+import type { ShiftType } from '@/types/shift.types';
 import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
@@ -11,14 +11,14 @@ import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import { RoomCardData, StatusChangeOption, mapStatusOptionToRoomStatus, isRoomPaused } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
-import { useUser } from '@features/account';
+import { useUser } from '@features/account/hooks/useUser';
 import RoomCard from '../components/allRooms/RoomCard';
 import { RoomListCard } from '../components/roomsList';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import StatusChangeModal, { STATUS_MODAL_HEIGHT, STATUS_MODAL_SPACING } from '../components/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import type { RootStackParamList, MainTabsParamList } from '@/types/navigation';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import {
   invalidateNotificationBadges,
   markAllRoomAssignmentNotificationsRead,
@@ -29,7 +29,7 @@ import {
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
 } from '../services/rooms';
 import { FilterState, FilterCounts } from '@/types/filter.types';
-import type { CategoryName } from '@features/home';
+import type { CategoryName } from '@features/home/types/home.types';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
 import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
@@ -39,9 +39,10 @@ import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { applyRoomFilters, hasAnyActiveFilter } from '../utils/roomFilters';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
-import GroupedRoomsList from '../components/allRooms/GroupedRoomsList';
+import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
 import { RoomRow } from '../components/allRooms/RoomRow';
-import { usePermissions, PERMISSIONS } from '@/domain/rbac';
+import { PERMISSIONS } from '@/domain/rbac/permissions';
+import { usePermissions } from '@/domain/rbac/usePermissions';
 import { findBlockingInProgressRoom } from '../utils/attendantRules';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';

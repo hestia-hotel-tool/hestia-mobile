@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Dimensions, Image } from 'rea
 import { colors, typography } from '@/theme';
 import { FilterModalOverlay } from '@/components/filters';
 import FilterSection from './FilterSection';
-import FloorsFilterSheet from './FloorsFilterSheet';
+import { FloorsFilterSheet } from './FloorsFilterSheet';
 import { FilterState, FilterCounts, FilterOption } from '@/types/filter.types';
 import { getFloorLabel } from '@/utils/formatting';
 import { ShiftType } from '../types/home.types';

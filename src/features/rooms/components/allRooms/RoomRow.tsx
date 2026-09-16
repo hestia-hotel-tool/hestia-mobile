@@ -1,7 +1,7 @@
 import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import type { RoomCardData } from '../../types/allRooms.types';
-import type { ShiftType } from '@features/home';
+import type { ShiftType } from '@/types/shift.types';
 
 /**
  * One row of the Rooms list, memoised.

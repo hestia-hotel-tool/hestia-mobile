@@ -6,7 +6,7 @@
  * hotel and provides small convenience helpers.
  */
 import { useEffect, useMemo, useState } from 'react';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { resolveProvider, resolveProviderForHotel } from './registry';
 import type { PmsProvider } from './PmsProvider';
 

@@ -1,4 +1,4 @@
-import { TicketsScreenData } from '@features/tickets';
+import { TicketsScreenData } from '@features/tickets/types/tickets.types';
 
 export const mockTicketsData: TicketsScreenData = {
   selectedTab: 'myTickets',

@@ -18,7 +18,7 @@ import { useNavigation , NativeStackNavigationProp } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/types/navigation';
 import type { User } from '@/types';
-import { getUsers } from '@features/account';
+import { getUsers } from '@features/account/services/user';
 import { createGroupChat, getCurrentUserId } from '../services/chat';
 import { useToast } from '@/contexts/ToastContext';
 import { colors } from '@/theme';

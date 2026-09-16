@@ -14,7 +14,7 @@ import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
 import { useChatStore } from '../store/useChatStore';
 import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { useUserStore } from '@features/account/store/useUserStore';
 import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';

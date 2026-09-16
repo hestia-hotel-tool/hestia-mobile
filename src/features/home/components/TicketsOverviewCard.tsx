@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text } from '@/tw';
-import { Card, CardDivider, TicketStatusCircle, TICKET_STATUS_ORDER } from '@/components';
-import type { TicketStatusKey } from '@/components';
+import { Card, CardDivider } from '@/components/ui/Card';
+import { TicketStatusCircle, TICKET_STATUS_ORDER } from '@/components/ui/TicketStatusCircle';
+import type { TicketStatusKey } from '@/components/ui/TicketStatusCircle';
 
 /** Node 3843:67 — the divider sits 79px below the card's top edge. */
 const HEADER_HEIGHT = 79;

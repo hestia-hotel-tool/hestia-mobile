@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable } from '@/tw';
-import { Avatar } from '@/components';
+import { Avatar } from '@/components/ui/Avatar';
 import { ROOM_CARD } from './roomCardLayout';
 
 export type RoomAssigneeBlockProps = {

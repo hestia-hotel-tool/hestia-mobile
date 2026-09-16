@@ -2,7 +2,8 @@ import React, { useMemo } from 'react';
 import { View, Modal, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import MoreMenuItem from './MoreMenuItem';
 import { MORE_MENU_OPTIONS, MoreMenuItemId } from '@/types/more.types';
-import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
+import { TAB_PERMISSION } from '@/domain/rbac/permissions';
+import { usePermissions } from '@/domain/rbac/usePermissions';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;

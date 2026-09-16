@@ -27,10 +27,11 @@ import {
   activityStateToUpdate,
 } from '../types/allRooms.types';
 import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/roomDetail.types';
-import type { LostAndFoundItem } from '@features/lost-and-found';
+import type { LostAndFoundItem } from '@features/lost-and-found/types/lostAndFound.types';
 import type { RootStackParamList } from '@/types/navigation';
 import { useRoomsStore } from '../store/useRoomsStore';
-import { authService, useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
+import { authService } from '@features/auth/services/auth';
 import { notifyServer } from '@/lib/notifications';
 import { colors } from '@/theme';
 import { getMockHistoryEvents } from '@/mocks/mockHistoryData';
@@ -38,7 +39,7 @@ import { generateHistoryReport } from '../utils/generateHistoryReport';
 import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';
 import { getDefaultTaskText } from '../utils/defaultTasks';
 import { findBlockingInProgressRoomForUser } from '../utils/attendantRules';
-import { usePermissions } from '@/domain/rbac';
+import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
 import { supabase } from '@/lib/supabase';

@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from '@/tw';
-import CategoryCard from './CategoryCard';
+import { CategoryCard } from './CategoryCard';
 import type { CategorySection, RoomStatus } from '../types/home.types';
 
 export type HousekeepingDashboardProps = {

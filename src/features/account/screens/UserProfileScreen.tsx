@@ -19,12 +19,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import { colors, typography, components } from '@/theme';
 import { getInitialsFromFullName } from '@/utils/formatting';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useUserStore } from '../store/useUserStore';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import type { UserProfile } from '@features/home';
+import type { UserProfile } from '@features/home/types/home.types';
 import { useDesignScale } from '@/hooks/useDesignScale';
 
 type UserProfileRouteParams = {

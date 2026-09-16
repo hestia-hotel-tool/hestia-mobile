@@ -3,7 +3,7 @@
  * Regenerate with: node scripts/generateMockFromCsv.js
  */
 
-import type { RoomCardData } from '@features/rooms';
+import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 
 /** Injects deterministic guest image URLs for room card two-column layout (image left, info right). */
 function withGuestImages(rooms: RoomCardData[] | undefined): RoomCardData[] {

@@ -13,7 +13,7 @@ import { I18nProvider } from './I18nProvider';
 import { PermissionProvider } from './PermissionProvider';
 import { ToastProvider } from '@/contexts/ToastContext';
 import { MessageModalProvider } from '@/contexts/MessageModalContext';
-import { AIChatOverlayProvider } from '@features/ai-agent';
+import { AIChatOverlayProvider } from '@features/ai-agent/context/AIChatOverlayContext';
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   return (

@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { Modal, View, StyleSheet, TextInput, Keyboard } from 'react-native';
 import { scaleX } from '../../constants/reassignModalStyles';
-import { ReassignTab, StaffMember , fetchStaffFromSupabase } from '@features/staff';
+import { fetchStaffFromSupabase } from '@features/staff/services/staff';
+import { ReassignTab, StaffMember } from '@features/staff/types/staff.types';
 import ReassignHeader from './ReassignHeader';
 import ReassignTabs from './ReassignTabs';
 import StaffListContainer from './StaffListContainer';

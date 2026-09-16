@@ -25,7 +25,7 @@ import React, {
   useState,
 } from 'react';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import type { Permission } from '@/domain/rbac/permissions';
 import type { HomeVariant, RoomsVariant } from '@/domain/rbac/matrix';
 

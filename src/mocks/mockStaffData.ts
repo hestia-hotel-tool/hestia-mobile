@@ -2,7 +2,7 @@
  * Mock Staff Data for Reassign Modal
  */
 
-import { StaffMember } from '@features/staff';
+import { StaffMember } from '@features/staff/types/staff.types';
 
 export const mockStaffData: StaffMember[] = [
   {

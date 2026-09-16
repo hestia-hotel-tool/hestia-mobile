@@ -1,7 +1,8 @@
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text } from '@/tw';
-import { Avatar, SegmentedToggle } from '@/components';
+import { Avatar } from '@/components/ui/Avatar';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import type { ShiftType } from '@/types/shift.types';
 
 const SHIFT_OPTIONS = [

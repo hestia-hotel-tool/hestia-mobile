@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from '@/tw';
-import { SearchAndFilterBar } from '@/components';
-import { HomeHeader } from '@features/home';
+import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
+import { HomeHeader } from '@features/home/components/HomeHeader';
 import type { ShiftType } from '@/types/shift.types';
 import { RoomsProgressPill } from './RoomsProgressPill';
 

@@ -5,7 +5,7 @@
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { base64ToArrayBuffer } from '@/utils/encoding';
-import type { UserProfile } from '@features/home';
+import type { UserProfile } from '@features/home/types/home.types';
 import type { User } from '@/types';
 import { getMyHotelId } from '@/lib/tenant';
 

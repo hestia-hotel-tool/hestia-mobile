@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, Pressable } from '@/tw';
-import { Card, CardDivider, CountBadge, StatusCircle, ROOM_STATUS_ORDER } from '@/components';
+import { Card, CardDivider } from '@/components/ui/Card';
+import { CountBadge } from '@/components/ui/CountBadge';
+import { StatusCircle, ROOM_STATUS_ORDER } from '@/components/ui/StatusCircle';
 import { Icon } from '@/components/Icon';
 import { colors } from '@/theme';
 import type { CategorySection, RoomStatus } from '../types/home.types';

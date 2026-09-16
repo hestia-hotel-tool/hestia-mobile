@@ -1,7 +1,7 @@
 import React from 'react';
 import GuestInfoDisplay from '../GuestInfoDisplay';
 import type { GuestInfo } from '../../types/allRooms.types';
-import type { ShiftType } from '@features/home';
+import type { ShiftType } from '@/types/shift.types';
 import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
 
 interface GuestInfoSectionProps {

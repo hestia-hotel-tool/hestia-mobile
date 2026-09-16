@@ -8,10 +8,11 @@ import { MORE_MENU_OPTIONS } from '@/types/more.types';
 import type { ReturnToTab } from '@/types/navigation';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { useBottomTabBadges } from '../../hooks/useBottomTabBadges';
-import { usePermissions, TAB_PERMISSION } from '@/domain/rbac';
+import { TAB_PERMISSION } from '@/domain/rbac/permissions';
+import { usePermissions } from '@/domain/rbac/usePermissions';
 import type { HomeVariant } from '@/domain/rbac/matrix';
 import type { IconName } from '@/components/Icon';
-import { useAIChatOverlay } from '@features/ai-agent';
+import { useAIChatOverlay } from '@features/ai-agent/context/AIChatOverlayContext';
 
 export type TabPressOptions = { fromRoomsAssignmentBadge?: boolean };
 

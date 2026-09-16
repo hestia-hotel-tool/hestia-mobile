@@ -39,6 +39,20 @@ module.exports = defineConfig([
       'react-hooks/static-components': 'warn',
       'react/display-name': 'warn',
       'import/no-unresolved': ['error', { ignore: ['^https?://'] }],
+      /*
+       * Require cycles are an error, not a warning.
+       *
+       * Metro allows them but warns at runtime that they "can result in
+       * uninitialized values" — a module caught mid-initialisation hands back
+       * `undefined`, which surfaces as an unrelated crash far from the cause.
+       * The graph was one 64-module tangle, every loop of it running through a
+       * feature barrel; it is acyclic now, and this keeps it that way.
+       *
+       * `maxDepth` is unbounded so a long chain through several barrels is
+       * still caught, and type-only edges are ignored because the compiler
+       * erases them before Metro ever sees them.
+       */
+      'import/no-cycle': ['error', { ignoreExternal: true, allowUnsafeDynamicCyclicDependency: false }],
     },
   },
 ]);

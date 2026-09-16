@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useNavigation, useRoute, router, NativeStackNavigationProp } from 'expo-router';
 import { colors } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import { useAuth } from '@features/auth';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { useUserStore } from '@features/account/store/useUserStore';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';

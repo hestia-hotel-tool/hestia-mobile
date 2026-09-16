@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { colors } from '@/theme';
-import { HOME_HEADER_HEIGHT_DESIGN_PX , AMPMToggle } from '@features/home';
+import AMPMToggle from '@features/home/components/AMPMToggle';
+import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home/constants/homeLayout';
 import { scaleX } from '../../constants/allRoomsStyles';
 import SearchInput from '@/components/ui/SearchInput';
-import RoomsProgressPill from './RoomsProgressPill';
-import type { ShiftType } from '@features/home';
+import { RoomsProgressPill } from './RoomsProgressPill';
+import type { ShiftType } from '@/types/shift.types';
 
 interface AllRoomsHeaderProps {
   selectedShift: ShiftType;

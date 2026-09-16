@@ -21,7 +21,7 @@ import StaffTicketCard from '../components/StaffTicketCard';
 import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
-import { getUsersByDepartmentId } from '@features/account';
+import { getUsersByDepartmentId } from '@features/account/services/user';
 import { getDepartments, DEPARTMENT_NAME_TO_ICON, sortDepartmentsByDisplayOrder } from '@/lib/departments';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import type { User } from '@/types';

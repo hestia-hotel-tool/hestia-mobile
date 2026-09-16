@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Image } from 'react-native';
 import { typography } from '@/theme';
 import { REASSIGN_MODAL, scaleX } from '../../constants/reassignModalStyles';
-import { ReassignTab } from '@features/staff';
+import { ReassignTab } from '@features/staff/types/staff.types';
 
 interface ReassignTabsProps {
   activeTab: ReassignTab;

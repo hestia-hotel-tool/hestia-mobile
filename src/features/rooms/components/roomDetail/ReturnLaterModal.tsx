@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, LayoutChangeEvent } from 'react-native';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { typography } from '@/theme';
-import { ShiftType } from '@features/home';
+import type { ShiftType } from '@/types/shift.types';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
 import TimeSuggestionButton from './TimeSuggestionButton';
 import AssignedToSection from './AssignedToSection';

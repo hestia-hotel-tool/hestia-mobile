@@ -3,13 +3,13 @@
  * Aggregates data for home, rooms, chat, tickets. Rooms come from Supabase via rooms service.
  */
 
-import type { HomeScreenData } from '@features/home';
+import type { HomeScreenData } from '@features/home/types/home.types';
 import type { AllRoomsScreenData , StaffInfo } from '../types/allRooms.types';
-import type { TicketsScreenData } from '@features/tickets';
-import type { ChatItemData } from '@features/chat';
+import type { TicketsScreenData } from '@features/tickets/types/tickets.types';
+import type { ChatItemData } from '@features/chat/components/ChatItem';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomStateUpdate } from './rooms';
-import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets';
+import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets/services/tickets';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getToast } from '@/utils/toast';
 
