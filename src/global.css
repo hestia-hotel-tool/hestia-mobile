@@ -65,6 +65,12 @@
     --color-badge-priority: #ffebeb;
     --color-badge-results: rgba(181, 207, 246, 0.37);
 
+    /* Guest */
+    --color-guest-arrival: #39d47f;
+    --color-guest-departure: #f92424;
+    --color-guest-stayover: #3bc1f6;
+    --color-guest-turndown: #9b51e0;
+
     /* Spacing */
     --spacing-xs: 4px;
     --spacing-sm: 8px;

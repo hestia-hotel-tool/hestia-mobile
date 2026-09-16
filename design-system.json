@@ -50,6 +50,12 @@
       "aiPanelStart": "#ff4dd8",
       "aiPanelEnd": "#3bc1f6"
     },
+    "guest": {
+      "arrival": "#39d47f",
+      "departure": "#f92424",
+      "stayover": "#3bc1f6",
+      "turndown": "#9b51e0"
+    },
     "badge": {
       "eta": "#e9f7e9",
       "etd": "#ffe3e3",

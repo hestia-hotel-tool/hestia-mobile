@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
 import { notifyServer } from '@/lib/notifications';
 import { getMyHotelId } from '@/lib/tenant';
+import { formatClockTime } from '@/utils/formatting';
 import type {
   AllRoomsScreenData,
   RoomCardData,
@@ -273,10 +274,11 @@ function mapToGuestInfo(
   const isArrivalDeparture = normalizedFrontOffice === 'Arrival/Departure';
   const isArrival = normalizedFrontOffice === 'Arrival';
   const isDeparture = normalizedFrontOffice === 'Departure';
-  const time =
-    res.eta && String(res.eta).trim()
-      ? String(res.eta).trim()
-      : 'N/A';
+  // "17:00:00" -> "17:00". `GuestInfo.time` documents itself as "HH:mm (24h)";
+  // this is where that becomes true, so the card, the detail screen and the
+  // Return Later suggestions are all fixed at the one boundary they share.
+  const formattedEta = formatClockTime(res.eta);
+  const time = formattedEta || 'N/A';
   const timeLabel =
     isArrivalDeparture
       ? (index === 1 ? 'EDT' : 'ETA')
@@ -1111,10 +1113,11 @@ function mapReservationDetailToGuestInfo(
   const isArrivalDeparture = normalizedFrontOffice === 'Arrival/Departure';
   const isArrival = normalizedFrontOffice === 'Arrival';
   const isDeparture = normalizedFrontOffice === 'Departure';
-  const time =
-    res.eta && String(res.eta).trim()
-      ? String(res.eta).trim()
-      : 'N/A';
+  // "17:00:00" -> "17:00". `GuestInfo.time` documents itself as "HH:mm (24h)";
+  // this is where that becomes true, so the card, the detail screen and the
+  // Return Later suggestions are all fixed at the one boundary they share.
+  const formattedEta = formatClockTime(res.eta);
+  const time = formattedEta || 'N/A';
   const timeLabel =
     isArrivalDeparture
       ? (index === 1 ? 'EDT' : 'ETA')

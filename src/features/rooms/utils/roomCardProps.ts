@@ -2,6 +2,7 @@ import type { GuestInfo, RoomCardData, RoomStatus } from '../types/allRooms.type
 import { isRoomPaused } from '../types/allRooms.types';
 import type { GuestRowKind } from '../components/roomsList/GuestRow';
 import { getStayoverWithLinen } from './stayoverLinen';
+import { formatClockTime } from '@/utils/formatting';
 
 /**
  * Which mark belongs on a guest photo's corner.
@@ -77,15 +78,45 @@ export function roomCardState(room: RoomCardData) {
 }
 
 /**
- * "ETA: 17:00" / "EDT: 12:00", or nothing.
+ * "ETA: 17:00" / "EDT: 12:00", or nothing — with the prefix taken from the
+ * guest's *kind* rather than from a second derivation of it.
  *
- * Both halves have to be real. A Stayover carries `timeLabel: 'N/A'`, but the
- * data also contains rows labelled `EDT` whose `time` is the string `"N/A"` —
- * and those rendered as a literal "EDT: N/A" on the card.
+ * Why this exists. On an Arrival/Departure room the badge and the coloured word
+ * come from the guest's position — `guestRowKind` above returns `arrival` for
+ * index 0 and `departure` for index 1, and the detail screen's slot table says
+ * the same. The time prefix came from somewhere else entirely:
+ * `mapToGuestInfo` in the service reads *that reservation's own*
+ * `front_office_status`. When a room has two reservations that are not
+ * themselves marked Arrival and Departure — which is most of them, since
+ * `mapFrontOfficeToRoomType` promotes any 2-guest room to Arrival/Departure —
+ * the two disagree, and the screen showed a red "Departure" badge above the
+ * words "ETA: 12:00" (rooms 105 and 201 both did).
+ *
+ * The kind wins because it is what the badge, the colour and the word are
+ * already drawn from; making the slot table match on `timeLabel` instead would
+ * fix the mismatch but break the ordering guarantee that keeps the detail
+ * screen's two guests in the same order as the card's.
+ *
+ * Only `arrival` and `departure` are decided here. Every other kind keeps
+ * whatever the reservation said, because a Stayover's time is not an arrival or
+ * a departure and this function has no better answer than the data's.
+ *
+ * Both halves still have to be real, which `formatClockTime` enforces: a
+ * Stayover carries `timeLabel: 'N/A'`, and the data also contains rows labelled
+ * `EDT` whose `time` is the literal string `"N/A"` — those used to render as
+ * "EDT: N/A" on the card.
  */
-export function guestTimeLabel(guest: GuestInfo): string | undefined {
-  const { timeLabel, time } = guest;
-  if (!timeLabel || timeLabel === 'N/A') return undefined;
-  if (!time || time.trim().toUpperCase() === 'N/A') return undefined;
-  return `${timeLabel}: ${time}`;
+export function guestTimeLabelForKind(
+  kind: GuestRowKind,
+  guest: GuestInfo
+): string | undefined {
+  const clock = formatClockTime(guest.time);
+  if (!clock) return undefined;
+
+  if (kind === 'arrival') return `ETA: ${clock}`;
+  if (kind === 'departure') return `EDT: ${clock}`;
+
+  const fallback = guest.timeLabel;
+  if (!fallback || fallback === 'N/A') return undefined;
+  return `${fallback}: ${clock}`;
 }

@@ -26,7 +26,8 @@ import {
   deriveRoomActivityState,
   activityStateToUpdate,
 } from '../types/allRooms.types';
-import type { Note, Task, RoomType, HistoryEvent, HistoryGroup } from '../types/roomDetail.types';
+import type { Note, Task, RoomType, HistoryEvent } from '../types/roomDetail.types';
+import { groupHistoryEvents } from '../utils/groupHistoryEvents';
 import type { LostAndFoundItem } from '@features/lost-and-found/types/lostAndFound.types';
 import type { RootStackParamList } from '@/types/navigation';
 import { useRoomsStore } from '../store/useRoomsStore';
@@ -423,60 +424,10 @@ export default function RoomDetailScreen() {
     try {
       setIsGeneratingReport(true);
       
-      // Group events for the report (same logic as HistorySection)
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const yesterday = new Date(today);
-      yesterday.setDate(yesterday.getDate() - 1);
-
-      const normalizeDate = (date: Date): Date => {
-        return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-      };
-
-      const sortedEvents = [...historyEvents].sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-      const dateMap = new Map<string, HistoryEvent[]>();
-
-      sortedEvents.forEach((event) => {
-        const eventDate = normalizeDate(event.timestamp);
-        const key = `${eventDate.getFullYear()}-${eventDate.getMonth()}-${eventDate.getDate()}`;
-        if (!dateMap.has(key)) {
-          dateMap.set(key, []);
-        }
-        dateMap.get(key)!.push(event);
-      });
-
-      const groupedEvents: HistoryGroup[] = [];
-      dateMap.forEach((events, key) => {
-        const [year, month, day] = key.split('-').map(Number);
-        const eventDate = new Date(year, month, day);
-        const todayNormalized = normalizeDate(today);
-        const yesterdayNormalized = normalizeDate(yesterday);
-        const eventDateNormalized = normalizeDate(eventDate);
-
-        let dateLabel: string;
-        if (eventDateNormalized.getTime() === todayNormalized.getTime()) {
-          dateLabel = 'Today';
-        } else if (eventDateNormalized.getTime() === yesterdayNormalized.getTime()) {
-          dateLabel = 'Yesterday';
-        } else {
-          const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-          const monthName = monthNames[eventDate.getMonth()];
-          const yearNum = eventDate.getFullYear();
-          if (yearNum === now.getFullYear()) {
-            dateLabel = `${monthName} ${day}`;
-          } else {
-            dateLabel = `${monthName} ${day} ${yearNum}`;
-          }
-        }
-
-        groupedEvents.push({
-          dateLabel,
-          date: eventDate,
-          events: events.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()),
-        });
-      });
-
-      const sortedGroupedEvents = groupedEvents.sort((a, b) => b.date.getTime() - a.date.getTime());
+      // One grouping function, shared with the History timeline — see
+      // `groupHistoryEvents`. This used to be a ~50-line transcription of
+      // HistorySection's `useMemo`, kept in step by hand.
+      const sortedGroupedEvents = groupHistoryEvents(historyEvents);
 
       // Generate and download the PDF
       await generateHistoryReport({

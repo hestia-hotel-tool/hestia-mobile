@@ -3,7 +3,7 @@ import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
 import { STATUS_CONFIGS, getRoomDisplayStatus } from '../../types/allRooms.types';
-import { guestRowKind, guestTimeLabel, roomCardState } from '../../utils/roomCardProps';
+import { guestRowKind, guestTimeLabelForKind, roomCardState } from '../../utils/roomCardProps';
 import { getStayoverDisplayLabel } from '../../utils/stayoverLinen';
 import { RoomCardShell } from './RoomCardShell';
 import { RoomStatusCap } from './RoomStatusCap';
@@ -107,7 +107,7 @@ export function SingleGuestRoomCard({
             name={guest.name}
             dates={formatDatesOfStayCompact(guest.datesOfStay)}
             occupancy={formatGuestCount(guest.guestCount)}
-            timeLabel={guestTimeLabel(guest)}
+            timeLabel={guestTimeLabelForKind(guestRowKind(room, 0), guest)}
             kind={guestRowKind(room, 0)}
             imageUrl={guest.imageUrl}
             onImagePress={

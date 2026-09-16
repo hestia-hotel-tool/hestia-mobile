@@ -1,7 +1,10 @@
 import React, { useRef, useEffect } from 'react';
 import { Text, ScrollView, TouchableOpacity, StyleSheet, Dimensions, TextStyle } from 'react-native';
 import { typography } from '@/theme';
-import { scaleX } from '../constants/roomDetailStyles';
+// Not from `roomDetailStyles`: these wheels are not part of Room Detail's layout
+// and only ever wanted the scale factor. `utils/responsive` exports the same
+// value from the same 440pt frame, so the wheels no longer pin that file alive.
+import { scaleX } from '@/utils/responsive';
 
 
 interface DatePickerWheelProps {

@@ -52,6 +52,7 @@ const COLOR_GROUPS = {
   text: 'ink',
   border: 'border',
   badge: 'badge',
+  guest: 'guest',
 };
 
 const lines = [];

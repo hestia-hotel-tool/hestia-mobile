@@ -23,6 +23,43 @@ export const formatTime = (date: Date | string): string => {
 };
 
 /**
+ * A wall-clock time as "HH:mm", 24-hour.
+ *
+ * `reservations.eta` is a Postgres `time`, so PostgREST returns it with seconds
+ * — "17:00:00". It was passed through untouched, and every ETA and EDT on the
+ * room cards and the detail screen read "ETA: 17:00:00" against a design that
+ * shows "ETA: 17:00" (Figma 1772-104). `GuestInfo.time`'s own doc comment
+ * already promised "HH:mm (24h)", so the service was the thing that was wrong.
+ *
+ * Not `formatTime` above: that takes a Date, returns 12-hour with AM/PM, and
+ * `new Date('17:00:00')` is Invalid Date anyway — a bare time is not a date.
+ *
+ * Tolerant on input because the value has three possible origins: the DB
+ * ("17:00:00"), a modal that already formatted it ("17:00"), and hand-entered
+ * strings in seed data ("5:00 PM"). Anything unparseable comes back empty
+ * rather than as itself, so a bad value shows nothing instead of showing
+ * garbage next to a label.
+ */
+export const formatClockTime = (value: string | null | undefined): string => {
+  const raw = (value ?? '').trim();
+  if (!raw || raw.toUpperCase() === 'N/A') return '';
+
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!match) return '';
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3]?.toUpperCase();
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes > 59) return '';
+  if (meridiem === 'PM' && hours < 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  if (hours > 23) return '';
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+/**
  * Format date and time together
  */
 export const formatDateTime = (date: Date | string): string => {

@@ -3,7 +3,7 @@ import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
 import { STATUS_CONFIGS, getRoomDisplayStatus } from '../../types/allRooms.types';
-import { guestRowKind, guestTimeLabel, roomCardState } from '../../utils/roomCardProps';
+import { guestRowKind, guestTimeLabelForKind, roomCardState } from '../../utils/roomCardProps';
 import { View } from '@/tw';
 import { ROOM_CARD } from './roomCardLayout';
 import { RoomCardShell } from './RoomCardShell';
@@ -56,19 +56,25 @@ export function ArrivalDepartureRoomCard({
   const staff = room.roomAttendantAssigned;
   const capped = displayStatus === 'Paused' || displayStatus === 'InProgress';
 
-  const renderGuest = (guest: GuestInfo, index: number) => (
+  const renderGuest = (guest: GuestInfo, index: number) => {
+    // One derivation, used for both the badge and the time prefix — on this
+    // card in particular they must agree, because index 0 is the arriving
+    // guest and index 1 the departing one. See `guestTimeLabelForKind`.
+    const kind = guestRowKind(room, index);
+    return (
     <GuestRow
       key={`${guest.name}-${index}`}
       name={guest.name}
       marker={guest.vipCode != null ? String(guest.vipCode) : undefined}
       dates={formatDatesOfStayCompact(guest.datesOfStay)}
       occupancy={formatGuestCount(guest.guestCount)}
-      timeLabel={guestTimeLabel(guest)}
-      kind={guestRowKind(room, index)}
+      timeLabel={guestTimeLabelForKind(kind, guest)}
+      kind={kind}
       imageUrl={guest.imageUrl}
       onImagePress={guest.imageUrl && onGuestImagePress ? () => onGuestImagePress(guest) : undefined}
     />
-  );
+    );
+  };
 
   return (
     <RoomCardShell

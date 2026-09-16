@@ -1,24 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
+import { scaleX, ROOM_DETAIL_HEADER } from '../../constants/roomDetailStyles';
 import {
-  scaleX,
-  ROOM_DETAIL_HEADER,
   resolveRoomDetailHeaderTheme,
   type HeaderOverlayIcon,
-} from '../../constants/roomDetailStyles';
+} from '../../constants/roomDetailHeaderTheme';
 import { STATUS_CONFIGS, ROOM_ACTIVITY_LABEL } from '../../types/allRooms.types';
 import type { RoomStatus, RoomActivityState } from '../../types/allRooms.types';
 
 /**
- * The three states with a bespoke overlay asset. The four core statuses and
- * Paused render through STATUS_CONFIGS + <Icon> instead.
+ * The three states whose status mark is a glyph on a tinted disc, rather than a
+ * bare glyph like the four core statuses (which already render through
+ * STATUS_CONFIGS + <Icon>).
+ *
+ * These were the last three `require()`d PNGs in this file, and the only ones
+ * that could not be swapped one-for-one: each 51×51 asset bakes the disc and
+ * the glyph into a single two-tone image, which is why the old code had to
+ * refuse to tint them. The registry carries the glyphs alone, so the disc moves
+ * into RN — the same split `STATUS_CONFIGS` already uses, and the shape commit
+ * 63bb69b introduced for the status pill.
+ *
+ * Every number and colour below was measured out of the PNG it replaces rather
+ * than taken from `STATUS_OPTIONS`, whose discs belong to the status *picker*
+ * and are different (`#ff9090` for refuse-service, where the header's is a 12%
+ * `#3abdff`). The asset's disc is a circle inscribed in the full 51×51 box, so
+ * it takes the whole 24.367 the image used to occupy, and each glyph keeps its
+ * share of that box: `viewBox height / 51 × 24.367`.
+ *
+ * The three registry viewBoxes match the PNGs' glyph bounding boxes to the
+ * decimal (28.38 vs 28×28, 29.75 vs 25×29, 30.75 vs 22×31), which is how we
+ * know they are the same drawings and not lookalikes.
  */
-const OVERLAY_ICONS: Record<HeaderOverlayIcon, any> = {
-  refuseService: require('../../../../../assets/icons/refuse-service.png'),
-  returnLater: require('../../../../../assets/icons/return-later.png'),
-  promisedTime: require('../../../../../assets/icons/promised-time-status.png'),
+const OVERLAY_DISC = 24.367;
+
+type OverlaySpec = {
+  icon: IconName;
+  /** Disc fill, at the alpha the PNG carried. */
+  disc: string;
+  glyph: string;
+  /** Glyph height inside the disc, in design units. */
+  glyphHeight: number;
+};
+
+const OVERLAY_SPECS: Record<HeaderOverlayIcon, OverlaySpec> = {
+  refuseService: {
+    icon: 'action-refuse-service',
+    disc: 'rgba(58, 189, 255, 0.122)',
+    glyph: '#5a759d',
+    glyphHeight: (28.381 / 51) * OVERLAY_DISC,
+  },
+  returnLater: {
+    icon: 'action-return-later',
+    disc: 'rgba(58, 189, 255, 0.122)',
+    glyph: '#5a759d',
+    glyphHeight: (29.7501 / 51) * OVERLAY_DISC,
+  },
+  promisedTime: {
+    icon: 'action-promised-time',
+    disc: 'rgba(236, 189, 28, 0.212)',
+    glyph: '#3f4c5f',
+    glyphHeight: (30.75 / 51) * OVERLAY_DISC,
+  },
 };
 
 interface RoomDetailHeaderProps {
@@ -149,7 +193,7 @@ export default function RoomDetailHeader({
   // Paused swaps the status glyph; every other activity keeps the room's own.
   const iconConfig =
     STATUS_CONFIGS[activity.kind === 'paused' ? 'Paused' : status] ?? STATUS_CONFIGS.Dirty;
-  const overlayIconSource = theme.overlayIcon ? OVERLAY_ICONS[theme.overlayIcon] : null;
+  const overlaySpec = theme.overlayIcon ? OVERLAY_SPECS[theme.overlayIcon] : null;
   const displayStatusText = ROOM_ACTIVITY_LABEL[activity.kind] ?? statusConfig.label;
 
   const returnLaterRemaining = useCountdown(
@@ -170,13 +214,18 @@ export default function RoomDetailHeader({
         activeOpacity={0.7}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Image
-          source={require('../../../../../assets/icons/back-arrow.png')}
-          style={[
-            styles.backArrow,
-            { tintColor: theme.backArrowTint },
-          ]}
-          resizeMode="contain"
+        {/*
+          `action-chevron` already points left, so this needs no rotation — the
+          rotated uses of it elsewhere (RoomStatusPill's `-90deg` down-chevron)
+          are turning that same left-pointing mark. `size` is the height, and
+          the width follows the 0.5 viewBox aspect: 9.31×18 painted inside the
+          35×18 button, which is exactly what the 15×29 PNG painted at
+          `resizeMode="contain"`.
+        */}
+        <Icon
+          name="action-chevron"
+          size={ROOM_DETAIL_HEADER.backButton.height * scaleX}
+          color={theme.backArrowTint}
         />
       </TouchableOpacity>
 
@@ -189,11 +238,9 @@ export default function RoomDetailHeader({
         </Text>
         {flagged && (
           <View style={styles.priorityBadge}>
-            <Image
-              source={require('../../../../../assets/icons/flag.png')}
-              style={[styles.priorityBadgeIcon, { tintColor: '#f92424' }]}
-              resizeMode="contain"
-            />
+            {/* The outline variant, not `action-flag`: the 14×19 PNG's 0.737
+                aspect matches outline's 0.718, where the filled mark is 1.18. */}
+            <Icon name="action-flag-outline" size={12 * scaleX} color="#f92424" />
           </View>
         )}
       </View>
@@ -232,13 +279,15 @@ export default function RoomDetailHeader({
         hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       >
         <>
-            {overlayIconSource ? (
-              // These three overlays carry their own colour, so they are never tinted.
-              <Image
-                source={overlayIconSource}
-                style={styles.overlayStatusIcon}
-                resizeMode="contain"
-              />
+            {overlaySpec ? (
+              // Disc in RN, glyph from the registry — see OVERLAY_SPECS.
+              <View style={[styles.overlayStatusDisc, { backgroundColor: overlaySpec.disc }]}>
+                <Icon
+                  name={overlaySpec.icon}
+                  size={overlaySpec.glyphHeight * scaleX}
+                  color={overlaySpec.glyph}
+                />
+              </View>
             ) : (
               <Icon
                 name={iconConfig.iconName}
@@ -256,11 +305,24 @@ export default function RoomDetailHeader({
             >
               {displayStatusText}
             </Text>
-            <Image
-              source={require('../../../../../assets/icons/dropdown-arrow.png')}
-              style={[styles.dropdownArrow, { tintColor: theme.statusTextAndIconColor }]}
-              resizeMode="contain"
-            />
+            {/*
+              The same `action-chevron`, turned to point down. Two views because
+              a transform does not change layout size: the outer one keeps the
+              24.367×25.434 footprint the <Image> occupied, so the status row's
+              spacing is untouched, and the inner one rotates. `size` is the
+              *unrotated* height — 24.367 tall × 12.18 wide becomes 24.367 wide
+              × 12.18 tall once turned, which is what the 18×9 PNG painted.
+              Pattern copied from roomsList/RoomStatusPill.tsx:129-134.
+            */}
+            <View style={styles.dropdownArrow}>
+              <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                <Icon
+                  name="action-chevron"
+                  size={24.367 * scaleX}
+                  color={theme.statusTextAndIconColor}
+                />
+              </View>
+            </View>
         </>
       </TouchableOpacity>
 
@@ -346,11 +408,6 @@ const styles = StyleSheet.create({
     zIndex: 200, // Ensure it's above subtitle overlays
     elevation: 200,
   },
-  backArrow: {
-    width: ROOM_DETAIL_HEADER.backButton.width * scaleX,
-    height: ROOM_DETAIL_HEADER.backButton.height * scaleX,
-    // No transform - use icon directly as is
-  },
   roomNumberRow: {
     position: 'absolute',
     flexDirection: 'row',
@@ -374,10 +431,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  priorityBadgeIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
   },
   roomCode: {
     position: 'absolute',
@@ -453,9 +506,14 @@ const styles = StyleSheet.create({
     height: ROOM_DETAIL_HEADER.flagged.pill.dropdownArrow.height * scaleX,
     marginLeft: 8 * scaleX,
   },
-  overlayStatusIcon: {
-    width: 24.367 * scaleX,
-    height: 25.434 * scaleX,
+  overlayStatusDisc: {
+    // The disc the 51×51 asset drew, now in RN. `width` is the whole box the
+    // image occupied, because the asset's circle was inscribed in it.
+    width: OVERLAY_DISC * scaleX,
+    height: OVERLAY_DISC * scaleX,
+    borderRadius: (OVERLAY_DISC / 2) * scaleX,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 8 * scaleX,
   },
   statusText: {
@@ -467,11 +525,13 @@ const styles = StyleSheet.create({
     color: '#FFF',
   },
   dropdownArrow: {
+    // Footprint only; the rotation lives on the inner view. The `tintColor`
+    // that used to sit here was dead anyway — the inline style overrode it.
     width: 24.367 * scaleX,
     height: 25.434 * scaleX,
     marginLeft: 8 * scaleX,
-    tintColor: '#ffffff',
-    // No rotation - use icon directly as is
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   pausedTime: {
     position: 'absolute',
