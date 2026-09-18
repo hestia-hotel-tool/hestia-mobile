@@ -167,6 +167,16 @@ export interface RoomDetailScreenProps {
   onResumePause?: () => void;
   /** When return later time elapses, clear it and return to normal UI. */
   onReturnLaterElapsed?: () => void;
+  /**
+   * The header's measured height, in design px, reported on every layout.
+   *
+   * The two status sheets are placed flush under `headerHeight * scaleX`, and
+   * that number was a hard-coded 232 duplicated between the header's own
+   * container and the screen. Now that the header is a flex column whose height
+   * depends on its content *and* on the device's top inset, it has to be
+   * measured and handed on.
+   */
+  onHeaderHeightChange?: (designPx: number) => void;
   /** Clear Refuse Service and return to normal UI. */
   onClearRefuseService?: () => void;
   

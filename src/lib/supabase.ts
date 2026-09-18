@@ -35,6 +35,36 @@ if (!isSupabaseConfigured) {
   );
 }
 
+/**
+ * iOS drops pooled connections, and the drop is not a real failure.
+ *
+ * `NSURLErrorNetworkConnectionLost` (-1005) surfaces in RN as "The network
+ * connection was lost." It is overwhelmingly a connection the server had
+ * already closed being picked out of the pool and reused; the request never
+ * reached anyone. Retrying once resolves it. Everything else — a genuine
+ * offline, DNS, TLS or timeout — is left alone, because retrying those only
+ * doubles the wait before the user is told.
+ */
+function isConnectionLost(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+  return /network connection was lost/i.test(message);
+}
+
+/**
+ * Whether replaying this request can do harm.
+ *
+ * GET/HEAD are safe by definition. PATCH and PUT are safe *here* because every
+ * write in this app sets absolute values (`house_keeping_status = 'Dirty'`),
+ * so applying one twice lands in the same place as applying it once. POST and
+ * DELETE are never retried: a dropped connection cannot tell us whether the
+ * server processed the request, and a replayed POST creates a second note,
+ * ticket or assignment.
+ */
+function isReplaySafe(init?: RequestInit): boolean {
+  const method = (init?.method ?? 'GET').toUpperCase();
+  return method === 'GET' || method === 'HEAD' || method === 'PATCH' || method === 'PUT';
+}
+
 function createTimeoutFetch(defaultTimeoutMs: number) {
   return async (input: RequestInfo | URL, init?: RequestInit) => {
     // iOS/RN: default 20s is too short for Storage uploads and heavy PostgREST nested selects.
@@ -46,15 +76,33 @@ function createTimeoutFetch(defaultTimeoutMs: number) {
     const timeoutMs =
       isStorageObjectRequest || isRestQuery ? 120000 : defaultTimeoutMs;
 
-    const controller = new AbortController();
-    const id = setTimeout(() => controller.abort(), timeoutMs);
+    const attempt = async () => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        return await fetch(input, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(id);
+      }
+    };
+
     try {
-      return await fetch(input, { ...init, signal: controller.signal });
+      return await attempt();
     } catch (err) {
+      if (isConnectionLost(err) && isReplaySafe(init)) {
+        console.warn('[SupabaseFetch] connection lost, retrying once', { url });
+        try {
+          return await attempt();
+        } catch (retryErr) {
+          console.error('[SupabaseFetch] failed after retry', {
+            url,
+            message: retryErr instanceof Error ? retryErr.message : String(retryErr),
+          });
+          throw retryErr;
+        }
+      }
       console.error('[SupabaseFetch] failed', { url, message: err instanceof Error ? err.message : String(err) });
       throw err;
-    } finally {
-      clearTimeout(id);
     }
   };
 }

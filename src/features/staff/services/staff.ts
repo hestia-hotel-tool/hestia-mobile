@@ -22,7 +22,7 @@ export async function fetchStaffFromSupabase(): Promise<StaffMember[]> {
 
   const { data, error } = await supabase
     .from('users')
-    .select('id, full_name, avatar_url, departments(name), roles(name)');
+    .select('id, full_name, avatar_url, departments(name), roles(name), job_titles(name)');
 
   if (error || !data) {
     console.warn('Failed to fetch staff from Supabase', error);
@@ -35,14 +35,25 @@ export async function fetchStaffFromSupabase(): Promise<StaffMember[]> {
     avatar_url: string | null;
     departments: { name: string } | null;
     roles: { name: string } | null;
+    job_titles: { name: string } | null;
   };
 
-  return (data as UserRow[]).map((row) => ({
+  /*
+   * Through `unknown`: the generated schema in `src/types/supabase.ts` predates
+   * `users.job_title_id`, so its inferred type for the `job_titles(name)` embed
+   * is `SelectQueryError<"could not find the relation...">`. The FK and the
+   * embed are both real — verified against the REST API, which returns
+   * `job_titles: { name: "Executive Housekeeper" }`. Regenerating the types is
+   * a separate job (it currently breaks the build elsewhere).
+   */
+  return (data as unknown as UserRow[]).map((row) => ({
     id: row.id,
     name: row.full_name ?? 'Staff',
     avatar: row.avatar_url ?? undefined,
     department: row.departments?.name ?? undefined,
-    role: row.roles?.name ?? undefined,
+    // Job title first: `role_id` is null on every seeded user, so reading
+    // `roles` alone left the Reassign list with a blank line under each name.
+    role: row.job_titles?.name ?? row.roles?.name ?? undefined,
     onShift: true,
     shift: 'AM',
   }));

@@ -10,11 +10,10 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors } from '@/theme';
-import { scaleX, CONTENT_AREA, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
+import { scaleX, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import { getRoomTypeConfig } from '../../constants/roomTypeConfigs';
 import { resolveGuestSlots } from '../../utils/guestSlots';
 import RoomDetailHeader from './RoomDetailHeader';
-import DetailTabNavigation from './DetailTabNavigation';
 import GuestInfoCard, { type GuestInfoCardCategory } from './GuestInfoCard';
 import NotesSection from './NotesSection';
 import LostAndFoundSection from './LostAndFoundSection';
@@ -23,11 +22,20 @@ import TaskSection from './TaskSection';
 import ChecklistSection from './ChecklistSection';
 import RoomTicketsSection from './RoomTicketsSection';
 import HistorySection from './HistorySection';
+import { TabBar } from '@/components/ui/TabBar';
 import type { RoomDetailScreenProps, DetailTab } from '../../types/roomDetail.types';
 import type { RoomStatus } from '../../types/allRooms.types';
 
-const GUEST_INFO_TITLE_TOP_SCREEN = 303;
-const OVERVIEW_CONTENT_TOP_PADDING = (GUEST_INFO_TITLE_TOP_SCREEN - CONTENT_AREA.top) * scaleX;
+/** The four tabs, in the order Figma 1772-104 lists them. */
+const DETAIL_TABS_ORDER: readonly DetailTab[] = ['Overview', 'Tickets', 'Checklist', 'History'];
+
+/**
+ * Gap between the tab row and the "Guest Info" heading.
+ *
+ * Was `303 - CONTENT_AREA.top`, i.e. the distance between two absolute `top`s
+ * on a 440 frame. Both of those are gone, so it is now just a gap.
+ */
+const OVERVIEW_CONTENT_TOP_PADDING = 18 * scaleX;
 const SECTION_DIVIDER = {
   height: 1,
   backgroundColor: '#c6c5c5',
@@ -45,7 +53,6 @@ export default function RoomDetailContent({
   roomNumber,
   roomCode,
   status,
-  isPriority = false,
   flagged = false,
   frontOfficeStatus,
   roomType,
@@ -67,6 +74,7 @@ export default function RoomDetailContent({
   onDownloadHistoryReport,
   onResumePause,
   onReturnLaterElapsed,
+  onHeaderHeightChange,
   onClearRefuseService,
   activity = { kind: 'none' },
   showWithLinenBadge = false,
@@ -86,8 +94,15 @@ export default function RoomDetailContent({
    */
   const currentStatus: RoomStatus = status;
 
-  const handleStatusPress: () => void = onStatusPress ?? (() => {});
-  const handleBackPressSafe: () => void = onBackPress ?? (() => {});
+  /*
+   * Passed through, never defaulted.
+   *
+   * These used to be `?? (() => {})`. A no-op callback is indistinguishable
+   * from a real one downstream, which cost two behaviours: the header could not
+   * hide the status chevron when nothing opens (it drew an affordance that did
+   * nothing), and its own `canGoBack()` fallback could never run, because the
+   * header always saw a handler. Absent means absent.
+   */
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -120,26 +135,33 @@ export default function RoomDetailContent({
 
   return (
     <View style={styles.container}>
-      <View style={styles.backgroundTop} />
-
       <RoomDetailHeader
         roomNumber={roomNumber}
         roomCode={roomCode}
         status={currentStatus}
-        onBackPress={handleBackPressSafe}
-        onStatusPress={handleStatusPress}
+        onBackPress={onBackPress}
+        onStatusPress={onStatusPress}
         statusButtonRef={statusButtonRef}
         activity={activity}
         onResumePause={onResumePause}
         onReturnLaterElapsed={onReturnLaterElapsed}
+        onHeightChange={onHeaderHeightChange}
         onClearRefuseService={onClearRefuseService}
-        isPriority={isPriority}
         flagged={flagged}
         frontOfficeLabel={frontOfficeStatus === 'Stayover' ? 'Stayover' : undefined}
         showWithLinenBadge={showWithLinenBadge}
       />
 
-      <DetailTabNavigation activeTab={activeTab} onTabPress={handleTabPress} />
+      {/*
+        In the flow, under the header, rather than absolutely positioned at
+        `top: 252`. Its rule is placed from a measurement — see `ui/TabBar`.
+      */}
+      <TabBar
+        tabs={DETAIL_TABS_ORDER}
+        activeTab={activeTab}
+        onTabPress={handleTabPress}
+        className="bg-surface-secondary px-xl pt-lg"
+      />
 
       {activeTab === 'Checklist' ? (
         <ChecklistSection
@@ -264,21 +286,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background.primary,
   },
   scrollView: {
+    /*
+     * No `marginTop`.
+     *
+     * It used to be `CONTENT_AREA.top * scaleX` — 285 design px, which was the
+     * absolutely-positioned header (232) plus the absolutely-positioned tab row
+     * (53). Both are in the flex flow now and occupy that space for real, so the
+     * margin stacked on top of them and pushed the content ~255pt down the
+     * screen. Same correction in `ChecklistSection` and `RoomTicketsSection`.
+     */
     flex: 1,
-    marginTop: CONTENT_AREA.top * scaleX,
   },
   scrollContent: {
     paddingTop: 0,
     paddingBottom: 200 * scaleX,
-  },
-  backgroundTop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: CONTENT_AREA.backgroundTopHeight * scaleX,
-    backgroundColor: CONTENT_AREA.backgroundTop,
-    zIndex: 0,
   },
   overviewTop: {
     paddingTop: OVERVIEW_CONTENT_TOP_PADDING,

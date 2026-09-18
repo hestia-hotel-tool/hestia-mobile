@@ -34,7 +34,12 @@ function StaffListChevron({ direction, scaleX: sx }: { direction: 'down' | 'up';
 type StaffListRowProps = {
   staffId: string;
   name: string;
-  departmentLabel: string;
+  /**
+   * The line under the name. The job title, e.g. "Room Attendant" — not the
+   * department, which the reader has already chosen from the chip row above and
+   * which was therefore identical on every row.
+   */
+  subtitle: string;
   avatar?: any;
   initials?: string;
   isOnline?: boolean;
@@ -59,7 +64,7 @@ function getInitialColor(name: string): string {
 export default function StaffListRow({
   staffId,
   name,
-  departmentLabel,
+  subtitle,
   avatar,
   initials,
   isOnline = false,
@@ -189,7 +194,7 @@ export default function StaffListRow({
                   {name}
                 </Text>
                 <Text style={scaled.department} numberOfLines={1}>
-                  {departmentLabel}
+                  {subtitle}
                 </Text>
               </View>
             </TouchableOpacity>
@@ -241,7 +246,7 @@ export default function StaffListRow({
             {name}
           </Text>
           <Text style={scaled.department} numberOfLines={1}>
-            {departmentLabel}
+            {subtitle}
           </Text>
         </View>
       </View>

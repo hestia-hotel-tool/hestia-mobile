@@ -265,6 +265,18 @@ export default function RoomDetailScreen() {
   const roomGuests = room.guests || [];
   const isUpdating = updatingRoomId === room.id;
   const config = React.useMemo(() => getRoomTypeConfig(roomType), [roomType]);
+  /**
+   * The header's measured height in design px, for the status sheets.
+   *
+   * Both sheets place themselves flush under `headerHeight * scaleX`, and both
+   * used to be told a literal 232 — the number the old absolutely-positioned
+   * header asserted. The rebuilt header is a flex column, so its height depends
+   * on its content (an activity line, a front-office row) and on the device's
+   * top inset; 232 was only ever right for an iPhone-16-Pro-shaped device with
+   * no subtitle. Falls back to 232 until the first layout pass.
+   */
+  const [headerDesignHeight, setHeaderDesignHeight] = useState<number | null>(null);
+  const modalHeaderHeight = headerDesignHeight ?? 232;
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showInspectedModal, setShowInspectedModal] = useState(false);
   const [buttonPositionForInspection, setButtonPositionForInspection] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
@@ -542,21 +554,30 @@ export default function RoomDetailScreen() {
     void refreshHistory();
   };
 
-  const handleReturnLaterConfirm = (returnTime: string, period: 'AM' | 'PM', taskDescription?: string, _formattedDateTime?: string, returnAtTimestamp?: number) => {
+  const handleReturnLaterConfirm = (
+    returnTime: string,
+    period: 'AM' | 'PM',
+    reason?: string,
+    _formattedDateTime?: string,
+    returnAtTimestamp?: number
+  ) => {
     if (blockedBySecondInProgress()) return;
-    console.log('Return Later confirmed for room:', room.roomNumber, 'at:', returnTime, period);
-    
-    if (taskDescription && taskDescription.trim()) {
-      const newTask: Task = {
-        id: Date.now().toString(),
-        text: taskDescription,
-        createdAt: new Date().toISOString(),
-      };
-      setTasks(prev => [...prev, newTask]);
-      console.log('Task saved from Return Later modal:', taskDescription);
-    }
+
+    /*
+     * The reason is part of the activity now, not a task.
+     *
+     * This used to build a `Task` out of whatever the modal handed back — which
+     * was always `dummyTaskText`, a hardcoded "Deep clean bathroom (heavy bath
+     * use)..." string the reader could not edit. Every Return Later therefore
+     * attached the same invented task to the room. The modal now asks why, and
+     * the answer goes where the other activity reasons go.
+     */
     if (returnAtTimestamp != null) {
-      const next: RoomActivityState = { kind: 'returnLater', dueAt: returnAtTimestamp };
+      const next: RoomActivityState = {
+        kind: 'returnLater',
+        dueAt: returnAtTimestamp,
+        reason: reason?.trim() || null,
+      };
       setActivity(next);
       // Persist to DB so Return Later survives reloads.
       updateRoom(room.id, {
@@ -837,7 +858,7 @@ export default function RoomDetailScreen() {
   const effectiveActivity: RoomActivityState =
     pendingActivity && pendingActivity !== activity.kind
       ? ({
-          returnLater: { kind: 'returnLater', dueAt: null },
+          returnLater: { kind: 'returnLater', dueAt: null, reason: null },
           promisedTime: { kind: 'promisedTime', dueAt: null },
           refuseService: { kind: 'refuseService', at: null, reason: null },
         } as const)[pendingActivity]
@@ -878,6 +899,7 @@ export default function RoomDetailScreen() {
         onDownloadHistoryReport={handleDownloadReport}
         onResumePause={handleResumePause}
         onReturnLaterElapsed={handleReturnLaterElapsed}
+        onHeaderHeightChange={setHeaderDesignHeight}
         onClearRefuseService={handleClearRefuseService}
         initialTab={initialTab}
         departmentName={departmentName}
@@ -900,6 +922,7 @@ export default function RoomDetailScreen() {
         currentStatus={currentStatus}
         room={localRoom}
         buttonPosition={statusButtonPosition}
+        headerHeight={modalHeaderHeight}
         showTriangle={false}
         onFlagToggle={(flagged) => {
           setLocalRoom((prev) => ({ ...prev, flagged }));
@@ -935,7 +958,7 @@ export default function RoomDetailScreen() {
           }
         }}
         buttonPosition={buttonPositionForInspection}
-        headerHeight={232}
+        headerHeight={modalHeaderHeight}
         showTriangle={false}
       />
 
@@ -949,7 +972,6 @@ export default function RoomDetailScreen() {
         roomNumber={room.roomNumber}
         assignedTo={assignedStaff}
         onReassignPress={handleReassign}
-        taskDescription={tasks.length > 0 ? tasks[0].text : undefined}
       />
 
       <PromiseTimeModal

@@ -127,6 +127,7 @@ type UserRow = {
   avatar_url?: string | null;
   roles?: { name: string } | null;
   departments?: { name: string } | null;
+  job_titles?: { name: string } | null;
 };
 
 let didAttemptBootstrapProfile = false;
@@ -147,7 +148,21 @@ function mapUserRowToUser(row: UserRow, email = ''): User {
     id: row.id,
     name: row.full_name ?? 'User',
     email,
-    role: row.roles?.name ?? row.departments?.name ?? 'Staff',
+    /*
+     * The person's job, e.g. "Room Attendant" — `users.job_title_id`.
+     *
+     * This used to read `roles?.name ?? departments?.name`, and `role_id` is
+     * null on every seeded user, so it always landed on the **department**:
+     * every name in a staff picker was captioned "Housekeeping" or
+     * "Engineering", which is the one thing the reader already knows (they
+     * picked the department) and tells them nothing about who to choose.
+     * `job_titles` was never selected at all.
+     *
+     * The department fallback is gone deliberately. `roles` stays as a second
+     * choice because it is a real, if coarser, description of the person.
+     */
+    jobTitle: row.job_titles?.name ?? undefined,
+    role: row.job_titles?.name ?? row.roles?.name ?? 'Staff',
     department: row.departments?.name ?? undefined,
     avatar: row.avatar_url ?? undefined,
   };
@@ -170,20 +185,53 @@ export interface GetUsersResponse {
 }
 
 /**
+ * The signed-in user's id, or `null`.
+ *
+ * `getSession()` rather than `getUser()`: the session is already in local
+ * storage, so this costs nothing, where `getUser()` revalidates against the
+ * auth server. Callers here only need the id to compare against a list.
+ */
+export async function getCurrentUserId(): Promise<string | null> {
+  if (!isSupabaseConfigured) return null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    return data?.session?.user?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * List users by department id (UUID).
  * Preferred for app flows that need stable IDs (e.g. ticket tagging).
+ *
+ * `excludeSelf` drops the signed-in user from the result, and is **off by
+ * default**. A picker wants it: these lists exist to choose somebody else, so
+ * your own name is noise in every one of them. A directory does not — the Staff
+ * screen lists who actually belongs to a department, and hiding the reader from
+ * their own team would misstate it. The two callers genuinely differ, which is
+ * why this is a parameter rather than a default either way.
  */
-export async function getUsersByDepartmentId(departmentId: string, params?: Omit<GetUsersParams, 'departmentId'>): Promise<GetUsersResponse> {
+export async function getUsersByDepartmentId(
+  departmentId: string,
+  params?: Omit<GetUsersParams, 'departmentId'> & { excludeSelf?: boolean }
+): Promise<GetUsersResponse> {
   if (!departmentId) return { data: [], total: 0, page: 1, limit: 0, totalPages: 0 };
   const pageSize = Math.min(params?.limit ?? 100, 100);
   const res = await getUsers({ ...params, departmentId, page: 1, limit: pageSize });
-  return {
-    data: res.data,
-    total: res.total,
-    page: 1,
-    limit: res.data.length,
-    totalPages: 1,
-  };
+
+  let data = res.data;
+  let total = res.total;
+
+  if (params?.excludeSelf) {
+    const myId = await getCurrentUserId();
+    if (myId && data.some((u) => u.id === myId)) {
+      data = data.filter((u) => u.id !== myId);
+      total = Math.max(0, total - 1);
+    }
+  }
+
+  return { data, total, page: 1, limit: data.length, totalPages: 1 };
 }
 
 /**
@@ -201,7 +249,9 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
 
   let query = supabase
     .from('users')
-    .select('id, full_name, avatar_url, roles(name), departments(name)', { count: 'exact' })
+    .select('id, full_name, avatar_url, roles(name), departments(name), job_titles(name)', {
+      count: 'exact',
+    })
     .range(from, to)
     .order('full_name', { ascending: true });
 
@@ -223,7 +273,15 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
     if (error) throw error;
   }
 
-  const rows = (data ?? []) as UserRow[];
+  /*
+   * Through `unknown`: the generated schema in `src/types/supabase.ts` predates
+   * `users.job_title_id`, so its inferred type for the `job_titles(name)` embed
+   * is `SelectQueryError<"could not find the relation...">`. The FK and the
+   * embed are both real — verified against the REST API, which returns
+   * `job_titles: { name: "Executive Housekeeper" }`. Regenerating the types is
+   * a separate job (it currently breaks the build elsewhere).
+   */
+  const rows = (data ?? []) as unknown as UserRow[];
   const total = count ?? 0;
   return {
     data: rows.map((row) => mapUserRowToUser(row)),
@@ -341,10 +399,10 @@ export async function getUsersByDepartment(departmentName: string, params?: Omit
 export async function getUserById(id: string): Promise<User> {
   const { data, error } = await supabase
     .from('users')
-    .select('id, full_name, avatar_url, roles(name), departments(name)')
+    .select('id, full_name, avatar_url, roles(name), departments(name), job_titles(name)')
     .eq('id', id)
     .single();
 
   if (error || !data) throw error ?? new Error('User not found');
-  return mapUserRowToUser(data as UserRow);
+  return mapUserRowToUser(data as unknown as UserRow);
 }

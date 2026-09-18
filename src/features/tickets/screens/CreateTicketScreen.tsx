@@ -26,7 +26,8 @@ import {
   CREATE_TICKET_TYPOGRAPHY,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
-import { getDepartments, DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
+import { getDepartments, departmentIconName, departmentGlyphHeight } from '@/lib/departments';
+import { Icon, type IconName } from '@/components/Icon';
 import type { RootStackParamList } from '@/types/navigation';
 
 type CreateTicketScreenNavigationProp = NativeStackNavigationProp<
@@ -38,8 +39,7 @@ type CreateTicketScreenNavigationProp = NativeStackNavigationProp<
 interface DepartmentDisplayItem {
   id: string;
   name: string;
-  icon: any;
-  noTint: boolean;
+  iconName: IconName | null;
   left: number;
   top: number;
   labelTop: number;
@@ -151,11 +151,6 @@ function buildCreateTicketStyles(windowWidth: number) {
       justifyContent: 'center',
       alignItems: 'center',
     },
-    departmentIconImage: {
-      width: (55.482 * 0.65) * scaleX,
-      height: (55.482 * 0.65) * scaleX,
-      aspectRatio: 55.48 / 55.48,
-    },
     departmentLabel: {
       position: 'absolute',
       fontSize: CREATE_TICKET_TYPOGRAPHY.departmentLabel.fontSize * scaleX,
@@ -236,15 +231,10 @@ export default function CreateTicketScreen() {
         const left = layout.colLeft[col];
         const top = layout.rowTopStart + row * layout.rowGap;
         const labelTop = top + layout.labelOffset;
-        const iconInfo = DEPARTMENT_NAME_TO_ICON[dept.name] ?? {
-          icon: require('../../../../assets/icons/reception.png'),
-          noTint: false,
-        };
         return {
           id: dept.id,
           name: dept.name,
-          icon: iconInfo.icon,
-          noTint: !!iconInfo.noTint,
+          iconName: departmentIconName(dept.name),
           left,
           top,
           labelTop,
@@ -327,14 +317,13 @@ export default function CreateTicketScreen() {
                 onPress={() => handleDepartmentPress(department)}
                 activeOpacity={0.7}
               >
-                <Image
-                  source={department.icon}
-                  style={[
-                    styles.departmentIconImage,
-                    department.noTint ? {} : { tintColor: '#F92424' },
-                  ]}
-                  resizeMode="contain"
-                />
+                {department.iconName && (
+                  <Icon
+                    name={department.iconName}
+                    size={departmentGlyphHeight(department.iconName) * scaleX}
+                    color="#F92424"
+                  />
+                )}
               </TouchableOpacity>
               <Text
                 style={[

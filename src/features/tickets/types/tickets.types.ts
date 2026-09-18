@@ -18,7 +18,6 @@ export interface TicketData {
     imageUrl?: string;
   };
   category?: string;
-  categoryIcon?: any;
   locationText?: string; // e.g. "Room 201" or "Brasserie"
   dueTime?: string; // e.g., "10 mins" (relative display)
   /** ISO 8601 from `tickets.due_at` when set in Change Status → Due time. */

@@ -23,6 +23,18 @@ export const formatTime = (date: Date | string): string => {
 };
 
 /**
+ * A `Date` as "HH:mm", 24-hour — the form the Room Detail header's activity
+ * line prints ("Paused at 11:22", Figma 2333-132).
+ *
+ * A sibling of `formatClockTime` below rather than an overload of it: that one
+ * parses a *string* from the database and argues at length for staying
+ * string-only, since a bare time is not a date. This one starts from an instant
+ * and never parses anything. Same output shape, different input world.
+ */
+export const formatClock24 = (date: Date): string =>
+  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+/**
  * A wall-clock time as "HH:mm", 24-hour.
  *
  * `reservations.eta` is a Postgres `time`, so PostgREST returns it with seconds

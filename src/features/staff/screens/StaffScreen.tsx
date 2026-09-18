@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   useWindowDimensions,
-  Image,
   ActivityIndicator,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
@@ -22,7 +21,13 @@ import { StaffTab, StaffMember } from '../types/staff.types';
 import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
 import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account/services/user';
-import { getDepartments, DEPARTMENT_NAME_TO_ICON, sortDepartmentsByDisplayOrder } from '@/lib/departments';
+import {
+  getDepartments,
+  departmentIconName,
+  departmentGlyphHeight,
+  sortDepartmentsByDisplayOrder,
+} from '@/lib/departments';
+import { Icon, type IconName } from '@/components/Icon';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import type { User } from '@/types';
 import { fetchStaffRoomStatsForShift, fetchStaffTicketStats, type StaffTicketStats } from '../services/staff';
@@ -40,15 +45,13 @@ type StaffScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, '(
 /**
  * A department chip, sourced dynamically from the DB `departments` table (same
  * source the Tickets feature uses), so Staff and Tickets always share the exact
- * same department set. Icon comes from the shared DEPARTMENT_NAME_TO_ICON map.
+ * same department set. Icon comes from the shared `departmentIconName` map.
  */
 interface DepartmentChip {
   id: string; // departments.id (UUID)
   name: string; // departments.name
-  icon: any;
+  iconName: IconName | null;
 }
-
-const FALLBACK_DEPT_ICON = require('../../../../assets/icons/in-progress-icon.png');
 
 function mapUserToStaffMember(u: User): StaffMember {
   const name = u.name ?? 'Staff';
@@ -122,7 +125,7 @@ export default function StaffScreen() {
         data.map((d) => ({
           id: d.id,
           name: d.name,
-          icon: DEPARTMENT_NAME_TO_ICON[d.name]?.icon ?? FALLBACK_DEPT_ICON,
+          iconName: departmentIconName(d.name),
         }))
       );
       setDepartments(chips);
@@ -327,10 +330,6 @@ export default function StaffScreen() {
       alignItems: 'center',
       marginBottom: 8 * scaleX,
     },
-    deptIcon: {
-      width: STAFF_DEPT_CHIP.iconInnerSize * scaleX,
-      height: STAFF_DEPT_CHIP.iconInnerSize * scaleX,
-    },
     deptLoading: {
       paddingVertical: 28 * scaleX,
       alignItems: 'center',
@@ -416,13 +415,13 @@ export default function StaffScreen() {
                   <Text style={styles.searchSectionTitle}>Staff</Text>
                   {filteredStaffForSearch.map((staff) => {
                     const chip = departments.find((c) => c.id === activeDepartmentId);
-                    const dept = staff.department ?? chip?.name ?? 'Staff';
+                    const subtitle = staff.role ?? staff.department ?? chip?.name ?? 'Staff';
                     return (
                       <View key={staff.id}>
                         <StaffListRow
                           staffId={staff.id}
                           name={staff.name}
-                          departmentLabel={dept}
+                          subtitle={subtitle}
                           avatar={staff.avatar}
                           initials={staff.initials}
                           isOnline={!!staff.onShift}
@@ -464,18 +463,17 @@ export default function StaffScreen() {
                             },
                           ]}
                         >
-                          <Image
-                            source={dept.icon}
-                            style={[
-                              styles.deptIcon,
-                              {
-                                tintColor: active
+                          {dept.iconName && (
+                            <Icon
+                              name={dept.iconName}
+                              size={departmentGlyphHeight(dept.iconName) * scaleX}
+                              color={
+                                active
                                   ? STAFF_DEPT_CHIP.activeIconTint
-                                  : STAFF_DEPT_CHIP.inactiveIconTint,
-                              },
-                            ]}
-                            resizeMode="contain"
-                          />
+                                  : STAFF_DEPT_CHIP.inactiveIconTint
+                              }
+                            />
+                          )}
                         </View>
                         <Text style={styles.deptLabel} numberOfLines={2}>
                           {dept.name}
@@ -504,7 +502,7 @@ export default function StaffScreen() {
               ) : (
                 displayedStaff.map((staff) => {
                   const chip = departments.find((c) => c.id === activeDepartmentId);
-                  const dept = staff.department ?? chip?.name ?? 'Staff';
+                  const subtitle = staff.role ?? staff.department ?? chip?.name ?? 'Staff';
                   const isCardTab = selectedTab === 'am' || selectedTab === 'pm';
                   const stats = staffStatsById.get(staff.id);
                   const ticketStats = staffTicketStatsById.get(staff.id);
@@ -568,7 +566,7 @@ export default function StaffScreen() {
                         <StaffListRow
                           staffId={staff.id}
                           name={staff.name}
-                          departmentLabel={dept}
+                          subtitle={subtitle}
                           avatar={staff.avatar}
                           initials={staff.initials}
                           isOnline={!!staff.onShift}

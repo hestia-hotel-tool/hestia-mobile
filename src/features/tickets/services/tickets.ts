@@ -1,6 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { TicketsScreenData, TicketData, TicketStatus } from '../types/tickets.types';
-import { DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
 import { getDepartmentIdByName } from '@features/account/services/user';
 import * as FileSystem from 'expo-file-system/legacy';
 import { base64ToArrayBuffer } from '@/utils/encoding';
@@ -131,7 +130,6 @@ function mapRowToTicketData(
 
   const status = mapStatus(row.status);
   const departmentName = row.departments?.name ?? row.type ?? undefined;
-  const iconConfig = departmentName ? DEPARTMENT_NAME_TO_ICON[departmentName] : undefined;
   const createdAtMs = new Date(row.created_at).getTime();
   const guest = row.room_id ? guestByRoomId.get(row.room_id) : undefined;
   const images = imagesByTicketId.get(row.id);
@@ -152,7 +150,6 @@ function mapRowToTicketData(
     images: images && images.length ? images : undefined,
     guest,
     category: departmentName,
-    categoryIcon: iconConfig?.icon,
     status,
     createdAt: row.created_at,
     dueAt: dueAtIso,

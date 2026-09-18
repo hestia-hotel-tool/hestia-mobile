@@ -3,7 +3,7 @@ import { ScrollView, StyleSheet, KeyboardAvoidingView, Platform, View, Text, Act
 import { useNavigation , NativeStackNavigationProp } from 'expo-router';
 import { RootStackParamList } from '@/types/navigation';
 import { colors, typography } from '@/theme';
-import { scaleX, CONTENT_AREA } from '../../constants/roomDetailStyles';
+import { scaleX } from '../../constants/roomDetailStyles';
 import TicketCard from '@features/tickets/components/TicketCard';
 import TicketForm from '@features/tickets/components/TicketForm';
 import { getLatestTicketForRoom } from '@features/tickets/services/tickets';
@@ -93,7 +93,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background.primary,
     // Match the content area start position (like ChecklistSection).
-    marginTop: CONTENT_AREA.top * scaleX,
+    // No marginTop: the header and tab row are in the flex flow and already
+    // occupy the 285 design px this used to reserve for them.
   },
   scrollView: {
     flex: 1,

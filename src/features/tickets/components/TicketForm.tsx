@@ -22,7 +22,13 @@ import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import type { RootStackParamList } from '@/types/navigation';
-import { getDepartments , DEPARTMENT_NAME_TO_ICON } from '@/lib/departments';
+import {
+  getDepartments,
+  departmentIconName,
+  departmentGlyphHeight,
+  DEPARTMENT_CHIP,
+} from '@/lib/departments';
+import { Icon, type IconName } from '@/components/Icon';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -39,21 +45,11 @@ const FREQUENT_CASES = [
   'Furniture & Fixtures',
 ];
 
-const FALLBACK_DEPARTMENTS = [
-  { id: 'Engineering', name: 'Engineering', icon: require('../../../../assets/icons/engineering.png'), noTint: false },
-  { id: 'HSK Portier', name: 'HSK Portier', icon: require('../../../../assets/icons/hsk-portier.png'), noTint: true },
-  { id: 'In Room Dining', name: 'In Room Dining', icon: require('../../../../assets/icons/in-room-dining-icon.png'), noTint: true },
-  { id: 'Laundry', name: 'Laundry', icon: require('../../../../assets/icons/laundry-icon.png'), noTint: false },
-  { id: 'Concierge', name: 'Concierge', icon: require('../../../../assets/icons/concierge.png'), noTint: false },
-  { id: 'Reception', name: 'Reception', icon: require('../../../../assets/icons/reception.png'), noTint: false },
-  { id: 'IT', name: 'IT', icon: require('../../../../assets/icons/it.png'), noTint: false },
-];
-
 type DepartmentUiItem = {
   id: string;
   name: string;
-  icon: any;
-  noTint?: boolean;
+  /** `null` when the design has no mark for this department. */
+  iconName: IconName | null;
 };
 
 interface TicketFormProps {
@@ -158,8 +154,7 @@ export default function TicketForm({
           .filter((d) => d && (d as any).id && (d as any).name)
           .map((d) => {
             const name = String((d as any).name ?? '').trim();
-            const iconCfg = DEPARTMENT_NAME_TO_ICON[name] ?? DEPARTMENT_NAME_TO_ICON.Engineering;
-            return { id: String((d as any).id), name, icon: iconCfg.icon, noTint: iconCfg.noTint };
+            return { id: String((d as any).id), name, iconName: departmentIconName(name) };
           });
         setDepartments(mapped);
 
@@ -195,7 +190,7 @@ export default function TicketForm({
     if (!selectedDepartmentId) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartmentId(selectedDepartmentId, { limit: 200 })
+    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true })
       .then((response) => {
         if (cancelled) return;
         setDepartmentStaff(response.data);
@@ -327,7 +322,7 @@ export default function TicketForm({
           style={styles.departmentScrollView}
           contentContainerStyle={styles.departmentIconsContainer}
         >
-          {(departmentsLoading ? [] : (departments.length > 0 ? departments : FALLBACK_DEPARTMENTS)).map((dept) => {
+          {(departmentsLoading ? [] : departments).map((dept) => {
             const isSelected = dept.id === selectedDepartmentId;
             return (
               <TouchableOpacity
@@ -337,17 +332,18 @@ export default function TicketForm({
                 activeOpacity={0.7}
               >
                 <View style={[styles.departmentIconContainer, isSelected && styles.departmentIconSelected]}>
-                  <Image
-                    source={dept.icon}
-                    style={[
-                      styles.departmentIcon,
-                      !dept.noTint && { tintColor: isSelected ? '#F92424' : '#F92424' },
-                      !isSelected && { opacity: 0.3 },
-                    ]}
-                    resizeMode="contain"
-                  />
+                  {dept.iconName && (
+                    <Icon
+                      name={dept.iconName}
+                      size={departmentGlyphHeight(dept.iconName) * scaleX}
+                      color={isSelected ? DEPARTMENT_CHIP.glyph.selected : DEPARTMENT_CHIP.glyph.unselected}
+                    />
+                  )}
                 </View>
-                <Text style={[styles.departmentLabel, isSelected && styles.departmentLabelSelected]}>
+                <Text
+                  style={[styles.departmentLabel, isSelected && styles.departmentLabelSelected]}
+                  numberOfLines={1}
+                >
                   {dept.name}
                 </Text>
               </TouchableOpacity>
@@ -696,40 +692,39 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 8 * scaleX,
   },
+  // Figma 589-514: each item hugs its label — "Laundry" is 63 wide where
+  // "In Room Dining" is 119.65 — so nothing here may pin a width. The strip
+  // scrolls horizontally, which is what pays for the long ones.
   departmentItem: {
     alignItems: 'center',
-    marginRight: 24 * scaleX,
+    marginRight: 32 * scaleX,
   },
+  // Figma 589-514 (node 2589:3291): a plain tinted disc, no border. The old
+  // white-disc-with-grey-ring was not in any frame.
   departmentIconContainer: {
     width: 56 * scaleX,
     height: 56 * scaleX,
     borderRadius: 28 * scaleX,
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#e3e3e3',
+    backgroundColor: DEPARTMENT_CHIP.disc.unselected,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8 * scaleX,
+    // Chip bottom 58.482 -> label top 73 (nodes 2589:3291 / 2589:3293).
+    marginBottom: 14.5 * scaleX,
   },
   departmentIconSelected: {
-    borderColor: '#F92424',
-    backgroundColor: '#FEE8EC',
+    backgroundColor: DEPARTMENT_CHIP.disc.selected,
   },
-  departmentIcon: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
-  },
+  // Inter 14 Light / Semi Bold (2589:3293, 2365:504). Single line, no width cap.
   departmentLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
-    maxWidth: 80 * scaleX,
   },
   departmentLabelSelected: {
     fontWeight: '600',
-    color: '#F92424',
+    color: '#f92424',
   },
   section: {
     marginBottom: 24 * scaleX,

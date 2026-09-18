@@ -96,6 +96,8 @@ export interface RoomCardData {
   promisedTime?: PromisedTime; // 12:00, 13:00, or null
   /** When set (ISO timestamp), room is in "Return Later" state until that time. */
   returnLaterAt?: string | null;
+  /** Why housekeeping is coming back — a preset or a typed message. */
+  returnLaterReason?: string | null;
   /** When set (ISO timestamp), room is in "Paused" state (for header + list styling). */
   pausedAt?: string | null;
   /** When set, room is in "Refused Service" state (for header + list styling). */
@@ -156,7 +158,7 @@ export function getRoomDisplayStatus(
 export type RoomActivityState =
   | { kind: 'none' }
   | { kind: 'paused'; since: number | null; assignmentPaused: boolean }
-  | { kind: 'returnLater'; dueAt: number | null }
+  | { kind: 'returnLater'; dueAt: number | null; reason: string | null }
   | { kind: 'refuseService'; at: number | null; reason: string | null }
   | { kind: 'promisedTime'; dueAt: number | null };
 
@@ -193,7 +195,12 @@ function toEpochMs(iso: string | null | undefined): number | null {
 export function deriveRoomActivityState(
   room: Pick<
     RoomCardData,
-    'pausedAt' | 'returnLaterAt' | 'refuseServiceAt' | 'refuseServiceReason' | 'roomAttendantAssigned'
+    | 'pausedAt'
+    | 'returnLaterAt'
+    | 'returnLaterReason'
+    | 'refuseServiceAt'
+    | 'refuseServiceReason'
+    | 'roomAttendantAssigned'
   >
 ): RoomActivityState {
   // Via isRoomPaused so both pause signals count. Reading `pausedAt` alone is
@@ -215,7 +222,11 @@ export function deriveRoomActivityState(
   }
 
   if (room.returnLaterAt) {
-    return { kind: 'returnLater', dueAt: toEpochMs(room.returnLaterAt) };
+    return {
+      kind: 'returnLater',
+      dueAt: toEpochMs(room.returnLaterAt),
+      reason: room.returnLaterReason ?? null,
+    };
   }
 
   // Promised Time has no column yet — see handlePromiseTimeConfirm, which only
@@ -235,12 +246,14 @@ export function deriveRoomActivityState(
 export function activityStateToUpdate(state: RoomActivityState): {
   paused_at: string | null;
   return_later_at: string | null;
+  return_later_reason: string | null;
   refuse_service_at: string | null;
   refuse_service_reason: string | null;
 } {
   const cleared = {
     paused_at: null,
     return_later_at: null,
+    return_later_reason: null,
     refuse_service_at: null,
     refuse_service_reason: null,
   };
@@ -250,7 +263,11 @@ export function activityStateToUpdate(state: RoomActivityState): {
     case 'paused':
       return { ...cleared, paused_at: iso(state.since) ?? new Date().toISOString() };
     case 'returnLater':
-      return { ...cleared, return_later_at: iso(state.dueAt) };
+      return {
+        ...cleared,
+        return_later_at: iso(state.dueAt),
+        return_later_reason: state.reason,
+      };
     case 'refuseService':
       return {
         ...cleared,

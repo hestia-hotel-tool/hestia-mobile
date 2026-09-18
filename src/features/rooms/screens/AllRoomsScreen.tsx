@@ -45,7 +45,9 @@ import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { usePermissions } from '@/domain/rbac/usePermissions';
 import { findBlockingInProgressRoom } from '../utils/attendantRules';
 import { useMessageModal } from '@/contexts/MessageModalContext';
+import { useToast } from '@/contexts/ToastContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
+import { useKeepRoomVisible } from '../hooks/useKeepRoomVisible';
 import { ROOMS_LIST_CHROME } from '../constants/roomsListChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -64,6 +66,7 @@ export default function AllRoomsScreen() {
   const navigation = useNavigation<AllRoomsScreenNavigationProp>();
   const { session } = useAuth();
   const messageModal = useMessageModal();
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
@@ -493,6 +496,20 @@ export default function AllRoomsScreen() {
     spacing: STATUS_MODAL_SPACING,
   });
 
+  /**
+   * Bring a room back on screen after its own status change re-bands it.
+   *
+   * The bounds are the list's usable window: below the header and above the
+   * bottom nav, matching the padding `scrollContent` already reserves for both.
+   */
+  const keepRoomVisible = useKeepRoomVisible({
+    scrollRef: scrollViewRef,
+    cardRefs,
+    scrollOffsetRef: currentScrollYRef,
+    topBound: insets.top + 8,
+    bottomBound: SCREEN_HEIGHT - insets.bottom - 152 * scaleX,
+  });
+
   // Read under the names the rest of the screen already uses.
   const showStatusModal = statusPopover.isOpen;
   const selectedRoomForStatusChange = statusPopover.room;
@@ -541,17 +558,42 @@ export default function AllRoomsScreen() {
     try {
       await updateRoom(roomToUpdate.id, supabaseUpdates);
     } catch (e) {
-      console.warn('Failed to update room status in Supabase', e);
+      /*
+       * Tell the reader, rather than only the console.
+       *
+       * The store leaves the card on its old status when the write fails, which
+       * is right — but on its own it is indistinguishable from the tap not
+       * registering, so the same status gets tapped again. A transient drop
+       * ("The network connection was lost") is already retried once in the
+       * Supabase fetch wrapper, so anything surfacing here has failed twice.
+       */
+      const message = e instanceof Error ? e.message : 'Could not update the room';
+      console.warn('Failed to update room status in Supabase', message, e);
+      toast.show(`Room ${roomToUpdate.roomNumber} was not updated. ${message}`, {
+        type: 'error',
+        duration: 4000,
+      });
     } finally {
       // Hide loading indicator
       setChangingStatusRoomId(null);
     }
 
     // Reset state
-    statusPopover.close();
     setShowInspectedModal(false);
     setRoomForInspection(null);
     setButtonPositionForInspection(null);
+
+    /*
+     * Dismiss, then make sure the room is still on screen.
+     *
+     * Awaited rather than fired off: closing the sheet scrolls the list back to
+     * where it sat before the card was lifted, and the status change has just
+     * moved that card into a different band. Running both at once means
+     * measuring a position the list is still animating away from, so the
+     * correction would be computed against the wrong offset.
+     */
+    await statusPopover.close();
+    await keepRoomVisible(roomToUpdate.id);
   };
 
 

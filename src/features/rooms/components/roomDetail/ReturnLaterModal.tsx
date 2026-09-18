@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Dimensions, LayoutChangeEvent } from 'react-native';
+import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions } from 'react-native';
 import { useMessageModal } from '@/contexts/MessageModalContext';
+import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
 import type { ShiftType } from '@/types/shift.types';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
 import TimeSuggestionButton from './TimeSuggestionButton';
 import AssignedToSection from './AssignedToSection';
-import ViewTaskModal from './ViewTaskModal';
-import type { Task } from '../../types/roomDetail.types';
 
 const TIME_SUGGESTIONS = ['10 mins', '20 mins', '30 mins', '1 Hour'];
 const MIN_MINUTES_FROM_NOW = 5;
@@ -27,14 +26,39 @@ function getMinAllowedTime() {
   };
 }
 
-// Constants for "See More" functionality (reused from TaskItem)
-const MAX_LINES = 2; // Maximum lines to show before truncating
-const LINE_HEIGHT = 18; // Line height in unscaled pixels
+/**
+ * Why housekeeping is coming back — offered as presets so the common cases are
+ * one tap, with a free-text box for everything else (Figma 1121-1052 shows this
+ * shape for Refuse Service; Return Later takes the same one).
+ *
+ * **Draft wording, for you to correct.** These are reasons to *defer* a room,
+ * which is a different question from Refuse Service's "why did the guest refuse
+ * service?" — "Guest Requested Privacy" is grounds for skipping the room
+ * altogether, not for coming back in twenty minutes. They are a plain array
+ * precisely so changing the copy is a one-line edit.
+ */
+const RETURN_LATER_REASONS = [
+  'Guest Is Still in the Room',
+  'Guest Has a Do Not Disturb Sign',
+  'Guest Requested a Later Time',
+  'Waiting for Linen or Supplies',
+];
 
 interface ReturnLaterModalProps {
   visible: boolean;
   onClose: () => void;
-  onConfirm: (returnTime: string, period: 'AM' | 'PM', taskDescription?: string, formattedDateTime?: string, returnAtTimestamp?: number) => void;
+  /**
+   * `reason` is the preset the reader picked or the message they typed, and is
+   * `undefined` when they chose neither. It replaced a `taskDescription` that
+   * was never anything but hardcoded sample text.
+   */
+  onConfirm: (
+    returnTime: string,
+    period: 'AM' | 'PM',
+    reason?: string,
+    formattedDateTime?: string,
+    returnAtTimestamp?: number
+  ) => void;
   roomNumber?: string;
   assignedTo?: {
     id: string;
@@ -45,7 +69,6 @@ interface ReturnLaterModalProps {
     department?: string;
   };
   onReassignPress?: () => void;
-  taskDescription?: string;
 }
 
 export default function ReturnLaterModal({
@@ -55,19 +78,12 @@ export default function ReturnLaterModal({
   roomNumber,
   assignedTo,
   onReassignPress,
-  taskDescription: initialTaskDescription,
 }: ReturnLaterModalProps) {
   const messageModal = useMessageModal();
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [returnTime, setReturnTime] = useState<string>('');
-  const dummyTaskText = 'Deep clean bathroom (heavy bath use). Change all linens + pillow protectors. Vacuum under bed. Restock all amenities. Light at entrance flickering report to maintenance.';
-  const [taskDescription] = useState(initialTaskDescription || dummyTaskText);
-  
-  // "See More" functionality state
-  const [showSeeMore, setShowSeeMore] = useState(false);
-  const [textHeight, setTextHeight] = useState<number>(0);
-  const [showViewTaskModal, setShowViewTaskModal] = useState(false);
-  const fullTextRef = useRef<Text>(null);
+  const [selectedReason, setSelectedReason] = useState<string | null>(null);
+  const [customReason, setCustomReason] = useState('');
   
   // Date and Time picker state - default is current time + 5 minutes
   const [selectedDate, setSelectedDate] = useState(() => new Date());
@@ -100,49 +116,15 @@ export default function ReturnLaterModal({
 
   const ITEM_HEIGHT = RETURN_LATER_MODAL.timePicker.itemHeight * scaleX;
 
-  // Calculate if text needs truncation (rough estimate for initial render)
-  const charsPerLine = 50;
-  const maxChars = MAX_LINES * charsPerLine;
-  const estimatedNeedsTruncation = dummyTaskText.length > maxChars;
-
-  // Measure full text height to determine if truncation is needed
-  const handleFullTextLayout = (event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    setTextHeight(height);
-    const maxHeight = MAX_LINES * LINE_HEIGHT * scaleX;
-    setShowSeeMore(height > maxHeight);
+  /**
+   * One reason at a time, and a typed message beats a tick — the same rule
+   * `RefuseServiceModal` follows, so the two sheets cannot disagree about what
+   * happens when both are filled in.
+   */
+  const selectReason = (reason: string) => {
+    setSelectedReason((current) => (current === reason ? null : reason));
+    setCustomReason('');
   };
-
-  // Initialize showSeeMore based on estimated length
-  useEffect(() => {
-    if (textHeight === 0) {
-      setShowSeeMore(estimatedNeedsTruncation);
-    }
-  }, [dummyTaskText, textHeight, estimatedNeedsTruncation]);
-
-  // Get truncated text for display
-  const getDisplayText = () => {
-    if (!showSeeMore) {
-      return dummyTaskText;
-    }
-    // Truncate to approximately 2 lines worth of text
-    // Leave space for " see more" (9 characters)
-    const truncateLength = Math.max(0, maxChars - 9);
-    return dummyTaskText.substring(0, truncateLength);
-  };
-
-  // Handle see more press - open modal
-  const handleSeeMorePress = () => {
-    setShowViewTaskModal(true);
-  };
-
-  // Create task object for ViewTaskModal
-  const taskForModal: Task = {
-    id: 'return-later-task',
-    text: dummyTaskText,
-    createdAt: new Date().toISOString(),
-  };
-
 
   const handleSuggestionPress = (suggestion: string) => {
     setSelectedSuggestion(suggestion);
@@ -424,7 +406,8 @@ export default function ReturnLaterModal({
     const returnAt = new Date(selectedDate);
     const hour24 = selectedPeriod === 'PM' ? (selectedHour === 12 ? 12 : selectedHour + 12) : (selectedHour === 12 ? 0 : selectedHour);
     returnAt.setHours(hour24, selectedMinute, 0, 0);
-    onConfirm(timeString, selectedPeriod, taskDescription, formattedDateTime, returnAt.getTime());
+    const reason = customReason.trim() || selectedReason || undefined;
+    onConfirm(timeString, selectedPeriod, reason, formattedDateTime, returnAt.getTime());
   };
 
   return (
@@ -444,6 +427,9 @@ export default function ReturnLaterModal({
           >
             {/* Title */}
             <Text style={styles.title}>Return Later</Text>
+            <Text style={styles.subtitle}>
+              Add time slot for when the Guest wants you to return
+            </Text>
 
             {/* Divider */}
             <View style={styles.divider} />
@@ -692,6 +678,55 @@ export default function ReturnLaterModal({
               </View>
             </View>
 
+                {/* Why we are coming back — presets, then anything else */}
+            <View style={styles.taskSection}>
+              <Text style={styles.taskTitle}>Reason</Text>
+
+              {RETURN_LATER_REASONS.map((reason) => {
+                const checked = selectedReason === reason && !customReason.trim();
+                return (
+              <TouchableOpacity
+                key={reason}
+                style={styles.reasonRow}
+                onPress={() => selectReason(reason)}
+                activeOpacity={0.7}
+              >
+                {/*
+                  Checked draws `action-checkbox-checked`, which carries
+                  its own 26x26 border *and* the tick, so nothing else
+                  may draw a box behind it. Unchecked is that border on
+                  its own in RN. Same 28x28 footprint either way, and no
+                  raster — `tick.png` inside an RN-bordered box was the
+                  combination that double-drew.
+                */}
+                {checked ? (
+                  <View style={styles.reasonBoxSlot}>
+                    <Icon
+                      name="action-checkbox-checked"
+                      size={28 * scaleX}
+                      color="#5a759d"
+                    />
+                  </View>
+                ) : (
+                  <View style={[styles.reasonBoxSlot, styles.reasonBoxEmpty]} />
+                )}
+                <Text style={styles.reasonLabel}>{reason}</Text>
+              </TouchableOpacity>
+                );
+              })}
+
+              <Text style={styles.customLabel}>Custom</Text>
+              <TextInput
+                style={styles.customInput}
+                placeholder="Add a message..."
+                placeholderTextColor="#999999"
+                multiline
+                value={customReason}
+                onChangeText={setCustomReason}
+                textAlignVertical="top"
+              />
+            </View>
+
             {/* Confirm Button */}
             <TouchableOpacity
               style={styles.confirmButton}
@@ -706,7 +741,7 @@ export default function ReturnLaterModal({
               <Text style={styles.assignedToTitle}>Assigned to</Text>
             )}
 
-            {/* Card Container for Assigned to and Task */}
+            {/* Card Container for Assigned to */}
             <View style={styles.assignedTaskCard}>
               {/* Assigned To Section */}
               {assignedTo && (
@@ -716,51 +751,12 @@ export default function ReturnLaterModal({
                 />
               )}
 
-              {/* Divider between Assigned to and Task */}
-              {assignedTo && <View style={styles.cardDivider} />}
-
-                {/* Task Section */}
-                <View style={styles.taskSection}>
-                  <Text style={styles.taskTitle}>Task</Text>
-                  {/* Hidden text to measure full height */}
-                  <Text
-                    ref={fullTextRef}
-                    style={[styles.taskText, styles.hiddenText]}
-                    onLayout={handleFullTextLayout}
-                  >
-                    {dummyTaskText}
-                  </Text>
-                  {/* Text with inline "see more" button */}
-                  <Text
-                    style={styles.taskText}
-                    numberOfLines={!showSeeMore ? MAX_LINES : undefined}
-                  >
-                    {getDisplayText()}
-                    {showSeeMore && (
-                      <>
-                        {' '}
-                        <Text
-                          style={styles.seeMoreText}
-                          onPress={handleSeeMorePress}
-                        >
-                          see more
-                        </Text>
-                      </>
-                    )}
-                  </Text>
-                </View>
             </View>
           </ScrollView>
         </View>
       </View>
       
-      {/* View Task Modal */}
-      <ViewTaskModal
-        visible={showViewTaskModal}
-        task={taskForModal}
-        onClose={() => setShowViewTaskModal(false)}
-      />
-    </Modal>
+</Modal>
   );
 }
 
@@ -794,6 +790,15 @@ const styles = StyleSheet.create({
     color: '#607aa1',
   },
 
+  /** Figma 1121-328: 15pt, under the title, above the rule. */
+  subtitle: {
+    marginTop: 6 * scaleX,
+    marginHorizontal: 24 * scaleX,
+    fontSize: 15 * scaleX,
+    fontFamily: 'Helvetica',
+    fontWeight: '300',
+    color: '#000000',
+  },
   divider: {
     marginTop: 17 * scaleX,
     marginHorizontal: 12 * scaleX,
@@ -968,25 +973,54 @@ const styles = StyleSheet.create({
     marginBottom: 8 * scaleX,
   },
   
-  taskText: {
-    fontSize: 13 * scaleX,
+  /*
+   * Mirrors `RefuseServiceModal`'s reason rows (Figma 1121-1052): a 28x28 box,
+   * 16 of gap, a 15pt label. The two sheets ask the same kind of question and
+   * should not look like two different products.
+   */
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 16 * scaleX,
+  },
+  reasonBoxSlot: {
+    width: 28 * scaleX,
+    height: 28 * scaleX,
+    marginRight: 16 * scaleX,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reasonBoxEmpty: {
+    borderWidth: 2,
+    borderColor: '#5a759d',
+    borderRadius: 4 * scaleX,
+  },
+  reasonLabel: {
+    flex: 1,
+    fontSize: 15 * scaleX,
+    fontFamily: 'Helvetica',
+    fontWeight: '400',
+    color: '#000000',
+  },
+  customLabel: {
+    marginTop: 26 * scaleX,
+    fontSize: 16 * scaleX,
     fontFamily: 'Helvetica',
     fontWeight: '300',
     color: '#000000',
-    lineHeight: LINE_HEIGHT * scaleX,
   },
-
-  hiddenText: {
-    position: 'absolute',
-    opacity: 0,
-    zIndex: -1,
-    width: '100%',
-  },
-
-  seeMoreText: {
-    fontSize: 13 * scaleX,
+  customInput: {
+    marginTop: 12 * scaleX,
+    height: 120 * scaleX,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.15)',
+    borderRadius: 7 * scaleX,
+    paddingHorizontal: 16 * scaleX,
+    paddingVertical: 12 * scaleX,
+    fontSize: 15 * scaleX,
     fontFamily: 'Helvetica',
-    fontWeight: '500',
-    color: '#5a759d',
+    fontWeight: '300',
+    color: '#000000',
   },
+
 });

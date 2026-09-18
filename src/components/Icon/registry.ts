@@ -15,6 +15,7 @@
 // actions
 import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
 import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
+import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
 import ActionEyeOff from '@assets/icons/actions/action-eye-off.svg';
@@ -32,6 +33,14 @@ import ActionSearch from '@assets/icons/actions/action-search.svg';
 import ActionThumbsDown from '@assets/icons/actions/action-thumbs-down.svg';
 import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
 import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
+// departments
+import DeptConcierge from '@assets/icons/departments/dept-concierge.svg';
+import DeptEngineering from '@assets/icons/departments/dept-engineering.svg';
+import DeptHousekeeping from '@assets/icons/departments/dept-housekeeping.svg';
+import DeptInRoomDining from '@assets/icons/departments/dept-in-room-dining.svg';
+import DeptIt from '@assets/icons/departments/dept-it.svg';
+import DeptLaundry from '@assets/icons/departments/dept-laundry.svg';
+import DeptReception from '@assets/icons/departments/dept-reception.svg';
 // guest-status
 import GuestArrival from '@assets/icons/guest-status/guest-arrival.svg';
 import GuestArrow from '@assets/icons/guest-status/guest-arrow.svg';
@@ -69,6 +78,7 @@ export const icons = {
   // actions
   'action-add-note': ActionAddNote,
   'action-add-photo': ActionAddPhoto,
+  'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
   'action-eye-off': ActionEyeOff,
@@ -86,6 +96,14 @@ export const icons = {
   'action-thumbs-down': ActionThumbsDown,
   'action-thumbs-up': ActionThumbsUp,
   'action-tooltip-tail': ActionTooltipTail,
+  // departments
+  'dept-concierge': DeptConcierge,
+  'dept-engineering': DeptEngineering,
+  'dept-housekeeping': DeptHousekeeping,
+  'dept-in-room-dining': DeptInRoomDining,
+  'dept-it': DeptIt,
+  'dept-laundry': DeptLaundry,
+  'dept-reception': DeptReception,
   // guest-status
   'guest-arrival': GuestArrival,
   'guest-arrow': GuestArrow,
@@ -131,6 +149,7 @@ export type IconName = keyof typeof icons;
 export const ICON_ASPECT: Record<IconName, number> = {
   'action-add-note': 1,
   'action-add-photo': 1.0162,
+  'action-check': 1.1798,
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
   'action-eye-off': 1.2,
@@ -148,6 +167,13 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-thumbs-down': 1.1265,
   'action-thumbs-up': 1.1265,
   'action-tooltip-tail': 2.5831,
+  'dept-concierge': 0.6403,
+  'dept-engineering': 1.0357,
+  'dept-housekeeping': 0.9581,
+  'dept-in-room-dining': 0.9987,
+  'dept-it': 1.1179,
+  'dept-laundry': 1.0762,
+  'dept-reception': 0.9798,
   'guest-arrival': 1,
   'guest-arrow': 1.7423,
   'guest-departure': 1,
@@ -184,6 +210,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
  */
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-add-note',
+  'action-check',
   'action-checkbox-checked',
   'action-chevron',
   'action-eye-off',
@@ -199,6 +226,13 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-return-later',
   'action-search',
   'action-tooltip-tail',
+  'dept-concierge',
+  'dept-engineering',
+  'dept-housekeeping',
+  'dept-in-room-dining',
+  'dept-it',
+  'dept-laundry',
+  'dept-reception',
   'guest-arrow',
   'guest-occupancy',
   'guest-occupied',

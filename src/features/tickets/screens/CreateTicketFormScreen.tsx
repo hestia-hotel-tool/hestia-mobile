@@ -22,9 +22,29 @@ import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { getUsersByDepartmentId } from '@features/account/services/user';
 import type { User } from '@/types';
-import { DEPARTMENT_NAME_TO_ICON , getDepartments } from '@/lib/departments';
+import {
+  getDepartments,
+  departmentIconName,
+  departmentGlyphHeight,
+  DEPARTMENT_CHIP,
+} from '@/lib/departments';
+import { Icon, type IconName } from '@/components/Icon';
+import RoomDetailHeader from '@features/rooms/components/roomDetail/RoomDetailHeader';
+import {
+  getRoomDetailsById,
+  fullRoomDetailsToRoomCardData,
+} from '@features/rooms/services/rooms';
+import {
+  deriveRoomActivityState,
+  type RoomCardData,
+} from '@features/rooms/types/allRooms.types';
+import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
+import { showStayoverWithLinenBadge } from '@features/rooms/utils/stayoverLinen';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
+
+/** Same guard `RoomDetailScreen` uses before treating a param as a room id. */
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -92,7 +112,7 @@ const FREQUENT_CASES = [
   'Furniture & Fixtures',
 ];
 
-type DepartmentUiItem = { id: string; name: string; icon: any; noTint?: boolean };
+type DepartmentUiItem = { id: string; name: string; iconName: IconName | null };
 
 export default function CreateTicketFormScreen() {
   const navigation = useNavigation<CreateTicketFormScreenNavigationProp>();
@@ -104,6 +124,8 @@ export default function CreateTicketFormScreen() {
   const paramIsPublicArea = route.params?.isPublicArea;
   const paramPublicAreaName = route.params?.publicAreaName;
   const toast = useToast();
+  const { data: roomsData } = useRoomsStore();
+  const shift = roomsData?.selectedShift ?? 'AM';
 
   // Form state
   const [ticketName, setTicketName] = useState('');
@@ -153,6 +175,48 @@ export default function CreateTicketFormScreen() {
     ? (paramPublicAreaName ?? null)
     : null;
 
+  /*
+   * The room behind the header.
+   *
+   * This screen used to draw its own header with `ST2K-1.4` and "✓ Cleaned"
+   * hardcoded, so it claimed a room code and a status that had nothing to do
+   * with the room being ticketed. `RoomDetailHeader` is the real one — the same
+   * component Room Detail renders — so it needs the same input: a `RoomCardData`,
+   * fetched the way `RoomDetailScreen` fetches it.
+   *
+   * Public areas keep the plain header below: they have no housekeeping status
+   * and no room code, and `RoomDetailHeader` cannot represent one.
+   */
+  const headerRoomId =
+    !isPublicArea && selectedRoomId && UUID_REGEX.test(selectedRoomId)
+      ? selectedRoomId
+      : null;
+
+  const [headerRoom, setHeaderRoom] = useState<RoomCardData | null>(null);
+
+  useEffect(() => {
+    if (!headerRoomId) return;
+    let cancelled = false;
+    getRoomDetailsById(headerRoomId)
+      .then((full) => {
+        if (cancelled || !full) return;
+        setHeaderRoom(fullRoomDetailsToRoomCardData(full, shift as 'AM' | 'PM'));
+      })
+      .catch(() => {
+        // Non-fatal: the fallback header below still names the room.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [headerRoomId, shift]);
+
+  /*
+   * Matched on id rather than cleared in the effect: changing room would
+   * otherwise paint the previous room's status until the new fetch lands, and
+   * clearing it synchronously is a setState-in-effect.
+   */
+  const activeHeaderRoom = headerRoom?.id === headerRoomId ? headerRoom : null;
+
   const tabs = useMemo(() => {
     // Figma: Public Area screen only has Tickets + History tabs.
     return (isPublicArea ? (['Tickets', 'History'] as const) : (['Overview', 'Tickets', 'Checklist', 'History'] as const));
@@ -175,8 +239,7 @@ export default function CreateTicketFormScreen() {
           .filter((d) => d && (d as any).id && (d as any).name)
           .map((d) => {
             const name = String((d as any).name ?? '').trim();
-            const iconCfg = DEPARTMENT_NAME_TO_ICON[name] ?? DEPARTMENT_NAME_TO_ICON.Engineering;
-            return { id: String((d as any).id), name, icon: iconCfg.icon, noTint: iconCfg.noTint };
+            return { id: String((d as any).id), name, iconName: departmentIconName(name) };
           });
 
         // Figma behavior: the selected department appears first in the list.
@@ -222,7 +285,7 @@ export default function CreateTicketFormScreen() {
     if (!selectedDepartmentId) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartmentId(selectedDepartmentId, { limit: 200 })
+    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true })
       .then((response) => {
         if (cancelled) return;
         setDepartmentStaff(response.data);
@@ -239,8 +302,15 @@ export default function CreateTicketFormScreen() {
     };
   }, [selectedDepartmentId]);
 
+  /*
+   * `navigation.goBack()` alone strands a cold-start deep link: this screen is
+   * reachable by URL with no history behind it, and the bare call logs
+   * "GO_BACK was not handled by any navigator" and does nothing. The tickets
+   * tab is where this form belongs when there is nothing to pop.
+   */
   const handleBackPress = () => {
-    navigation.goBack();
+    if (navigation.canGoBack()) navigation.goBack();
+    else router.replace('/(tabs)/(tickets)');
   };
 
   const handleFrequentCaseSelect = (caseItem: string) => {
@@ -330,36 +400,46 @@ export default function CreateTicketFormScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header with Room Info */}
-      <View style={[styles.header, isPublicArea && styles.headerPublicArea]}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
-          <Image
-            source={require('../../../../assets/icons/back-arrow.png')}
-            style={[styles.backArrow, isPublicArea && styles.backArrowPublicArea]}
-            resizeMode="contain"
-          />
-        </TouchableOpacity>
-        <View style={styles.headerContent}>
-          <TouchableOpacity onPress={handleChangeLocation} activeOpacity={0.7}>
-            <Text style={[styles.roomNumber, isPublicArea && styles.roomNumberPublicArea]}>
-              {headerTitle}
-            </Text>
+      {/*
+        Room Detail's own header, not a copy of it. The status ground, the
+        activity line and the room code all come from the room being ticketed.
+      */}
+      {activeHeaderRoom ? (
+        <RoomDetailHeader
+          roomNumber={activeHeaderRoom.roomNumber}
+          roomCode={`${activeHeaderRoom.roomCategory} - ${activeHeaderRoom.credit}`}
+          status={activeHeaderRoom.houseKeepingStatus}
+          activity={deriveRoomActivityState(activeHeaderRoom)}
+          onBackPress={handleBackPress}
+          flagged={activeHeaderRoom.flagged}
+          frontOfficeLabel={
+            activeHeaderRoom.frontOfficeStatus === 'Stayover' ? 'Stayover' : undefined
+          }
+          showWithLinenBadge={
+            activeHeaderRoom.frontOfficeStatus === 'Stayover' &&
+            showStayoverWithLinenBadge(activeHeaderRoom)
+          }
+        />
+      ) : (
+        /* Public areas, and the moment before the room lands. */
+        <View style={[styles.header, isPublicArea && styles.headerPublicArea]}>
+          <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
+            <Icon name="action-chevron" size={28 * scaleX} color="#ffffff" />
           </TouchableOpacity>
-          {headerSubtitle ? (
-            <Text style={styles.publicAreaSubtitle} numberOfLines={1} ellipsizeMode="tail">
-              {headerSubtitle}
-            </Text>
-          ) : null}
-          {!isPublicArea ? (
-            <>
-              <Text style={styles.ticketCode}>ST2K-1.4</Text>
-              <View style={styles.statusBadge}>
-                <Text style={styles.statusText}>✓ Cleaned</Text>
-              </View>
-            </>
-          ) : null}
+          <View style={styles.headerContent}>
+            <TouchableOpacity onPress={handleChangeLocation} activeOpacity={0.7}>
+              <Text style={[styles.roomNumber, isPublicArea && styles.roomNumberPublicArea]}>
+                {headerTitle}
+              </Text>
+            </TouchableOpacity>
+            {headerSubtitle ? (
+              <Text style={styles.publicAreaSubtitle} numberOfLines={1} ellipsizeMode="tail">
+                {headerSubtitle}
+              </Text>
+            ) : null}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Tabs */}
       <View style={styles.tabsContainer}>
@@ -409,18 +489,17 @@ export default function CreateTicketFormScreen() {
                 activeOpacity={0.7}
               >
                 <View style={[styles.departmentIconContainer, isSelected && styles.departmentIconSelected]}>
-                  <Image
-                    source={dept.icon}
-                    style={[
-                      styles.departmentIcon,
-                      !dept.noTint && { tintColor: isSelected ? '#ffffff' : '#F92424' },
-                      isSelected ? { opacity: 1 } : { opacity: 0.3 },
-                    ]}
-                    resizeMode="contain"
-                  />
+                  {dept.iconName && (
+                    <Icon
+                      name={dept.iconName}
+                      size={departmentGlyphHeight(dept.iconName) * scaleX}
+                      color={isSelected ? DEPARTMENT_CHIP.glyph.selected : DEPARTMENT_CHIP.glyph.unselected}
+                    />
+                  )}
                 </View>
                 <Text
                   style={[styles.departmentLabel, isSelected && styles.departmentLabelSelected]}
+                  numberOfLines={1}
                 >
                   {dept.name}
                 </Text>
@@ -835,36 +914,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingRight: 24 * scaleX,
   },
+  // Figma 589-514: each item hugs its label, so no fixed width here.
   departmentItem: {
     alignItems: 'center',
-    marginRight: 24 * scaleX,
-    width: 90 * scaleX, // fixed label width so wrapped lines stay centered under icon
+    marginRight: 32 * scaleX,
   },
   departmentIconContainer: {
     width: 55.482 * scaleX,
     height: 55.482 * scaleX,
     borderRadius: 37 * scaleX,
-    backgroundColor: '#ffebeb',
+    backgroundColor: DEPARTMENT_CHIP.disc.unselected,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8 * scaleX,
+    // Chip bottom 58.482 -> label top 73 (nodes 2589:3291 / 2589:3293).
+    marginBottom: 14.5 * scaleX,
   },
   departmentIconSelected: {
-    backgroundColor: '#F92424',
+    backgroundColor: DEPARTMENT_CHIP.disc.selected,
   },
-  departmentIcon: {
-    width: 24 * scaleX,
-    height: 24 * scaleX,
-  },
+  // Inter 14 Light / Semi Bold (2589:3293, 2365:504). Single line, no width cap.
   departmentLabel: {
     fontSize: 14 * scaleX,
-    fontFamily: 'Inter',
+    fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
-    width: '100%',
-    maxWidth: 90 * scaleX,
-    alignSelf: 'center',
   },
   departmentLabelSelected: {
     fontWeight: '600',

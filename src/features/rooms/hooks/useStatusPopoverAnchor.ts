@@ -50,7 +50,15 @@ export type StatusPopoverAnchor = {
    */
   overlayActive: boolean;
   open: (room: RoomCardData) => void;
-  close: () => void;
+  /**
+   * Dismiss the sheet, resolving once the list has finished moving back.
+   *
+   * It resolves rather than returning void so a caller that wants to scroll the
+   * list itself — `useKeepRoomVisible`, after a status change re-bands the
+   * card — can wait for the restore instead of racing it. Callers that only
+   * need the sheet closed can ignore the promise.
+   */
+  close: () => Promise<void>;
   /**
    * Patch the open room in place, for a change made from inside the sheet that
    * the sheet itself keeps displaying — flagging, in practice.
@@ -94,17 +102,20 @@ export function useStatusPopoverAnchor({
 
   const open = useCallback((next: RoomCardData) => setPendingRoom(next), []);
 
-  const close = useCallback(() => {
+  const close = useCallback(async (): Promise<void> => {
     setRoom(null);
     setAnchor(null);
     setCardRect(null);
     setPendingRoom(null);
     const restore = restoreScrollY.current;
-    if (restore > 0 && scrollRef.current) {
-      // Let the sheet finish dismissing before the list moves under it.
-      setTimeout(() => scrollRef.current?.scrollTo({ y: restore, animated: true }), 100);
-    }
     restoreScrollY.current = 0;
+    if (!(restore > 0) || !scrollRef.current) return;
+    // Let the sheet finish dismissing before the list moves under it.
+    await new Promise<void>((resolve) => setTimeout(resolve, 100));
+    scrollRef.current?.scrollTo({ y: restore, animated: true });
+    // A plain ScrollView has no scroll-end callback, so wait the animation out
+    // — the same 350ms the lift above waits.
+    await new Promise<void>((resolve) => setTimeout(resolve, 350));
   }, [scrollRef]);
 
   useEffect(() => {

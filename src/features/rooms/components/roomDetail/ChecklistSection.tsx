@@ -3,7 +3,6 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import { CHECKLIST_SECTION, scaleX } from '../../constants/checklistStyles';
-import { CONTENT_AREA } from '../../constants/roomDetailStyles';
 import ChecklistCategory from './ChecklistCategory';
 import ChecklistFooter from './ChecklistFooter';
 import DownloadReportButton from './DownloadReportButton';
@@ -230,7 +229,8 @@ export default function ChecklistSection({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    marginTop: CONTENT_AREA.top * scaleX, // Match content area start position
+    // No marginTop: the header and tab row are in the flex flow and already
+    // occupy the 285 design px this used to reserve for them.
   },
   scrollView: {
     flex: 1,

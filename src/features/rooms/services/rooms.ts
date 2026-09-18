@@ -31,6 +31,7 @@ type RoomRow = {
   special_instructions: string | null;
   house_keeping_status: string | null;
   return_later_at?: string | null;
+  return_later_reason?: string | null;
   paused_at?: string | null;
   refuse_service_at?: string | null;
   refuse_service_reason?: string | null;
@@ -357,6 +358,7 @@ function mapRoomToCard(
     reservationStatus: reservationStatus as ReservationStatus,
     promisedTime: (promisedTime === '12:00' || promisedTime === '13:00' ? promisedTime : null) as PromisedTime,
     returnLaterAt: (room.return_later_at ?? null) as string | null,
+    returnLaterReason: (room.return_later_reason ?? null) as string | null,
     pausedAt: (room.paused_at ?? null) as string | null,
     refuseServiceAt: (room.refuse_service_at ?? null) as string | null,
     refuseServiceReason: (room.refuse_service_reason ?? null) as string | null,
@@ -474,7 +476,8 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
    * also cached now, so after the first call it costs nothing at all.
    */
 
-  // `return_later_at` is added by a later migration; gracefully fallback when DB is behind.
+  // `return_later_at` and `return_later_reason` are added by later migrations;
+  // gracefully fall back when the DB is behind.
   const roomsQuery = async (): Promise<RoomRow[]> => {
     // `unknown[]`, not the inferred row type: the generated schema predates
     // `return_later_at`, so the two selects below have incompatible shapes.
@@ -484,7 +487,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, return_later_at, paused_at, refuse_service_at, refuse_service_reason'
+        'id, room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason'
       )
       .order('room_number', { ascending: true }));
 
@@ -615,6 +618,8 @@ export type RoomStateUpdate = {
   refuse_service_at?: string | null;
   /** Reason string or null to clear. */
   refuse_service_reason?: string | null;
+  /** Reason string or null to clear. */
+  return_later_reason?: string | null;
 };
 
 function isValidUUID(id: string): boolean {
@@ -745,6 +750,26 @@ export async function addRoomNote(roomId: string, text: string): Promise<RoomNot
  * Update room state in Supabase.
  * No-op if roomId is not a valid UUID (e.g. mock data). Throws on Supabase error.
  */
+/**
+ * A real `Error` from whatever PostgREST (or the fetch layer beneath it) hands back.
+ *
+ * supabase-js returns failures in `result.error` rather than rejecting, and that
+ * value is a plain object — including for transport failures, where the message
+ * is the only useful part. Re-throwing it verbatim, as this used to, meant every
+ * `catch` downstream that did `e instanceof Error ? e : new Error(String(e))`
+ * turned it into the string `[object Object]` and destroyed the one piece of
+ * information worth logging.
+ */
+function postgrestError(
+  context: string,
+  error: { message?: string; code?: string; details?: string; hint?: string }
+): Error {
+  const detail = error?.message || error?.details || 'unknown error';
+  const err = new Error(`${context}: ${detail}`);
+  if (error?.code) (err as Error & { code?: string }).code = error.code;
+  return err;
+}
+
 export async function updateRoom(roomId: string, updates: RoomStateUpdate): Promise<void> {
   if (!isValidUUID(roomId)) {
     return;
@@ -758,24 +783,66 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
   if (updates.paused_at !== undefined) payload.paused_at = updates.paused_at;
   if (updates.refuse_service_at !== undefined) payload.refuse_service_at = updates.refuse_service_at;
   if (updates.refuse_service_reason !== undefined) payload.refuse_service_reason = updates.refuse_service_reason;
+  if (updates.return_later_reason !== undefined) payload.return_later_reason = updates.return_later_reason;
   if (Object.keys(payload).length === 0) return;
+  /**
+   * Columns added by later migrations, which a database may not have yet.
+   *
+   * Listed so a write can drop one and still save the rest, rather than failing
+   * the whole status update because one deployment is a migration behind.
+   */
+  const maybeNewCols = [
+    'return_later_at',
+    'return_later_reason',
+    'paused_at',
+    'refuse_service_at',
+    'refuse_service_reason',
+  ] as const;
+
+  /**
+   * The column PostgREST is complaining about, if it named one.
+   *
+   * PGRST204 reads "Could not find the 'return_later_reason' column of 'rooms'
+   * in the schema cache"; 42703 is Postgres' own `column "x" does not exist`.
+   * Both quote the name, so the offending column can be dropped on its own.
+   */
+  const missingColumn = (error: { message?: string }): string | null => {
+    const quoted = error?.message?.match(/'([a-z0-9_]+)' column|column "([a-z0-9_]+)"/i);
+    return quoted ? (quoted[1] ?? quoted[2] ?? null) : null;
+  };
+
   let result = await supabase.from('rooms').update(payload).eq('id', roomId);
-  if (result.error && (result.error.code === '42703' || result.error.code === 'PGRST204')) {
-    // Schema behind PostgREST cache / migration not applied yet: retry without any newer columns.
-    const maybeNewCols = ['return_later_at', 'paused_at', 'refuse_service_at', 'refuse_service_reason'] as const;
-    let changed = false;
-    for (const key of maybeNewCols) {
-      if (key in payload) {
-        delete (payload as any)[key];
-        changed = true;
-      }
-    }
-    if (changed) {
-      if (Object.keys(payload).length === 0) return;
-      result = await supabase.from('rooms').update(payload).eq('id', roomId);
-    }
+
+  /*
+   * Drop only what the database actually lacks.
+   *
+   * This used to strip *every* column in `maybeNewCols` on the first schema
+   * error, which was fine while they arrived together but stops being fine as
+   * the list grows: adding `return_later_reason` meant a database without it
+   * would also lose `return_later_at` from the same write, so Return Later
+   * would appear to work and persist nothing. Removing one column at a time
+   * keeps a partial write partial.
+   *
+   * Bounded by the list length — a loop that cannot name a column falls back to
+   * the old behaviour and strips the rest in one go, so a surprising message
+   * cannot spin here.
+   */
+  for (let attempt = 0; attempt < maybeNewCols.length; attempt += 1) {
+    const { error } = result;
+    if (!error || (error.code !== '42703' && error.code !== 'PGRST204')) break;
+
+    const named = missingColumn(error);
+    const dropping =
+      named && named in payload
+        ? [named]
+        : maybeNewCols.filter((key) => key in payload);
+    if (dropping.length === 0) break;
+
+    for (const key of dropping) delete (payload as Record<string, unknown>)[key];
+    if (Object.keys(payload).length === 0) return;
+    result = await supabase.from('rooms').update(payload).eq('id', roomId);
   }
-  if (result.error) throw result.error;
+  if (result.error) throw postgrestError('Could not update the room', result.error);
 
   // When a room moves to In Progress, stamp the assignment so the staff card's
   // credit countdown starts from this moment. start_time is set only once (so a
@@ -1088,6 +1155,7 @@ export interface FullRoomDetails {
     special_instructions: string | null;
     house_keeping_status: string | null;
     return_later_at?: string | null;
+    return_later_reason?: string | null;
     paused_at?: string | null;
     refuse_service_at?: string | null;
     refuse_service_reason?: string | null;

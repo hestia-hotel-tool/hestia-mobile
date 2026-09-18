@@ -26,6 +26,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  /**
+   * What this person does, e.g. "Room Attendant" — `users.job_title_id`.
+   * Distinct from `department` (where they work) and from `role` (which also
+   * carries permission-ish names when no job title is set).
+   */
+  jobTitle?: string;
   role: string;
   department?: string;
   avatar?: string;
