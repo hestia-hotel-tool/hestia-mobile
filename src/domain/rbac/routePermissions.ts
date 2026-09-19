@@ -38,7 +38,6 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'create-chat-group': PERMISSIONS.CHAT_GROUPS_MANAGE,
 
   // Tickets
-  'create-ticket': PERMISSIONS.TICKETS_CREATE,
   'create-ticket-form': PERMISSIONS.TICKETS_CREATE,
   'select-ticket-location': PERMISSIONS.TICKETS_CREATE,
 };

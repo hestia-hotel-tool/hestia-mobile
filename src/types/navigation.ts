@@ -15,8 +15,8 @@ export type RootStackParamList = {
   'chat/[chatId]': { chatId: string; chat?: import('@features/chat/components/ChatItem').ChatItemData };
   'new-chat/index': undefined;
   'create-chat-group/index': undefined;
-  'create-ticket/index': undefined;
-  'select-ticket-location/index': { departmentName: string };
+  /** No params: the department is chosen on the form, not before it. */
+  'select-ticket-location/index': undefined;
   'create-ticket-form/index': {
     departmentId?: string;
     departmentName?: string;

@@ -1,8 +1,9 @@
 import React from 'react';
-import { View, Text, StyleSheet, Image } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
 import { scaleX } from '../constants/ticketsStyles';
 import type { TicketTab } from '../types/tickets.types';
+import { Icon } from '@/components/Icon';
 
 interface EmptyTicketsStateProps {
   selectedTab: TicketTab;
@@ -33,11 +34,12 @@ export default function EmptyTicketsState({ selectedTab }: EmptyTicketsStateProp
   return (
     <View style={styles.container}>
       <View style={styles.iconContainer}>
-        <Image
-          source={require('../../../../assets/icons/clip-board.png')}
-          style={styles.icon}
-          resizeMode="contain"
-        />
+        {/*
+          `nav-tickets`, not a clipboard. 667-3068 draws no empty state, so
+          there is no frame to match; rather than invent art this reuses the
+          mark the app already gives this feature. A deliberate substitution.
+        */}
+        <Icon name="nav-tickets" size={40 * scaleX} color="#5a759d" />
       </View>
       <Text style={styles.title}>{message.title}</Text>
       <Text style={styles.subtitle}>{message.subtitle}</Text>
@@ -61,11 +63,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24 * scaleX,
-  },
-  icon: {
-    width: 40 * scaleX,
-    height: 40 * scaleX,
-    tintColor: '#5a759d',
   },
   title: {
     fontSize: 20 * scaleX,

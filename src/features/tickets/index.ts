@@ -1,5 +1,4 @@
 export { default as TicketsScreen } from './screens/TicketsScreen';
-export { default as CreateTicketScreen } from './screens/CreateTicketScreen';
 export { default as SelectTicketLocationScreen } from './screens/SelectTicketLocationScreen';
 export { default as CreateTicketFormScreen } from './screens/CreateTicketFormScreen';
 export { default as TicketCard } from './components/TicketCard';

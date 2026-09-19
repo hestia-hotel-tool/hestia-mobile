@@ -14,6 +14,13 @@ export type TabBarProps<T extends string> = {
   ruleColor?: string;
   labelColor?: string;
   fontSize?: number;
+  /**
+   * Label for a tab, when the tab's value is a key rather than display text.
+   * Room Detail's tabs are already their own labels; Tickets' are `myTickets`,
+   * `all`, `open`, `closed`. Without this a caller would have to key the bar on
+   * display strings and map back, which throws away the generic's whole point.
+   */
+  renderLabel?: (tab: T) => string;
   className?: string;
 };
 
@@ -44,6 +51,7 @@ export function TabBar<T extends string>({
   ruleColor = '#334866',
   labelColor = '#5a759d',
   fontSize = 16,
+  renderLabel,
   className,
 }: TabBarProps<T>) {
   const [centres, setCentres] = useState<Partial<Record<T, number>>>({});
@@ -80,7 +88,7 @@ export function TabBar<T extends string>({
                 color: labelColor,
               }}
             >
-              {tab}
+              {renderLabel ? renderLabel(tab) : tab}
             </Text>
           </Pressable>
         ))}

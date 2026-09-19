@@ -14,21 +14,20 @@ import {
   PixelRatio,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute , NativeStackNavigationProp } from 'expo-router';
-import { RouteProp } from 'expo-router/react-navigation';
+import { useNavigation, NativeStackNavigationProp } from 'expo-router';
+import { Icon } from '@/components/Icon';
+import CreateTicketButton from '../components/CreateTicketButton';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { resolveGuestImageUrls } from '@/lib/guests';
 import { listRoomsWithReservationGuests } from '@features/rooms/services/rooms';
 import {
-  CREATE_TICKET_AI_IMAGE,
   CREATE_TICKET_BETA_OVERLAP_AI_PX,
   CREATE_TICKET_BETA_TO_DESCRIPTION_PX,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
 
-type SelectTicketLocationScreenRouteProp = RouteProp<RootStackParamList, 'select-ticket-location/index'>;
 type SelectTicketLocationScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'select-ticket-location/index'
@@ -76,8 +75,6 @@ function fallbackGuestAvatarUrl(seed: string): string {
 
 export default function SelectTicketLocationScreen() {
   const navigation = useNavigation<SelectTicketLocationScreenNavigationProp>();
-  const route = useRoute<SelectTicketLocationScreenRouteProp>();
-  const departmentName = route.params?.departmentName ?? 'Engineering';
 
   const { width: windowWidth } = useWindowDimensions();
   const scaleX = createTicketScaleX(windowWidth);
@@ -250,7 +247,6 @@ export default function SelectTicketLocationScreen() {
 
       // Navigate to ticket form with room + guest info (as before).
       navigation.navigate('create-ticket-form/index', {
-        departmentName,
         roomId: selectedRoom.id,
         roomNumber: selectedRoom.room_number,
         guestId: selectedGuest?.id,
@@ -264,7 +260,6 @@ export default function SelectTicketLocationScreen() {
       });
     } else if (locationType === 'publicArea' && selectedPublicArea) {
       navigation.navigate('create-ticket-form/index', {
-        departmentName,
         isPublicArea: true,
         publicAreaName: selectedPublicArea,
       });
@@ -287,11 +282,7 @@ export default function SelectTicketLocationScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={handleBackPress} activeOpacity={0.7}>
-          <Image
-            source={require('../../../../assets/icons/back-arrow.png')}
-            style={styles.backArrow}
-            resizeMode="contain"
-          />
+          <Icon name="action-chevron" size={28 * scaleX} color="#607AA1" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create Ticket</Text>
       </View>
@@ -308,17 +299,13 @@ export default function SelectTicketLocationScreen() {
         >
           {/* AI Create Ticket Button */}
           <View style={styles.aiButtonSection}>
-            <TouchableOpacity
-              style={styles.aiButtonTouchable}
-              onPress={handleAICreatePress}
-              activeOpacity={0.7}
-            >
-              <Image
-                source={CREATE_TICKET_AI_IMAGE.source}
-                style={styles.aiButtonImage}
-                resizeMode="contain"
-              />
-            </TouchableOpacity>
+            {/*
+              The same component the Tickets header uses (node 1107:3855 here,
+              3005:59 there — one design). Replaces `CreateTicketAI.png`, which
+              was a raster of a pill the design builds from a gradient stroke,
+              a label and a white disc.
+            */}
+            <CreateTicketButton onPress={handleAICreatePress} scaleX={scaleX} />
             <Text style={styles.betaLabel} maxFontSizeMultiplier={1.35}>
               BETA
             </Text>
@@ -344,8 +331,10 @@ export default function SelectTicketLocationScreen() {
             }}
             activeOpacity={0.7}
           >
-            <View style={[styles.checkbox, locationType === 'room' && styles.checkboxActive]}>
-              {locationType === 'room' && <Text style={styles.checkmark}>✓</Text>}
+            <View style={[styles.checkbox, locationType === 'room' && styles.checkboxChecked]}>
+              {locationType === 'room' && (
+                <Icon name="action-checkbox-checked" size={28 * scaleX} color="#5a759d" />
+              )}
             </View>
             <Text style={styles.toggleLabel}>Room</Text>
           </TouchableOpacity>
@@ -361,8 +350,10 @@ export default function SelectTicketLocationScreen() {
             }}
             activeOpacity={0.7}
           >
-            <View style={[styles.checkbox, locationType === 'publicArea' && styles.checkboxActive]}>
-              {locationType === 'publicArea' && <Text style={styles.checkmark}>✓</Text>}
+            <View style={[styles.checkbox, locationType === 'publicArea' && styles.checkboxChecked]}>
+              {locationType === 'publicArea' && (
+                <Icon name="action-checkbox-checked" size={28 * scaleX} color="#5a759d" />
+              )}
             </View>
             <Text style={styles.toggleLabel}>Public Area</Text>
           </TouchableOpacity>
@@ -383,11 +374,9 @@ export default function SelectTicketLocationScreen() {
                   <Text style={[styles.searchInputText, styles.searchInputPlaceholder]}>
                     Search room...
                   </Text>
-                  <Image
-                    source={require('../../../../assets/icons/dropdown-arrow.png')}
-                    style={[styles.dropdownArrowIcon, showDropdown && styles.dropdownArrowIconOpen]}
-                    resizeMode="contain"
-                  />
+                  <View style={[styles.dropdownArrowIcon, showDropdown && styles.dropdownArrowIconOpen]}>
+                    <Icon name="action-chevron" size={12 * scaleX} color="#5a759d" />
+                  </View>
                 </TouchableOpacity>
 
                 {showDropdown && (
@@ -446,11 +435,12 @@ export default function SelectTicketLocationScreen() {
                                       )}
                                       {room.vip_code && (
                                         <View style={styles.vipBadge}>
-                                          <Image
-                                            source={require('../../../../assets/icons/spear-arrow.png')}
-                                            style={styles.vipBadgeIcon}
-                                            resizeMode="contain"
-                                          />
+                                          <Icon
+                                name="guest-arrow"
+                                size={7 * scaleX}
+                                color="#ffffff"
+                                style={{ transform: [{ scaleX: -1 }] }}
+                              />
                                         </View>
                                       )}
                                     </View>
@@ -465,11 +455,9 @@ export default function SelectTicketLocationScreen() {
                                         </Text>
                                         {room.guest_count !== undefined && (
                                           <>
-                                            <Image 
-                                              source={require('../../../../assets/icons/people-icon.png')} 
-                                              style={styles.guestCountIcon}
-                                              resizeMode="contain"
-                                            />
+                                            <View style={styles.guestCountIcon}>
+                                              <Icon name="guest-occupancy" size={12 * scaleX} color="#666" />
+                                            </View>
                                             <Text style={styles.guestCount}>{room.guest_count}/2</Text>
                                           </>
                                         )}
@@ -487,6 +475,10 @@ export default function SelectTicketLocationScreen() {
                 )}
               </View>
             ) : (
+              <View style={styles.selectedRoomWrap}>
+              {/* Node 3005:494 unions the card with a small tab (Vector 46) that
+                  pokes 7.5 above its top edge, 44 in from the left. */}
+              <View style={styles.selectedRoomNotch} />
               <TouchableOpacity
                 style={[styles.roomCard, styles.selectedRoomCard]}
                 onPress={() => {
@@ -522,10 +514,11 @@ export default function SelectTicketLocationScreen() {
                           )}
                           {selectedRoom.vip_code && (
                             <View style={styles.vipBadge}>
-                              <Image
-                                source={require('../../../../assets/icons/spear-arrow.png')}
-                                style={styles.vipBadgeIcon}
-                                resizeMode="contain"
+                              <Icon
+                                name="guest-arrow"
+                                size={7 * scaleX}
+                                color="#ffffff"
+                                style={{ transform: [{ scaleX: -1 }] }}
                               />
                             </View>
                           )}
@@ -541,11 +534,9 @@ export default function SelectTicketLocationScreen() {
                             </Text>
                             {selectedRoom.guest_count !== undefined && (
                               <>
-                                <Image
-                                  source={require('../../../../assets/icons/people-icon.png')}
-                                  style={styles.guestCountIcon}
-                                  resizeMode="contain"
-                                />
+                                <View style={styles.guestCountIcon}>
+                                  <Icon name="guest-occupancy" size={12 * scaleX} color="#666" />
+                                </View>
                                 <Text style={styles.guestCount}>{selectedRoom.guest_count}/2</Text>
                               </>
                             )}
@@ -556,6 +547,7 @@ export default function SelectTicketLocationScreen() {
                   )}
                 </View>
               </TouchableOpacity>
+              </View>
             )}
           </>
         )}
@@ -574,11 +566,6 @@ export default function SelectTicketLocationScreen() {
                   activeOpacity={0.7}
                 >
                   <View style={styles.publicAreaContent}>
-                    <Image
-                      source={require('../../../../assets/icons/location-pin-icon.png')}
-                      style={styles.publicAreaIcon}
-                      resizeMode="contain"
-                    />
                     <Text style={styles.publicAreaText}>{area}</Text>
                   </View>
                   {selectedPublicArea === area && (
@@ -617,8 +604,6 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     android: { includeFontPadding: false } as const,
     default: {} as const,
   });
-  const aiW = PixelRatio.roundToNearestPixel(CREATE_TICKET_AI_IMAGE.width * scaleX);
-  const aiH = PixelRatio.roundToNearestPixel(CREATE_TICKET_AI_IMAGE.height * scaleX);
   const descriptionMaxWidth = Math.min(
     318 * scaleX,
     Math.max(0, windowWidth - PixelRatio.roundToNearestPixel(32)),
@@ -653,7 +638,8 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#607aa1',
-    marginLeft: 80 * scaleX,
+    // Node 1085:2964 sits at x=69; the chevron box ends at 24+28 = 52.
+    marginLeft: 17 * scaleX,
     ...androidText,
   },
   scrollView: {
@@ -668,14 +654,6 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     alignItems: 'center',
     marginTop: 48 * scaleX,
     marginBottom: 48 * scaleX,
-  },
-  aiButtonTouchable: {
-    width: aiW,
-    height: aiH,
-  },
-  aiButtonImage: {
-    width: aiW,
-    height: aiH,
   },
   betaLabel: {
     fontSize: 9 * scaleX,
@@ -715,23 +693,27 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     alignItems: 'center',
   },
   toggleButtonActive: {},
+  /*
+   * Node 3005:489 — 28x28, 2px `#5a759d`, **square**. The checked state
+   * (3005:490) is not a fill: it is the same outline with a blue tick, and
+   * `action-checkbox-checked` is byte-identical to it, so the box simply steps
+   * aside and lets the glyph draw the whole control.
+   *
+   * Deliberately not `ui/Checkbox`: that component's checked state is a filled
+   * box with a white tick from node 2702:3195, which the filter sheets use.
+   * Two designed states, not one.
+   */
   checkbox: {
     width: 28 * scaleX,
     height: 28 * scaleX,
     borderWidth: 2,
     borderColor: '#5a759d',
-    borderRadius: 4 * scaleX,
     marginRight: 12 * scaleX,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  checkboxActive: {
-    backgroundColor: '#5a759d',
-  },
-  checkmark: {
-    fontSize: 16 * scaleX,
-    color: '#fff',
-    fontWeight: 'bold',
+  checkboxChecked: {
+    borderWidth: 0,
   },
   toggleLabel: {
     fontSize: 16 * scaleX,
@@ -770,13 +752,21 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   searchInputPlaceholder: {
     color: '#999',
   },
+  /*
+   * `action-chevron` points left, so the closed state turns it to point down and
+   * the open state turns it the other way. The box keeps the unrotated footprint
+   * because a transform does not change layout size — same idiom as
+   * RoomStatusPill and the ticket card's status row.
+   */
   dropdownArrowIcon: {
     width: 12 * scaleX,
     height: 12 * scaleX,
-    tintColor: '#5a759d',
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '-90deg' }],
   },
   dropdownArrowIconOpen: {
-    transform: [{ rotate: '180deg' }],
+    transform: [{ rotate: '90deg' }],
   },
   dropdownMenu: {
     position: 'absolute',
@@ -823,11 +813,77 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     borderWidth: 2,
     backgroundColor: '#f0f4ff',
   },
+  selectedRoomWrap: {
+    position: 'relative',
+    paddingTop: 10 * scaleX,
+    marginBottom: 16 * scaleX,
+  },
+  /*
+   * Node 3005:493 draws the selected room as a plain **white** card lifted off
+   * the page by a soft shadow — no border and no tint. What was here painted a
+   * 2px `#5a759d` outline on `#f0f4ff`, which reads as a form field rather than
+   * the floating panel the design shows.
+   */
   selectedRoomCard: {
-    borderColor: '#5a759d',
-    borderWidth: 2,
-    backgroundColor: '#f0f4ff',
+    backgroundColor: '#fff',
+    borderWidth: 0,
     marginBottom: 0,
+    // `roomCard` clips its children; a clipped view does not cast a shadow, and
+    // without one a white card on a white page has no edge at all.
+    overflow: 'visible',
+    /*
+     * Blue-grey and broad, measured off the frame rather than guessed: the page
+     * is pure white, and immediately outside the card it reads `#e5e9f1`, which
+     * is `rgb(100,131,176)` at about 17% over white. That is the same tint the
+     * nav shadow token and the ticket card's footer band already use — a neutral
+     * black shadow at 10% was both too weak and the wrong hue.
+     */
+    shadowColor: '#6483b0',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+  /*
+   * The tab on the card's top edge, centred 44 in from the left.
+   *
+   * A square turned 45 degrees, not a border-triangle. In the design the tab and
+   * the card are one unioned shape under one shadow (node 3005:494); a
+   * border-triangle has no background, so React Native gives it no shadow, and a
+   * shadowless white tab on a white page is invisible — which is exactly how it
+   * rendered. A rotated square has a real background and casts one.
+   *
+   * It is painted *before* the card so the card covers its lower half, leaving
+   * only the corner poking 7.5 above the top edge. 16 x 16 turned 45 has a
+   * 22.6 diagonal, so a top at 3.3 puts that corner on the wrapper's edge.
+   */
+  selectedRoomNotch: {
+    position: 'absolute',
+    /*
+     * Sized off the frame's own profile, measured row by row: its apex sits
+     * 7.9 above the card and the tab is ~21 wide where it meets the top edge.
+     *
+     * A square turned 45 always has a right-angled apex, so its width is
+     * exactly twice its protrusion — it cannot reproduce the frame's squatter,
+     * obtuse tip. Matching the *width* matters more than the apex angle here,
+     * so the protrusion is 10 and the tab comes out 20 wide against the
+     * frame's 21, rather than the 15 a 7.5 protrusion gave.
+     *
+     * Side 26 turned 45 has a 36.8 diagonal, so a top of 5.4 puts the corner
+     * on the wrapper edge, 10 above the card.
+     */
+    top: 5.4 * scaleX,
+    left: 31 * scaleX,
+    width: 26 * scaleX,
+    height: 26 * scaleX,
+    backgroundColor: '#fff',
+    borderRadius: 4 * scaleX,
+    transform: [{ rotate: '45deg' }],
+    shadowColor: '#6483b0',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.18,
+    shadowRadius: 6,
+    elevation: 3,
   },
   roomCardContent: {
     flexDirection: 'row',
@@ -981,14 +1037,21 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     color: '#5a759d',
     fontWeight: 'bold',
   },
+  /*
+   * Node 3005:443 — 351 x 70 at x=38, `#5a759d`, and **no corner radius**.
+   *
+   * Kept pinned to the bottom rather than in the flow, which is where the frame
+   * draws it (y=653, just under the suggestion card). Pinning keeps Continue
+   * reachable once the room list is long; the frame's placement is a
+   * consequence of its short mock content. A stated deviation, not an oversight.
+   */
   continueButton: {
     position: 'absolute',
     bottom: 40 * scaleX,
-    left: 45 * scaleX,
-    right: 45 * scaleX,
+    left: 38 * scaleX,
+    width: 351 * scaleX,
     height: 70 * scaleX,
     backgroundColor: '#5a759d',
-    borderRadius: 10 * scaleX,
     justifyContent: 'center',
     alignItems: 'center',
   },

@@ -42,6 +42,11 @@ export { default as SearchInput } from './ui/SearchInput';
 export { SearchAndFilterBar } from './ui/SearchAndFilterBar';
 export type { SearchAndFilterBarProps } from './ui/SearchAndFilterBar';
 export { default as SeeRoomsButton } from './ui/SeeRoomsButton';
+export { TabBar } from './ui/TabBar';
+export type { TabBarProps } from './ui/TabBar';
+export { BlurBackdrop } from './ui/BlurBackdrop';
+export { GradientText } from './ui/GradientText';
+export type { GradientTextProps } from './ui/GradientText';
 
 // layout
 export { default as BottomTabBar } from './layout/BottomTabBar';

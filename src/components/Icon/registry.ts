@@ -30,7 +30,9 @@ import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
 import ActionRefuseService from '@assets/icons/actions/action-refuse-service.svg';
 import ActionReturnLater from '@assets/icons/actions/action-return-later.svg';
 import ActionSearch from '@assets/icons/actions/action-search.svg';
+import ActionThumbsDownSolid from '@assets/icons/actions/action-thumbs-down-solid.svg';
 import ActionThumbsDown from '@assets/icons/actions/action-thumbs-down.svg';
+import ActionThumbsUpSolid from '@assets/icons/actions/action-thumbs-up-solid.svg';
 import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
 import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
 // departments
@@ -93,7 +95,9 @@ export const icons = {
   'action-refuse-service': ActionRefuseService,
   'action-return-later': ActionReturnLater,
   'action-search': ActionSearch,
+  'action-thumbs-down-solid': ActionThumbsDownSolid,
   'action-thumbs-down': ActionThumbsDown,
+  'action-thumbs-up-solid': ActionThumbsUpSolid,
   'action-thumbs-up': ActionThumbsUp,
   'action-tooltip-tail': ActionTooltipTail,
   // departments
@@ -164,7 +168,9 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-refuse-service': 1,
   'action-return-later': 0.8655,
   'action-search': 1,
+  'action-thumbs-down-solid': 1.1265,
   'action-thumbs-down': 1.1265,
+  'action-thumbs-up-solid': 1.1265,
   'action-thumbs-up': 1.1265,
   'action-tooltip-tail': 2.5831,
   'dept-concierge': 0.6403,
@@ -225,6 +231,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-refuse-service',
   'action-return-later',
   'action-search',
+  'action-thumbs-down-solid',
+  'action-thumbs-up-solid',
   'action-tooltip-tail',
   'dept-concierge',
   'dept-engineering',

@@ -1,9 +1,10 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, Dimensions } from 'react-native';
 import { typography } from '@/theme';
-import {
-  scaleX,
-} from '../constants/ticketsStyles';
+import { Icon } from '@/components/Icon';
+import { scaleX } from '@/utils/responsive';
+import { Avatar } from '@/components/ui/Avatar';
+import { TICKET_CARD_LAYOUT as L } from './ticketCardLayout';
 import { TicketData } from '../types/tickets.types';
 import { formatDueAtCalendarLabel } from '@/utils/ticketDue';
 
@@ -128,31 +129,30 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
               <View style={styles.ofoPillBadge}>
                 <Text style={styles.ofoPillLabel}>OFT</Text>
               </View>
-              <Image
-                source={require('../../../../assets/icons/dropdown-arrow.png')}
-                style={[styles.statusChevron, styles.statusChevronOfo]}
-                resizeMode="contain"
-              />
+              <View style={styles.statusChevron}>
+                <Icon name="action-chevron" size={10 * scaleX} color="#ffffff" />
+              </View>
             </>
           ) : (
             <>
-              <Image
-                source={
-                  ticket.status === 'done'
-                    ? require('../../../../assets/icons/done.png')
-                    : require('../../../../assets/icons/unsolved.png')
-                }
-                style={[
-                  styles.statusIcon,
-                  ticket.status === 'done' ? styles.statusIconDone : styles.statusIconUnsolved,
-                ]}
-                resizeMode="contain"
+              {/*
+                The *solid* thumb, not the outline one: Figma 667-3068 node
+                3147:58 fills the body and knocks the detail out in white. The
+                outline `action-thumbs-down` is the inverse of it and is
+                two-tone, so it cannot be tinted into this.
+              */}
+              <Icon
+                name={ticket.status === 'done' ? 'action-thumbs-up-solid' : 'action-thumbs-down-solid'}
+                size={17 * scaleX}
+                color={ticket.status === 'done' ? '#ffffff' : '#f92424'}
               />
-              <Image
-                source={require('../../../../assets/icons/dropdown-arrow.png')}
-                style={[styles.statusChevron, isDone ? styles.statusChevronDone : styles.statusChevronOpen]}
-                resizeMode="contain"
-              />
+              <View style={styles.statusChevron}>
+                <Icon
+                  name="action-chevron"
+                  size={10 * scaleX}
+                  color={isDone ? '#ffffff' : '#f92424'}
+                />
+              </View>
             </>
           )}
         </View>
@@ -182,17 +182,11 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
 
       <View style={styles.footerRow}>
         <View style={styles.footerPerson}>
-          {ticket.createdBy.avatar ? (
-            <Image
-              source={typeof ticket.createdBy.avatar === 'string' ? { uri: ticket.createdBy.avatar } : ticket.createdBy.avatar}
-              style={styles.footerAvatar}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.footerAvatarPlaceholder}>
-              <Text style={styles.footerAvatarInitial}>{getInitials(ticket.createdBy.name)}</Text>
-            </View>
-          )}
+          <Avatar
+            uri={typeof ticket.createdBy.avatar === 'string' ? ticket.createdBy.avatar : undefined}
+            name={ticket.createdBy.name}
+            size={L.footerAvatar.creator * scaleX}
+          />
           <View style={styles.footerMeta}>
             <Text style={styles.footerName} numberOfLines={1}>
               {ticket.createdBy.name}
@@ -203,26 +197,23 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           </View>
         </View>
 
-        <Image
-          source={require('../../../../assets/icons/arrow-forward.png')}
-          style={[styles.footerArrow, styles.footerArrowReversed]}
-          resizeMode="contain"
-        />
+        {/*
+          The same drawing as the frame's arrow (node 3129:1130): shaft plus a
+          round-capped head. `guest-arrow` points left and its own header
+          comment documents mirroring as the intended reuse, so this is a flip
+          rather than a near-duplicate export. Height 10 gives width 17.4
+          against the frame's 18.571 x 10.
+        */}
+        <View style={styles.footerArrow}>
+          <Icon name="guest-arrow" size={10 * scaleX} color="#1e1e1e" />
+        </View>
 
         <TouchableOpacity style={styles.footerPerson} onPress={onAssigneePress} activeOpacity={0.7}>
-          {ticket.assignedTo?.avatar ? (
-            <Image
-              source={typeof ticket.assignedTo.avatar === 'string' ? { uri: ticket.assignedTo.avatar } : ticket.assignedTo.avatar}
-              style={styles.footerAvatar}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.footerAvatarPlaceholder}>
-              <Text style={styles.footerAvatarInitial}>
-                {ticket.assignedTo?.name ? getInitials(ticket.assignedTo.name) : '—'}
-              </Text>
-            </View>
-          )}
+          <Avatar
+            uri={typeof ticket.assignedTo?.avatar === 'string' ? ticket.assignedTo.avatar : undefined}
+            name={ticket.assignedTo?.name}
+            size={L.footerAvatar.assignee * scaleX}
+          />
           <View style={styles.footerMeta}>
             <Text style={styles.footerName} numberOfLines={1}>
               {ticket.assignedTo?.name ?? 'Tag staff'}
@@ -239,14 +230,16 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
 
 const styles = StyleSheet.create({
   card: {
-    width: 409 * scaleX,
-    minHeight: 216 * scaleX,
+    // Not `width: 409`: with marginHorizontal 16 that totals 441 in a 440
+    // frame, so the card overflowed its own design. Stretching inside the
+    // gutter lands on 408 and survives any device width.
+    alignSelf: 'stretch',
     backgroundColor: '#f9fafc',
     borderWidth: 1,
     borderColor: '#e3e3e3',
     borderRadius: 9 * scaleX,
-    marginHorizontal: 16 * scaleX,
-    marginBottom: 16 * scaleX,
+    marginHorizontal: L.gutter * scaleX,
+    marginBottom: L.gapBetweenCards * scaleX,
     position: 'relative',
     paddingHorizontal: 22 * scaleX,
     paddingTop: 18 * scaleX,
@@ -413,46 +406,42 @@ const styles = StyleSheet.create({
     color: '#c6c5c5',
     includeFontPadding: false,
   },
-  statusIcon: {
-    width: 17 * scaleX,
-    height: 17 * scaleX,
-  },
-  statusIconUnsolved: {
-    tintColor: '#f92424',
-  },
-  statusIconDone: {
-    tintColor: '#ffffff',
-  },
   statusChevron: {
     width: 10 * scaleX,
     height: 10 * scaleX,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // The outer box keeps the unrotated footprint; a transform does not change
+    // layout size. Same idiom as RoomStatusPill / RoomHeaderStatusButton.
+    transform: [{ rotate: '-90deg' }],
   },
-  statusChevronOpen: {
-    tintColor: '#f92424',
-  },
-  statusChevronDone: {
-    tintColor: '#ffffff',
-  },
-  statusChevronOfo: {
-    tintColor: '#ffffff',
-  },
+  /*
+   * Node 3129:994. The band the card never drew: 392 wide inside a 409 card,
+   * so it pulls back out past the 22pt content padding to sit 9 from the card
+   * edge, and carries its own radius.
+   */
   footerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 10 * scaleX,
+    marginHorizontal: (L.footerBand.inset - L.paddingHorizontal) * scaleX,
+    paddingHorizontal: (L.paddingHorizontal - L.footerBand.inset) * scaleX,
+    minHeight: L.footerBand.height * scaleX,
+    borderRadius: L.footerBand.radius * scaleX,
+    backgroundColor: 'rgba(100,131,176,0.06)',
   },
   imagesRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10 * scaleX,
+    gap: L.photo.gap * scaleX,
     marginTop: 10 * scaleX,
     marginBottom: 8 * scaleX,
   },
   imageThumbWrap: {
-    width: 120 * scaleX,
-    height: 120 * scaleX,
-    borderRadius: 8 * scaleX,
+    width: L.photo.width * scaleX,
+    height: L.photo.height * scaleX,
+    borderRadius: L.photo.radius * scaleX,
     overflow: 'hidden',
     backgroundColor: '#e6e6e6',
   },
@@ -477,25 +466,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 8 * scaleX,
   },
-  footerAvatar: {
-    width: 28 * scaleX,
-    height: 28 * scaleX,
-    borderRadius: 14 * scaleX,
-  },
-  footerAvatarPlaceholder: {
-    width: 28 * scaleX,
-    height: 28 * scaleX,
-    borderRadius: 14 * scaleX,
-    backgroundColor: '#e4eefe',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  footerAvatarInitial: {
-    fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#5a759d',
-  },
   footerMeta: {
     flex: 1,
     minWidth: 0,
@@ -516,10 +486,9 @@ const styles = StyleSheet.create({
   footerArrow: {
     width: 18 * scaleX,
     height: 18 * scaleX,
-    tintColor: '#1e1e1e',
-  },
-  footerArrowReversed: {
-    transform: [{ rotate: '180deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ scaleX: -1 }],
   },
 });
 

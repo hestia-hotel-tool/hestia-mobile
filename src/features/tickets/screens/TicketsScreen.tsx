@@ -8,7 +8,6 @@ import {
   TouchableOpacity,
   Pressable,
   Text,
-  Image,
   Switch,
   TextInput,
   useWindowDimensions,
@@ -19,17 +18,15 @@ import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp 
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
-import TicketsTabs from '../components/TicketsTabs';
+import { TabBar } from '@/components/ui/TabBar';
 import TicketCard from '../components/TicketCard';
 import EmptyTicketsState from '../components/EmptyTicketsState';
 import type { TicketStatusAnchorLayout } from '../components/TicketCard';
 import { TicketTab, TicketData, TicketsScreenData, TicketStatus } from '../types/tickets.types';
 import {
-  TICKETS_HEADER,
-  TICKETS_TABS,
+  getTicketsTopShift,
   TICKETS_SPACING,
   TICKETS_COLORS,
-  TICKET_DIVIDER,
   TICKET_STATUS_POPOVER,
   scaleX,
 } from '../constants/ticketsStyles';
@@ -45,6 +42,17 @@ import {
   markAllTicketTagNotificationsRead,
   invalidateNotificationBadges,
 } from '@/lib/inAppNotifications';
+import { Icon } from '@/components/Icon';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+/** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
+const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed'];
+const TICKET_TAB_LABELS: Record<TicketTab, string> = {
+  myTickets: 'My Tickets',
+  all: 'All',
+  open: 'Open',
+  closed: 'Closed',
+};
 
 /** Change Status popover — height for vertical clamping (expanded when Due time fields visible). Figma ~295 / ~472. */
 const STATUS_POPOVER_HEIGHT_COLLAPSED = 268 * scaleX;
@@ -80,6 +88,9 @@ export default function TicketsScreen() {
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
+  const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
   const [ticketsData, setTicketsData] = useState<TicketsScreenData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -169,8 +180,15 @@ export default function TicketsScreen() {
     navigation.goBack();
   };
 
+  /*
+   * Straight to location. This used to open `create-ticket/index`, a grid of the
+   * eight departments, and only then reach the location screen. Figma 1085-2628
+   * makes location the first and only step before the form, and the form already
+   * owns a department strip — so the grid was asking for a choice that the form
+   * then asked for again, and only the form's answer reached `createTicket`.
+   */
   const handleCreatePress = () => {
-    stackNavigation.navigate('create-ticket/index');
+    stackNavigation.navigate('select-ticket-location/index');
   };
 
   const handleTabChange = (tab: TicketTab) => {
@@ -366,7 +384,10 @@ export default function TicketsScreen() {
       <View style={styles.scrollContainer}>
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: TICKETS_SPACING.contentPaddingTop * scaleX + topShift },
+          ]}
           showsVerticalScrollIndicator={false}
           scrollEnabled={true}
           refreshControl={
@@ -451,11 +472,8 @@ export default function TicketsScreen() {
                 }}
               >
                 <View style={[styles.statusCircle, styles.statusCirclePriority]}>
-                  <Image
-                    source={require('../../../../assets/icons/priority-status.png')}
-                    style={styles.statusCircleIconRush}
-                    resizeMode="contain"
-                  />
+                  {/* Red on the pale disc, matching TicketStatusCircle.priority. */}
+                  <Icon name="action-priority" size={26 * scaleX} color="#f92424" />
                 </View>
                 <Text style={styles.statusGridLabel}>Priority</Text>
               </TouchableOpacity>
@@ -467,11 +485,7 @@ export default function TicketsScreen() {
                 onPress={() => handleStatusSelect('unsolved')}
               >
                 <View style={[styles.statusCircle, styles.statusCircleUnsolved]}>
-                  <Image
-                    source={require('../../../../assets/icons/unsolved.png')}
-                    style={styles.statusCircleIconOnDark}
-                    resizeMode="contain"
-                  />
+                  <Icon name="action-thumbs-down-solid" size={24 * scaleX} color="#ffffff" />
                 </View>
                 <Text style={styles.statusGridLabel}>Unsolved</Text>
               </TouchableOpacity>
@@ -483,11 +497,7 @@ export default function TicketsScreen() {
                 onPress={() => handleStatusSelect('done')}
               >
                 <View style={[styles.statusCircle, styles.statusCircleSolved]}>
-                  <Image
-                    source={require('../../../../assets/icons/done.png')}
-                    style={styles.statusCircleIconSolved}
-                    resizeMode="contain"
-                  />
+                  <Icon name="action-thumbs-up-solid" size={24 * scaleX} color="#ffffff" />
                 </View>
                 <Text style={styles.statusGridLabel}>Solved</Text>
               </TouchableOpacity>
@@ -604,7 +614,22 @@ export default function TicketsScreen() {
       />
 
       {/* Tabs - Fixed below header */}
-      <TicketsTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
+      {/*
+        Figma 667-3068: labels x=25..403 at y=158, one rule 92x4 `#5a759d` at
+        y=189 under whichever tab is active. The row this replaces carried a
+        *per-tab* rule width (92 / 18 / 41 / 51) matched to each label's text —
+        the frame draws one width, 92, so the other three were invented.
+      */}
+      <View style={[styles.tabsRow, { top: 158 * scaleX + topShift }]}>
+        <TabBar<TicketTab>
+          tabs={TICKET_TABS}
+          activeTab={selectedTab}
+          onTabPress={handleTabChange}
+          ruleColor="#5a759d"
+          labelColor="#5a759d"
+          renderLabel={(tab) => TICKET_TAB_LABELS[tab]}
+        />
+      </View>
 
       {/* Bottom Navigation */}
       <BottomTabBar />
@@ -617,6 +642,14 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: TICKETS_COLORS.background,
   },
+  /** The slot the old absolute tab row occupied; gaps are K4's job. */
+  tabsRow: {
+    position: 'absolute',
+    top: 158 * scaleX,
+    left: 25 * scaleX,
+    right: 37 * scaleX,
+    zIndex: 10,
+  },
   scrollContainer: {
     flex: 1,
     position: 'relative',
@@ -628,24 +661,6 @@ const styles = StyleSheet.create({
     paddingTop: TICKETS_SPACING.contentPaddingTop * scaleX,
     paddingBottom: TICKETS_SPACING.contentPaddingBottom * scaleX,
     minHeight: '100%',
-  },
-  divider: {
-    height: TICKET_DIVIDER.height,
-    backgroundColor: TICKET_DIVIDER.color,
-    marginHorizontal: 16 * scaleX,
-    marginVertical: 8 * scaleX,
-  },
-  contentBlurOverlay: {
-    position: 'absolute',
-    top: (TICKETS_HEADER.height + TICKETS_TABS.container.height) * scaleX, // Start below header and tabs
-    left: 0,
-    right: 0,
-    bottom: 152 * scaleX, // Stop above bottom nav
-    zIndex: 1,
-  },
-  blurOverlayDarkener: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(200, 200, 200, 0.6)',
   },
   statusModalOverlay: {
     flex: 1,
@@ -726,27 +741,8 @@ const styles = StyleSheet.create({
     borderRadius: 10 * scaleX,
     backgroundColor: '#ffffff',
   },
-  statusCircleIcon: {
-    width: 24 * scaleX,
-    height: 24 * scaleX,
-    tintColor: '#f92424',
-  },
   /** Priority / rush — full-color asset from Figma; do not tint. */
-  statusCircleIconRush: {
-    width: 26 * scaleX,
-    height: 26 * scaleX,
-  },
-  statusCircleIconOnDark: {
-    width: 24 * scaleX,
-    height: 24 * scaleX,
-    tintColor: '#ffffff',
-  },
   /** Same glyph as ticket “done” state, white on green circle. */
-  statusCircleIconSolved: {
-    width: 24 * scaleX,
-    height: 24 * scaleX,
-    tintColor: '#ffffff',
-  },
   statusGridLabel: {
     marginTop: 8 * scaleX,
     fontSize: 13 * scaleX,

@@ -131,7 +131,6 @@ export default function RootLayout() {
             <Stack.Screen name="new-chat" />
             <Stack.Screen name="create-chat-group" />
             <Stack.Screen name="user-profile" />
-            <Stack.Screen name="create-ticket" />
             <Stack.Screen name="select-ticket-location" />
             <Stack.Screen name="create-ticket-form" />
           </Stack>
