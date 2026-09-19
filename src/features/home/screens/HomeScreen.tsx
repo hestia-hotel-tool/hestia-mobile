@@ -148,10 +148,12 @@ export default function HomeScreen() {
     };
   }, [session?.user?.id]);
   useEffect(() => {
-    setHomeData((prev) => ({
-      ...prev,
-      user: session ? (profile ?? sessionFallback) : undefined,
-    }));
+    const nextUser = session ? (profile ?? sessionFallback) : undefined;
+    // Bail when nothing actually changed. Returning `prev` lets React skip the
+    // re-render entirely; an unconditional `{...prev}` re-renders every time
+    // this effect runs, and if any dependency churns by reference that is an
+    // infinite update loop rather than one wasted pass.
+    setHomeData((prev) => (prev.user === nextUser ? prev : { ...prev, user: nextUser }));
   }, [session, profile, sessionFallback]);
 
   const safeUser = useMemo(
@@ -676,15 +678,33 @@ export default function HomeScreen() {
     return categories;
   }, [homeData.selectedShift, roomsForHome, assignedRoomIdsOrdered, session?.user?.id, safeUser?.name, isHskPortierUser, activeFilters]);
 
-  // Sync route filters -> local state
+  /*
+   * Sync route filters -> local state.
+   *
+   * Compared by value, not by reference. The dependency is an object read off
+   * `route.params` — navigation can hand back a fresh object for the same
+   * filters, and this effect then set state to it, re-rendered, read a fresh
+   * object again and set state again. That is the shape of "Maximum update
+   * depth exceeded", and it only bites when the screen is entered *with*
+   * filters, which is why it does not reproduce on a plain launch.
+   */
   useEffect(() => {
     const routeFilters = (route.params as any)?.filters as FilterState | undefined;
-    if (routeFilters) setActiveFilters(routeFilters);
+    if (!routeFilters) return;
+    setActiveFilters((prev) =>
+      JSON.stringify(prev) === JSON.stringify(routeFilters) ? prev : routeFilters
+    );
   }, [(route.params as any)?.filters]);
 
-  // Update visible home categories based on derived data
+  // Update visible home categories based on derived data. Same bail-out: the
+  // memo returns a fresh array whenever any of its seven inputs changes
+  // identity, and writing it back unconditionally re-renders on each one.
   useEffect(() => {
-    setHomeData((prev) => ({ ...prev, categories: derivedCategories }));
+    setHomeData((prev) =>
+      JSON.stringify(prev.categories) === JSON.stringify(derivedCategories)
+        ? prev
+        : { ...prev, categories: derivedCategories }
+    );
   }, [derivedCategories]);
 
   // One fetch, not two. There was an identical `useEffect` beside this with the

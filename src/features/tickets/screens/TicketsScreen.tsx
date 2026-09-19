@@ -4,13 +4,11 @@ import {
   ScrollView,
   StyleSheet,
   RefreshControl,
-  Modal,
   TouchableOpacity,
-  Pressable,
   Text,
   Switch,
+  ActivityIndicator,
   TextInput,
-  useWindowDimensions,
 } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -43,6 +41,8 @@ import {
   invalidateNotificationBadges,
 } from '@/lib/inAppNotifications';
 import { Icon } from '@/components/Icon';
+import { useToast } from '@/contexts/ToastContext';
+import StatusPopover from '@features/rooms/components/StatusPopover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
@@ -55,9 +55,16 @@ const TICKET_TAB_LABELS: Record<TicketTab, string> = {
 };
 
 /** Change Status popover — height for vertical clamping (expanded when Due time fields visible). Figma ~295 / ~472. */
-const STATUS_POPOVER_HEIGHT_COLLAPSED = 268 * scaleX;
-const STATUS_POPOVER_HEIGHT_EXPANDED = 455 * scaleX;
-const STATUS_POPOVER_NOTCH_SIZE = 12 * scaleX;
+/**
+ * Card height in **design px** — `StatusPopover` scales it and only uses it to
+ * decide whether to open below the pill or flip above, so an estimate is fine.
+ * Collapsed is the frame's own panel (3129:1649, 396 x 283); expanded is not
+ * drawn anywhere, so the old estimate stands.
+ */
+/** Figma 667-3068 node 1085:2963 / 667:3096 — the header band. */
+const TICKETS_HEADER_HEIGHT = 133;
+const STATUS_POPOVER_HEIGHT_COLLAPSED = 283;
+const STATUS_POPOVER_HEIGHT_EXPANDED = 455;
 
 /** Figma 3129:2033–2034 — Time / Date field boxes. */
 const DUE_TIME_BOX_W = 134 * scaleX;
@@ -87,8 +94,8 @@ export default function TicketsScreen() {
   const route = useRoute();
   const { session } = useAuth();
   const userProfile = useUserStore((s) => s.profile);
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
@@ -96,7 +103,21 @@ export default function TicketsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [statusMenuTicket, setStatusMenuTicket] = useState<TicketData | null>(null);
-  const [statusUpdating, setStatusUpdating] = useState(false);
+  /**
+   * Which status option is mid-flight, so the tapped one can show a spinner.
+   *
+   * A single `statusUpdating` boolean could only disable all four, which is why
+   * a change felt like it needed several hard taps: the first tap fired, the
+   * options went silently inert for the length of a network round trip, and
+   * nothing on screen said so.
+   */
+  const [pendingAction, setPendingAction] = useState<string | null>(null);
+  /**
+   * Any write in flight. Was its own `statusUpdating` state that nothing ever
+   * set to true after the due-time handlers stopped doing so, which left the
+   * Switch and the H/M/DD/MM fields permanently enabled mid-write.
+   */
+  const statusUpdating = pendingAction !== null;
   const [dueTimeEnabled, setDueTimeEnabled] = useState(false);
   const [dueHour, setDueHour] = useState('');
   const [dueMinute, setDueMinute] = useState('');
@@ -263,56 +284,124 @@ export default function TicketsScreen() {
     }
   }, [statusMenuTicket, dueTimeEnabled, buildDueAtIsoFromFields, loadTickets, selectedTab]);
 
+  /*
+   * Optimistic: the Switch and the fields flip immediately and the write
+   * reports itself with the spinner beside them, rather than the control
+   * sitting inert for a whole round trip with nothing to say it is working.
+   */
   const handleDueTimeToggle = React.useCallback(
     async (value: boolean) => {
-      if (value && statusMenuTicket) {
-        const ticketId = statusMenuTicket.id;
-        const now = new Date();
-        applyDueFieldsFromDate(now);
-        setDueTimeEnabled(true);
-        try {
-          const iso = now.toISOString();
-          await updateTicketDueAt(ticketId, iso);
-          setStatusMenuTicket((t) => (t?.id === ticketId ? { ...t, dueAt: iso } : t));
-          await loadTickets(selectedTab, { silent: true });
-        } catch (e) {
-          console.warn('[TicketsScreen] Failed to save default due time', e);
-        }
+      if (!statusMenuTicket) {
+        setDueTimeEnabled(value);
         return;
       }
-      setDueTimeEnabled(false);
-      if (!value && statusMenuTicket) {
-        const ticketId = statusMenuTicket.id;
-        try {
-          await updateTicketDueAt(ticketId, null);
+      const ticketId = statusMenuTicket.id;
+      const iso = value ? new Date().toISOString() : null;
+
+      if (value) applyDueFieldsFromDate(new Date());
+      setDueTimeEnabled(value);
+
+      setPendingAction('dueTime');
+      try {
+        await updateTicketDueAt(ticketId, iso);
+        if (!value) {
           setDueHour('');
           setDueMinute('');
           setDueDay('');
           setDueMonth('');
-          setStatusMenuTicket((t) => (t?.id === ticketId ? { ...t, dueAt: null } : t));
-          await loadTickets(selectedTab, { silent: true });
-        } catch (e) {
-          console.warn('[TicketsScreen] Failed to clear due time', e);
         }
+        setStatusMenuTicket((t) => (t?.id === ticketId ? { ...t, dueAt: iso } : t));
+        await loadTickets(selectedTab, { silent: true });
+      } catch (e) {
+        console.warn('[TicketsScreen] Failed to save due time', e);
+        // Put the control back where it was — the write did not land.
+        setDueTimeEnabled(!value);
+        toast.show('Could not save the due time. Please try again.', { type: 'error' });
+      } finally {
+        setPendingAction(null);
       }
     },
-    [statusMenuTicket, loadTickets, selectedTab, applyDueFieldsFromDate]
+    [statusMenuTicket, loadTickets, selectedTab, applyDueFieldsFromDate, toast]
   );
 
-  const handleStatusSelect = async (nextStatus: TicketStatus) => {
-    if (!statusMenuTicket) return;
-    setStatusUpdating(true);
+  /**
+   * Run one status-grid action with feedback.
+   *
+   * Closes the popover only once the write has actually landed, keeps a spinner
+   * on the tapped option until then, and surfaces a failure instead of only
+   * logging it — a failed update used to look identical to a successful one.
+   */
+  const withBusy = async (key: string, work: () => Promise<void>) => {
+    if (pendingAction) return false;
+    setPendingAction(key);
     try {
-      await updateTicketStatus(statusMenuTicket.id, nextStatus);
-      setStatusMenuTicket(null);
-      // Refresh while keeping the current selected tab.
-      await loadTickets(selectedTab);
+      await work();
+      return true;
     } catch (e) {
-      console.warn('[TicketsScreen] Failed to update ticket status', e);
+      console.warn('[TicketsScreen] Failed to update ticket', e);
+      toast.show('Could not update the ticket. Please try again.', { type: 'error' });
+      return false;
     } finally {
-      setStatusUpdating(false);
+      setPendingAction(null);
     }
   };
+
+  /** A grid action: on success the popover closes and the list refreshes. */
+  const runStatusAction = async (key: string, work: () => Promise<void>) => {
+    const ok = await withBusy(key, work);
+    if (!ok) return;
+    setStatusMenuTicket(null);
+    // Refresh while keeping the current selected tab.
+    await loadTickets(selectedTab);
+  };
+
+  /**
+   * One status option: circle, label, spinner while it is the one in flight.
+   *
+   * A plain function, not a component — declaring a component inside render
+   * remounts it (and loses the ActivityIndicator's animation) every pass.
+   *
+   * `hitSlop` matters here: the circle is 44 and the column 64, so the gaps
+   * between the four options were dead space that swallowed near-misses.
+   */
+  const renderStatusOption = (
+    key: string,
+    label: string,
+    circle: React.ReactNode,
+    onPress: () => void
+  ) => {
+    const busy = pendingAction === key;
+    const blocked = pendingAction !== null || statusUpdating;
+    return (
+      <TouchableOpacity
+        key={key}
+        style={[styles.statusGridItem, blocked && !busy && styles.statusGridItemDimmed]}
+        activeOpacity={0.6}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        disabled={blocked}
+        onPress={onPress}
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={{ busy, disabled: blocked }}
+      >
+        <View>
+          {circle}
+          {busy ? (
+            <View style={styles.statusCircleBusy}>
+              <ActivityIndicator size="small" color="#ffffff" />
+            </View>
+          ) : null}
+        </View>
+        <Text style={styles.statusGridLabel}>{label}</Text>
+      </TouchableOpacity>
+    );
+  };
+
+  const handleStatusSelect = (nextStatus: TicketStatus) =>
+    runStatusAction(nextStatus, async () => {
+      if (!statusMenuTicket) return;
+      await updateTicketStatus(statusMenuTicket.id, nextStatus);
+    });
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
@@ -361,23 +450,6 @@ export default function TicketsScreen() {
     return true; // 'all' shows all tickets
   });
 
-  const statusPopoverPosition = React.useMemo(() => {
-    if (!statusAnchor) return null;
-    const left = TICKET_STATUS_POPOVER.left * scaleX;
-    const popoverW = TICKET_STATUS_POPOVER.width * scaleX;
-    const popoverH = dueTimeEnabled ? STATUS_POPOVER_HEIGHT_EXPANDED : STATUS_POPOVER_HEIGHT_COLLAPSED;
-
-    const desiredTop = statusAnchor.y + statusAnchor.height + 8 * scaleX;
-    const top = Math.max(left, Math.min(windowHeight - popoverH - left, desiredTop));
-
-    const notchSize = STATUS_POPOVER_NOTCH_SIZE;
-    const anchorCenterX = statusAnchor.x + statusAnchor.width / 2;
-    const notchCenterX = anchorCenterX - left;
-    const notchLeft = Math.max(14 * scaleX, Math.min(popoverW - 14 * scaleX - notchSize, notchCenterX - notchSize / 2));
-
-    return { left, top, notchLeft, width: popoverW };
-  }, [statusAnchor, windowWidth, windowHeight, dueTimeEnabled]);
-
   return (
     <View style={styles.container}>
       {(loading || refreshing) && <LoadingOverlay fullScreen message={loading ? 'Loading tickets…' : 'Refreshing…'} />}
@@ -415,110 +487,78 @@ export default function TicketsScreen() {
       </View>
 
       {/* Status dropdown */}
-      <Modal
+      {/*
+        The same popover the room status opens in (Figma 2365:49), not a second
+        one. It already owns the modal, the blur that starts below the header,
+        tap-outside-to-close, the tail pointing back at the tapped control, the
+        slide-in, and the flip-above-when-there-is-no-room decision — all of
+        which this screen had re-implemented by hand against a fixed 8pt offset.
+        Only the width differs, and the frame gives it: 396 at x=21.
+      */}
+      <StatusPopover
         visible={!!statusMenuTicket}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStatusMenuTicket(null)}
+        onClose={() => setStatusMenuTicket(null)}
+        buttonPosition={statusAnchor}
+        headerHeight={TICKETS_HEADER_HEIGHT + topShift / scaleX}
+        backdrop="clear"
+        /* 3129-1500 puts the notch tip 4 below the pill, plus the 13.5 tail. */
+        spacing={17.5}
+        width={TICKET_STATUS_POPOVER.width}
+        left={TICKET_STATUS_POPOVER.left}
+        contentHeight={dueTimeEnabled ? STATUS_POPOVER_HEIGHT_EXPANDED : STATUS_POPOVER_HEIGHT_COLLAPSED}
       >
-        <View style={styles.statusModalOverlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => {
-              if (!statusUpdating) setStatusMenuTicket(null);
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss status menu"
-          />
-          <View
-            style={[
-              styles.statusPopover,
-              statusPopoverPosition
-                ? {
-                    position: 'absolute',
-                    left: statusPopoverPosition.left,
-                    top: statusPopoverPosition.top,
-                    width: statusPopoverPosition.width,
-                  }
-                : null,
-            ]}
-          >
-            <View
-              style={[
-                styles.statusPopoverNotch,
-                statusPopoverPosition ? { left: statusPopoverPosition.notchLeft } : null,
-              ]}
-            />
-
+        {() => (
+          <>
             <Text style={styles.statusSectionTitle}>Change Status</Text>
 
             <View style={styles.statusGrid}>
-              <TouchableOpacity
-                style={styles.statusGridItem}
-                activeOpacity={0.8}
-                disabled={statusUpdating}
-                onPress={() => {
-                  if (!statusMenuTicket || statusUpdating) return;
-                  const newPriority = statusMenuTicket.priority === 'urgent' ? 'notUrgent' : 'urgent';
-                  setStatusUpdating(true);
-                  updateTicketPriority(statusMenuTicket.id, newPriority).then(() => {
-                    setStatusMenuTicket(null);
-                    loadTickets(selectedTab);
-                  }).catch((e) => {
-                    console.warn('[TicketsScreen] Failed to update priority', e);
-                  }).finally(() => {
-                    setStatusUpdating(false);
-                  });
-                }}
-              >
+              {renderStatusOption(
+                'priority',
+                'Priority',
                 <View style={[styles.statusCircle, styles.statusCirclePriority]}>
                   {/* Red on the pale disc, matching TicketStatusCircle.priority. */}
                   <Icon name="action-priority" size={26 * scaleX} color="#f92424" />
-                </View>
-                <Text style={styles.statusGridLabel}>Priority</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.statusGridItem}
-                activeOpacity={0.8}
-                disabled={statusUpdating}
-                onPress={() => handleStatusSelect('unsolved')}
-              >
+                </View>,
+                () =>
+                  runStatusAction('priority', async () => {
+                    if (!statusMenuTicket) return;
+                    const next = statusMenuTicket.priority === 'urgent' ? 'notUrgent' : 'urgent';
+                    await updateTicketPriority(statusMenuTicket.id, next);
+                  })
+              )}
+              {renderStatusOption(
+                'unsolved',
+                'Unsolved',
                 <View style={[styles.statusCircle, styles.statusCircleUnsolved]}>
                   <Icon name="action-thumbs-down-solid" size={24 * scaleX} color="#ffffff" />
-                </View>
-                <Text style={styles.statusGridLabel}>Unsolved</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.statusGridItem}
-                activeOpacity={0.8}
-                disabled={statusUpdating}
-                onPress={() => handleStatusSelect('done')}
-              >
+                </View>,
+                () => handleStatusSelect('unsolved')
+              )}
+              {renderStatusOption(
+                'done',
+                'Solved',
                 <View style={[styles.statusCircle, styles.statusCircleSolved]}>
                   <Icon name="action-thumbs-up-solid" size={24 * scaleX} color="#ffffff" />
-                </View>
-                <Text style={styles.statusGridLabel}>Solved</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.statusGridItem}
-                activeOpacity={0.8}
-                disabled={statusUpdating}
-                onPress={() => handleStatusSelect('ofo')}
-              >
+                </View>,
+                () => handleStatusSelect('done')
+              )}
+              {renderStatusOption(
+                'ofo',
+                'OFO',
                 <View style={styles.statusCircleOfoOuter}>
                   <View style={styles.statusCircleOfoInner} />
-                </View>
-                <Text style={styles.statusGridLabel}>OFO</Text>
-              </TouchableOpacity>
+                </View>,
+                () => handleStatusSelect('ofo')
+              )}
             </View>
 
             <View style={styles.statusDivider} />
 
             <View style={styles.dueTimeRow}>
               <Text style={styles.statusSectionTitle}>Due time</Text>
+              {pendingAction === 'dueTime' ? (
+                <ActivityIndicator size="small" color="#5b769e" style={styles.dueTimeSpinner} />
+              ) : null}
               <Switch
                 value={dueTimeEnabled}
                 onValueChange={handleDueTimeToggle}
@@ -593,9 +633,9 @@ export default function TicketsScreen() {
                 </View>
               </View>
             )}
-          </View>
-        </View>
-      </Modal>
+          </>
+        )}
+      </StatusPopover>
 
       <TicketStaffSelectorModal
         visible={!!assigneeModalTicket}
@@ -626,6 +666,7 @@ export default function TicketsScreen() {
           activeTab={selectedTab}
           onTabPress={handleTabChange}
           ruleColor="#5a759d"
+          ruleGap={13}
           labelColor="#5a759d"
           renderLabel={(tab) => TICKET_TAB_LABELS[tab]}
         />
@@ -662,38 +703,6 @@ const styles = StyleSheet.create({
     paddingBottom: TICKETS_SPACING.contentPaddingBottom * scaleX,
     minHeight: '100%',
   },
-  statusModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  statusPopover: {
-    zIndex: 1,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e3e3e3',
-    borderRadius: 10 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    paddingTop: 16 * scaleX,
-    paddingBottom: 14 * scaleX,
-    shadowColor: '#6483B0',
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  statusPopoverNotch: {
-    position: 'absolute',
-    top: -6 * scaleX,
-    width: STATUS_POPOVER_NOTCH_SIZE,
-    height: STATUS_POPOVER_NOTCH_SIZE,
-    backgroundColor: '#ffffff',
-    borderLeftWidth: 1,
-    borderTopWidth: 1,
-    borderColor: '#e3e3e3',
-    transform: [{ rotate: '45deg' }],
-  },
   statusSectionTitle: {
     fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
@@ -709,6 +718,22 @@ const styles = StyleSheet.create({
   statusGridItem: {
     width: 64 * scaleX,
     alignItems: 'center',
+  },
+  /** The three options you did not tap, while one is in flight. */
+  statusGridItemDimmed: {
+    opacity: 0.4,
+  },
+  /** Sits over the tapped circle; the scrim keeps the spinner legible on any tone. */
+  statusCircleBusy: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 22 * scaleX,
+    backgroundColor: 'rgba(0,0,0,0.35)',
   },
   statusCircle: {
     width: 44 * scaleX,
@@ -761,6 +786,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  dueTimeSpinner: {
+    marginRight: 10 * scaleX,
   },
   dueTimeSwitch: {
     transform: [{ scaleX: 0.88 }, { scaleY: 0.88 }],

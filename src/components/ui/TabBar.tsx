@@ -12,6 +12,15 @@ export type TabBarProps<T extends string> = {
   ruleWidth?: number;
   ruleHeight?: number;
   ruleColor?: string;
+  /**
+   * Gap between the labels and the rule, in design px.
+   *
+   * Defaults to 0, which is how Room Detail draws it — the rule sits directly
+   * under the label. Tickets (Figma 667-3068) separates them: the label box
+   * ends at y=176 and `Rectangle 73` starts at y=189, so the rule reads as an
+   * indicator below the row rather than an underline of the word.
+   */
+  ruleGap?: number;
   labelColor?: string;
   fontSize?: number;
   /**
@@ -49,6 +58,7 @@ export function TabBar<T extends string>({
   ruleWidth = 92,
   ruleHeight = 4,
   ruleColor = '#334866',
+  ruleGap = 0,
   labelColor = '#5a759d',
   fontSize = 16,
   renderLabel,
@@ -93,6 +103,8 @@ export function TabBar<T extends string>({
           </Pressable>
         ))}
       </View>
+
+      {ruleGap > 0 ? <View style={{ height: ruleGap * scaleX }} /> : null}
 
       <View style={{ height: ruleHeight * scaleX }}>
         <View

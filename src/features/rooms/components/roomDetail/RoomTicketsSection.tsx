@@ -6,7 +6,7 @@ import { colors, typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 import TicketCard from '@features/tickets/components/TicketCard';
 import TicketForm from '@features/tickets/components/TicketForm';
-import { getLatestTicketForRoom } from '@features/tickets/services/tickets';
+import { getOpenTicketsForRoom } from '@features/tickets/services/tickets';
 import type { TicketData } from '@features/tickets/types/tickets.types';
 
 interface RoomTicketsSectionProps {
@@ -23,29 +23,33 @@ export default function RoomTicketsSection({
   departmentName,
   roomId,
 }: RoomTicketsSectionProps) {
-  const [latestTicket, setLatestTicket] = React.useState<TicketData | null>(null);
-  const [loadingLatest, setLoadingLatest] = React.useState(false);
+  const [openTickets, setOpenTickets] = React.useState<TicketData[]>([]);
+  const [loadingTickets, setLoadingTickets] = React.useState(false);
 
-  const loadLatestTicket = React.useCallback(async () => {
+  const loadOpenTickets = React.useCallback(async () => {
     if (!roomId) {
-      setLatestTicket(null);
+      setOpenTickets([]);
       return;
     }
-    setLoadingLatest(true);
+    setLoadingTickets(true);
     try {
-      const row = await getLatestTicketForRoom(roomId);
-      setLatestTicket(row);
+      setOpenTickets(await getOpenTicketsForRoom(roomId));
     } finally {
-      setLoadingLatest(false);
+      setLoadingTickets(false);
     }
   }, [roomId]);
 
   React.useEffect(() => {
-    loadLatestTicket();
-  }, [loadLatestTicket]);
+    loadOpenTickets();
+  }, [loadOpenTickets]);
 
+  /*
+   * Refetch rather than prepend the submitted ticket locally: `createTicket`
+   * returns `void`, so the caller never learns the new row's id, and the server
+   * is the only thing that knows its created_at ordering.
+   */
   const handleSubmitSuccess = () => {
-    loadLatestTicket();
+    loadOpenTickets();
   };
 
   return (
@@ -63,16 +67,21 @@ export default function RoomTicketsSection({
         nestedScrollEnabled
       >
         <View style={styles.currentTicketSection}>
-          <Text style={styles.currentTicketTitle}>Current Ticket</Text>
-          {loadingLatest ? (
+          <Text style={styles.currentTicketTitle}>
+            {openTickets.length > 1 ? 'Current Tickets' : 'Current Ticket'}
+          </Text>
+          {loadingTickets ? (
             <View style={styles.currentTicketEmpty}>
               <ActivityIndicator size="small" color={colors.primary.main} />
             </View>
-          ) : latestTicket ? (
-            <TicketCard ticket={latestTicket} />
+          ) : openTickets.length > 0 ? (
+            // Newest first — `getOpenTicketsForRoom` orders by created_at desc.
+            openTickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} />)
           ) : (
             <View style={styles.currentTicketEmpty}>
-              <Text style={styles.currentTicketEmptyText}>No ticket has been created for this room yet.</Text>
+              <Text style={styles.currentTicketEmptyText}>
+                No open ticket for this room.
+              </Text>
             </View>
           )}
         </View>

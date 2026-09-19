@@ -328,8 +328,21 @@ export async function getTicketsData(): Promise<TicketsScreenData> {
   };
 }
 
-export async function getLatestTicketForRoom(roomId: string): Promise<TicketData | null> {
-  if (!isSupabaseConfigured || !roomId) return null;
+/**
+ * The room's unresolved tickets, newest first.
+ *
+ * "Unresolved" is everything `mapStatus` does not fold into `'done'`, so an
+ * Out-of-Order ticket counts: it is an open problem, not a closed one. The
+ * filter is on the raw column rather than the mapped status because the
+ * mapping happens client-side — `done`, `closed` and `resolved` all mean
+ * resolved, and only `done` is currently written by this app.
+ *
+ * Replaced `getLatestTicketForRoom`, which returned a single row of *any*
+ * status: a room whose last action was closing a ticket showed that closed
+ * ticket as its "current" one, and a room with three open tickets showed one.
+ */
+export async function getOpenTicketsForRoom(roomId: string): Promise<TicketData[]> {
+  if (!isSupabaseConfigured || !roomId) return [];
 
   const { data, error } = await supabase
     .from('tickets')
@@ -353,13 +366,17 @@ export async function getLatestTicketForRoom(roomId: string): Promise<TicketData
       ].join(', ')
     )
     .eq('room_id', roomId)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+    .not('status', 'in', '("done","closed","resolved")')
+    .order('created_at', { ascending: false });
 
-  if (error || !data) return null;
-  // For the single-room call, we can skip guest hydration for now.
-  return mapRowToTicketData(data as unknown as TicketsRow, new Map(), new Map(), Date.now(), new Set());
+  if (error || !data) return [];
+
+  const now = Date.now();
+  // Guest hydration is skipped here, as it was for the single-room call: the
+  // card in this slot shows the ticket, not the guest.
+  return (data as unknown as TicketsRow[]).map((row) =>
+    mapRowToTicketData(row, new Map(), new Map(), now, new Set())
+  );
 }
 
 export type CreateTicketInput = {

@@ -68,9 +68,20 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
       <View style={styles.topRow}>
         <View style={styles.topRowLeft}>
           <View style={styles.titleRow}>
+            {/*
+              Shrink to fit rather than ellipsize. Figma 667-3068 sets the title
+              at Helvetica Bold 27 and its two mock titles ("Deliver Laundry",
+              "Tv Broken") fit at that size, but real ones do not — "Stain
+              carpet living room" rendered as "Stain carpet li...". The frame
+              shows a whole title, so the size gives way before the words do.
+              `minimumFontScale` floors it at 27 * 0.55 ~ 15 so a very long
+              title still degrades to an ellipsis instead of becoming unreadable.
+            */}
             <Text
               style={[styles.title, isDone ? styles.titleDone : isOfo ? styles.titleOfo : styles.titleOpen]}
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.55}
             >
               {ticket.title}
             </Text>
@@ -117,13 +128,22 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           collapsable={false}
           style={[styles.statusPill, isDone ? styles.statusPillDone : isOfo ? styles.statusPillOfo : styles.statusPillOpen]}
         >
+          {/*
+            The glyphs are *children* of the touchable, not siblings painted over
+            it. This was a `StyleSheet.absoluteFill` Touchable rendered before
+            them, so the thumb and the chevron — which cover most of the pill —
+            sat on top of the tap target. They are not touchable themselves, so
+            a tap on either fell through to the card's own `onPress` and logged
+            "Ticket pressed" instead of opening the status popover. Only the
+            bare slivers between the glyphs actually worked.
+          */}
           <TouchableOpacity
-            style={StyleSheet.absoluteFill}
+            style={styles.statusPillPress}
             onPress={handleStatusPress}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Change ticket status"
-          />
+          >
           {isOfo ? (
             <>
               <View style={styles.ofoPillBadge}>
@@ -155,6 +175,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
               </View>
             </>
           )}
+          </TouchableOpacity>
         </View>
       </View>
 
@@ -249,9 +270,15 @@ const styles = StyleSheet.create({
   cardNoImages: {
     paddingBottom: 10 * scaleX,
   },
+  /*
+   * Node 3129:1096 — `<path d="M0 0.5H409" stroke="#E4E4E4"/>`, i.e. the card's
+   * **full** 409 width, edge to edge. It was sitting inside the 22pt content
+   * padding and measured 362, so the negative margin cancels that padding.
+   */
   divider: {
     height: 1,
-    backgroundColor: '#e3e3e3',
+    backgroundColor: '#e4e4e4',
+    marginHorizontal: -L.paddingHorizontal * scaleX,
     marginTop: 16 * scaleX,
     marginBottom: 12 * scaleX,
   },
@@ -370,9 +397,15 @@ const styles = StyleSheet.create({
     width: 67 * scaleX,
     height: 44 * scaleX,
     borderRadius: 75 * scaleX,
+    overflow: 'hidden',
+  },
+  /** Fills the pill so every glyph inside it is part of the tap target. */
+  statusPillPress: {
+    flex: 1,
+    alignSelf: 'stretch',
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    flexDirection: 'row',
     gap: 6 * scaleX,
     paddingHorizontal: 12 * scaleX,
   },

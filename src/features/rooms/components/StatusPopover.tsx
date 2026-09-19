@@ -69,6 +69,36 @@ export type StatusPopoverProps = {
   blurTop?: number | null;
   showTriangle?: boolean;
   /**
+   * Card width and left inset, in design px.
+   *
+   * Default to the room popover's 416 at x=11 (Figma 2365:49). The ticket
+   * popover is a narrower 396 at x=21 (Figma 3129-1500, node 3129:1647), which
+   * `TICKET_STATUS_POPOVER` already records — so the two flows share this shell
+   * without one of them being drawn at the other's width.
+   */
+  width?: number;
+  left?: number;
+  /**
+   * What sits behind the card.
+   *
+   * `'blur'` is the room flow (Figma 406-1783), which deliberately keeps the
+   * tapped card sharp and blurs from its bottom edge down. `'clear'` is the
+   * ticket flow (Figma 3129-1500), which draws the popover over completely
+   * crisp content — no blur and no scrim — so the backdrop is only a
+   * tap-to-dismiss target.
+   */
+  backdrop?: 'blur' | 'clear';
+  /**
+   * Distance from the anchor's bottom to the card's top, in design px.
+   *
+   * Defaults to the room flow's widened `STATUS_MODAL_SPACING` (36). The ticket
+   * frame keeps the tail right under the pill: 3129-1500 puts the pill's bottom
+   * at y=274, the notch's tip at y=278 and the panel's top at y=290.47 — a 4px
+   * gap, so the tail reads as attached to the control it came from. At 36 the
+   * tail floats ~24px clear of the pill and stops looking like it points at it.
+   */
+  spacing?: number;
+  /**
    * Card height in design px. Only drives placement — whether the card opens
    * below the button or flips above it — so an estimate is fine.
    */
@@ -110,6 +140,10 @@ export default function StatusPopover({
   headerHeight = 232,
   blurTop,
   showTriangle = true,
+  width = STATUS_MODAL_WIDTH,
+  left = STATUS_MODAL_LEFT,
+  backdrop = 'blur',
+  spacing: spacingProp = STATUS_MODAL_SPACING,
   contentHeight,
   clampHeight = false,
   children,
@@ -185,7 +219,7 @@ export default function StatusPopover({
   let placementFloor = minTop;
 
   if (showTriangle && buttonPosition) {
-    const spacing = STATUS_MODAL_SPACING * scaleX;
+    const spacing = spacingProp * scaleX;
     const buttonBottom = buttonPosition.y + buttonPosition.height;
 
     // Prefer opening below; if it would overflow, flip above.
@@ -205,7 +239,7 @@ export default function StatusPopover({
       trianglePlacement = 'top';
     }
 
-    modalLeft = STATUS_MODAL_LEFT * scaleX;
+    modalLeft = left * scaleX;
 
     // Tail centred on the button. One real-px value now — it used to be divided
     // by scaleX here and multiplied again in the style, a round trip that was
@@ -215,11 +249,11 @@ export default function StatusPopover({
     // Keep it on the card: the card is horizontally fixed, so a pill near
     // either screen edge would otherwise push the tail off the corner radius.
     const tailInset = 12 * scaleX;
-    const maxTailLeft = (STATUS_MODAL_WIDTH - TAIL_WIDTH) * scaleX - tailInset;
+    const maxTailLeft = (width - TAIL_WIDTH) * scaleX - tailInset;
     triangleLeft = Math.min(Math.max(tailInset, rawTailLeft), Math.max(tailInset, maxTailLeft));
   } else {
     // Flush against the bottom of the header.
-    modalLeft = STATUS_MODAL_LEFT * scaleX;
+    modalLeft = left * scaleX;
     modalTopPosition = minTop;
     triangleLeft = 0;
   }
@@ -251,14 +285,24 @@ export default function StatusPopover({
           accessibilityLabel="Close status options"
         />
 
-        {/* Lighter than the app's usual wash — the card is a menu over content
-            the user is still reading, not a lightbox. */}
-        <BlurBackdrop
-          top={blurRegionTop}
-          intensity={20}
-          onPress={() => dismiss()}
-          accessibilityLabel="Close status options"
-        />
+        {backdrop === 'blur' ? (
+          /* Lighter than the app's usual wash — the card is a menu over content
+             the user is still reading, not a lightbox. */
+          <BlurBackdrop
+            top={blurRegionTop}
+            intensity={20}
+            onPress={() => dismiss()}
+            accessibilityLabel="Close status options"
+          />
+        ) : (
+          /* Nothing drawn at all — just somewhere to tap. */
+          <Pressable
+            style={[styles.sharpRegion, { top: blurRegionTop, bottom: 0, height: undefined }]}
+            onPress={() => dismiss()}
+            accessibilityRole="button"
+            accessibilityLabel="Close status options"
+          />
+        )}
 
         {/* A sibling of the blur, not a child: see `blurRegionTop` above. */}
         <Animated.View
@@ -295,6 +339,7 @@ export default function StatusPopover({
           <Pressable
             style={[
               styles.modalContainer,
+              { width: width * scaleX },
               clampHeight && { maxHeight: maxCardHeight },
               !showTriangle && styles.modalContainerNoGap,
             ]}
@@ -320,7 +365,6 @@ const styles = StyleSheet.create({
   },
   modalWrapper: {
     position: 'absolute',
-    width: STATUS_MODAL_WIDTH * scaleX,
     zIndex: 1000,
     overflow: 'visible', // the tail sits outside the card
   },

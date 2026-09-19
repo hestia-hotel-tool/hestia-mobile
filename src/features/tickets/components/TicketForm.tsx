@@ -12,7 +12,6 @@ import {
   FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation, useRouter , NativeStackNavigationProp } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useToast } from '@/contexts/ToastContext';
@@ -116,7 +115,6 @@ export default function TicketForm({
   departmentName = 'Engineering',
   onSubmitSuccess,
 }: TicketFormProps) {
-  const router = useRouter();
   const toast = useToast();
 
   // Form state
@@ -296,11 +294,17 @@ export default function TicketForm({
       setAssignedStaff([]);
       setPriority('high');
       
-      // Call success callback
+      /*
+       * Stay on the room.
+       *
+       * This used to `router.replace('/(tabs)/(tickets)')`, which threw the
+       * reader out of Room Detail the instant they submitted — so the form
+       * reset above and the refetch below were both dead code, and the new
+       * ticket appeared on a screen they had not asked for. The host refreshes
+       * its own Current Ticket list instead, which is where the ticket they
+       * just wrote belongs.
+       */
       onSubmitSuccess?.();
-
-      // Redirect to All tickets tab
-      router.replace('/(tabs)/(tickets)');
     } catch (error) {
       console.warn('Failed to create ticket', error);
       toast.show('Failed to create ticket. Please try again.', { type: 'error' });
