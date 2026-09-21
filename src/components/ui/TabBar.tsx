@@ -4,12 +4,39 @@ import { Pressable, Text, View } from '@/tw';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
 
+/** What a label reported about itself at layout time, in device px. */
+type LabelBox = { x: number; width: number };
+
 export type TabBarProps<T extends string> = {
   tabs: readonly T[];
   activeTab: T;
   onTabPress: (tab: T) => void;
-  /** Rule width in design px. The design fixes it rather than matching the label. */
-  ruleWidth?: number;
+  /**
+   * Rule width in design px, or `'label'` to take the active label's measured
+   * width plus `ruleOverhang`.
+   *
+   * A number is right where the design fixes the rule independently of the word
+   * (Room Detail, Tickets). `'label'` is right where it tracks the word: Lost &
+   * Found (3128:32) puts a 68-wide rule under a 60-wide "Created", and the next
+   * label starts 18px later — a fixed 68 under the 47-wide "Stored" would run
+   * to x=186, which is exactly where "Returned" begins. Label-relative is the
+   * only reading that survives all four tabs.
+   */
+  ruleWidth?: number | 'label';
+  /**
+   * Extra design px added to the measured label width when `ruleWidth` is
+   * `'label'`. Ignored otherwise.
+   */
+  ruleOverhang?: number;
+  /**
+   * Whether the rule centres on the active label or starts at its left edge.
+   *
+   * Defaults to `'center'`, which is how Room Detail and Tickets draw it. Lost &
+   * Found aligns left: node 3128:43 starts at x=32, the same x as the "Created"
+   * label, and extends 8 past its right edge — not centred, which would put it
+   * at x=28.
+   */
+  ruleAlign?: 'left' | 'center';
   ruleHeight?: number;
   ruleColor?: string;
   /**
@@ -30,6 +57,15 @@ export type TabBarProps<T extends string> = {
    * display strings and map back, which throws away the generic's whole point.
    */
   renderLabel?: (tab: T) => string;
+  /**
+   * A non-tab control at the end of the row — Lost & Found's search button
+   * (node 3128:34).
+   *
+   * It is a child of the same `justify-between` row rather than a sibling of the
+   * bar, because it takes part in the distribution: the four labels plus this
+   * glyph span x=32..393, and it is what makes the spacing come out even.
+   */
+  trailing?: React.ReactNode;
   className?: string;
 };
 
@@ -46,37 +82,73 @@ export type TabBarProps<T extends string> = {
  * on the guess. Those numbers only describe Helvetica at one size on a 440pt
  * frame: change the font, the text, the user's type size or the device width and
  * the rule sits off-centre with nothing to say it has. Here each label reports
- * its own box and the rule centres on what it reported.
+ * its own box and the rule is derived from what it reported.
  *
  * The rule is hidden until the first layout lands. Otherwise it paints one frame
  * at `left: 0` — a visible flick to the screen's edge on mount.
+ *
+ * **On the spacing of the row.** Lost & Found's frame places its labels at
+ * x=32/118/186/272 with gaps of 26/21/19, which reads as hand-positioning. It
+ * is not a spec: labels plus the trailing glyph total 268 across a 361-wide
+ * span, leaving 93 over four gaps — 23.25 each, within 3.75px of every gap the
+ * frame draws. That is smaller than the difference Helvetica-vs-Roboto
+ * introduces on Android for free, so `justify-between` reproduces the frame and
+ * there is deliberately no prop for per-gap widths. Encoding 26/21/19 would
+ * make drift into an API and would not survive a font change.
  */
 export function TabBar<T extends string>({
   tabs,
   activeTab,
   onTabPress,
   ruleWidth = 92,
+  ruleOverhang = 0,
+  ruleAlign = 'center',
   ruleHeight = 4,
   ruleColor = '#334866',
   ruleGap = 0,
   labelColor = '#5a759d',
   fontSize = 16,
   renderLabel,
+  trailing,
   className,
 }: TabBarProps<T>) {
-  const [centres, setCentres] = useState<Partial<Record<T, number>>>({});
+  /*
+   * The whole box, not just the centre.
+   *
+   * This held `centres` alone, which is all a centred rule of fixed width
+   * needs. A left-aligned or label-width rule needs the edge and the extent
+   * too, and deriving those from a centre is impossible. The centre is now
+   * derived from the box instead — the cheap direction.
+   */
+  const [boxes, setBoxes] = useState<Partial<Record<T, LabelBox>>>({});
 
   const measure = useCallback(
     (tab: T) => (event: LayoutChangeEvent) => {
       const { x, width } = event.nativeEvent.layout;
-      const centre = x + width / 2;
-      setCentres((prev) => (prev[tab] === centre ? prev : { ...prev, [tab]: centre }));
+      setBoxes((prev) => {
+        const seen = prev[tab];
+        if (seen && seen.x === x && seen.width === width) return prev;
+        return { ...prev, [tab]: { x, width } };
+      });
     },
     []
   );
 
-  const activeCentre = centres[activeTab];
-  const scaledRuleWidth = ruleWidth * scaleX;
+  const activeBox = boxes[activeTab];
+
+  // Measured widths are already device px; `ruleWidth` and `ruleOverhang` are
+  // design px and have to be scaled.
+  const resolvedRuleWidth =
+    ruleWidth === 'label'
+      ? (activeBox?.width ?? 0) + ruleOverhang * scaleX
+      : ruleWidth * scaleX;
+
+  const ruleLeft =
+    activeBox == null
+      ? 0
+      : ruleAlign === 'left'
+        ? activeBox.x
+        : activeBox.x + activeBox.width / 2 - resolvedRuleWidth / 2;
 
   return (
     <View className={className}>
@@ -102,6 +174,7 @@ export function TabBar<T extends string>({
             </Text>
           </Pressable>
         ))}
+        {trailing}
       </View>
 
       {ruleGap > 0 ? <View style={{ height: ruleGap * scaleX }} /> : null}
@@ -110,11 +183,11 @@ export function TabBar<T extends string>({
         <View
           style={{
             position: 'absolute',
-            left: activeCentre == null ? 0 : activeCentre - scaledRuleWidth / 2,
-            width: scaledRuleWidth,
+            left: ruleLeft,
+            width: resolvedRuleWidth,
             height: ruleHeight * scaleX,
             backgroundColor: ruleColor,
-            opacity: activeCentre == null ? 0 : 1,
+            opacity: activeBox == null ? 0 : 1,
           }}
         />
       </View>

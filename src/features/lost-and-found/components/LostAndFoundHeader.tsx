@@ -1,145 +1,130 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
+import { ActivityIndicator, type LayoutChangeEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Pressable, Text, View } from '@/tw';
+import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
-import {
-  LOST_AND_FOUND_HEADER,
-  LOST_AND_FOUND_COLORS,
-  LOST_AND_FOUND_TYPOGRAPHY,
-  scaleX,
-} from '../constants/lostAndFoundStyles';
+import { scaleX } from '@/utils/responsive';
+import { LOST_AND_FOUND_SCREEN_LAYOUT as S } from '../constants/lostAndFoundScreenLayout';
 
-interface LostAndFoundHeaderProps {
+export type LostAndFoundHeaderProps = {
   onBackPress?: () => void;
   onRegisterPress?: () => void;
-  /** Non-blocking sync (e.g. refetch when returning to tab) — small spinner beside title */
+  /** Non-blocking refetch — a small spinner beside the title, not an overlay. */
   syncing?: boolean;
-}
+  /** Reports the band's measured height so the status popover can clear it. */
+  onHeightChange?: (height: number) => void;
+};
 
+/**
+ * The Lost & Found band — Figma **3128:32**, nodes 3128:119 / 3128:121 /
+ * 3128:120.
+ *
+ * **In the flow, not absolutely positioned.** This was three stacked absolute
+ * layers — a container, a background and a "topSection" — each adding
+ * `insets.top` to the frame's `top` values by hand. Two things were wrong with
+ * that: the frame's y=69 already includes the status bar, so adding a 59pt
+ * inset pushed the title to ~122pt; and every element below the header
+ * (`LOST_AND_FOUND_TABS.container.top`, `contentPaddingTop: 213`) had to repeat
+ * the same addition and stay in step by hand.
+ *
+ * Now the band pads by `insets.top + safeAreaGap` and everything below it is a
+ * sibling in a column, so the gaps the frame specifies are the gaps in the
+ * code. On an iPhone 16 Pro this reproduces the frame's 133 exactly; on a device
+ * with no inset it is 74 and the content simply sits higher.
+ */
 export default function LostAndFoundHeader({
   onBackPress,
   onRegisterPress,
   syncing = false,
+  onHeightChange,
 }: LostAndFoundHeaderProps) {
   const insets = useSafeAreaInsets();
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    onHeightChange?.(event.nativeEvent.layout.height);
+  };
+
   return (
-    <View style={[styles.container, { height: LOST_AND_FOUND_HEADER.height * scaleX + insets.top }]}>
-      {/* Blue background */}
-      <View style={[styles.headerBackground, { height: LOST_AND_FOUND_HEADER.background.height * scaleX + insets.top }]} />
-
-      {/* Top section with back button, title, and register button */}
-      <View style={styles.topSection}>
-        {/* Back arrow */}
-        <TouchableOpacity
-          style={[styles.backButton, { top: insets.top + LOST_AND_FOUND_HEADER.backButton.top * scaleX }]}
-          onPress={onBackPress || (() => {})}
-          activeOpacity={0.7}
+    <View
+      className="bg-surface-header"
+      onLayout={onHeightChange ? handleLayout : undefined}
+      style={{
+        paddingTop: insets.top + S.safeAreaGap * scaleX,
+        paddingBottom: S.header.bottomGap * scaleX,
+        paddingLeft: 27 * scaleX,
+        paddingRight: S.header.registerRight * scaleX,
+      }}
+    >
+      <View className="flex-row items-center">
+        <Pressable
+          onPress={onBackPress}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          <Image
-            source={require('../../../../assets/icons/back-arrow.png')}
-            style={styles.backArrow}
-            resizeMode="contain"
-            tintColor="#607AA1"
+          {/* Node 3128:123 — 14x28; `action-chevron`'s aspect is exactly 0.5. */}
+          <Icon name="action-chevron" size={S.header.backChevron * scaleX} color="#607AA1" />
+        </Pressable>
+
+        {/* Chevron ends at x=41, title starts at x=69. */}
+        <Text
+          className="font-hestia-primary font-bold"
+          style={{
+            marginLeft: 28 * scaleX,
+            fontSize: S.header.titleFontSize * scaleX,
+            fontFamily: typography.fontFamily.primary,
+            color: '#607aa1',
+          }}
+        >
+          Lost &amp; Found
+        </Text>
+
+        {syncing ? (
+          <ActivityIndicator
+            size="small"
+            color="#607aa1"
+            style={{ marginLeft: 10 * scaleX }}
           />
-        </TouchableOpacity>
+        ) : null}
 
-        {/* Title */}
-        <View style={[styles.titleRow, { top: insets.top + LOST_AND_FOUND_HEADER.title.top * scaleX }]}>
-          <Text style={styles.title}>Lost & Found</Text>
-          {syncing ? (
-            <ActivityIndicator
-              size="small"
-              color={LOST_AND_FOUND_TYPOGRAPHY.headerTitle.color}
-              style={styles.titleSpinner}
-            />
-          ) : null}
-        </View>
+        <View className="flex-1" />
 
-        {/* Register Button */}
-        <TouchableOpacity
-          style={[styles.registerButton, { top: insets.top + LOST_AND_FOUND_HEADER.registerButton.top * scaleX }]}
-          onPress={onRegisterPress || (() => {})}
-          activeOpacity={0.7}
+        {/*
+          Node 3128:120 is a single 95x28 text node — the "+" is a character in
+          it, not a glyph, so this stays one Text with two weights rather than an
+          icon beside a label.
+        */}
+        <Pressable
+          onPress={onRegisterPress}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Register a lost and found item"
         >
-          <Text style={styles.registerButtonText}>
-            <Text style={styles.plusSymbol}>+ </Text>
-            <Text style={styles.registerText}>Register</Text>
+          <Text style={{ color: '#ff46a3', fontFamily: typography.fontFamily.primary }}>
+            <Text
+              style={{
+                fontSize: S.header.registerPlusFontSize * scaleX,
+                fontWeight: '700',
+                fontFamily: typography.fontFamily.primary,
+                color: '#ff46a3',
+              }}
+            >
+              +{' '}
+            </Text>
+            <Text
+              style={{
+                fontSize: S.header.registerTextFontSize * scaleX,
+                fontWeight: '300',
+                fontFamily: typography.fontFamily.primary,
+                color: '#ff46a3',
+              }}
+            >
+              Register
+            </Text>
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-  },
-  headerBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: LOST_AND_FOUND_COLORS.headerBackground,
-  },
-  topSection: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: LOST_AND_FOUND_HEADER.background.height * scaleX,
-  },
-  backButton: {
-    position: 'absolute',
-    left: LOST_AND_FOUND_HEADER.backButton.left * scaleX,
-    width: LOST_AND_FOUND_HEADER.backButton.width * scaleX,
-    height: LOST_AND_FOUND_HEADER.backButton.height * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backArrow: {
-    width: LOST_AND_FOUND_HEADER.backButton.width * scaleX,
-    height: LOST_AND_FOUND_HEADER.backButton.height * scaleX,
-  },
-  titleRow: {
-    position: 'absolute',
-    left: LOST_AND_FOUND_HEADER.title.left * scaleX,
-    top: LOST_AND_FOUND_HEADER.title.top * scaleX,
-    flexDirection: 'row',
-    alignItems: 'center',
-    maxWidth: '62%',
-  },
-  title: {
-    fontSize: LOST_AND_FOUND_TYPOGRAPHY.headerTitle.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: LOST_AND_FOUND_TYPOGRAPHY.headerTitle.fontWeight as any,
-    color: LOST_AND_FOUND_TYPOGRAPHY.headerTitle.color,
-  },
-  titleSpinner: {
-    marginLeft: 8 * scaleX,
-  },
-  registerButton: {
-    position: 'absolute',
-    right: LOST_AND_FOUND_HEADER.registerButton.right * scaleX,
-    top: LOST_AND_FOUND_HEADER.registerButton.top * scaleX,
-  },
-  registerButtonText: {
-    fontSize: LOST_AND_FOUND_TYPOGRAPHY.registerButton.plusFontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: LOST_AND_FOUND_TYPOGRAPHY.registerButton.plusFontWeight as any,
-    color: LOST_AND_FOUND_TYPOGRAPHY.registerButton.color,
-  },
-  plusSymbol: {
-    fontSize: LOST_AND_FOUND_TYPOGRAPHY.registerButton.plusFontSize * scaleX,
-    fontWeight: LOST_AND_FOUND_TYPOGRAPHY.registerButton.plusFontWeight as any,
-  },
-  registerText: {
-    fontSize: LOST_AND_FOUND_TYPOGRAPHY.registerButton.textFontSize * scaleX,
-    fontWeight: LOST_AND_FOUND_TYPOGRAPHY.registerButton.textFontWeight as any,
-  },
-});
-

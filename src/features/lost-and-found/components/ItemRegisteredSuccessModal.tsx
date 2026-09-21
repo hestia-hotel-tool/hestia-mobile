@@ -4,11 +4,12 @@ import {
   Text,
   Modal,
   TouchableOpacity,
-  Image,
   StyleSheet,
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
+import LostFoundRegistered from '@assets/illustrations/lost-found-registered.svg';
+import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
 import { ITEM_REGISTERED_SUCCESS } from '../constants/lostAndFoundStyles';
 
@@ -62,19 +63,17 @@ export default function ItemRegisteredSuccessModal({
       alignItems: 'center',
       justifyContent: 'flex-start',
     },
+    // Size comes from the width/height props, so it stays out of the style and
+    // cannot disagree with them.
     checkmarkIcon: {
       position: 'absolute',
       top: 0,
       left: (ITEM_REGISTERED_SUCCESS.checkmarkIcon.left - ITEM_REGISTERED_SUCCESS.successIcon.left) * scaleX,
-      width: ITEM_REGISTERED_SUCCESS.checkmarkIcon.width * scaleX,
-      height: ITEM_REGISTERED_SUCCESS.checkmarkIcon.height * scaleX,
     },
     boxIcon: {
       position: 'absolute',
       top: (ITEM_REGISTERED_SUCCESS.successIcon.top - ITEM_REGISTERED_SUCCESS.checkmarkIcon.top) * scaleX,
       left: 0,
-      width: ITEM_REGISTERED_SUCCESS.successIcon.width * scaleX,
-      height: ITEM_REGISTERED_SUCCESS.successIcon.height * scaleX,
     },
     itemRegisteredText: {
       marginTop:
@@ -154,10 +153,7 @@ export default function ItemRegisteredSuccessModal({
       paddingHorizontal: 20 * scaleX,
     },
     printerIcon: {
-      width: 24 * scaleX,
-      height: 24 * scaleX,
       marginRight: 8 * scaleX,
-      tintColor: '#ffffff',
     },
     printButtonText: {
       fontSize: ITEM_REGISTERED_SUCCESS.printButtonText.fontSize * scaleX,
@@ -194,17 +190,36 @@ export default function ItemRegisteredSuccessModal({
         >
           {/* Success Icons */}
           <View style={styles.successIconsContainer}>
-            {/* Checkmark Icon */}
-            <Image
-              source={require('../../../../assets/icons/tick-green.png')}
+            {/*
+              Checkmark. `width` and `height` both passed, not `size`: this box
+              is absolutely positioned and the layout depends on it being
+              exactly 51.194x39.818. `action-check`'s aspect is 1.1798, so the
+              glyph letterboxes to 46.98 wide inside that box and centres —
+              which is precisely what `resizeMode="contain"` did with the PNG.
+            */}
+            <Icon
+              name="action-check"
+              width={ITEM_REGISTERED_SUCCESS.checkmarkIcon.width * scaleX}
+              height={ITEM_REGISTERED_SUCCESS.checkmarkIcon.height * scaleX}
+              color="#39D47F"
               style={styles.checkmarkIcon}
-              resizeMode="contain"
             />
-            {/* Box Icon */}
-            <Image
-              source={require('../../../../assets/icons/basket-green.png')}
+            {/*
+              The basket. An illustration, not a registry icon — at 151x165 it
+              is the "larger vector art for success screens" assets/README.md
+              reserves `illustrations/` for, and it is imported directly rather
+              than registered.
+
+              It cannot reuse `nav-lost-found`, which is provably the same mark:
+              that one is authored on a 37.4x41.3 viewBox at stroke-width 1, so
+              drawn at this height it paints 4px strokes against the design's 2.
+              "Differs only in colour, so reuse it" does not cover a doubled
+              line weight.
+            */}
+            <LostFoundRegistered
+              width={ITEM_REGISTERED_SUCCESS.successIcon.width * scaleX}
+              height={ITEM_REGISTERED_SUCCESS.successIcon.height * scaleX}
               style={styles.boxIcon}
-              resizeMode="contain"
             />
           </View>
 
@@ -230,10 +245,19 @@ export default function ItemRegisteredSuccessModal({
             onPress={handlePrint}
             activeOpacity={0.7}
           >
-            <Image
-              source={require('../../../../assets/icons/printer.png')}
-              style={[styles.printerIcon, { tintColor: '#ffffff' }]}
-              resizeMode="contain"
+            {/*
+              Not tinted white. `printer.png` was given `tintColor: '#ffffff'`,
+              which flattens every pixel — paper, tray and outline alike — into
+              one white silhouette on a `rgba(100,131,176,0.4)` pill. Figma
+              1102:3596 draws it as white paper inside `#5A759D` strokes.
+              `action-print` keeps those three white fills as real knockouts and
+              tints only its strokes, so the glyph reads as a printer again.
+            */}
+            <Icon
+              name="action-print"
+              size={24 * scaleX}
+              color="#5A759D"
+              style={styles.printerIcon}
             />
             <Text style={styles.printButtonText}>Print</Text>
           </TouchableOpacity>

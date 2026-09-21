@@ -18,6 +18,7 @@ import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
 import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
+import ActionCopy from '@assets/icons/actions/action-copy.svg';
 import ActionEyeOff from '@assets/icons/actions/action-eye-off.svg';
 import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
@@ -25,6 +26,7 @@ import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionPhone from '@assets/icons/actions/action-phone.svg';
+import ActionPrint from '@assets/icons/actions/action-print.svg';
 import ActionPriority from '@assets/icons/actions/action-priority.svg';
 import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
 import ActionRefuseService from '@assets/icons/actions/action-refuse-service.svg';
@@ -57,8 +59,10 @@ import GuestVacant from '@assets/icons/guest-status/guest-vacant.svg';
 // misc
 import AiAssistantMark from '@assets/icons/misc/ai-assistant-mark.svg';
 import AiTypingDots from '@assets/icons/misc/ai-typing-dots.svg';
+import AreaPublic from '@assets/icons/misc/area-public.svg';
 import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
 import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
+import LocationPin from '@assets/icons/misc/location-pin.svg';
 // nav
 import NavAi from '@assets/icons/nav/nav-ai.svg';
 import NavChat from '@assets/icons/nav/nav-chat.svg';
@@ -83,6 +87,7 @@ export const icons = {
   'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
+  'action-copy': ActionCopy,
   'action-eye-off': ActionEyeOff,
   'action-eye': ActionEye,
   'action-filter': ActionFilter,
@@ -90,6 +95,7 @@ export const icons = {
   'action-flag': ActionFlag,
   'action-mic': ActionMic,
   'action-phone': ActionPhone,
+  'action-print': ActionPrint,
   'action-priority': ActionPriority,
   'action-promised-time': ActionPromisedTime,
   'action-refuse-service': ActionRefuseService,
@@ -122,8 +128,10 @@ export const icons = {
   // misc
   'ai-assistant-mark': AiAssistantMark,
   'ai-typing-dots': AiTypingDots,
+  'area-public': AreaPublic,
   'checklist-curtains': ChecklistCurtains,
   'checklist-minibar': ChecklistMinibar,
+  'location-pin': LocationPin,
   // nav
   'nav-ai': NavAi,
   'nav-chat': NavChat,
@@ -156,6 +164,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-check': 1.1798,
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
+  'action-copy': 1,
   'action-eye-off': 1.2,
   'action-eye': 1.5,
   'action-filter': 2,
@@ -163,6 +172,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-flag': 1.1833,
   'action-mic': 0.7727,
   'action-phone': 1,
+  'action-print': 1,
   'action-priority': 1.1833,
   'action-promised-time': 0.7398,
   'action-refuse-service': 1,
@@ -192,8 +202,10 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'guest-vacant': 1,
   'ai-assistant-mark': 0.9778,
   'ai-typing-dots': 3.7753,
+  'area-public': 0.9615,
   'checklist-curtains': 1.931,
   'checklist-minibar': 0.9987,
+  'location-pin': 1,
   'nav-ai': 1,
   'nav-chat': 1.0003,
   'nav-home': 1.0744,
@@ -219,6 +231,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-check',
   'action-checkbox-checked',
   'action-chevron',
+  'action-copy',
   'action-eye-off',
   'action-eye',
   'action-filter',
@@ -226,6 +239,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-flag',
   'action-mic',
   'action-phone',
+  'action-print',
   'action-priority',
   'action-promised-time',
   'action-refuse-service',
@@ -250,8 +264,10 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'guest-turndown',
   'guest-vacant',
   'ai-typing-dots',
+  'area-public',
   'checklist-curtains',
   'checklist-minibar',
+  'location-pin',
   'nav-chat',
   'nav-staff',
   'nav-tickets',

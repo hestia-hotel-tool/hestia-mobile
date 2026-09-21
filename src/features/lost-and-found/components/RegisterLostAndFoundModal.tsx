@@ -16,13 +16,15 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText }
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
+import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
-import { isSupabaseConfigured } from '@/lib/supabase';
 import { fetchStaffFromSupabase } from '@features/staff/services/staff';
 import { authService } from '@features/auth/services/auth';
-import { listRoomsWithReservationGuests } from '@features/rooms/services/rooms';
-import { resolveGuestImageUrl } from '@/lib/guests';
+import { RoomNumberSelector } from '@features/rooms/components/roomPicker';
+import { useRoomPickerRooms } from '@features/rooms/hooks/useRoomPickerRooms';
+import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
+import { fetchPublicAreas } from '../services/lostAndFound';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
 import StaffSelectorModal from './StaffSelectorModal';
@@ -141,45 +143,57 @@ export default function RegisterLostAndFoundModal({
   const [currentStep, setCurrentStep] = useState<number>(1);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [showRoomDropdown, setShowRoomDropdown] = useState(false);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  
-  interface RoomSelection {
-    id?: string;
-    number: string;
-    guestName: string; // Used by Lost & Found cards
-    badgeCount: number; // Backward-compat (used by older UI)
-    // Create-ticket-like guest info (optional)
-    guest_count?: number;
-    vip_code?: string | null;
-    image_url?: string | null;
-    check_in?: string | null;
-    check_out?: string | null;
-  }
 
-  // Fallback to mock data when Supabase is not configured.
-  // Note: keep `number` + `guestName` because the parent Lost&Found screen reads those.
-  const fallbackRooms: RoomSelection[] = [
-    { number: '201', guestName: 'Mohamed B', badgeCount: 11, guest_count: 11, vip_code: '11' },
-    { number: '202', guestName: 'Sarah Johnson', badgeCount: 3, guest_count: 3, vip_code: '3' },
-    { number: '203', guestName: 'Ahmed Al-Mansouri', badgeCount: 7, guest_count: 7, vip_code: '7' },
-    { number: '204', guestName: 'Emma Williams', badgeCount: 2, guest_count: 2, vip_code: '2' },
-    { number: '205', guestName: 'John Smith', badgeCount: 5, guest_count: 5, vip_code: '5' },
-    { number: '301', guestName: 'Maria Garcia', badgeCount: 9, guest_count: 9, vip_code: '9' },
-    { number: '302', guestName: 'David Chen', badgeCount: 4, guest_count: 4, vip_code: '4' },
-    { number: '303', guestName: 'Fatima Ali', badgeCount: 6, guest_count: 6, vip_code: '6' },
-  ];
-
-  const [rooms, setRooms] = useState<RoomSelection[]>(fallbackRooms);
-  const [roomSearch, setRoomSearch] = useState('');
+  /*
+   * Rooms, and the picker that shows them, are shared with the ticket flow —
+   * `RoomNumberSelector`, node 1102:3287 here and 3005:494 there. This file
+   * used to carry its own `RoomSelection` shape, its own mapping of
+   * `listRoomsWithReservationGuests` and its own copy of the card markup.
+   *
+   * The list is fetched while the sheet is open and dropped when it closes: a
+   * reservation can change between two registrations, and the sheet should not
+   * hold a stale guest list in the background.
+   */
+  const { rooms, loading: roomsLoading } = useRoomPickerRooms(visible);
   const [selectedPublicArea, setSelectedPublicArea] = useState<string | null>(null);
 
-  const PUBLIC_AREAS = ['Brasserie', 'Gym', 'Toilet', 'Reception', 'Elevator'];
+  /*
+   * Public areas come from `public_areas`, not from a literal in this file.
+   *
+   * They used to be five strings compiled into the app and duplicated in
+   * `SelectTicketLocationScreen` — a description of a *building*, identical for
+   * every tenant, unchangeable without a release. A hotel with no gym still
+   * offered Gym.
+   */
+  const [publicAreas, setPublicAreas] = useState<string[]>([]);
 
-  const getInitialRoom = (): RoomSelection =>
-    rooms[0] ?? { number: '—', guestName: '', badgeCount: 0, guest_count: 0, vip_code: null, image_url: null };
-  const [selectedRoom, setSelectedRoom] = useState<RoomSelection | null>(getInitialRoom());
+  useEffect(() => {
+    if (!visible) return;
+    let cancelled = false;
+    fetchPublicAreas()
+      .then((areas) => {
+        if (!cancelled) setPublicAreas(areas);
+      })
+      .catch((e) => {
+        if (__DEV__) console.warn('[RegisterLostAndFound] Failed to load public areas', e);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [visible]);
+
+  /*
+   * Nothing is selected until the user picks a room.
+   *
+   * This used to fall back to `rooms[0]`, which meant an item registered by
+   * someone who never opened the picker was filed against whichever room
+   * sorted first — Room 101, and a real guest's name against it. Step 1 now
+   * refuses to advance without a location instead, the way the ticket flow
+   * gates its Continue button.
+   */
+  const [selectedRoom, setSelectedRoom] = useState<RoomPickerRoom | null>(null);
   const [failedGuestImages, setFailedGuestImages] = useState<Record<string, true>>({});
   
   // Step 2 state
@@ -214,8 +228,6 @@ export default function RegisterLostAndFoundModal({
       setPictures([]); // Reset pictures
       setShowPictureError(false); // Reset error state
       setShowTitleError(false);
-      setRoomSearch('');
-      setShowRoomDropdown(false);
       setSelectedPublicArea(null);
       if (preselectedRoomId) {
         setSelectedLocation('room');
@@ -256,6 +268,11 @@ export default function RegisterLostAndFoundModal({
     };
   }, []);
 
+  /*
+   * Room Detail's "register a found item" entry passes the room it was opened
+   * from. It can only be honoured once the list has arrived, so this waits for
+   * `rooms` rather than running with the sheet.
+   */
   useEffect(() => {
     if (!visible || !preselectedRoomId) return;
     const matchedRoom = rooms.find((room) => room.id === preselectedRoomId);
@@ -264,62 +281,6 @@ export default function RegisterLostAndFoundModal({
     setSelectedPublicArea(null);
     setSelectedRoom(matchedRoom);
   }, [visible, preselectedRoomId, rooms]);
-
-  // Load rooms from Supabase for Location dropdown when configured
-  useEffect(() => {
-    let cancelled = false;
-    if (!isSupabaseConfigured) return;
-    (async () => {
-      let data: any[];
-      try {
-        data = await listRoomsWithReservationGuests();
-      } catch {
-        return;
-      }
-
-      if (cancelled || !data) return;
-
-      const mapped: RoomSelection[] = await Promise.all(
-        (data as any[]).map(async (room) => {
-          const reservation = room.reservations?.[0];
-          const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();
-          const isArrivalDeparture = frontOfficeStatus.toLowerCase() === 'arrival/departure';
-          const guestsRaw = reservation?.guests;
-          const guests = Array.isArray(guestsRaw) ? guestsRaw : guestsRaw ? [guestsRaw] : [];
-          const guest = (isArrivalDeparture ? (guests?.[1] ?? guests?.[0]) : (guests?.[0])) ?? guests?.[0];
-          const guestCount = (reservation?.adults || 0) + (reservation?.kids || 0);
-          const guestName = guest?.full_name ?? '';
-          const seed = String(guest?.id ?? `${room.id ?? room.room_number}-${guestName || 'guest'}`);
-          const img = await resolveGuestImageUrl(guest?.image_url ?? null, seed);
-
-          return {
-            id: room.id,
-            number: room.room_number,
-            guestName,
-            badgeCount: guestCount,
-            guest_count: guestCount,
-            vip_code: guest?.vip_code ?? null,
-            image_url: img,
-            check_in: reservation?.arrival_date ?? null,
-            check_out: reservation?.departure_date ?? null,
-          };
-        })
-      );
-
-      if (cancelled) return;
-      if (mapped.length) {
-        setRooms(mapped);
-        const preselectedRoom =
-          preselectedRoomId != null
-            ? mapped.find((room) => room.id === preselectedRoomId)
-            : undefined;
-        setSelectedRoom(preselectedRoom ?? mapped[0]);
-      }
-    })().catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [preselectedRoomId]);
 
   // Handle adding pictures – align behavior with Tickets (direct gallery picker)
   const handleAddPicture = async () => {
@@ -489,6 +450,27 @@ export default function RegisterLostAndFoundModal({
         return;
       }
       setShowTitleError(false);
+      /*
+       * Where the item was found is the one fact a Lost & Found record cannot
+       * be useful without — it is how the guest who lost it is traced. Step 1
+       * used to check only the title, and the room came pre-filled with
+       * whichever room sorted first, so this was never reachable; with that
+       * fallback gone, it has to be asked for.
+       */
+      if (selectedLocation === 'room' && !selectedRoom) {
+        toast.show('Choose the room the item was found in', {
+          type: 'error',
+          title: 'Missing location',
+        });
+        return;
+      }
+      if (selectedLocation === 'publicArea' && !selectedPublicArea) {
+        toast.show('Choose the area the item was found in', {
+          type: 'error',
+          title: 'Missing location',
+        });
+        return;
+      }
       setCurrentStep(2);
     } else if (currentStep === 2) {
       setCurrentStep(3);
@@ -517,6 +499,14 @@ export default function RegisterLostAndFoundModal({
       // Parent handles closing + success flow (avoids iOS modal race).
     }
   };
+
+  /*
+   * Step 3's read-only "Found in" card. Its own geometry, not the picker's —
+   * it is a summary, not a control — but it names the same guest the picker
+   * showed, so it reads `primaryGuest` rather than re-deriving one.
+   */
+  const foundInGuest = selectedRoom?.primaryGuest;
+  const foundInGuestImage = foundInGuest?.imageUrl;
 
   const getStaffName = (staffId: string): string =>
     staff.find((s) => s.id === staffId)?.name ?? 'Unknown';
@@ -576,12 +566,8 @@ export default function RegisterLostAndFoundModal({
             onPress={onClose}
             activeOpacity={0.7}
           >
-            <Image
-              source={require('../../../../assets/icons/back-arrow.png')}
-              style={styles.backArrow}
-              resizeMode="contain"
-              tintColor="#607AA1"
-            />
+            {/* Node 3128:123 — 14x28. `action-chevron`'s aspect is exactly 0.5. */}
+            <Icon name="action-chevron" size={REGISTER_FORM.header.backButton.height * scaleX} color="#607AA1" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Lost & Found</Text>
         </View>
@@ -720,193 +706,14 @@ export default function RegisterLostAndFoundModal({
           {selectedLocation === 'room' && currentStep === 1 && (
             <>
               <Text style={styles.sectionLabelLight}>Room Number</Text>
-              <View style={styles.roomSelectorWrapper}>
-                {!selectedRoom ? (
-                  <>
-                    <TouchableOpacity
-                      style={styles.searchInputContainer}
-                      onPress={() => setShowRoomDropdown((v) => !v)}
-                      activeOpacity={0.7}
-                    >
-                      <Text style={[styles.searchInputText, !roomSearch && styles.searchInputPlaceholder]}>
-                        {roomSearch ? roomSearch : 'Search room...'}
-                      </Text>
-                      <Image
-                        source={require('../../../../assets/icons/dropdown-arrow.png')}
-                        style={[styles.dropdownArrowIcon, showRoomDropdown && styles.dropdownArrowIconOpen]}
-                        resizeMode="contain"
-                      />
-                    </TouchableOpacity>
-
-                    {showRoomDropdown && (
-                      <View style={styles.dropdownMenu}>
-                        <TextInput
-                          style={styles.dropdownSearchInput}
-                          placeholder="Search room..."
-                          value={roomSearch}
-                          onChangeText={setRoomSearch}
-                          placeholderTextColor="#999"
-                          autoFocus
-                        />
-
-                        <ScrollView style={styles.roomsDropdownList} nestedScrollEnabled>
-                          {rooms
-                            .filter((room) =>
-                              room.number.toLowerCase().includes(roomSearch.trim().toLowerCase())
-                            )
-                            .map((room) => (
-                              <TouchableOpacity
-                                key={room.id ?? room.number}
-                                style={styles.roomCard}
-                                onPress={() => {
-                                  setSelectedRoom(room);
-                                  setShowRoomDropdown(false);
-                                  setRoomSearch('');
-                                }}
-                                activeOpacity={0.7}
-                              >
-                                <View style={styles.roomCardContent}>
-                                  <View style={styles.roomNumberSection}>
-                                    <Text style={styles.roomNumberText}>Room {room.number}</Text>
-                                  </View>
-
-                                  {room.guestName ? (
-                                    <>
-                                      <View style={styles.verticalDivider} />
-                                      <View style={styles.guestInfoSection}>
-                                        <View style={styles.guestImageContainer}>
-                                          {room.image_url && !failedGuestImages[room.image_url] ? (
-                                            <Image
-                                              source={{ uri: room.image_url }}
-                                              style={styles.guestImage}
-                                              onError={() =>
-                                                setFailedGuestImages((prev) => ({ ...prev, [room.image_url!]: true }))
-                                              }
-                                            />
-                                          ) : (
-                                            <View style={styles.guestImagePlaceholder}>
-                                              <Text style={styles.guestImagePlaceholderText}>
-                                                {getInitials(room.guestName)}
-                                              </Text>
-                                            </View>
-                                          )}
-                                          {room.vip_code ? (
-                                            <View style={styles.vipBadge}>
-                                              <Image
-                                                source={require('../../../../assets/icons/spear-arrow.png')}
-                                                style={styles.vipBadgeIcon}
-                                                resizeMode="contain"
-                                              />
-                                            </View>
-                                          ) : null}
-                                        </View>
-
-                                        <View style={styles.guestDetails}>
-                                          <View style={styles.guestNameRow}>
-                                            <Text style={styles.guestNameText}>{room.guestName}</Text>
-                                            {room.vip_code ? (
-                                              <Text style={styles.vipCodeText}>{room.vip_code}</Text>
-                                            ) : null}
-                                          </View>
-                                          <View style={styles.guestMetaRow}>
-                                            <Text style={styles.guestDatesText}>
-                                              {formatDateStr(room.check_in)}-{formatDateStr(room.check_out)}
-                                            </Text>
-                                            {typeof room.guest_count === 'number' ? (
-                                              <>
-                                                <Image
-                                                  source={require('../../../../assets/icons/people-icon.png')}
-                                                  style={styles.guestCountIcon}
-                                                  resizeMode="contain"
-                                                />
-                                                <Text style={styles.guestCountText}>{room.guest_count}/2</Text>
-                                              </>
-                                            ) : null}
-                                          </View>
-                                        </View>
-                                      </View>
-                                    </>
-                                  ) : null}
-                                </View>
-                              </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                      </View>
-                    )}
-                  </>
-                ) : (
-                  <TouchableOpacity
-                    style={[styles.roomCard, styles.selectedRoomCard]}
-                    onPress={() => setSelectedRoom(null)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.roomCardContent}>
-                      <View style={styles.roomNumberSection}>
-                        <Text style={styles.roomNumberText}>Room {selectedRoom.number}</Text>
-                      </View>
-
-                      {selectedRoom.guestName ? (
-                        <>
-                          <View style={styles.verticalDivider} />
-                          <View style={styles.guestInfoSection}>
-                            <View style={styles.guestImageContainer}>
-                              {selectedRoom.image_url && !failedGuestImages[selectedRoom.image_url] ? (
-                                <Image
-                                  source={{ uri: selectedRoom.image_url }}
-                                  style={styles.guestImage}
-                                  onError={() =>
-                                    setFailedGuestImages((prev) => ({ ...prev, [selectedRoom.image_url!]: true }))
-                                  }
-                                />
-                              ) : (
-                                <View style={styles.guestImagePlaceholder}>
-                                  <Text style={styles.guestImagePlaceholderText}>
-                                    {getInitials(selectedRoom.guestName)}
-                                  </Text>
-                                </View>
-                              )}
-                              {selectedRoom.vip_code ? (
-                                <View style={styles.vipBadge}>
-                                  <Image
-                                    source={require('../../../../assets/icons/spear-arrow.png')}
-                                    style={styles.vipBadgeIcon}
-                                    resizeMode="contain"
-                                  />
-                                </View>
-                              ) : null}
-                            </View>
-
-                            <View style={styles.guestDetails}>
-                              <View style={styles.guestNameRow}>
-                                <Text style={styles.guestNameText}>{selectedRoom.guestName}</Text>
-                                {selectedRoom.vip_code ? (
-                                  <Text style={styles.vipCodeText}>{selectedRoom.vip_code}</Text>
-                                ) : null}
-                              </View>
-                              <View style={styles.guestMetaRow}>
-                                <Text style={styles.guestDatesText}>
-                                  {formatDateStr(selectedRoom.check_in)}-{formatDateStr(selectedRoom.check_out)}
-                                </Text>
-                                {typeof selectedRoom.guest_count === 'number' ? (
-                                  <>
-                                    <Image
-                                      source={require('../../../../assets/icons/people-icon.png')}
-                                      style={styles.guestCountIcon}
-                                      resizeMode="contain"
-                                    />
-                                    <Text style={styles.guestCountText}>{selectedRoom.guest_count}/2</Text>
-                                  </>
-                                ) : null}
-                              </View>
-                            </View>
-                          </View>
-                        </>
-                      ) : null}
-                    </View>
-                  </TouchableOpacity>
-                )}
-
-              </View>
+              <RoomNumberSelector
+                rooms={rooms}
+                loading={roomsLoading}
+                value={selectedRoom}
+                onChange={setSelectedRoom}
+                scaleX={scaleX}
+                style={styles.roomSelectorWrapper}
+              />
             </>
           )}
 
@@ -915,7 +722,14 @@ export default function RegisterLostAndFoundModal({
             <>
               <Text style={styles.sectionLabelLight}>Select Public Area</Text>
               <View style={styles.publicAreasContainer}>
-                {PUBLIC_AREAS.map((area) => (
+                {publicAreas.length === 0 ? (
+                  <View style={styles.publicAreaItem}>
+                    <Text style={styles.publicAreaText}>
+                      No public areas configured for this hotel.
+                    </Text>
+                  </View>
+                ) : null}
+                {publicAreas.map((area) => (
                   <TouchableOpacity
                     key={area}
                     style={styles.publicAreaItem}
@@ -923,11 +737,7 @@ export default function RegisterLostAndFoundModal({
                     activeOpacity={0.7}
                   >
                     <View style={styles.publicAreaContent}>
-                      <Image
-                        source={require('../../../../assets/icons/location-pin-icon.png')}
-                        style={styles.publicAreaIcon}
-                        resizeMode="contain"
-                      />
+                      <Icon name="location-pin" size={16 * scaleX} color="#999" style={styles.publicAreaIcon} />
                       <Text style={styles.publicAreaText}>{area}</Text>
                     </View>
                     {selectedPublicArea === area ? (
@@ -955,11 +765,8 @@ export default function RegisterLostAndFoundModal({
                     activeOpacity={0.7}
                     onPress={handleAddPicture}
                   >
-                    <Image
-                      source={require('../../../../assets/icons/add-photos.png')}
-                      style={styles.addPhotoIcon}
-                      resizeMode="contain"
-                    />
+                    {/* Two-tone mark — no `color` prop; passing one warns in dev. */}
+                    <Icon name="action-add-photo" size={48 * scaleX} style={styles.addPhotoIcon} />
                     <GradientText text="Add Photo" textStyle={styles.addPhotoTitle} />
                     <Text style={styles.addPhotoSubtitle}>
                       Add photos of the item and our AI will do the rest
@@ -986,11 +793,7 @@ export default function RegisterLostAndFoundModal({
                       activeOpacity={0.7}
                       onPress={handleAddPicture}
                     >
-                      <Image
-                        source={require('../../../../assets/icons/add-photos.png')}
-                        style={styles.addPhotoGridIcon}
-                        resizeMode="contain"
-                      />
+                      <Icon name="action-add-photo" size={32 * scaleX} style={styles.addPhotoGridIcon} />
                       <GradientText text="Add Photo" textStyle={styles.addPhotoGridTitle} />
                     </TouchableOpacity>
                   </View>
@@ -1005,11 +808,7 @@ export default function RegisterLostAndFoundModal({
               {/* Notes Section */}
               <View style={styles.notesContainer}>
                 <View style={styles.notesLabelContainer}>
-                  <Image
-                    source={require('../../../../assets/icons/notes-icon.png')}
-                    style={styles.notesIcon}
-                    resizeMode="contain"
-                  />
+                  <Icon name="action-add-note" size={REGISTER_FORM.notes.icon.height * scaleX} color="#5A759D" style={styles.notesIcon} />
                   <Text style={styles.notesLabel}>Notes</Text>
                 </View>
                 <TextInput
@@ -1061,11 +860,7 @@ export default function RegisterLostAndFoundModal({
                   )}
                   <Text style={styles.step2FieldText}>{getStaffName(foundedBy)}</Text>
                 </View>
-                <Image
-                  source={require('../../../../assets/icons/search-icon.png')}
-                  style={styles.step2SearchIcon}
-                  resizeMode="contain"
-                />
+                <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="#5a759d" style={styles.step2SearchIcon} />
               </TouchableOpacity>
 
               {/* Registered By Section */}
@@ -1102,11 +897,7 @@ export default function RegisterLostAndFoundModal({
                   )}
                   <Text style={styles.step2FieldText}>{getStaffName(registeredBy)}</Text>
                 </View>
-                <Image
-                  source={require('../../../../assets/icons/search-icon.png')}
-                  style={styles.step2SearchIcon}
-                  resizeMode="contain"
-                />
+                <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="#5a759d" style={styles.step2SearchIcon} />
               </TouchableOpacity>
 
               {/* Status Section */}
@@ -1137,11 +928,11 @@ export default function RegisterLostAndFoundModal({
                   />
                   <Text style={styles.step2FieldText}>{getStatusLabel(status)}</Text>
                 </View>
-                <Image
-                  source={require('../../../../assets/icons/down-arrow.png')}
-                  style={styles.step2Chevron}
-                  resizeMode="contain"
-                />
+                <View style={styles.step2Chevron}>
+                  <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                    <Icon name="action-chevron" size={REGISTER_FORM.step2.status.chevron.width * scaleX} color="#5a759d" />
+                  </View>
+                </View>
               </TouchableOpacity>
 
               {/* Stored Location Section */}
@@ -1157,11 +948,11 @@ export default function RegisterLostAndFoundModal({
                 }}
               >
                 <Text style={styles.step2FieldText}>{getLocationLabel(storedLocation)}</Text>
-                <Image
-                  source={require('../../../../assets/icons/down-arrow.png')}
-                  style={styles.step2Chevron}
-                  resizeMode="contain"
-                />
+                <View style={styles.step2Chevron}>
+                  <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                    <Icon name="action-chevron" size={REGISTER_FORM.step2.status.chevron.width * scaleX} color="#5a759d" />
+                  </View>
+                </View>
               </TouchableOpacity>
             </>
           )}
@@ -1216,15 +1007,21 @@ export default function RegisterLostAndFoundModal({
                 </View>
               ) : (
                 <TouchableOpacity
-                  style={styles.step3ItemImageContainer}
+                  style={[styles.step3ItemImageContainer, styles.step3ItemImageEmpty]}
                   onPress={() => setCurrentStep(1)}
                   activeOpacity={0.85}
                 >
-                  <Image
-                    source={require('../../../../assets/images/wrist-watch.png')}
-                    style={styles.step3ItemImage}
-                    resizeMode="cover"
-                  />
+                  {/*
+                    The review step used to show a stock photo of a wrist watch
+                    here whenever the user had added none of their own — so
+                    every photo-less item was reviewed, and confirmed, against a
+                    picture of someone else's property. It was a placeholder
+                    that read as data.
+
+                    The tap target already returned to step 1; now it says so.
+                  */}
+                  <Icon name="action-add-photo" size={32 * scaleX} />
+                  <GradientText text="Add Photo" textStyle={styles.step3AddPhotoTitle} />
                 </TouchableOpacity>
               )}
 
@@ -1249,11 +1046,7 @@ export default function RegisterLostAndFoundModal({
                   onPress={() => setCurrentStep(1)}
                   activeOpacity={0.7}
                 >
-                  <Image
-                    source={require('../../../../assets/icons/notes-icon.png')}
-                    style={styles.step3EditIconImage}
-                    resizeMode="contain"
-                  />
+                  <Icon name="action-add-note" size={REGISTER_FORM.step3.editIcon.size * scaleX} color="#5A759D" />
                 </TouchableOpacity>
               </View>
 
@@ -1289,29 +1082,25 @@ export default function RegisterLostAndFoundModal({
 
                       <View style={styles.step3FoundInGuestSection}>
                         <View style={styles.step3FoundInGuestImageContainer}>
-                          {selectedRoom?.image_url && !failedGuestImages[selectedRoom.image_url] ? (
+                          {foundInGuestImage && !failedGuestImages[foundInGuestImage] ? (
                             <Image
-                              source={{ uri: selectedRoom.image_url }}
+                              source={{ uri: foundInGuestImage }}
                               style={styles.step3FoundInGuestImage}
                               resizeMode="cover"
                               onError={() =>
-                                setFailedGuestImages((prev) => ({ ...prev, [selectedRoom.image_url!]: true }))
+                                setFailedGuestImages((prev) => ({ ...prev, [foundInGuestImage]: true }))
                               }
                             />
                           ) : (
                             <View style={styles.step3FoundInGuestImagePlaceholder}>
                               <Text style={styles.guestImagePlaceholderText}>
-                                {getInitials(selectedRoom?.guestName)}
+                                {getInitials(foundInGuest?.fullName)}
                               </Text>
                             </View>
                           )}
-                          {selectedRoom?.vip_code ? (
+                          {foundInGuest?.vipCode ? (
                             <View style={styles.step3FoundInVipBadge}>
-                              <Image
-                                source={require('../../../../assets/icons/spear-arrow.png')}
-                                style={styles.step3FoundInVipBadgeIcon}
-                                resizeMode="contain"
-                              />
+                              <Icon name="guest-arrow" size={5.56 * scaleX} color="#ffffff" style={styles.step3FoundInVipBadgeIcon} />
                             </View>
                           ) : null}
                         </View>
@@ -1319,26 +1108,22 @@ export default function RegisterLostAndFoundModal({
                         <View style={styles.step3FoundInGuestDetails}>
                           <View style={styles.step3FoundInGuestNameRow}>
                             <Text style={styles.step3FoundInGuestName}>
-                              {selectedRoom?.guestName ? `Mr ${selectedRoom.guestName}` : '—'}
+                              {foundInGuest?.fullName ? `Mr ${foundInGuest.fullName}` : '—'}
                             </Text>
-                            {selectedRoom?.vip_code ? (
-                              <Text style={styles.step3FoundInVipCode}>{selectedRoom.vip_code}</Text>
+                            {foundInGuest?.vipCode ? (
+                              <Text style={styles.step3FoundInVipCode}>{foundInGuest.vipCode}</Text>
                             ) : null}
                           </View>
 
                           <View style={styles.step3FoundInGuestMetaRow}>
                             <Text style={styles.step3FoundInDates}>
-                              {formatDateStr(selectedRoom?.check_in)}-{formatDateStr(selectedRoom?.check_out)}
+                              {formatDateStr(selectedRoom?.checkIn)}-{formatDateStr(selectedRoom?.checkOut)}
                             </Text>
-                            {typeof selectedRoom?.guest_count === 'number' ? (
+                            {typeof selectedRoom?.guestCount === 'number' ? (
                               <>
-                                <Image
-                                  source={require('../../../../assets/icons/people-icon.png')}
-                                  style={styles.step3FoundInGuestCountIcon}
-                                  resizeMode="contain"
-                                />
+                                <Icon name="guest-occupancy" width={12 * scaleX} height={12 * scaleX} color="#666" style={styles.step3FoundInGuestCountIcon} />
                                 <Text style={styles.step3FoundInGuestCountText}>
-                                  {selectedRoom.guest_count}/2
+                                  {selectedRoom.guestCount}/2
                                 </Text>
                               </>
                             ) : null}
@@ -1351,11 +1136,7 @@ export default function RegisterLostAndFoundModal({
                         onPress={() => setCurrentStep(1)}
                         activeOpacity={0.7}
                       >
-                        <Image
-                          source={require('../../../../assets/icons/notes-icon.png')}
-                          style={styles.step3EditIconImage}
-                          resizeMode="contain"
-                        />
+                        <Icon name="action-add-note" size={REGISTER_FORM.step3.editIcon.size * scaleX} color="#5A759D" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1370,11 +1151,7 @@ export default function RegisterLostAndFoundModal({
                         onPress={() => setCurrentStep(1)}
                         activeOpacity={0.7}
                       >
-                        <Image
-                          source={require('../../../../assets/icons/notes-icon.png')}
-                          style={styles.step3EditIconImage}
-                          resizeMode="contain"
-                        />
+                        <Icon name="action-add-note" size={REGISTER_FORM.step3.editIcon.size * scaleX} color="#5A759D" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -1413,11 +1190,7 @@ export default function RegisterLostAndFoundModal({
                   }}
                   activeOpacity={0.7}
                 >
-                  <Image
-                    source={require('../../../../assets/icons/notes-icon.png')}
-                    style={styles.step3EditIconImage}
-                    resizeMode="contain"
-                  />
+                  <Icon name="action-add-note" size={REGISTER_FORM.step3.editIcon.size * scaleX} color="#5A759D" />
                 </TouchableOpacity>
               </View>
 
@@ -1624,10 +1397,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 11,
   },
-  backArrow: {
-    width: REGISTER_FORM.header.backButton.width * scaleX,
-    height: REGISTER_FORM.header.backButton.height * scaleX,
-  },
   headerTitle: {
     position: 'absolute',
     left: REGISTER_FORM.header.title.left * scaleX,
@@ -1795,94 +1564,12 @@ const styles = StyleSheet.create({
     marginTop: 0, // Already accounted in locationContainer marginBottom
     marginBottom: 12 * scaleX, // Relative spacing from label to selector
   },
+  /*
+   * Spacing only: `RoomNumberSelector` owns its own stacking, because the
+   * dropdown that needs it lives inside the control.
+   */
   roomSelectorWrapper: {
-    position: 'relative',
     marginBottom: 24 * scaleX, // Relative spacing to next section
-    zIndex: 9999, // Stronger layering (Android needs extra help)
-    elevation: 12,
-  },
-  // Ticket-like dropdown-in-input
-  searchInputContainer: {
-    width: '100%',
-    maxWidth: REGISTER_FORM.roomNumber.selector.width * scaleX,
-    height: 50 * scaleX,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    backgroundColor: '#fff',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  searchInputText: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    color: '#000',
-    flex: 1,
-  },
-  searchInputPlaceholder: {
-    color: '#999',
-  },
-  dropdownArrowIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    tintColor: '#5a759d',
-  },
-  dropdownArrowIconOpen: {
-    transform: [{ rotate: '180deg' }],
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 55 * scaleX,
-    left: 0,
-    right: 0,
-    maxWidth: REGISTER_FORM.roomNumber.selector.width * scaleX,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8 * scaleX,
-    maxHeight: 400 * scaleX,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 16, // Android stacking
-    zIndex: 10001,
-  },
-  dropdownSearchInput: {
-    height: 50 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    paddingHorizontal: 16 * scaleX,
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-  },
-  roomsDropdownList: {
-    maxHeight: 350 * scaleX,
-  },
-  roomCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12 * scaleX,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    marginBottom: 12 * scaleX,
-    overflow: 'hidden',
-  },
-  selectedRoomCard: {
-    width: '100%',
-    maxWidth: REGISTER_FORM.roomNumber.selector.width * scaleX,
-    height: REGISTER_FORM.roomNumber.selector.height * scaleX,
-    borderRadius: REGISTER_FORM.roomNumber.selector.borderRadius * scaleX,
-    borderWidth: 2,
-    borderColor: '#5a759d',
-    backgroundColor: '#f0f4ff',
-    overflow: 'hidden',
-  },
-  roomCardContent: {
-    flexDirection: 'row',
-    minHeight: REGISTER_FORM.roomNumber.selector.height * scaleX,
-    alignItems: 'center',
   },
   roomSelector: {
     width: '100%',
@@ -1896,39 +1583,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20 * scaleX,
     position: 'relative',
     backgroundColor: '#ffffff',
-  },
-  roomSelectorContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-
-  // Create-ticket-like room card (used inside Lost & Found Location selector)
-  roomNumberSection: {
-    justifyContent: 'center',
-    paddingHorizontal: 18 * scaleX,
-    minWidth: 150 * scaleX,
-  },
-  roomNumberText: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#5a759d',
-  },
-  verticalDivider: {
-    width: 1,
-    height: 54 * scaleX,
-    backgroundColor: '#e5e7eb',
-  },
-  guestInfoSection: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14 * scaleX,
-  },
-  guestImageContainer: {
-    position: 'relative',
-    marginRight: 14 * scaleX,
   },
   guestImage: {
     width: 35 * scaleX,
@@ -1948,73 +1602,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#5a759d',
-  },
-  vipBadge: {
-    position: 'absolute',
-    right: -4 * scaleX,
-    bottom: -4 * scaleX,
-    width: 14 * scaleX,
-    height: 14 * scaleX,
-    borderRadius: 7 * scaleX,
-    backgroundColor: '#ff0000',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vipBadgeText: {
-    fontSize: 10 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
-  vipBadgeIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    tintColor: '#ffffff',
-  },
-  guestDetails: {
-    flex: 1,
-  },
-  guestNameRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    marginBottom: 4 * scaleX,
-  },
-  guestNameText: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#000',
-  },
-  vipCodeText: {
-    fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#334866',
-    marginLeft: 6 * scaleX,
-  },
-  guestMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  guestDatesText: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000',
-    marginRight: 12 * scaleX,
-    flexShrink: 1,
-  },
-  guestCountIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    marginRight: 4 * scaleX,
-    tintColor: '#666',
-  },
-  guestCountText: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000',
   },
 
   publicAreasContainer: {
@@ -2041,9 +1628,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   publicAreaIcon: {
-    width: 16 * scaleX,
-    height: 16 * scaleX,
-    tintColor: '#999',
     marginRight: 16 * scaleX,
   },
   publicAreaText: {
@@ -2056,156 +1640,6 @@ const styles = StyleSheet.create({
     fontSize: 18 * scaleX,
     color: '#5a759d',
     fontWeight: 'bold',
-  },
-  roomText: {
-    fontSize: REGISTER_FORM.roomNumber.roomText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.roomNumber.roomText.fontWeight as any,
-    color: REGISTER_FORM.roomNumber.roomText.color,
-  },
-  roomDivider: {
-    width: REGISTER_FORM.roomNumber.divider.width,
-    height: REGISTER_FORM.roomNumber.divider.height * scaleX,
-    backgroundColor: REGISTER_FORM.roomNumber.divider.color,
-    marginHorizontal: 20 * scaleX,
-  },
-  guestNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  guestText: {
-    fontSize: REGISTER_FORM.roomNumber.guestText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.roomNumber.guestText.fontWeight as any,
-    color: REGISTER_FORM.roomNumber.guestText.color,
-  },
-  spinnerIcon: {
-    width: 16 * scaleX,
-    height: 16 * scaleX,
-    marginLeft: 24 * scaleX, // Increased spacing to match Figma - positioned further right
-  },
-  avatar: {
-    marginLeft: 20 * scaleX,
-  },
-  avatarCircle: {
-    width: REGISTER_FORM.roomNumber.avatar.size * scaleX,
-    height: REGISTER_FORM.roomNumber.avatar.size * scaleX,
-    borderRadius: (REGISTER_FORM.roomNumber.avatar.size / 2) * scaleX,
-    backgroundColor: '#5a759d',
-  },
-  badge: {
-    position: 'absolute',
-    right: -10 * scaleX,
-    top: -10 * scaleX,
-    width: REGISTER_FORM.roomNumber.badge.size * scaleX,
-    height: REGISTER_FORM.roomNumber.badge.size * scaleX,
-    borderRadius: (REGISTER_FORM.roomNumber.badge.size / 2) * scaleX,
-    backgroundColor: REGISTER_FORM.roomNumber.badge.backgroundColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeText: {
-    fontSize: REGISTER_FORM.roomNumber.badge.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.roomNumber.badge.fontWeight as any,
-    color: REGISTER_FORM.roomNumber.badge.textColor,
-  },
-  dropdownBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: -1000 * scaleX,
-    right: -1000 * scaleX,
-    bottom: -1000 * scaleX,
-    backgroundColor: 'transparent',
-    zIndex: 99,
-  },
-  roomDropdown: {
-    position: 'absolute',
-    top: REGISTER_FORM.roomNumber.selector.height * scaleX + 4 * scaleX,
-    left: 0,
-    right: 0,
-    maxWidth: REGISTER_FORM.roomNumber.selector.width * scaleX,
-    backgroundColor: '#ffffff',
-    borderRadius: 8 * scaleX,
-    borderWidth: 1,
-    borderColor: '#afa9ad',
-    maxHeight: 260 * scaleX,
-    zIndex: 101,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  roomSearchContainer: {
-    paddingHorizontal: 12 * scaleX,
-    paddingVertical: 8 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  roomSearchInput: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    color: '#111827',
-  },
-  roomDropdownItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20 * scaleX,
-    paddingVertical: 12 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  roomDropdownItemSelected: {
-    backgroundColor: '#f5f5f5',
-  },
-  roomDropdownItemContent: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  roomDropdownRoomText: {
-    fontSize: REGISTER_FORM.roomNumber.roomText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.roomNumber.roomText.fontWeight as any,
-    color: REGISTER_FORM.roomNumber.roomText.color,
-  },
-  roomDropdownDivider: {
-    width: 1,
-    height: 20 * scaleX,
-    backgroundColor: REGISTER_FORM.roomNumber.divider.color,
-    marginHorizontal: 12 * scaleX,
-  },
-  roomDropdownGuestText: {
-    fontSize: REGISTER_FORM.roomNumber.guestText.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.roomNumber.guestText.fontWeight as any,
-    color: REGISTER_FORM.roomNumber.guestText.color,
-  },
-  roomDropdownGuestNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  roomDropdownGuestImage: {
-    width: 18 * scaleX,
-    height: 18 * scaleX,
-    borderRadius: 4 * scaleX,
-    marginRight: 8 * scaleX,
-  },
-  roomDropdownVipCodeText: {
-    fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#334866',
-    marginLeft: 6 * scaleX,
-  },
-  roomDropdownCheckmark: {
-    fontSize: 18 * scaleX,
-    color: '#5a759d',
-    fontWeight: 'bold' as any,
-    marginLeft: 12 * scaleX,
   },
   picturesLabel: {
     marginTop: 0, // Already accounted in roomSelector marginBottom
@@ -2253,8 +1687,6 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   addPhotoIcon: {
-    width: 48 * scaleX,
-    height: 48 * scaleX,
     marginBottom: 16 * scaleX,
   },
   addPhotoTitle: {
@@ -2273,8 +1705,6 @@ const styles = StyleSheet.create({
     maxWidth: 280 * scaleX,
   },
   addPhotoGridIcon: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
     marginBottom: 4 * scaleX,
   },
   addPhotoGridTitle: {
@@ -2346,8 +1776,6 @@ const styles = StyleSheet.create({
     marginBottom: 10 * scaleX,
   },
   notesIcon: {
-    width: REGISTER_FORM.notes.icon.width * scaleX,
-    height: REGISTER_FORM.notes.icon.height * scaleX,
     marginRight: 10 * scaleX,
   },
   notesLabel: {
@@ -2457,9 +1885,6 @@ const styles = StyleSheet.create({
     color: REGISTER_FORM.step2.foundedBy.name.color,
   },
   step2SearchIcon: {
-    width: REGISTER_FORM.step2.foundedBy.searchIcon.width * scaleX,
-    height: REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX,
-    tintColor: '#5a759d',
     marginLeft: 'auto', // Push to the right
   },
   step2StatusIcon: {
@@ -2473,11 +1898,17 @@ const styles = StyleSheet.create({
     borderRadius: (REGISTER_FORM.step2.status.icon.size / 2) * scaleX,
     marginRight: 12 * scaleX,
   },
+  /*
+   * The wrapper box, not the glyph. It keeps the designed 14x7 footprint while
+   * the inner View rotates the chevron into it; the old `rotate: '270deg'` sat
+   * on the image itself, which painted the arrow sideways and let it spill out
+   * of this box on both sides.
+   */
   step2Chevron: {
     width: REGISTER_FORM.step2.status.chevron.width * scaleX,
     height: REGISTER_FORM.step2.status.chevron.height * scaleX,
-    tintColor: '#5a759d',
-    transform: [{ rotate: '270deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // Step 3 Styles
   step3ItemImageContainer: {
@@ -2491,6 +1922,18 @@ const styles = StyleSheet.create({
   step3ItemImage: {
     width: '100%',
     height: '100%',
+  },
+  step3ItemImageEmpty: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f2f2f2',
+  },
+  step3AddPhotoTitle: {
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#ff46a3',
+    marginTop: 6 * scaleX,
   },
   step3PicturesContainer: {
     position: 'relative',
@@ -2539,10 +1982,6 @@ const styles = StyleSheet.create({
     marginLeft: 8 * scaleX,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  step3EditIconImage: {
-    width: REGISTER_FORM.step3.editIcon.size * scaleX,
-    height: REGISTER_FORM.step3.editIcon.size * scaleX,
   },
   step3FoundInLabel: {
     marginTop: (REGISTER_FORM.step3.foundIn.label.top - REGISTER_FORM.step3.itemDescription.top) * scaleX * 0.7,
@@ -2630,9 +2069,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   step3FoundInVipBadgeIcon: {
-    width: 10 * scaleX,
-    height: 10 * scaleX,
-    tintColor: '#ffffff',
+    transform: [{ scaleX: -1 }],
   },
   step3FoundInGuestDetails: {
     flex: 1,
@@ -2668,10 +2105,7 @@ const styles = StyleSheet.create({
     marginRight: 12 * scaleX,
   },
   step3FoundInGuestCountIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
     marginRight: 4 * scaleX,
-    tintColor: '#666',
   },
   step3FoundInGuestCountText: {
     fontSize: 14 * scaleX,

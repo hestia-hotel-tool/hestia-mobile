@@ -26,50 +26,6 @@ interface StaffSelectorModalProps {
   inputFieldPosition?: { x: number; y: number; width: number; height: number } | null;
 }
 
-// Mock staff data for Lost and Found
-const mockStaffForLostAndFound: StaffMember[] = [
-  {
-    id: '1',
-    name: 'Etleva Hoxha',
-    department: 'HSK',
-    avatar: require('../../../../assets/images/Etleva_Hoxha.png'),
-    workload: 200,
-    maxWorkload: 200,
-    onShift: true,
-    shift: 'AM',
-  },
-  {
-    id: '2',
-    name: 'Stella Kitou',
-    department: 'HSK',
-    avatar: require('../../../../assets/images/Stella_Kitou.png'),
-    workload: 200,
-    maxWorkload: 200,
-    onShift: true,
-    shift: 'AM',
-  },
-  {
-    id: '3',
-    name: 'Zoe Tsakeri',
-    department: 'HSK',
-    initials: 'Z',
-    workload: 175,
-    maxWorkload: 200,
-    onShift: true,
-    shift: 'PM',
-  },
-  {
-    id: '4',
-    name: 'Felix F',
-    department: 'F&B',
-    avatar: require('../../../../assets/images/Felix_F.png'),
-    workload: 180,
-    maxWorkload: 200,
-    onShift: true,
-    shift: 'AM',
-  },
-];
-
 const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; height: number } | null) => StyleSheet.create({
   backdrop: {
     flex: 1,
@@ -179,6 +135,18 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   listContent: {
     paddingVertical: 8 * scaleX,
   },
+  emptyState: {
+    paddingHorizontal: 18 * scaleX,
+    paddingVertical: 28 * scaleX,
+    alignItems: 'center',
+  },
+  emptyStateText: {
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300' as any,
+    color: '#5a759d',
+    textAlign: 'center',
+  },
   listItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -266,10 +234,18 @@ export default function StaffSelectorModal({
 }: StaffSelectorModalProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Filter staff by search query and exclude current user if "Me" option is shown
+  /*
+   * No mock fallback.
+   *
+   * An empty `staff` prop used to be swapped for a four-person fixture with
+   * three bundled portraits — so a failed or still-loading fetch showed four
+   * plausible colleagues who do not work here, and picking one wrote a mock id
+   * into the item. There are 35 users in the database; an empty list means the
+   * fetch failed or is in flight, and the sheet now says so instead of
+   * inventing people.
+   */
   const filteredStaff = useMemo(() => {
-    let staffList =
-      staff && Array.isArray(staff) && staff.length > 0 ? staff : mockStaffForLostAndFound;
+    let staffList = Array.isArray(staff) ? staff : [];
     
     // If "Me" option is shown, exclude the current user from the regular list
     if (showMeOption && currentUserId) {
@@ -287,10 +263,10 @@ export default function StaffSelectorModal({
   }, [searchQuery, showMeOption, currentUserId, staff]);
 
   // Get current user (Me option)
-  const currentUser = useMemo(() => {
-    const base = staff && Array.isArray(staff) && staff.length > 0 ? staff : mockStaffForLostAndFound;
-    return base.find((s) => s.id === currentUserId);
-  }, [currentUserId, staff]);
+  const currentUser = useMemo(
+    () => (Array.isArray(staff) ? staff : []).find((s) => s.id === currentUserId),
+    [currentUserId, staff]
+  );
 
   // Get first letter for initial if no avatar
   const getInitial = (name: string): string => {
@@ -413,6 +389,21 @@ export default function StaffSelectorModal({
             )}
 
             {/* Staff List Items */}
+            {filteredStaff.length === 0 ? (
+              /*
+                Says what is true instead of showing fixtures.
+                `searchQuery` distinguishes "nothing matches what you typed"
+                from "no staff arrived at all", which are different problems for
+                the person holding the phone.
+              */
+              <View style={dynamicStyles.emptyState}>
+                <Text style={dynamicStyles.emptyStateText}>
+                  {searchQuery.trim()
+                    ? `No staff match "${searchQuery.trim()}".`
+                    : 'No staff available. Pull to refresh, or check your connection.'}
+                </Text>
+              </View>
+            ) : null}
             {filteredStaff.map((staff) => (
               <TouchableOpacity
                 key={staff.id}

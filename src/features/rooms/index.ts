@@ -1,4 +1,12 @@
 export { default as TimePickerWheel } from './components/TimePickerWheel';
+/*
+ * The room picker is shared with Lost & Found and the ticket flow, which reach
+ * it through this barrel — see `components/roomPicker/RoomNumberSelector.tsx`.
+ */
+export * from './components/roomPicker';
+export { useRoomPickerRooms } from './hooks/useRoomPickerRooms';
+export * from './services/roomPicker';
+export * from './types/roomPicker.types';
 export { default as AllRoomsScreen } from './screens/AllRoomsScreen';
 export { default as RoomDetailScreen } from './screens/RoomDetailScreen';
 export { default as AssignRoomsScreen } from './screens/AssignRoomsScreen';

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, Modal, TouchableOpacity, Text, Pressable, useWindowDimensions, Image, TextInput } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { LOST_AND_FOUND_CARD_LAYOUT as CARD_LAYOUT } from '../components/itemCard/lostAndFoundCardLayout';
+import { LOST_AND_FOUND_SCREEN_LAYOUT as SCREEN_LAYOUT } from '../constants/lostAndFoundScreenLayout';
+import LostAndFoundStatusPopover from '../components/LostAndFoundStatusPopover';
+import { rankShippedLocations } from '../utils/shippedLocationSuggestions';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import LostAndFoundHeader from '../components/LostAndFoundHeader';
 import LostAndFoundTabs from '../components/LostAndFoundTabs';
@@ -11,14 +14,10 @@ import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
 import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
 import { useUserStore } from '@features/account/store/useUserStore';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
-import {
-  LOST_AND_FOUND_SPACING,
-  LOST_AND_FOUND_COLORS,
-  scaleX } from '../constants/lostAndFoundStyles';
+import { LOST_AND_FOUND_COLORS, scaleX } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@/types/navigation';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { typography } from '@/theme';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   fetchLostAndFoundRows,
@@ -41,9 +40,32 @@ type MainTabsParamList = {
 
 type LostAndFoundScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(lost_and_found)/index'>;
 
+/**
+ * Which statuses each tab shows. `null` means "no filter".
+ *
+ * A table rather than a `switch`, so the tab set and its meaning sit together
+ * and a new state is a row.
+ *
+ * **`returned` matches two statuses.** The filter used to be
+ * `item.status === 'shipped'` alone, so a row whose status is literally
+ * `'returned'` — a value `LostAndFoundStatus` permits and the free-text DB
+ * column allows — appeared under no tab at all and was invisible in the app.
+ * The card has always coalesced the two for display; this makes the filter
+ * agree with it.
+ *
+ * On the naming: the tab reads "Returned" while the cards inside it read
+ * "Shipped". That is what Figma 3128:32 draws and it is deliberate — see
+ * `LOST_AND_FOUND_TAB_LABELS`.
+ */
+const TAB_STATUS: Record<LostAndFoundTab, LostAndFoundStatus[] | null> = {
+  created: null,
+  stored: ['stored'],
+  returned: ['shipped', 'returned'],
+  discarded: ['discarded'],
+};
+
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
-  const insets = useSafeAreaInsets();
   const route = useRoute();
   const userProfile = useUserStore((s) => s.profile);
   const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
@@ -59,6 +81,14 @@ export default function LostAndFoundScreen() {
   const [refetchLoading, setRefetchLoading] = useState(false);
   const hasLoadedOnceRef = React.useRef(false);
   const [refreshing, setRefreshing] = useState(false);
+  /*
+   * The band's measured height, in device px.
+   *
+   * The status popover positions itself below the chrome and must not open over
+   * it. That used to be a literal, which stopped being true the moment the
+   * header became flex + safe-area based — so it is measured instead.
+   */
+  const [headerHeight, setHeaderHeight] = useState(0);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [preselectedRoomIdForRegister, setPreselectedRoomIdForRegister] = useState<string | undefined>(undefined);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -72,13 +102,13 @@ export default function LostAndFoundScreen() {
   const pendingInsertedItemIdRef = React.useRef<string | null>(null);
   const [statusModalItem, setStatusModalItem] = useState<LostAndFoundItem | null>(null);
   const [statusAnchor, setStatusAnchor] = useState<LostAndFoundStatusAnchorLayout | null>(null);
+
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [statusUpdatingItemId, setStatusUpdatingItemId] = useState<string | null>(null);
   const [shippingMode, setShippingMode] = useState(false);
   const [shippingLocation, setShippingLocation] = useState('');
   const [shippingLocationCache, setShippingLocationCache] = useState<string[]>([]);
   const [shippingLocationByItemId, setShippingLocationByItemId] = useState<Record<string, string>>({});
-  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   /**
    * PostgREST schema cache may not include newly added columns immediately.
@@ -202,6 +232,8 @@ export default function LostAndFoundScreen() {
           ? getLostAndFoundPublicUrl(String(row.image_url))
           : undefined;
 
+        const guestImageUri = String(guest?.image_url ?? '').trim() || undefined;
+
         return {
           id: row.id,
           itemName: row.item_name,
@@ -214,11 +246,19 @@ export default function LostAndFoundScreen() {
           roomNumber: room?.room_number ? Number(room.room_number) : undefined,
           guestDates: formatGuestDates(reservation?.arrival_date, reservation?.departure_date),
           guestCount: guestCount || undefined,
-          guestImage: {
-            uri:
-              String(guest?.image_url ?? '').trim() ||
-              `https://i.pravatar.cc/96?u=${encodeURIComponent(String(guest?.id ?? `${row.room_id ?? row.id}-${guest?.full_name ?? 'guest'}`))}`,
-          },
+          /*
+           * Only what the database holds.
+           *
+           * This used to synthesise `https://i.pravatar.cc/96?u=<guest id>`
+           * whenever `guests.image_url` was empty — inventing a stranger's face
+           * and attaching it to a named, real guest. It also meant the card
+           * could never show its initials fallback, because there was always a
+           * URL to load.
+           *
+           * Absent now means absent: the card falls back to the guest's
+           * initials, which is `Avatar`'s designed empty state.
+           */
+          guestImage: guestImageUri ? { uri: guestImageUri } : undefined,
           storedLocation: row.storage_location ?? '',
           shippedLocation:
             (row as any).shipped_location ??
@@ -420,52 +460,24 @@ export default function LostAndFoundScreen() {
     }
   };
 
-  const shippedLocationOptions = React.useMemo(() => {
-    const unique = new Map<string, string>(); // lower -> original
-    const add = (v: string) => {
-      const trimmed = v.trim();
-      if (!trimmed) return;
-      const key = trimmed.toLowerCase();
-      if (!unique.has(key)) unique.set(key, trimmed);
-    };
-    // Prefer local cache (recent first), then DB values.
-    for (const v of shippingLocationCache) add(v);
-    for (const it of items) add(it.shippedLocation ?? '');
+  const closeStatusPopover = React.useCallback(() => {
+    if (statusUpdating) return;
+    setStatusModalItem(null);
+    setStatusAnchor(null);
+    setShippingMode(false);
+    setShippingLocation('');
+  }, [statusUpdating]);
 
-    const q = shippingLocation.trim().toLowerCase();
-    const values = Array.from(unique.values());
-    if (!q) return values.slice(0, 20);
-
-    // “Contains” matching with stronger ranking for exact/prefix/word-boundary matches.
-    const tokens = q.split(/\s+/).filter(Boolean);
-    const score = (v: string) => {
-      const lc = v.toLowerCase();
-      let s = 0;
-
-      if (lc === q) s += 100;
-      if (lc.startsWith(q)) s += 60;
-      if (lc.includes(` ${q}`) || lc.includes(`-${q}`) || lc.includes(`,${q}`)) s += 40; // word-ish boundary
-      if (lc.includes(q)) s += 20;
-
-      for (const t of tokens) {
-        if (!t) continue;
-        if (lc === t) s += 10;
-        if (lc.startsWith(t)) s += 6;
-        if (lc.includes(` ${t}`) || lc.includes(`-${t}`) || lc.includes(`,${t}`)) s += 4;
-        if (lc.includes(t)) s += 2;
-      }
-
-      // Prefer shorter strings when scores tie (more exact).
-      s -= Math.min(10, Math.floor(lc.length / 20));
-      return s;
-    };
-    return values
-      .map((v) => ({ v, s: score(v) }))
-      .filter((x) => x.s > 0)
-      .sort((a, b) => b.s - a.s)
-      .map((x) => x.v)
-      .slice(0, 20);
-  }, [items, shippingLocationCache, shippingLocation]);
+  const shippedLocationOptions = React.useMemo(
+    () =>
+      rankShippedLocations(shippingLocation, {
+        // Cache first: a hotel ships to the same few addresses, and it is also
+        // the only source that survives the shipped_location schema-cache lag.
+        cached: shippingLocationCache,
+        fromItems: items.map((it) => it.shippedLocation),
+      }),
+    [items, shippingLocationCache, shippingLocation]
+  );
 
   const saveShippedLocation = React.useCallback(
     async (value: string) => {
@@ -511,63 +523,43 @@ export default function LostAndFoundScreen() {
     [statusModalItem, loadItems]
   );
 
-  const statusPopoverPosition = React.useMemo(() => {
-    if (!statusAnchor) return null;
-    const margin = 16 * scaleX;
-    const popoverW = 340 * scaleX;
-    const popoverH = 230 * scaleX; // approximate, clamped
-    // Center the popover under the anchor (more robust than aligning by right edge,
-    // and works even when we only have a tap point with width/height = 0).
-    const anchorCenterX = statusAnchor.x + (statusAnchor.width || 0) / 2;
-    const left = Math.max(margin, Math.min(windowWidth - popoverW - margin, anchorCenterX - popoverW / 2));
-    const desiredTop = statusAnchor.y + statusAnchor.height + 14 * scaleX;
-    const top = Math.max(margin, Math.min(windowHeight - popoverH - margin, desiredTop));
-
-    const notchSize = 12 * scaleX;
-    const notchCenterX = anchorCenterX - left;
-    const notchLeft = Math.max(14 * scaleX, Math.min(popoverW - 14 * scaleX - notchSize, notchCenterX - notchSize / 2));
-    return { left, top, notchLeft, width: popoverW };
-  }, [statusAnchor, windowWidth, windowHeight]);
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     loadItems('pull').finally(() => setRefreshing(false));
   }, [loadItems]);
 
-  // Filter items based on selected tab
   const filteredItems = items.filter((item) => {
-    switch (selectedTab) {
-      case 'created':
-        return true; // Show all cards
-      case 'stored':
-        return item.status === 'stored';
-      case 'returned':
-        return item.status === 'shipped'; // Shipped tab shows items with "shipped" status
-      case 'discarded':
-        return item.status === 'discarded';
-      default:
-        return false;
-    }
+    const allowed = TAB_STATUS[selectedTab];
+    return allowed == null || allowed.includes(item.status);
   });
 
   return (
     <View style={styles.container}>
       {(listLoading || refetchLoading) && <LoadingOverlay fullScreen message="Loading items…" />}
       {refreshing && !listLoading && <LoadingOverlay fullScreen message="Refreshing…" />}
+      <LostAndFoundHeader
+        onBackPress={handleBackPress}
+        onRegisterPress={handleRegisterPress}
+        syncing={refetchLoading}
+        onHeightChange={setHeaderHeight}
+      />
+
+      <View style={styles.tabRow}>
+        <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
+      </View>
+
       <View style={styles.scrollContainer}>
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            { paddingTop: LOST_AND_FOUND_SPACING.contentPaddingTop * scaleX + insets.top },
-          ]}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           scrollEnabled={true}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         >
-          {/* Item Cards - spacing from Figma 733-662 (card marginBottom only) */}
+          {/* Item cards — Figma 3128:32. Spacing is the list's, not the card's. */}
           {filteredItems.map((item) => (
             <LostAndFoundItemCard
               key={item.id}
@@ -579,18 +571,7 @@ export default function LostAndFoundScreen() {
           ))}
         </ScrollView>
 
-        {/* Blur Overlay for content only */}
       </View>
-
-      {/* Header - Fixed at top */}
-      <LostAndFoundHeader
-        onBackPress={handleBackPress}
-        onRegisterPress={handleRegisterPress}
-        syncing={refetchLoading}
-      />
-
-      {/* Tabs - Fixed below header */}
-      <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
 
       {/* Bottom Navigation */}
       <BottomTabBar />
@@ -612,140 +593,30 @@ export default function LostAndFoundScreen() {
       />
 
       {/* Change status popover (anchored, like Tickets) */}
-      <Modal
+      <LostAndFoundStatusPopover
         visible={!!statusModalItem}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setStatusModalItem(null)}
-      >
-        <View style={styles.statusModalOverlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => {
-              if (statusUpdating) return;
-              setStatusModalItem(null);
-              setStatusAnchor(null);
-              setShippingMode(false);
-              setShippingLocation('');
-            }}
-            accessibilityRole="button"
-            accessibilityLabel="Dismiss status menu"
-          />
-          <View
-            style={[
-              styles.statusPopover,
-              statusPopoverPosition
-                ? { position: 'absolute', left: statusPopoverPosition.left, top: statusPopoverPosition.top, width: statusPopoverPosition.width }
-                : null,
-            ]}
-          >
-            <View
-              style={[
-                styles.statusPopoverNotch,
-                statusPopoverPosition ? { left: statusPopoverPosition.notchLeft } : null,
-              ]}
-            />
-            {shippingMode ? (
-              <View>
-                <Text style={styles.shippedPopoverTitle}>Shipped Location</Text>
-                <View style={styles.shippedInputRow}>
-                  <TextInput
-                    value={shippingLocation}
-                    onChangeText={setShippingLocation}
-                    placeholder="Enter location"
-                    placeholderTextColor="rgba(0,0,0,0.35)"
-                    editable={!statusUpdating}
-                    style={styles.shippedInput}
-                    onSubmitEditing={() => saveShippedLocation(shippingLocation)}
-                    returnKeyType="done"
-                  />
-                  <TouchableOpacity
-                    style={styles.shippedSendBtn}
-                    disabled={statusUpdating || !shippingLocation.trim()}
-                    onPress={() => saveShippedLocation(shippingLocation)}
-                  >
-                    <Image source={require('../../../../assets/icons/arrow-forward.png')} style={styles.shippedSendIcon} resizeMode="contain" />
-                  </TouchableOpacity>
-                </View>
-
-                {shippedLocationOptions.length > 0 && (
-                  <ScrollView style={styles.shippedOptions} contentContainerStyle={styles.shippedOptionsContent} showsVerticalScrollIndicator={false}>
-                    {shippedLocationOptions.map((opt) => {
-                      const active = opt.trim().toLowerCase() === shippingLocation.trim().toLowerCase();
-                      return (
-                        <TouchableOpacity
-                          key={opt}
-                          style={styles.shippedOptionRow}
-                          disabled={statusUpdating}
-                          onPress={() => {
-                            setShippingLocation(opt);
-                            saveShippedLocation(opt);
-                          }}
-                        >
-                          <Image source={require('../../../../assets/icons/location-pin-icon.png')} style={styles.shippedOptionIcon} resizeMode="contain" />
-                          <Text style={styles.shippedOptionText} numberOfLines={1}>
-                            {opt}
-                          </Text>
-                          {active ? (
-                            <Image source={require('../../../../assets/icons/tick.png')} style={styles.shippedOptionCheck} resizeMode="contain" />
-                          ) : null}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                )}
-              </View>
-            ) : (
-              <>
-                <Text style={styles.statusModalTitle}>Change status</Text>
-                <View style={styles.statusGrid}>
-                  <TouchableOpacity
-                    style={styles.statusGridItem}
-                    activeOpacity={0.8}
-                    disabled={statusUpdating}
-                    onPress={() => handleStatusSelect('stored')}
-                  >
-                    <View style={[styles.statusCircle, styles.statusCircleStored, statusModalItem?.status === 'stored' && styles.statusCircleActive]}>
-                      <Image source={require('../../../../assets/icons/down-arrow.png')} style={styles.statusCircleIcon} resizeMode="contain" />
-                    </View>
-                    <Text style={styles.statusGridLabel}>Stored</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.statusGridItem}
-                    activeOpacity={0.8}
-                    disabled={statusUpdating}
-                    onPress={() => handleStatusSelect('shipped')}
-                  >
-                    <View
-                      style={[
-                        styles.statusCircle,
-                        styles.statusCircleShipped,
-                        (statusModalItem?.status === 'shipped' || statusModalItem?.status === 'returned') && styles.statusCircleActive,
-                      ]}
-                    >
-                      <Image source={require('../../../../assets/icons/tick.png')} style={styles.statusCircleIcon} resizeMode="contain" />
-                    </View>
-                    <Text style={styles.statusGridLabel}>Shipped</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.statusGridItem}
-                    activeOpacity={0.8}
-                    disabled={statusUpdating}
-                    onPress={() => handleStatusSelect('discarded')}
-                  >
-                    <View style={[styles.statusCircle, styles.statusCircleDiscarded, statusModalItem?.status === 'discarded' && styles.statusCircleActive]}>
-                      <Text style={styles.statusCircleText}>×</Text>
-                    </View>
-                    <Text style={styles.statusGridLabel}>Discarded</Text>
-                  </TouchableOpacity>
-                </View>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+        onClose={closeStatusPopover}
+        buttonPosition={statusAnchor}
+        headerHeight={headerHeight}
+        currentStatus={statusModalItem?.status}
+        busy={statusUpdating}
+        onSelect={(status, dismiss) => {
+          if (status === 'shipped') {
+            // Stay open and swap to the shipping form rather than dismissing.
+            setShippingMode(true);
+            return;
+          }
+          dismiss(() => handleStatusSelect(status));
+        }}
+        shippingMode={shippingMode}
+        shippingLocation={shippingLocation}
+        onShippingLocationChange={setShippingLocation}
+        shippingSuggestions={shippedLocationOptions}
+        onSubmitShippingLocation={(value, dismiss) => {
+          if (!value.trim()) return;
+          dismiss(() => saveShippedLocation(value));
+        }}
+      />
     </View>
   );
 }
@@ -759,179 +630,38 @@ const styles = StyleSheet.create({
     flex: 1,
     position: 'relative',
   },
+  /** The frame insets the labels 32 from the left and the search glyph 47 from the right. */
+  tabRow: {
+    paddingLeft: SCREEN_LAYOUT.tabRow.paddingLeft * scaleX,
+    paddingRight: SCREEN_LAYOUT.tabRow.paddingRight * scaleX,
+    paddingTop: SCREEN_LAYOUT.bandToTabs * scaleX,
+    backgroundColor: LOST_AND_FOUND_COLORS.background,
+  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
-    paddingTop: LOST_AND_FOUND_SPACING.contentPaddingTop * scaleX,
-    paddingBottom: LOST_AND_FOUND_SPACING.contentPaddingBottom * scaleX,
-    paddingHorizontal: 0,
+    /*
+     * `dividerToFirstCard`, not `contentPaddingTop: 213`.
+     *
+     * 213 was header (133) + tab row (39) + gap (41) — three things this screen
+     * no longer has to know about, because they are siblings above it now. All
+     * that is left is the frame's own 18 between the divider and the first card.
+     */
+    paddingTop: SCREEN_LAYOUT.dividerToFirstCard * scaleX,
+    paddingBottom: SCREEN_LAYOUT.listBottomInset * scaleX,
+    /*
+     * The gutter and the inter-card gap moved here from the card.
+     *
+     * The card used to carry `width: 409` plus its own horizontal and bottom
+     * margins, which is why it clipped inside any container narrower than the
+     * frame (409 + 16 + 16 = 441 against a 440 frame). It now stretches, so the
+     * list owns the spacing — `LOST_AND_FOUND_CARD_LAYOUT.gutter` and
+     * `.gapBetweenCards`, the latter being 18 per Figma 3128:32, not the 16 the
+     * old constant claimed.
+     */
+    paddingHorizontal: CARD_LAYOUT.gutter * scaleX,
+    gap: CARD_LAYOUT.gapBetweenCards * scaleX,
     minHeight: '100%',
-  },
-  contentBlurOverlay: {
-    position: 'absolute',
-    top: (133 + 39) * scaleX, // Start below header and tabs
-    left: 0,
-    right: 0,
-    bottom: 152 * scaleX, // Stop above bottom nav
-    zIndex: 1,
-  },
-  blurOverlayDarkener: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(200, 200, 200, 0.6)',
-  },
-  statusModalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.15)',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  statusPopover: {
-    zIndex: 1,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e3e3e3',
-    borderRadius: 12 * scaleX,
-    paddingVertical: 14 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    shadowColor: '#6483B0',
-    shadowOpacity: 0.18,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 4,
-  },
-  statusPopoverNotch: {
-    position: 'absolute',
-    top: -6 * scaleX,
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    backgroundColor: '#ffffff',
-    borderLeftWidth: 1,
-    borderTopWidth: 1,
-    borderColor: '#e3e3e3',
-    transform: [{ rotate: '45deg' }],
-  },
-  statusModalTitle: {
-    fontSize: 18 * scaleX,
-    fontWeight: '700',
-    color: LOST_AND_FOUND_COLORS.tabActive,
-    marginBottom: 12 * scaleX,
-    textAlign: 'left',
-  },
-  statusGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-  },
-  statusGridItem: {
-    width: 64 * scaleX,
-    alignItems: 'center',
-  },
-  statusCircle: {
-    width: 44 * scaleX,
-    height: 44 * scaleX,
-    borderRadius: 22 * scaleX,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  statusCircleStored: {
-    backgroundColor: LOST_AND_FOUND_COLORS.statusStored,
-  },
-  statusCircleShipped: {
-    backgroundColor: LOST_AND_FOUND_COLORS.statusShipped,
-  },
-  statusCircleDiscarded: {
-    backgroundColor: '#9ca3af',
-  },
-  statusCircleActive: {
-    borderWidth: 2 * scaleX,
-    borderColor: '#5b769e',
-  },
-  statusCircleIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    tintColor: '#ffffff',
-  },
-  statusCircleText: {
-    fontSize: 12 * scaleX,
-    fontWeight: '700',
-    color: '#ffffff',
-    includeFontPadding: false,
-    lineHeight: 12 * scaleX,
-  },
-  statusGridLabel: {
-    marginTop: 8 * scaleX,
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-    textAlign: 'center',
-  },
-  shippedPopoverTitle: {
-    fontSize: 16 * scaleX,
-    fontWeight: '700',
-    color: '#48c755',
-    marginBottom: 12 * scaleX,
-  },
-  shippedInputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#bdbaba',
-    borderRadius: 5 * scaleX,
-    height: 45 * scaleX,
-    paddingLeft: 12 * scaleX,
-    paddingRight: 8 * scaleX,
-  },
-  shippedInput: {
-    flex: 1,
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-    paddingVertical: 0,
-  },
-  shippedSendBtn: {
-    width: 34 * scaleX,
-    height: 34 * scaleX,
-    borderRadius: 17 * scaleX,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  shippedSendIcon: {
-    width: 14 * scaleX,
-    height: 14 * scaleX,
-    tintColor: '#5a759d',
-    transform: [{ rotate: '90deg' }],
-  },
-  shippedOptions: {
-    marginTop: 12 * scaleX,
-    maxHeight: 4 * (40 * scaleX), // max 4 rows visible, then scroll
-  },
-  shippedOptionsContent: {
-    paddingBottom: 2 * scaleX,
-  },
-  shippedOptionRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 10 * scaleX,
-  },
-  shippedOptionIcon: {
-    width: 16 * scaleX,
-    height: 16 * scaleX,
-    tintColor: '#c6c5c5',
-    marginRight: 10 * scaleX,
-  },
-  shippedOptionText: {
-    flex: 1,
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-  },
-  shippedOptionCheck: {
-    width: 14 * scaleX,
-    height: 14 * scaleX,
-    tintColor: '#5a759d',
   },
 });

@@ -12,6 +12,80 @@ import type { LostAndFoundStatus } from '../types/lostAndFound.types';
 
 export const LOST_AND_FOUND_BUCKET = 'lost-and-found';
 
+/**
+ * The five areas the app hardcoded before `public_areas` existed.
+ *
+ * **A transitional shim, not a default.** `fetchPublicAreas` returns these only
+ * when the table is absent — PostgREST `42P01` — which is true of any database
+ * that has not yet run `20260921000000_public_areas.sql`. Without it, a
+ * housekeeper on an un-migrated database could not register a public-area item
+ * at all, and the repo's history says migrations here do get forgotten: the
+ * `return_later_reason` column has been pending since 20260917.
+ *
+ * Delete this, and the `42P01` branch below, once the migration is applied
+ * everywhere. It is greppable for exactly that reason.
+ */
+const PUBLIC_AREAS_PRE_MIGRATION_FALLBACK = [
+  'Brasserie',
+  'Gym',
+  'Toilet',
+  'Reception',
+  'Elevator',
+] as const;
+
+/**
+ * The hotel's public areas, in the order the picker should show them.
+ *
+ * Reads `public_areas` scoped to the caller's hotel and filtered to the active
+ * rows. Inactive areas stay in the table so items already found there keep
+ * resolving, but they stop being offered.
+ */
+export async function fetchPublicAreas(): Promise<string[]> {
+  const hotelId = await getMyHotelId();
+
+  const query = supabase
+    .from('public_areas' as never)
+    .select('name, sort_order')
+    .eq('active', true)
+    .order('sort_order', { ascending: true })
+    .order('name', { ascending: true });
+
+  // Tenant scoping is enforced by RLS where it is configured; filtering here
+  // too means a permissive policy cannot leak another hotel's areas.
+  const { data, error } = hotelId
+    ? await query.eq('hotel_id', hotelId)
+    : await query;
+
+  if (error) {
+    /*
+     * Two codes, because two layers can answer.
+     *
+     * `42P01` is Postgres's undefined_table, but PostgREST usually never gets
+     * that far: it answers `PGRST205` ("could not find the table in the schema
+     * cache") from its own cache first. Checking only the Postgres code looks
+     * right and silently never fires — which is exactly what happened here
+     * until the response body was actually read. The existing
+     * `shipped_location` handling pairs `42703` with `PGRST204` for the same
+     * reason.
+     */
+    const code = (error as { code?: string }).code;
+    if (code === 'PGRST205' || code === '42P01') {
+      if (__DEV__) {
+        console.warn(
+          '[lostAndFound] public_areas table is missing — using the pre-migration ' +
+            'list. Apply supabase/migrations/20260921000000_public_areas.sql.'
+        );
+      }
+      return [...PUBLIC_AREAS_PRE_MIGRATION_FALLBACK];
+    }
+    throw error;
+  }
+
+  return ((data ?? []) as { name: string }[])
+    .map((row) => String(row.name ?? '').trim())
+    .filter(Boolean);
+}
+
 const BASE_SELECT = `
   id,
   item_name,

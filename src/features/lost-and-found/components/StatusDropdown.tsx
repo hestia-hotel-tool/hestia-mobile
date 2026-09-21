@@ -19,23 +19,38 @@ interface StatusDropdownProps {
   inputFieldPosition?: { x: number; y: number; width: number; height: number } | null;
 }
 
-const statusOptions: { value: StatusOption; label: string; icon: any }[] = [
-  {
-    value: 'stored',
-    label: 'Stored',
-    icon: require('../../../../assets/icons/down-arrow.png'), // Yellow circle or down arrow
-  },
-  {
-    value: 'shipped',
-    label: 'Shipped',
-    icon: require('../../../../assets/icons/tick.png'),
-  },
-  {
-    value: 'discarded',
-    label: 'Discarded',
-    icon: require('../../../../assets/icons/down-arrow.png'), // Can be updated with trash icon
-  },
+/*
+ * No `icon` field.
+ *
+ * Each row used to carry a `require()`d PNG that nothing ever rendered: the row
+ * draws a coloured `statusCircle` View and a text tick, and `option.icon` was
+ * never read. Two of the three pointed at `down-arrow.png` anyway, one of them
+ * commented "Can be updated with trash icon" — so the data said "arrow", the
+ * comment said "trash", and the screen drew a circle. Deleting the field is the
+ * only one of those three that is true.
+ */
+const statusOptions: { value: StatusOption; label: string }[] = [
+  { value: 'stored', label: 'Stored' },
+  { value: 'shipped', label: 'Shipped' },
+  { value: 'discarded', label: 'Discarded' },
 ];
+
+/**
+ * Dot colour per status. `#f0be1b` is `status-in-progress`, `#41d541` is
+ * `status-inspected`.
+ *
+ * **`discarded` is deliberately the same yellow as `stored`, and that is very
+ * likely wrong.** It was a fall-through in a nested ternary
+ * (`stored ? yellow : shipped ? green : yellow`), so the duplication was
+ * invisible; as a record it is at least legible. No frame in the Lost & Found
+ * set draws a discarded state, so there is no value to correct it *to* — and
+ * guessing one here would look researched. It needs a design answer.
+ */
+const STATUS_CIRCLE_COLOR: Record<StatusOption, string> = {
+  stored: '#f0be1b',
+  shipped: '#41d541',
+  discarded: '#f0be1b',
+};
 
 const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; height: number } | null) => StyleSheet.create({
   backdrop: {
@@ -91,11 +106,6 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
     paddingVertical: REGISTER_FORM.step2.statusDropdown.item.paddingVertical * scaleX,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
-  },
-  icon: {
-    width: REGISTER_FORM.step2.statusDropdown.item.icon.size * scaleX,
-    height: REGISTER_FORM.step2.statusDropdown.item.icon.size * scaleX,
-    marginRight: 12 * scaleX,
   },
   statusCircle: {
     width: REGISTER_FORM.step2.statusDropdown.item.icon.size * scaleX,
@@ -165,14 +175,7 @@ export default function StatusDropdown({
               <View
                 style={[
                   dynamicStyles.statusCircle,
-                  {
-                    backgroundColor:
-                      option.value === 'stored'
-                        ? '#f0be1b'
-                        : option.value === 'shipped'
-                        ? '#41d541'
-                        : '#f0be1b',
-                  },
+                  { backgroundColor: STATUS_CIRCLE_COLOR[option.value] },
                 ]}
               />
               <Text style={dynamicStyles.text}>{option.label}</Text>
