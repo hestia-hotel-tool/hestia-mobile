@@ -37,7 +37,7 @@ export default function ItemRegisteredSuccessModal({
       onPrint();
     } else {
       // Default print behavior - could use expo-print here
-      console.log('Print tracking number:', trackingNumber);
+      // TODO: wire up printing.
     }
   };
 

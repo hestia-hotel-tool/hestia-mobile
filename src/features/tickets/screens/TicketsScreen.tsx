@@ -219,7 +219,7 @@ export default function TicketsScreen() {
 
   const handleTicketPress = (ticket: TicketData) => {
     // TODO: Navigate to ticket detail screen
-    console.log('Ticket pressed:', ticket.id);
+    // TODO: there is no ticket-detail screen to open yet.
     // navigation.navigate('TicketDetail', { ticketId: ticket.id });
   };
 

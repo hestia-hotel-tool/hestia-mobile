@@ -145,7 +145,7 @@ export const authService = {
     callback: (event: string, session: Session | null) => void
   ): { data: { subscription: { unsubscribe: () => void } } } {
     return supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[Auth] authStateChange:', event, session ? 'session' : 'null');
+      if (__DEV__) console.log('[Auth] authStateChange:', event, session ? 'session' : 'null');
       callback(event, session);
     });
   },

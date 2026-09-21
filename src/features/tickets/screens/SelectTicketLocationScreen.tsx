@@ -274,7 +274,7 @@ export default function SelectTicketLocationScreen() {
 
   const handleAICreatePress = () => {
     // TODO: Implement AI ticket creation
-    console.log('AI Create Ticket pressed');
+    // TODO: no AI ticket flow exists yet; this control is inert by design.
   };
 
   return (

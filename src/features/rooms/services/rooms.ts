@@ -1353,7 +1353,7 @@ export async function getFullRoomDetails(roomId?: string): Promise<FullRoomDetai
   if (roomsError) throw roomsError;
   const rooms = (roomsData ?? []) as RoomRow[];
   if (rooms.length === 0) {
-    console.log('[getFullRoomDetails] No rooms found.');
+    // An empty result is a normal state, not something to log on every call.
     return [];
   }
 

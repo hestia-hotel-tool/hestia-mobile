@@ -141,12 +141,12 @@ export default function ChecklistSection({
     });
 
     // TODO: Auto-save to backend/API (optional)
-    console.log('Checklist item quantity changed:', itemId, quantity);
+    // TODO: persist the quantity change.
   }, []);
 
   const handleLoadMore = useCallback(() => {
     // TODO: Load more items for Mini Bar section
-    console.log('Load more items requested');
+    // TODO: paginate the checklist.
   }, []);
 
   const handleSubmit = useCallback(() => {
@@ -168,7 +168,7 @@ export default function ChecklistSection({
     }
 
     // TODO: Save to backend/API
-    console.log('Checklist submitted:', submissionData);
+    // TODO: persist the checklist submission.
   }, [checklistData, onSubmit]);
 
   const handleCancel = useCallback(() => {

@@ -31,6 +31,7 @@ import HomeFilterModal from '../components/HomeFilterModal';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
+import { useRenderLoopProbe } from '@/utils/useRenderLoopProbe';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
 import { getLatestPausedAssignment } from '../services/home';
@@ -858,8 +859,46 @@ export default function HomeScreen() {
 
   const handleAdvanceFilter = () => {
     // TODO: Navigate to advanced filter screen when implemented
-    console.log('Advanced filter');
+    // TODO: navigate to the advanced filter screen when it exists.
   };
+
+  /*
+   * Temporary. Three rounds of hardening have not stopped the "Maximum update
+   * depth exceeded" report from this screen, and it does not reproduce here —
+   * not on any of the four home variants, and not when the screen is entered
+   * with filters already applied. So stop guessing and have the screen name the
+   * culprit where it actually happens. Remove once it has reported once.
+   */
+  useRenderLoopProbe('HomeScreen', {
+    homeData,
+    'homeData.user': homeData.user,
+    'homeData.categories': homeData.categories,
+    activeFilters,
+    searchQuery,
+    headerBottom,
+    showFilterModal,
+    refreshing,
+    assignedRoomIdsOrdered,
+    ticketCounts,
+    ticketRecent,
+    ticketActivityLimit,
+    portierOverview,
+    portierRows,
+    derivedCategories,
+    filterCounts,
+    roomsForHome,
+    roomsStoreData,
+    profile,
+    sessionFallback,
+    session,
+    safeUser,
+    chrome,
+    styles,
+    refreshTicketDashboard,
+    refreshPortierHome,
+    'route.params': route.params,
+    'route.params.filters': (route.params as any)?.filters,
+  });
 
   return (
     <View style={[

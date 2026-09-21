@@ -169,7 +169,7 @@ export default function RoomDetailContent({
           roomCode={roomCode}
           roomStatus={currentStatus}
           onSubmit={(data) => {
-            console.log('Room checklist submitted:', data);
+            // TODO: persist the checklist submission.
           }}
         />
       ) : activeTab === 'Tickets' ? (
@@ -178,7 +178,6 @@ export default function RoomDetailContent({
           roomNumber={roomNumber}
           departmentName={departmentName}
           onSubmit={(ticketData) => {
-            console.log('Ticket submitted:', ticketData);
           }}
         />
       ) : (
@@ -248,10 +247,8 @@ export default function RoomDetailContent({
                   items={lostAndFoundItems}
                   onAddPhotosPress={onAddLostAndFoundItem}
                   onTitlePress={() => {
-                    console.log('Lost & Found title pressed');
                   }}
                   onItemPress={(item) => {
-                    console.log('Lost & Found item pressed:', item.itemName);
                   }}
                 />
               </View>

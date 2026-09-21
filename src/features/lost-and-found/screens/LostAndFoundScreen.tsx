@@ -387,7 +387,7 @@ export default function LostAndFoundScreen() {
 
   const handleItemPress = (item: LostAndFoundItem) => {
     // TODO: Navigate to item detail screen when implemented
-    console.log('Item pressed:', item.id);
+    // TODO: no lost-and-found detail screen yet.
   };
 
   const handleStatusPress = (item: LostAndFoundItem, anchor?: LostAndFoundStatusAnchorLayout) => {

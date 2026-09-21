@@ -601,7 +601,7 @@ export default function RoomDetailScreen() {
   }, [room.id, updateRoom, refreshHistory]);
 
   const handlePromiseTimeConfirm = (promiseTime: string, period: 'AM' | 'PM', _formattedDateTime?: string, promiseAtTimestamp?: number) => {
-    console.log('Promise Time confirmed for room:', room.roomNumber, 'at:', promiseTime, period);
+    // TODO: persist the promise time (no `promise_time_at` column yet).
     if (promiseAtTimestamp != null) {
       setActivity({ kind: 'promisedTime', dueAt: promiseAtTimestamp });
     }
@@ -680,7 +680,7 @@ export default function RoomDetailScreen() {
       createdAt: new Date().toISOString(),
     };
     setTasks(prev => [...prev, newTask]);
-    console.log('Task added for room:', room.roomNumber, 'task:', taskText);
+    // TODO: persist the added task.
     void logRoomHistoryEvent({
       roomId: room.id,
       type: 'task',
@@ -746,12 +746,10 @@ export default function RoomDetailScreen() {
 
 
   const handleReassign = () => {
-    console.log('handleReassign called, opening ReassignModal');
     setShowReassignModal(true);
   };
 
   const handleStaffSelect = (staffId: string) => {
-    console.log('Staff selected:', staffId);
 
     // Important: never reference variables that don't exist in this scope.
     // iOS was crashing because `selectedStaff` was undefined here.
@@ -810,7 +808,7 @@ export default function RoomDetailScreen() {
   };
 
   const handleAutoAssign = () => {
-    console.log('Auto assign requested');
+    // TODO: auto-assign is not implemented.
     setShowReassignModal(false);
   };
 
