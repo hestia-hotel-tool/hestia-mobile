@@ -40,6 +40,8 @@ const groups = fs
   .sort();
 
 const found = [];
+/** SVGs rejected for an unresolvable mask; a non-zero count fails the run. */
+let brokenMasks = 0;
 for (const group of groups) {
   const dir = path.join(ICONS_DIR, group);
   for (const file of fs.readdirSync(dir).filter((f) => f.endsWith('.svg')).sort()) {
@@ -57,6 +59,33 @@ for (const group of groups) {
       continue;
     }
 
+    /*
+     * A `mask="url(#id)"` whose `id` is nowhere in the file.
+     *
+     * Figma emulates an inside stroke with a mask plus a path that covers far
+     * more than the viewBox — `nav-lost-found` had one running from -27 to 61
+     * on a 37x41 canvas. Export the mark without its `<defs>` and the mask
+     * resolves to nothing, `react-native-svg` drops the clip, and the glyph
+     * renders as a solid filled rectangle.
+     *
+     * It fails silently and only at runtime, and only on the screen unlucky
+     * enough to be the first to render that icon — `nav-lost-found` shipped
+     * broken and went unnoticed because nothing drew it. Cheaper to catch here.
+     */
+    const danglingMasks = [...svg.matchAll(/mask="url\(#([^)]+)\)"/g)]
+      .map((m) => m[1])
+      .filter((id) => !svg.includes(`id="${id}"`));
+    if (danglingMasks.length > 0) {
+      console.error(
+        `  SKIP ${group}/${file} — mask reference(s) with no definition: ` +
+          `${[...new Set(danglingMasks)].join(', ')}. ` +
+          `Re-export with its <defs>, or delete the masked path — it paints ` +
+          `a solid block without its mask.`,
+      );
+      brokenMasks += 1;
+      continue;
+    }
+
     found.push({
       key,
       group,
@@ -70,6 +99,21 @@ for (const group of groups) {
 
 if (found.length === 0) {
   console.error('No SVGs found under assets/icons/<group>/ — nothing to generate.');
+  process.exit(1);
+}
+
+/*
+ * Stop before writing rather than after.
+ *
+ * A registry generated with the broken icon skipped would still compile for
+ * everyone who does not use it, and would fail typecheck for whoever does —
+ * pointing at the call site rather than the asset. Leaving the registry
+ * untouched keeps the tree consistent and puts the error on the SVG.
+ */
+if (brokenMasks > 0) {
+  console.error(
+    `\n${brokenMasks} SVG(s) rejected above. registry.ts left unchanged — fix the assets and re-run.`,
+  );
   process.exit(1);
 }
 

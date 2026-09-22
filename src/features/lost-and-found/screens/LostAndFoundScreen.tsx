@@ -10,6 +10,7 @@ import BottomTabBar from '@/components/layout/BottomTabBar';
 import LostAndFoundHeader from '../components/LostAndFoundHeader';
 import LostAndFoundTabs from '../components/LostAndFoundTabs';
 import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/LostAndFoundItemCard';
+import EmptyLostAndFoundState from '../components/EmptyLostAndFoundState';
 import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
 import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
 import { useUserStore } from '@features/account/store/useUserStore';
@@ -560,15 +561,29 @@ export default function LostAndFoundScreen() {
           }
         >
           {/* Item cards — Figma 3128:32. Spacing is the list's, not the card's. */}
-          {filteredItems.map((item) => (
-            <LostAndFoundItemCard
-              key={item.id}
-              item={item}
-              onPress={() => handleItemPress(item)}
-              onStatusPress={(anchor) => handleStatusPress(item, anchor)}
-              statusUpdating={statusUpdating && statusUpdatingItemId === item.id}
-            />
-          ))}
+          {filteredItems.length === 0 ? (
+            /*
+             * Gated on the loading flags as well as the count. The overlay
+             * above is full-screen so it would hide this anyway, but on the
+             * first paint — before `loadItems` has set `listLoading` — neither
+             * is showing, and an empty list is indistinguishable from a list
+             * that has not loaded. Without the gate the screen says "nothing
+             * has been handed in" for a frame on every cold open.
+             */
+            !listLoading && !refetchLoading && !refreshing ? (
+              <EmptyLostAndFoundState selectedTab={selectedTab} />
+            ) : null
+          ) : (
+            filteredItems.map((item) => (
+              <LostAndFoundItemCard
+                key={item.id}
+                item={item}
+                onPress={() => handleItemPress(item)}
+                onStatusPress={(anchor) => handleStatusPress(item, anchor)}
+                statusUpdating={statusUpdating && statusUpdatingItemId === item.id}
+              />
+            ))
+          )}
         </ScrollView>
 
       </View>
