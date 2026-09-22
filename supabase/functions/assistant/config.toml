@@ -1,0 +1,8 @@
+# Unlike `notify`, this function is called directly by the app on a user's
+# behalf and reads hotel data, so the platform must reject anything without a
+# valid session before our code runs.
+#
+# The JWT is not only a gate: the handler binds a Supabase client to it so that
+# RLS and `hotel_id` scoping decide what the assistant can see. Turning this off
+# would let an unauthenticated caller reach a model that can read guest data.
+verify_jwt = true

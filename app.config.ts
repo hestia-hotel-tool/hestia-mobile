@@ -85,6 +85,28 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         },
       ],
       "expo-audio",
+      [
+        /*
+         * Dictation for the assistant.
+         *
+         * On-device speech recognition rather than a cloud transcription
+         * service: no second vendor or API key, partial results while the user
+         * is still speaking, and guest names and room numbers never leave the
+         * phone to be transcribed.
+         *
+         * Both usage strings are required. iOS terminates the app — it does
+         * not merely deny — when either permission is requested without a
+         * purpose string in Info.plist, and speech recognition needs its own
+         * on top of the microphone's.
+         */
+        "expo-speech-recognition",
+        {
+          microphonePermission:
+            "Hestia uses the microphone so you can ask the assistant a question out loud.",
+          speechRecognitionPermission:
+            "Hestia uses speech recognition to turn what you say into a question for the assistant.",
+        },
+      ],
       "expo-image",
       "expo-sharing",
       [
