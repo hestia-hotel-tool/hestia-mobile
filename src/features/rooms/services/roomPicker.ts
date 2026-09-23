@@ -73,8 +73,30 @@ function toArray<T>(value: T | T[] | null | undefined): T[] {
  * A guest with no portrait gets no URL at all and the card draws initials.
  */
 export async function loadRoomPickerRooms(): Promise<RoomPickerRoom[]> {
-  const rows = await listRoomsWithReservationGuests();
+  return mapRoomRows(await listRoomsWithReservationGuests());
+}
 
+/**
+ * The same rooms, for a known handful, keyed by id.
+ *
+ * The Staff screen's "Current" block needs the guest standing in each room a
+ * housekeeper is working — typically under ten. `loadRoomPickerRooms()` would
+ * fetch the whole house and sign every portrait in it to answer that.
+ *
+ * Both funnel through `mapRoomRows` so `pickReservation` and `pickPrimaryGuest`
+ * stay single-sourced. Two copies of that logic is exactly what this file was
+ * created to end.
+ */
+export async function loadRoomPickerRoomsByIds(
+  roomIds: string[],
+): Promise<Map<string, RoomPickerRoom>> {
+  const unique = Array.from(new Set(roomIds.filter(Boolean)));
+  if (unique.length === 0) return new Map();
+  const rooms = await mapRoomRows(await listRoomsWithReservationGuests(unique));
+  return new Map(rooms.map((room) => [room.id, room]));
+}
+
+async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
   const rooms: RoomPickerRoom[] = (rows ?? []).map((room: any) => {
     const reservation = pickReservation(toArray<any>(room?.reservations));
     const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();

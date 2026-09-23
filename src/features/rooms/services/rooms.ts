@@ -418,8 +418,17 @@ const fetchRoomNotesAggregate = async (roomIds: string[]): Promise<Map<string, R
  * (Lost & Found "found location", Create Ticket "select location").
  * Callers keep their own row → view-model mapping.
  */
-export async function listRoomsWithReservationGuests(): Promise<any[]> {
-  const { data, error } = await supabase
+export async function listRoomsWithReservationGuests(roomIds?: string[]): Promise<any[]> {
+  /*
+   * `roomIds` narrows the fetch. Unfiltered this returns every room in the
+   * hotel with every reservation and every guest, which is right for a picker
+   * that lists them all and badly wrong for the Staff screen, which needs the
+   * guests of the handful of rooms staff are currently standing in. On a
+   * 200-room property that was a full-house payload to draw eight avatars.
+   */
+  if (roomIds && roomIds.length === 0) return [];
+
+  let query = supabase
     .from('rooms')
     .select(
       `
@@ -442,6 +451,9 @@ export async function listRoomsWithReservationGuests(): Promise<any[]> {
     )
     .order('room_number', { ascending: true });
 
+  if (roomIds) query = query.in('id', roomIds);
+
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as any[];
 }
@@ -1319,11 +1331,19 @@ export async function fetchAllRoomsFromFullDetails(shift: 'AM' | 'PM'): Promise<
 }
 
 /**
- * Fetch full details for one room or all rooms: guest info, reservations, room notes,
- * assigned staff, lost & found, tickets. Logs the result to the console and returns it.
- * @param roomId - Optional. If provided, returns details for that room only; otherwise all rooms.
+ * Fetch full details for one room, a set of rooms, or all rooms: guest info,
+ * reservations, room notes, assigned staff, lost & found, tickets.
+ *
+ * @param roomId - Optional. One id, **a list of ids**, or omitted for all rooms.
+ *
+ * The list form exists for "the rooms one person holds this shift" — a handful
+ * out of the estate. Fetching all of them and filtering in JS was the
+ * alternative, and it costs five `.in()` queries over every room in the hotel
+ * to render three cards.
  */
-export async function getFullRoomDetails(roomId?: string): Promise<FullRoomDetails[]> {
+export async function getFullRoomDetails(
+  roomId?: string | readonly string[]
+): Promise<FullRoomDetails[]> {
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
@@ -1338,10 +1358,19 @@ export async function getFullRoomDetails(roomId?: string): Promise<FullRoomDetai
   let roomsData: any[] | null = null;
   let roomsError: any = null;
 
-  if (roomId) {
-    ({ data: roomsData, error: roomsError } = await roomsQueryWithReturnLater.eq('id', roomId));
+  /*
+   * `.in()` for both the single and the list form — one code path, and
+   * `.in('id', [x])` is what `.eq('id', x)` compiles to anyway. An empty list
+   * is "no rooms", not "all rooms", so it short-circuits rather than falling
+   * through to the unfiltered branch below.
+   */
+  const wanted = roomId == null ? null : typeof roomId === 'string' ? [roomId] : [...roomId];
+  if (wanted && wanted.length === 0) return [];
+
+  if (wanted) {
+    ({ data: roomsData, error: roomsError } = await roomsQueryWithReturnLater.in('id', wanted));
     if (roomsError && roomsError.code === '42703') {
-      ({ data: roomsData, error: roomsError } = await roomsQueryBase.eq('id', roomId));
+      ({ data: roomsData, error: roomsError } = await roomsQueryBase.in('id', wanted));
     }
   } else {
     ({ data: roomsData, error: roomsError } = await roomsQueryWithReturnLater);

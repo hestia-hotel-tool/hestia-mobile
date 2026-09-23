@@ -66,6 +66,19 @@ export type TabBarProps<T extends string> = {
    * glyph span x=32..393, and it is what makes the spacing come out even.
    */
   trailing?: React.ReactNode;
+  /**
+   * How the labels share the row.
+   *
+   * `'between'` (the default) spreads them edge to edge, which is what Lost &
+   * Found, Tickets and Room Detail all draw. Staff (3240:561) does not: its
+   * labels sit at x=35/127/194 with gaps of 47 and 43 while the search glyph is
+   * away at x=376 — a left-cluster with the trailing control pushed right, not
+   * an even distribution. `justify-between` there would pull AM and PM across
+   * the width and look plausible while being wrong.
+   */
+  distribute?: 'between' | 'start';
+  /** Gap between labels in design px. Only read when `distribute` is `'start'`. */
+  gap?: number;
   className?: string;
 };
 
@@ -110,6 +123,8 @@ export function TabBar<T extends string>({
   fontSize = 16,
   renderLabel,
   trailing,
+  distribute = 'between',
+  gap = 0,
   className,
 }: TabBarProps<T>) {
   /*
@@ -152,7 +167,18 @@ export function TabBar<T extends string>({
 
   return (
     <View className={className}>
-      <View className="flex-row items-center justify-between">
+      {/*
+        The labels stay *direct* children of this row in both modes. Nesting the
+        cluster in its own view would be the obvious way to give it a gap, but
+        `onLayout` reports `x` relative to the parent, and the rule below is
+        positioned in this container's space — so the rule would silently offset
+        by the wrapper's own x. `marginLeft: 'auto'` on the trailing control
+        pushes it to the end without adding a level.
+      */}
+      <View
+        className={`flex-row items-center ${distribute === 'start' ? '' : 'justify-between'}`}
+        style={distribute === 'start' && gap > 0 ? { gap: gap * scaleX } : undefined}
+      >
         {tabs.map((tab) => (
           <Pressable
             key={tab}
@@ -174,7 +200,11 @@ export function TabBar<T extends string>({
             </Text>
           </Pressable>
         ))}
-        {trailing}
+        {trailing != null && distribute === 'start' ? (
+          <View style={{ marginLeft: 'auto' }}>{trailing}</View>
+        ) : (
+          trailing
+        )}
       </View>
 
       {ruleGap > 0 ? <View style={{ height: ruleGap * scaleX }} /> : null}

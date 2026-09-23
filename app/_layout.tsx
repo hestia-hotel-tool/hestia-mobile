@@ -128,6 +128,7 @@ export default function RootLayout() {
             <Stack.Screen name="room/[roomId]" />
             <Stack.Screen name="chat/[chatId]" />
             <Stack.Screen name="assign-rooms" />
+            <Stack.Screen name="staff-rooms" />
             <Stack.Screen name="new-chat" />
             <Stack.Screen name="create-chat-group" />
             <Stack.Screen name="user-profile" />

@@ -26,6 +26,7 @@ import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionPhone from '@assets/icons/actions/action-phone.svg';
+import ActionPlus from '@assets/icons/actions/action-plus.svg';
 import ActionPrint from '@assets/icons/actions/action-print.svg';
 import ActionPriority from '@assets/icons/actions/action-priority.svg';
 import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
@@ -95,6 +96,7 @@ export const icons = {
   'action-flag': ActionFlag,
   'action-mic': ActionMic,
   'action-phone': ActionPhone,
+  'action-plus': ActionPlus,
   'action-print': ActionPrint,
   'action-priority': ActionPriority,
   'action-promised-time': ActionPromisedTime,
@@ -172,6 +174,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-flag': 1.1833,
   'action-mic': 0.7727,
   'action-phone': 1,
+  'action-plus': 1,
   'action-print': 1,
   'action-priority': 1.1833,
   'action-promised-time': 0.7398,
@@ -239,6 +242,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-flag',
   'action-mic',
   'action-phone',
+  'action-plus',
   'action-print',
   'action-priority',
   'action-promised-time',

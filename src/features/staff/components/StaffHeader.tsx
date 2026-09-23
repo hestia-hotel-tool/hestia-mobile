@@ -1,113 +1,71 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+import { View, Text, Pressable } from '@/tw';
+import { Icon } from '@/components/Icon';
+import { scaleX } from '@/utils/responsive';
 import { typography } from '@/theme';
-import { scaleX, STAFF_HEADER } from '../constants/staffStyles';
+import { STAFF_LIST_LAYOUT as L } from './staffList/staffListLayout';
 
 interface StaffHeaderProps {
-  onBackPress?: () => void;
-  /** Top-right action button (Figma shows a + button). */
-  onAddPress?: () => void;
+  onBackPress: () => void;
 }
 
-export default function StaffHeader({
-  onBackPress,
-  onAddPress,
-}: StaffHeaderProps) {
+/**
+ * The blue band — Figma 3240:713, with the back chevron (3240:716) and the
+ * title (3240:715).
+ *
+ * **No + .** The frame draws one at 3241:795, but it had no stated behaviour
+ * and there is no add-staff flow, so it was wired to the assign-rooms screen —
+ * a guess. A control that does something other than what its glyph promises is
+ * worse than no control, and it is gone at your request. Bringing it back means
+ * restoring this button, `header.addButton` in the layout table, and the
+ * `staff.manage` gate in `StaffScreen`.
+ *
+ * `insets.top + safeAreaGap` rather than the frame's literal y=63: that number
+ * already includes a status bar, so hard-coding it puts the title under the
+ * Dynamic Island on a device whose inset differs. Same idiom as
+ * `RoomDetailHeader`.
+ */
+export default function StaffHeader({ onBackPress }: StaffHeaderProps) {
+  const insets = useSafeAreaInsets();
+  const s = (n: number) => n * scaleX;
+
   return (
-    <View style={styles.container}>
-      {/* Background */}
-      <View style={styles.background} />
-      
-      {/* Back Button */}
-      <TouchableOpacity
-        style={styles.backButton}
+    <View
+      className="flex-row items-center bg-surface-header"
+      style={{
+        paddingTop: insets.top + s(L.header.safeAreaGap),
+        paddingBottom: s(L.header.paddingBottom),
+        paddingHorizontal: s(L.gutter),
+        // The + used to set this; see `header.contentMinHeight`.
+        minHeight: insets.top + s(L.header.safeAreaGap + L.header.contentMinHeight + L.header.paddingBottom),
+      }}
+    >
+      <Pressable
         onPress={onBackPress}
-        activeOpacity={0.7}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        accessibilityRole="button"
+        accessibilityLabel="Back"
+        className="items-center justify-center"
+        style={{ width: s(L.header.backChevron), height: s(L.header.backChevron) }}
       >
-        <Image
-          source={require('../../../../assets/icons/back-arrow.png')}
-          style={styles.backArrow}
-          resizeMode="contain"
-          tintColor="#607aa1"
-        />
-      </TouchableOpacity>
-      
-      {/* Title */}
-      <Text style={styles.title}>Staff</Text>
-      
-      {/* + Button */}
-      {onAddPress && (
-        <TouchableOpacity
-          style={styles.addButtonWrap}
-          onPress={onAddPress}
-          activeOpacity={0.7}
-        >
-          <View style={styles.addButtonCircle}>
-            <Ionicons name="add" size={28 * scaleX} color="#ffffff" />
-          </View>
-        </TouchableOpacity>
-      )}
+        {/* `action-chevron` already points left. */}
+        <Icon name="action-chevron" size={s(L.header.backChevron)} color="#607aa1" />
+      </Pressable>
+
+      <Text
+        className="flex-1 font-hestia-primary font-bold"
+        numberOfLines={1}
+        style={{
+          marginLeft: s(L.header.titleMarginLeft),
+          fontSize: s(L.header.titleFontSize),
+          fontFamily: typography.fontFamily.primary,
+          color: '#607aa1',
+        }}
+      >
+        Staff
+      </Text>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: STAFF_HEADER.height * scaleX,
-    zIndex: 10,
-  },
-  background: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: STAFF_HEADER.height * scaleX,
-    backgroundColor: STAFF_HEADER.background.backgroundColor,
-  },
-  backButton: {
-    position: 'absolute',
-    left: STAFF_HEADER.backButton.left * scaleX,
-    top: STAFF_HEADER.backButton.top * scaleX,
-    width: STAFF_HEADER.backButton.width * scaleX,
-    height: STAFF_HEADER.backButton.height * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backArrow: {
-    width: STAFF_HEADER.backButton.width * scaleX,
-    height: STAFF_HEADER.backButton.height * scaleX,
-  },
-  title: {
-    position: 'absolute',
-    left: STAFF_HEADER.title.left * scaleX,
-    top: STAFF_HEADER.title.top * scaleX,
-    fontSize: STAFF_HEADER.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: STAFF_HEADER.title.color,
-  },
-  addButtonWrap: {
-    position: 'absolute',
-    right: 32 * scaleX,
-    top: 50 * scaleX,
-    width: 54 * scaleX,
-    height: 54 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonCircle: {
-    width: 54 * scaleX,
-    height: 54 * scaleX,
-    borderRadius: 999,
-    backgroundColor: 'rgba(90,117,157,0.59)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});
-
-

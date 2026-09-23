@@ -1,218 +1,96 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, LayoutChangeEvent } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { typography } from '@/theme';
-import { scaleX, STAFF_TABS } from '../constants/staffStyles';
-import { StaffTab } from '../types/staff.types';
+import React from 'react';
+import { TextInput } from 'react-native';
 
-interface StaffTabsProps {
+import { View } from '@/tw';
+import { Icon } from '@/components/Icon';
+import { TabBar } from '@/components/ui/TabBar';
+import { scaleX } from '@/utils/responsive';
+import { typography } from '@/theme';
+import type { StaffTab } from '../types/staff.types';
+import { STAFF_LIST_LAYOUT as L } from './staffList/staffListLayout';
+
+/** Figma 3240:561 — nodes 3240:569 / 3240:568, in this order. */
+export const STAFF_TABS_ORDER: readonly StaffTab[] = ['am', 'pm'];
+
+export const STAFF_TAB_LABELS: Record<StaffTab, string> = {
+  am: 'AM',
+  pm: 'PM',
+};
+
+export interface StaffTabsProps {
   selectedTab: StaffTab;
   onTabPress: (tab: StaffTab) => void;
-  /** When true, tabs are replaced by search input + close. */
-  searchExpanded?: boolean;
-  searchQuery?: string;
-  onSearchQueryChange?: (query: string) => void;
-  onSearchPress?: () => void;
-  onSearchClose?: () => void;
+  searchQuery: string;
+  onSearchQueryChange: (query: string) => void;
 }
 
+/**
+ * A thin wrapper over the shared `TabBar`, as `LostAndFoundTabs` is.
+ *
+ * **Two tabs, not three.** The revised frame drops "Shifts" and gives AM and
+ * PM the grouped roster, each scoped to its own shift.
+ *
+ * **The search is a field, always visible.** It was a bare glyph that swapped
+ * the whole tab row out for an input; node 4211:623 puts a 233x38 field beside
+ * the tabs instead, so the tabs never disappear and there is no open/closed
+ * state to hold.
+ *
+ * `distribute="start"`: this frame left-clusters its labels (x=43 and x=111,
+ * 43 apart) and pushes the field right. `justify-between` would spread two
+ * labels across the width.
+ */
 export default function StaffTabs({
   selectedTab,
   onTabPress,
-  searchExpanded = false,
-  searchQuery = '',
+  searchQuery,
   onSearchQueryChange,
-  onSearchPress,
-  onSearchClose,
 }: StaffTabsProps) {
-  const searchInputRef = useRef<TextInput>(null);
-  const [tabWidths, setTabWidths] = useState<Partial<Record<StaffTab, number>>>({});
-
-  const handleTabLayout = (tabId: StaffTab) => (e: LayoutChangeEvent) => {
-    const { width } = e.nativeEvent.layout;
-    setTabWidths((prev) => (prev[tabId] === width ? prev : { ...prev, [tabId]: width }));
-  };
-
-  useEffect(() => {
-    if (searchExpanded) setTimeout(() => searchInputRef.current?.focus(), 100);
-  }, [searchExpanded]);
-
-  const tabs: { id: StaffTab; label: string }[] = [
-    { id: 'shifts', label: 'Shifts' },
-    { id: 'am', label: 'AM' },
-    { id: 'pm', label: 'PM' },
-  ];
-
-  const getIndicatorPosition = () => {
-    const selectedTabConfig = STAFF_TABS.tabs[selectedTab];
-    const measuredWidth = tabWidths[selectedTab];
-    return {
-      left: selectedTabConfig.indicatorLeft * scaleX,
-      width: (measuredWidth ?? selectedTabConfig.indicatorWidth) * (measuredWidth != null ? 1 : scaleX),
-    };
-  };
-
-  const indicatorPos = getIndicatorPosition();
-
-  if (searchExpanded) {
-    return (
-      <View style={styles.container}>
-        <View style={styles.tabsWrapper}>
-          <TextInput
-            ref={searchInputRef}
-            style={styles.searchInput}
-            placeholder="Search staff and departments..."
-            placeholderTextColor={STAFF_TABS.tab.inactiveColor}
-            value={searchQuery}
-            onChangeText={onSearchQueryChange}
-            returnKeyType="search"
-          />
-          <TouchableOpacity
-            style={styles.searchCloseBtn}
-            onPress={onSearchClose}
-            activeOpacity={0.7}
-            hitSlop={12}
-          >
-            <Ionicons name="close" size={24 * scaleX} color={STAFF_TABS.searchIcon.color} />
-          </TouchableOpacity>
-        </View>
-        <View style={styles.divider} />
-      </View>
-    );
-  }
+  const s = (n: number) => n * scaleX;
+  const search = L.tabRow.search;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.tabsWrapper}>
-        {tabs.map((tab) => {
-          const tabConfig = STAFF_TABS.tabs[tab.id];
-          const isActive = selectedTab === tab.id;
-          
-          return (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, { left: tabConfig.left * scaleX }]}
-              onPress={() => onTabPress(tab.id)}
-              onLayout={handleTabLayout(tab.id)}
-              activeOpacity={0.7}
-            >
-              <Text
-                style={[
-                  styles.tabText,
-                  isActive ? styles.tabTextActive : styles.tabTextInactive,
-                ]}
-              >
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-        
-        {/* Search icon - right of tabs (On Shift | AM | PM | Departments | Search) */}
-        <TouchableOpacity
-          style={styles.searchIconBtn}
-          onPress={onSearchPress}
-          activeOpacity={0.7}
-          hitSlop={12}
-        >
-          <Ionicons
-            name="search"
-            size={STAFF_TABS.searchIcon.size * scaleX}
-            color={STAFF_TABS.searchIcon.color}
-          />
-        </TouchableOpacity>
-        
-        {/* Active Indicator */}
+    <TabBar
+      tabs={STAFF_TABS_ORDER}
+      activeTab={selectedTab}
+      onTabPress={onTabPress}
+      renderLabel={(tab) => STAFF_TAB_LABELS[tab]}
+      distribute="start"
+      gap={L.tabRow.labelGap}
+      ruleWidth={L.tabRow.ruleWidth}
+      ruleAlign="center"
+      ruleHeight={L.tabRow.ruleHeight}
+      ruleGap={L.tabRow.ruleGap}
+      fontSize={L.tabRow.fontSize}
+      trailing={
         <View
-          style={[
-            styles.indicator,
-            {
-              left: indicatorPos.left,
-              width: indicatorPos.width,
-            },
-          ]}
-        />
-      </View>
-      
-      {/* Divider */}
-      <View style={styles.divider} />
-    </View>
+          className="flex-row items-center overflow-hidden"
+          style={{
+            width: s(search.width),
+            height: s(search.height),
+            borderRadius: s(search.radius),
+            backgroundColor: search.background,
+            paddingLeft: s(search.glyphInset),
+            gap: s(search.textInset - search.glyphInset - search.glyph),
+          }}
+        >
+          <Icon name="action-search" size={s(search.glyph)} color="#334866" />
+          <TextInput
+            value={searchQuery}
+            onChangeText={onSearchQueryChange}
+            placeholder="Search staff"
+            placeholderTextColor="#9aa7bd"
+            style={{
+              flex: 1,
+              fontSize: s(search.fontSize),
+              fontFamily: typography.fontFamily.primary,
+              color: '#334866',
+              // Android centres a single-line input poorly without this.
+              paddingVertical: 0,
+            }}
+            accessibilityLabel="Search staff"
+          />
+        </View>
+      }
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: STAFF_TABS.container.top * scaleX,
-    left: 0,
-    right: 0,
-    height: STAFF_TABS.container.height * scaleX,
-    zIndex: 5,
-  },
-  tabsWrapper: {
-    position: 'relative',
-    height: STAFF_TABS.container.height * scaleX,
-  },
-  tab: {
-    position: 'absolute',
-    top: 0,
-  },
-  tabText: {
-    fontSize: STAFF_TABS.tab.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.light as any,
-    color: STAFF_TABS.tab.color,
-  },
-  tabTextActive: {
-    fontWeight: typography.fontWeights.bold as any,
-    color: STAFF_TABS.tab.color,
-  },
-  tabTextInactive: {
-    color: STAFF_TABS.tab.inactiveColor,
-  },
-  searchIconBtn: {
-    position: 'absolute',
-    right: STAFF_TABS.searchIcon.right * scaleX,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  searchInput: {
-    position: 'absolute',
-    left: STAFF_TABS.tabs.shifts.left * scaleX,
-    right: (STAFF_TABS.searchIcon.right + 32) * scaleX,
-    top: 0,
-    bottom: 0,
-    fontSize: STAFF_TABS.tab.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    color: STAFF_TABS.tab.color,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-  },
-  searchCloseBtn: {
-    position: 'absolute',
-    right: STAFF_TABS.searchIcon.right * scaleX,
-    top: 0,
-    bottom: 0,
-    justifyContent: 'center',
-  },
-  indicator: {
-    position: 'absolute',
-    // Position at bottom of tabs container: container height (39) - indicator height (4) = 35px from container top
-    // But Figma shows it at 192px from screen top, which is 192 - 158 = 34px from container top
-    top: (STAFF_TABS.indicator.top - STAFF_TABS.container.top) * scaleX,
-    height: STAFF_TABS.indicator.height * scaleX,
-    backgroundColor: STAFF_TABS.indicator.backgroundColor,
-    borderRadius: STAFF_TABS.indicator.borderRadius * scaleX,
-  },
-  divider: {
-    position: 'absolute',
-    top: STAFF_TABS.container.height * scaleX, // Position at bottom of container
-    left: 0,
-    right: 0,
-    height: STAFF_TABS.divider.height * scaleX,
-    backgroundColor: STAFF_TABS.divider.color,
-  },
-});
-
-

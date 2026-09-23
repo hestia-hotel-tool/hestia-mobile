@@ -1,590 +1,368 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  useWindowDimensions,
-  ActivityIndicator,
-} from 'react-native';
-import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
-import { colors, typography } from '@/theme';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, ScrollView } from 'react-native';
+import { useNavigation, useRoute, useRouter } from 'expo-router';
+import { BottomTabNavigationProp } from 'expo-router/js-tabs';
+
+import { View, Text } from '@/tw';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import { useUserStore } from '@features/account/store/useUserStore';
+import { scaleX } from '@/utils/responsive';
+import { typography } from '@/theme';
+import { getDepartments, sortDepartmentsByDisplayOrder, type DepartmentRow } from '@/lib/departments';
+import type { ReturnToTab } from '@/types/navigation';
+
 import StaffHeader from '../components/StaffHeader';
 import StaffTabs from '../components/StaffTabs';
-import StaffListRow from '../components/StaffListRow';
-import StaffCard from '../components/StaffCard';
-import StaffTicketCard from '../components/StaffTicketCard';
-import { StaffTab, StaffMember } from '../types/staff.types';
-import { STAFF_TABS, STAFF_DEPT_CHIP } from '../constants/staffStyles';
-import type { MainTabsParamList, ReturnToTab } from '@/types/navigation';
-import { getUsersByDepartmentId } from '@features/account/services/user';
-import {
-  getDepartments,
-  departmentIconName,
-  departmentGlyphHeight,
-  sortDepartmentsByDisplayOrder,
-} from '@/lib/departments';
-import { Icon, type IconName } from '@/components/Icon';
-import { isSupabaseConfigured } from '@/lib/supabase';
-import type { User } from '@/types';
-import { fetchStaffRoomStatsForShift, fetchStaffTicketStats, type StaffTicketStats } from '../services/staff';
+import StaffDepartmentStrip from '../components/StaffDepartmentStrip';
+import EmptyStaffState, { type StaffEmptyReason } from '../components/EmptyStaffState';
+import StaffShiftCard from '../components/staffList/StaffShiftCard';
+import StaffCompactRow from '../components/staffList/StaffCompactRow';
+import ShiftGroupHeading from '../components/staffList/ShiftGroupHeading';
+import { STAFF_LIST_LAYOUT as L } from '../components/staffList/staffListLayout';
+import { useStaffRoster } from '../hooks/useStaffRoster';
+import type { StaffTab } from '../types/staff.types';
+import type { StaffRosterPerson } from '../types/staffRoster.types';
 
-/** Departments whose card shows cleaning stats; everything else shows ticket stats. */
-const CLEANING_DEPARTMENT_NAMES = new Set(['hsk portier', 'laundry', 'housekeeping', 'hsk']);
-function isCleaningDept(name: string): boolean {
-  return CLEANING_DEPARTMENT_NAMES.has(name.trim().toLowerCase());
-}
+type MainTabsParamList = {
+  '(home)/index': undefined;
+  '(rooms)/index': undefined;
+  '(chats)/index': undefined;
+  '(tickets)/index': undefined;
+  '(lost_and_found)/index': undefined;
+  '(staff)/index': undefined;
+  '(settings)/index': undefined;
+};
 
-const DESIGN_WIDTH = 440;
-
-type StaffScreenNavigationProp = NativeStackNavigationProp<MainTabsParamList, '(staff)/index'>;
+type StaffScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(staff)/index'>;
 
 /**
- * A department chip, sourced dynamically from the DB `departments` table (same
- * source the Tickets feature uses), so Staff and Tickets always share the exact
- * same department set. Icon comes from the shared `departmentIconName` map.
+ * Departments whose people are measured in rooms rather than tickets.
+ *
+ * Lower-cased because the `departments` table is free text and has been seeded
+ * with several spellings.
  */
-interface DepartmentChip {
-  id: string; // departments.id (UUID)
-  name: string; // departments.name
-  iconName: IconName | null;
-}
+const CLEANING_DEPARTMENTS = new Set(['hsk portier', 'laundry', 'housekeeping', 'hsk']);
 
-function mapUserToStaffMember(u: User): StaffMember {
-  const name = u.name ?? 'Staff';
-  const parts = name.trim().split(/\s+/);
-  const initials =
-    parts.length >= 2
-      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-      : (name[0] || '?').toUpperCase();
-  return {
-    id: u.id,
-    name,
-    avatar: u.avatar?.trim() ? { uri: u.avatar.trim() } : undefined,
-    initials,
-    avatarColor: '#5a759d',
-    department: u.department,
-    role: u.role,
-    onShift: true,
-  };
-}
+/**
+ * Departments the roster does not show.
+ *
+ * "Executive and Administration" is general management, not a shift-working
+ * team — it has no rooms, no shifts and nothing for this screen to group, and
+ * the frame never drew it.
+ *
+ * **Hidden here, not deleted, and not hidden globally.** The row has three real
+ * users attached (including the account owner), so removing it from the
+ * database would orphan them or fail on the foreign key. `getDepartments` is
+ * also shared with the ticket department picker, where routing a ticket to
+ * management is legitimate — filtering inside that helper would take it away
+ * from Tickets too.
+ *
+ * The cost, stated: those three people are no longer reachable from this
+ * screen. Delete this constant to bring the department back.
+ */
+const HIDDEN_DEPARTMENTS = new Set(['executive and administration']);
 
+/**
+ * The Staff roster — Figma 3240:561.
+ *
+ * ## What this replaces
+ *
+ * 592 lines with four raw effects, six pieces of state, a `useFocusEffect` that
+ * double-fetched on mount, two competing `scaleX` values in one render tree,
+ * and `StyleSheet.create` called inside the render body. Data now comes from
+ * `useStaffRoster` already grouped; this file arranges it.
+ *
+ * **The AM and PM tabs previously showed identical rosters** — `onShift` was
+ * hardcoded `true` and `shift` was never set, so both filters fell through
+ * their own guards. They are real queries now.
+ */
 export default function StaffScreen() {
   const navigation = useNavigation<StaffScreenNavigationProp>();
   const route = useRoute();
-  const userProfile = useUserStore((s) => s.profile);
-  const { width: SCREEN_WIDTH } = useWindowDimensions();
-  const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
-  
-  const [selectedTab, setSelectedTab] = useState<StaffTab>('shifts');
-  const [departmentStaff, setDepartmentStaff] = useState<StaffMember[]>([]);
-  const [departmentLoading, setDepartmentLoading] = useState(true);
-  const [departmentError, setDepartmentError] = useState<string | null>(null);
-  const [searchExpanded, setSearchExpanded] = useState(false);
+  const router = useRouter();
+
+  const [selectedTab, setSelectedTab] = useState<StaffTab>('am');
+  const [departments, setDepartments] = useState<DepartmentRow[] | null>(null);
+  const [activeDepartmentId, setActiveDepartmentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [departments, setDepartments] = useState<DepartmentChip[]>([]);
-  const [activeDepartmentId, setActiveDepartmentId] = useState<string>('');
-  const [expandedStaffId, setExpandedStaffId] = useState<string | null>(null);
-  const [staffStatsById, setStaffStatsById] = useState<Map<string, any>>(new Map());
-  const [staffTicketStatsById, setStaffTicketStatsById] = useState<Map<string, StaffTicketStats>>(new Map());
-  const [statsRefreshKey, setStatsRefreshKey] = useState(0);
+  /*
+   * Which cards are open, by person id.
+   *
+   * Held here rather than in the card: the roster reloads on focus and on
+   * every department switch, and a card owning its own state would silently
+   * collapse each time. Closed is the default, so an empty set is correct on
+   * first render and nothing has to be seeded.
+   */
+  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(() => new Set());
 
-  const activeDepartmentName = useMemo(
-    () => departments.find((d) => d.id === activeDepartmentId)?.name ?? '',
-    [departments, activeDepartmentId]
-  );
-  const activeStatKind: 'cleaning' | 'tickets' = isCleaningDept(activeDepartmentName)
-    ? 'cleaning'
-    : 'tickets';
+  const toggleOpen = useCallback((id: string) => {
+    setOpenIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
-  const toggleStaffExpand = (id: string) => {
-    setExpandedStaffId((prev) => (prev === id ? null : id));
-  };
-
-  // Load the department list from the DB (same source as Tickets) so the chips
-  // and the Tickets department picker always match.
+  /*
+   * Departments load once. `null` means "not loaded"; an empty array means the
+   * hotel genuinely has none, which is its own empty state rather than a
+   * silently blank strip.
+   */
   useEffect(() => {
     let cancelled = false;
-    (async () => {
-      if (!isSupabaseConfigured) {
-        if (!cancelled) setDepartmentError('Supabase is not configured.');
-        if (!cancelled) setDepartmentLoading(false);
-        return;
-      }
-      const { data, error } = await getDepartments();
-      if (cancelled) return;
-      if (error) {
-        setDepartmentError('Could not load departments');
-        setDepartmentLoading(false);
-        return;
-      }
-      const chips: DepartmentChip[] = sortDepartmentsByDisplayOrder(
-        data.map((d) => ({
-          id: d.id,
-          name: d.name,
-          iconName: departmentIconName(d.name),
-        }))
-      );
-      setDepartments(chips);
-      if (chips.length === 0) {
-        setDepartmentStaff([]);
-        setDepartmentLoading(false);
-        return;
-      }
-      // Default to a housekeeping department so the screen opens on the cleaning
-      // card (Assign Room); fall back to the first department otherwise.
-      setActiveDepartmentId((prev) => {
-        if (prev && chips.some((c) => c.id === prev)) return prev;
-        const firstCleaning = chips.find((c) => isCleaningDept(c.name));
-        return (firstCleaning ?? chips[0]).id;
+    getDepartments()
+      .then((res) => {
+        if (cancelled) return;
+        const visible = (res.data ?? []).filter(
+          (d) => !HIDDEN_DEPARTMENTS.has((d.name ?? '').trim().toLowerCase()),
+        );
+        const sorted = sortDepartmentsByDisplayOrder(visible);
+        setDepartments(sorted);
+        setActiveDepartmentId((prev) => prev ?? sorted[0]?.id ?? null);
+      })
+      .catch((e) => {
+        if (__DEV__) console.warn('[StaffScreen] Could not load departments', e);
+        if (!cancelled) setDepartments([]);
       });
-    })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // Load the staff for the active department, scoped by department_id (UUID) —
-  // precise, no name-matching fallback to all users.
-  useEffect(() => {
-    if (!activeDepartmentId) return;
-    setExpandedStaffId(null);
-    let cancelled = false;
-    (async () => {
-      setDepartmentLoading(true);
-      setDepartmentError(null);
-      if (!isSupabaseConfigured) {
-        if (!cancelled) setDepartmentError('Supabase is not configured.');
-        if (!cancelled) setDepartmentLoading(false);
-        return;
-      }
-      try {
-        const res = await getUsersByDepartmentId(activeDepartmentId, { limit: 100 });
-        if (!cancelled) {
-          setDepartmentStaff(res.data.map(mapUserToStaffMember));
-        }
-      } catch {
-        if (!cancelled) {
-          setDepartmentError('Could not load staff');
-          setDepartmentStaff([]);
-        }
-      } finally {
-        if (!cancelled) setDepartmentLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeDepartmentId]);
-
-  // Load per-staff stats for AM/PM tabs. Cleaning departments (HSK Portier,
-  // Laundry) load room-assignment stats for the shift; all other departments
-  // load ticket throughput.
-  useEffect(() => {
-    let cancelled = false;
-    if (selectedTab === 'shifts') {
-      setStaffStatsById(new Map());
-      setStaffTicketStatsById(new Map());
-      return;
-    }
-    const ids = departmentStaff.map((s) => s.id).filter(Boolean);
-    if (ids.length === 0) {
-      setStaffStatsById(new Map());
-      setStaffTicketStatsById(new Map());
-      return;
-    }
-    if (activeStatKind === 'cleaning') {
-      const shift = selectedTab === 'pm' ? 'PM' : 'AM';
-      void fetchStaffRoomStatsForShift(ids, shift).then((map) => {
-        if (!cancelled) {
-          setStaffStatsById(map);
-          setStaffTicketStatsById(new Map());
-        }
-      });
-    } else {
-      void fetchStaffTicketStats(ids).then((map) => {
-        if (!cancelled) {
-          setStaffTicketStatsById(map);
-          setStaffStatsById(new Map());
-        }
-      });
-    }
-    return () => {
-      cancelled = true;
-    };
-  }, [selectedTab, departmentStaff, activeStatKind, statsRefreshKey]);
-
-  // Refresh per-staff stats on return (e.g. after assigning rooms). Kept from a
-  // focus effect whose `activeTab` resync half never fired.
-  useFocusEffect(
-    React.useCallback(() => {
-      setStatsRefreshKey((k) => k + 1);
-    }, [])
+  const activeDepartment = useMemo(
+    () => departments?.find((d) => d.id === activeDepartmentId) ?? null,
+    [departments, activeDepartmentId],
   );
 
+  const statKind: 'cleaning' | 'tickets' = CLEANING_DEPARTMENTS.has(
+    (activeDepartment?.name ?? '').trim().toLowerCase(),
+  )
+    ? 'cleaning'
+    : 'tickets';
 
+  const { roster, loading, error } = useStaffRoster(
+    activeDepartment
+      ? {
+          departmentId: activeDepartment.id,
+          departmentName: activeDepartment.name,
+          statKind,
+          shift: selectedTab === 'am' ? 'AM' : 'PM',
+        }
+      : null,
+  );
 
-  const handleBack = () => {
+  const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
       navigation.goBack();
-    } else {
-      const returnToTab = (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
-      navigation.navigate(returnToTab as keyof MainTabsParamList);
+      return;
     }
-  };
+    const returnToTab =
+      (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
+    navigation.navigate(returnToTab as keyof MainTabsParamList);
+  }, [navigation, route.params]);
 
+  /**
+   * "See rooms" leaves for that person's full room list — Figma 3810:173.
+   *
+   * The display fields travel as params so the next screen's header can draw
+   * immediately; only the rooms are re-fetched, because the roster holds their
+   * numbers and statuses but not the guests and reservations those cards need.
+   *
+   * **Cleaning departments only.** A ticket department's control says "See
+   * tickets" and there is no per-person tickets screen, so it closes the card
+   * instead of navigating somewhere that does not exist. One line to repoint
+   * when that screen is designed.
+   */
+  const handleSeeRooms = useCallback(
+    (person: StaffRosterPerson) => {
+      if (person.statKind !== 'cleaning') {
+        toggleOpen(person.id);
+        return;
+      }
+      router.push({
+        pathname: '/staff-rooms',
+        params: {
+          staffId: person.id,
+          name: person.name,
+          avatarUrl: person.avatarUrl ?? '',
+          // Both: the header shows the job title and falls back to the
+          // department for the one user who has no `job_title_id`.
+          jobTitle: person.jobTitle ?? '',
+          departmentName: person.departmentName ?? '',
+          state: person.state,
+          shift: selectedTab === 'am' ? 'AM' : 'PM',
+        },
+      });
+    },
+    [router, selectedTab, toggleOpen],
+  );
 
-  const handleStaffTabPress = (tab: StaffTab) => {
-    setSelectedTab(tab);
-  };
+  const matchesSearch = useCallback(
+    (person: StaffRosterPerson) => {
+      const needle = searchQuery.trim().toLowerCase();
+      if (!needle) return true;
+      return (
+        person.name.toLowerCase().includes(needle) ||
+        (person.jobTitle ?? '').toLowerCase().includes(needle) ||
+        (person.departmentName ?? '').toLowerCase().includes(needle)
+      );
+    },
+    [searchQuery],
+  );
 
-  const handleSearchPress = () => {
-    setExpandedStaffId(null);
-    setSearchExpanded(true);
-  };
-  const handleSearchClose = () => {
-    setSearchExpanded(false);
-    setSearchQuery('');
-  };
+  const sections = useMemo(
+    () =>
+      (roster?.sections ?? []).map((section) => ({
+        ...section,
+        people: section.people.filter(matchesSearch),
+      })),
+    [roster, matchesSearch],
+  );
 
-  const filteredStaffForSearch = useMemo(() => {
-    if (!searchQuery.trim()) return departmentStaff;
-    const q = searchQuery.trim().toLowerCase();
-    return departmentStaff.filter((s) => s.name.toLowerCase().includes(q));
-  }, [departmentStaff, searchQuery]);
+  const visibleCount = sections.reduce((n, s) => n + s.people.length, 0);
 
-  /** Staff is already scoped to the selected department; apply Shifts / AM / PM tab rules. */
-  const displayedStaff = useMemo(() => {
-    const base = departmentStaff;
-    const hasShift = base.some((s) => !!s.shift?.trim());
-    if (selectedTab === 'am') {
-      if (!hasShift) return base;
-      return base.filter((s) => (s.shift ?? '').toUpperCase() === 'AM');
-    }
-    if (selectedTab === 'pm') {
-      if (!hasShift) return base;
-      return base.filter((s) => (s.shift ?? '').toUpperCase() === 'PM');
-    }
-    return base.filter((s) => s.onShift !== false);
-  }, [selectedTab, departmentStaff]);
+  /** Which empty state, if any. Order matters: most specific first. */
+  const emptyReason: StaffEmptyReason | null = (() => {
+    if (loading || error) return null;
+    if (departments != null && departments.length === 0) return 'noDepartments';
+    if (!roster) return null;
+    if (roster.totalCount === 0) return 'noDepartmentStaff';
+    if (visibleCount === 0) return 'noSearchMatch';
+    return null;
+  })();
 
-  const sectionTitle = useMemo(() => {
-    const chip = departments.find((c) => c.id === activeDepartmentId);
-    const label = chip?.name ?? 'Staff';
-    return `${label} Staff and Shifts`;
-  }, [activeDepartmentId, departments]);
-
-  const styles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background.primary,
-    },
-    content: {
-      flex: 1,
-    },
-    staffList: {
-      marginTop: (STAFF_TABS.container.top + STAFF_TABS.container.height + 1) * scaleX,
-      paddingBottom: 152 * scaleX, // Space for bottom tab bar
-    },
-    staffListContent: {
-      paddingBottom: 152 * scaleX, // Space for bottom tab bar
-    },
-    searchEmptyText: {
-      paddingHorizontal: 24 * scaleX,
-      paddingTop: 24 * scaleX,
-      fontSize: 14 * scaleX,
-      color: STAFF_TABS.tab.inactiveColor,
-    },
-    searchSection: {
-      marginTop: 16 * scaleX,
-    },
-    searchSectionTitle: {
-      fontSize: 12 * scaleX,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: '700',
-      color: STAFF_TABS.tab.inactiveColor,
-      marginBottom: 12 * scaleX,
-      paddingHorizontal: 17 * scaleX,
-    },
-    deptScrollerWrap: {
-      paddingTop: 16 * scaleX,
-      paddingBottom: 12 * scaleX,
-    },
-    deptScroller: {
-      paddingHorizontal: 12 * scaleX,
-      gap: 14 * scaleX,
-      alignItems: 'flex-start',
-    },
-    deptItem: {
-      width: 92 * scaleX,
-      alignItems: 'center',
-    },
-    deptIconWrap: {
-      width: STAFF_DEPT_CHIP.iconWrapSize * scaleX,
-      height: STAFF_DEPT_CHIP.iconWrapSize * scaleX,
-      borderRadius: STAFF_DEPT_CHIP.borderRadius * scaleX,
-      justifyContent: 'center',
-      alignItems: 'center',
-      marginBottom: 8 * scaleX,
-    },
-    deptLoading: {
-      paddingVertical: 28 * scaleX,
-      alignItems: 'center',
-    },
-    deptError: {
-      paddingHorizontal: 21 * scaleX,
-      paddingBottom: 8 * scaleX,
-      fontSize: 13 * scaleX,
-      color: '#9ca3af',
-    },
-    deptLabel: {
-      fontSize: 14 * scaleX,
-      fontFamily: typography.fontFamily.secondary,
-      fontWeight: typography.fontWeights.light as any,
-      color: '#000000',
-      textAlign: 'center',
-    },
-    sectionHeader: {
-      paddingHorizontal: 21 * scaleX,
-      paddingTop: 16 * scaleX,
-      paddingBottom: 10 * scaleX,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-    },
-    sectionTitle: {
-      fontSize: 17 * scaleX,
-      fontFamily: typography.fontFamily.secondary,
-      fontWeight: typography.fontWeights.semibold as any,
-      color: '#607aa1',
-    },
-    sectionCount: {
-      fontSize: 16 * scaleX,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.bold as any,
-      color: '#5a759d',
-    },
-    listDivider: {
-      height: 1,
-      backgroundColor: '#e3e3e3',
-      marginHorizontal: 0,
-    },
-  });
+  const s = (n: number) => n * scaleX;
 
   return (
-    <View style={styles.container}>
-      <View style={styles.content}>
-        {/* Header - Absolutely positioned at top */}
-        <StaffHeader
-          onBackPress={handleBack}
-          onAddPress={() => {
-            // TODO: Wire to "add staff" / invite flow when available
+    <View className="flex-1 bg-surface-primary">
+      <StaffHeader onBackPress={handleBack} />
+
+      <ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingBottom: s(L.list.paddingBottom), flexGrow: 1 }}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        <Text
+          className="font-hestia-primary font-bold text-ink-primary"
+          style={{
+            marginTop: s(L.departments.headingMarginTop),
+            marginHorizontal: s(L.gutter),
+            fontSize: s(L.departments.headingFontSize),
+            fontFamily: typography.fontFamily.primary,
           }}
-        />
-
-        {/* Tabs - Absolutely positioned below header (or search input when search open) */}
-        <StaffTabs
-          selectedTab={selectedTab}
-          onTabPress={handleStaffTabPress}
-          searchExpanded={searchExpanded}
-          searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
-          onSearchPress={handleSearchPress}
-          onSearchClose={handleSearchClose}
-        />
-
-        {/* Staff List, Departments, or Search results - Scrollable content starting after date */}
-        <ScrollView
-          style={styles.staffList}
-          contentContainerStyle={styles.staffListContent}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
         >
-          {searchExpanded ? (
-            <>
-              {filteredStaffForSearch.length === 0 ? (
-                <Text style={styles.searchEmptyText}>
-                  {searchQuery.trim() ? 'No staff match your search' : 'Type to search staff'}
-                </Text>
-              ) : null}
-              {filteredStaffForSearch.length > 0 ? (
-                <View style={styles.searchSection}>
-                  <Text style={styles.searchSectionTitle}>Staff</Text>
-                  {filteredStaffForSearch.map((staff) => {
-                    const chip = departments.find((c) => c.id === activeDepartmentId);
-                    const subtitle = staff.role ?? staff.department ?? chip?.name ?? 'Staff';
-                    return (
-                      <View key={staff.id}>
-                        <StaffListRow
-                          staffId={staff.id}
-                          name={staff.name}
-                          subtitle={subtitle}
-                          avatar={staff.avatar}
-                          initials={staff.initials}
-                          isOnline={!!staff.onShift}
-                          expanded={expandedStaffId === staff.id}
-                          onToggleExpand={() => toggleStaffExpand(staff.id)}
-                          scaleX={scaleX}
+          Departments
+        </Text>
+
+        <StaffDepartmentStrip
+          departments={departments ?? []}
+          activeId={activeDepartmentId}
+          onSelect={setActiveDepartmentId}
+        />
+
+        {/*
+          The section header now sits **above** the tab row (node 4211:621,
+          y=332); it used to be below it at y=427.
+        */}
+        <View
+          className="flex-row items-center justify-between"
+          style={{
+            paddingHorizontal: s(L.gutter),
+            marginTop: s(L.sectionHeader.marginTop),
+            marginBottom: s(L.sectionHeader.marginBottom),
+          }}
+        >
+          <Text
+            className="font-hestia-primary text-ink-accent"
+            style={{
+              fontSize: s(L.sectionHeader.fontSize),
+              fontFamily: typography.fontFamily.primary,
+            }}
+          >
+            {activeDepartment?.name ?? 'Staff'} Staff and Shifts
+          </Text>
+          <Text
+            className="font-hestia-primary text-ink-accent"
+            style={{
+              fontSize: s(L.sectionHeader.fontSize),
+              fontFamily: typography.fontFamily.primary,
+            }}
+          >
+            {roster?.totalCount ?? 0}
+          </Text>
+        </View>
+
+        <View>
+          {/* Nodes 3883:6785 (y=372) and 3240:571 (y=427) — both full bleed. */}
+          <View className="h-px bg-border-medium" />
+          <View
+            style={{
+              paddingLeft: s(L.tabRow.paddingLeft),
+              paddingRight: s(L.tabRow.paddingRight),
+              paddingTop: s(L.tabRow.paddingTop),
+            }}
+          >
+            <StaffTabs
+              selectedTab={selectedTab}
+              onTabPress={setSelectedTab}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+            />
+          </View>
+          <View className="h-px bg-border-medium" />
+        </View>
+
+        {loading && !roster ? (
+          <View style={{ paddingVertical: s(48) }}>
+            <ActivityIndicator size="large" color="#5a759d" />
+          </View>
+        ) : error ? (
+          <Text
+            className="text-center font-hestia-primary text-ink-tertiary"
+            style={{ paddingVertical: s(40), fontSize: s(14) }}
+          >
+            {error}
+          </Text>
+        ) : emptyReason ? (
+          <EmptyStaffState reason={emptyReason} />
+        ) : (
+          <View style={{ paddingHorizontal: s(L.gutter) }}>
+            {sections.map((section) =>
+              /*
+                An empty group hides its heading entirely. Printing "On Break"
+                over nothing three times reads as a broken screen, and on a
+                small department two of the three are routinely empty.
+              */
+              section.people.length === 0 ? null : (
+                <View key={section.state}>
+                  <ShiftGroupHeading state={section.state} />
+                  <View style={{ gap: s(L.compactRow.gap) }}>
+                    {section.people.map((person) =>
+                      /*
+                        Only On Shift gets the expandable card. Someone on a
+                        break or finished has no live workload to open, which
+                        is why the frame draws them as plain rows.
+                      */
+                      section.state === 'on_shift' ? (
+                        <StaffShiftCard
+                          key={person.id}
+                          person={person}
+                          isOpen={openIds.has(person.id)}
+                          onToggle={() => toggleOpen(person.id)}
+                          onSeeRooms={() => handleSeeRooms(person)}
                         />
-                        <View style={styles.listDivider} />
-                      </View>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <View style={styles.deptScrollerWrap}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.deptScroller}
-                >
-                  {departments.map((dept) => {
-                    const active = activeDepartmentId === dept.id;
-                    return (
-                      <TouchableOpacity
-                        key={dept.id}
-                        style={styles.deptItem}
-                        activeOpacity={0.7}
-                        onPress={() => setActiveDepartmentId(dept.id)}
-                      >
-                        <View
-                          style={[
-                            styles.deptIconWrap,
-                            {
-                              backgroundColor: active
-                                ? STAFF_DEPT_CHIP.activeBackgroundColor
-                                : STAFF_DEPT_CHIP.inactiveBackgroundColor,
-                            },
-                          ]}
-                        >
-                          {dept.iconName && (
-                            <Icon
-                              name={dept.iconName}
-                              size={departmentGlyphHeight(dept.iconName) * scaleX}
-                              color={
-                                active
-                                  ? STAFF_DEPT_CHIP.activeIconTint
-                                  : STAFF_DEPT_CHIP.inactiveIconTint
-                              }
-                            />
-                          )}
-                        </View>
-                        <Text style={styles.deptLabel} numberOfLines={2}>
-                          {dept.name}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </ScrollView>
-              </View>
-
-              <View style={styles.sectionHeader}>
-                <Text style={styles.sectionTitle}>{sectionTitle}</Text>
-                <Text style={styles.sectionCount}>
-                  {departmentLoading ? '—' : displayedStaff.length}
-                </Text>
-              </View>
-              {departmentError ? <Text style={styles.deptError}>{departmentError}</Text> : null}
-              <View style={styles.listDivider} />
-
-              {departmentLoading ? (
-                <View style={styles.deptLoading}>
-                  <ActivityIndicator size="small" color="#5a759d" />
-                </View>
-              ) : displayedStaff.length === 0 ? (
-                <Text style={styles.searchEmptyText}>No staff in this department</Text>
-              ) : (
-                displayedStaff.map((staff) => {
-                  const chip = departments.find((c) => c.id === activeDepartmentId);
-                  const subtitle = staff.role ?? staff.department ?? chip?.name ?? 'Staff';
-                  const isCardTab = selectedTab === 'am' || selectedTab === 'pm';
-                  const stats = staffStatsById.get(staff.id);
-                  const ticketStats = staffTicketStatsById.get(staff.id);
-                  const staffForCard: StaffMember = !isCardTab
-                    ? staff
-                    : activeStatKind === 'cleaning'
-                      ? {
-                          ...staff,
-                          statKind: 'cleaning',
-                          taskStats: {
-                            inProgress: stats?.inProgress ?? 0,
-                            cleaned: stats?.cleaned ?? 0,
-                            dirty: stats?.dirty ?? 0,
-                          },
-                          progressRatio: {
-                            completed: stats?.completed ?? 0,
-                            total: stats?.total ?? 0,
-                          },
-                          currentTask: stats?.currentRoomNumber
-                            ? {
-                                roomNumber: String(stats.currentRoomNumber),
-                                roomId: stats.currentRoomId,
-                                creditMins: stats.currentRoomCreditMins,
-                                isActive: !stats.isPaused,
-                                startTimeIso: stats.currentRoomStartTimeIso ?? null,
-                                isPaused: !!stats.isPaused,
-                                pauseReason: stats.pauseReason ?? null,
-                              }
-                            : undefined,
-                        }
-                      : {
-                          ...staff,
-                          statKind: 'tickets',
-                          ticketStats: {
-                            resolved: ticketStats?.resolved ?? 0,
-                            open: ticketStats?.open ?? 0,
-                            total: ticketStats?.total ?? 0,
-                            avgResolutionMins: ticketStats?.avgResolutionMins,
-                            currentTicket: ticketStats?.currentTicket,
-                          },
-                        };
-                  return (
-                    <View key={staff.id}>
-                      {isCardTab ? (
-                        staffForCard.statKind === 'tickets' ? (
-                          <StaffTicketCard staff={staffForCard} />
-                        ) : (
-                          <StaffCard
-                            staff={staffForCard}
-                            onAssignRoomPress={(s) => {
-                              const shift = selectedTab === 'pm' ? 'PM' : 'AM';
-                              (navigation as any).navigate('assign-rooms/index', {
-                                staffId: s.id,
-                                staffName: s.name,
-                                shift,
-                              });
-                            }}
-                          />
-                        )
                       ) : (
-                        <StaffListRow
-                          staffId={staff.id}
-                          name={staff.name}
-                          subtitle={subtitle}
-                          avatar={staff.avatar}
-                          initials={staff.initials}
-                          isOnline={!!staff.onShift}
-                          expanded={expandedStaffId === staff.id}
-                          onToggleExpand={() => toggleStaffExpand(staff.id)}
-                          scaleX={scaleX}
-                        />
-                      )}
-                      <View style={styles.listDivider} />
-                    </View>
-                  );
-                })
-              )}
-            </>
-          )}
-        </ScrollView>
-
-      </View>
+                        <StaffCompactRow key={person.id} person={person} />
+                      ),
+                    )}
+                  </View>
+                </View>
+              ),
+            )}
+          </View>
+        )}
+      </ScrollView>
 
       <BottomTabBar />
     </View>

@@ -32,6 +32,13 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   // Assigning is a distinct right — most roles can open a room but not reassign it.
   'assign-rooms': PERMISSIONS.ROOMS_REASSIGN,
 
+  // One person's assigned rooms, reached from the roster. Gated on the roster's
+  // own permission rather than `rooms.read`: the Staff card already shows these
+  // room numbers and their statuses, so this exposes nothing new to anyone who
+  // could reach the tap. Opening a card from here goes to `room`, which is
+  // separately gated on `rooms.read`.
+  'staff-rooms': PERMISSIONS.STAFF_VIEW,
+
   // Chat
   'chat': PERMISSIONS.CHAT_VIEW,
   'new-chat': PERMISSIONS.CHAT_CREATE,

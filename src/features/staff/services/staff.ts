@@ -178,6 +178,26 @@ export type StaffTicketStats = {
   currentTicket?: { title: string; startTimeIso: string | null };
 };
 
+/** One ticket, for the Staff card's expanded list. */
+export type StaffTicketListItem = {
+  title: string;
+  status: string;
+  isResolved: boolean;
+};
+
+/**
+ * Counts *and* the tickets they were counted from.
+ *
+ * This returned only totals plus one "current" ticket, so a staff card that
+ * wanted to list someone's tickets had nothing to list — the rows were read,
+ * folded into four numbers and dropped. The query is unchanged; it just stops
+ * discarding its own results.
+ */
+export type StaffTicketsForUser = {
+  summary: StaffTicketStats;
+  tickets: StaffTicketListItem[];
+};
+
 const RESOLVED_TICKET_STATUSES = new Set(['closed', 'resolved', 'done', 'completed']);
 
 /**
@@ -187,8 +207,8 @@ const RESOLVED_TICKET_STATUSES = new Set(['closed', 'resolved', 'done', 'complet
  */
 export async function fetchStaffTicketStats(
   userIds: string[]
-): Promise<Map<string, StaffTicketStats>> {
-  const map = new Map<string, StaffTicketStats>();
+): Promise<Map<string, StaffTicketsForUser>> {
+  const map = new Map<string, StaffTicketsForUser>();
   if (!isSupabaseConfigured) return map;
   if (!Array.isArray(userIds) || userIds.length === 0) return map;
 
@@ -216,15 +236,18 @@ export async function fetchStaffTicketStats(
     totalMins: number;
     timed: number;
     current?: { title: string; startTimeIso: string | null; createdMs: number };
+    tickets: StaffTicketListItem[];
   };
 
   const agg = new Map<string, Agg>();
   for (const r of (data ?? []) as Row[]) {
     const uid = String(r.assigned_to_id ?? '');
     if (!uid) continue;
-    const a = agg.get(uid) ?? { resolved: 0, open: 0, totalMins: 0, timed: 0 };
+    const a = agg.get(uid) ?? { resolved: 0, open: 0, totalMins: 0, timed: 0, tickets: [] };
+    const title = r.title?.trim() || 'Untitled ticket';
     const isResolved =
       !!r.resolved_at || RESOLVED_TICKET_STATUSES.has(String(r.status ?? '').trim().toLowerCase());
+    a.tickets.push({ title, status: String(r.status ?? '').trim(), isResolved });
     if (isResolved) {
       a.resolved += 1;
       if (r.resolved_at && r.created_at) {
@@ -239,11 +262,7 @@ export async function fetchStaffTicketStats(
       // "Current" = the most recently created still-open ticket.
       const createdMs = r.created_at ? new Date(r.created_at).getTime() : 0;
       if (!a.current || createdMs > a.current.createdMs) {
-        a.current = {
-          title: r.title?.trim() || 'Untitled ticket',
-          startTimeIso: r.created_at ?? null,
-          createdMs,
-        };
+        a.current = { title, startTimeIso: r.created_at ?? null, createdMs };
       }
     }
     agg.set(uid, a);
@@ -251,11 +270,17 @@ export async function fetchStaffTicketStats(
 
   for (const [uid, a] of agg) {
     map.set(uid, {
-      resolved: a.resolved,
-      open: a.open,
-      total: a.resolved + a.open,
-      avgResolutionMins: a.timed > 0 ? Math.round(a.totalMins / a.timed) : undefined,
-      currentTicket: a.current ? { title: a.current.title, startTimeIso: a.current.startTimeIso } : undefined,
+      summary: {
+        resolved: a.resolved,
+        open: a.open,
+        total: a.resolved + a.open,
+        avgResolutionMins: a.timed > 0 ? Math.round(a.totalMins / a.timed) : undefined,
+        currentTicket: a.current
+          ? { title: a.current.title, startTimeIso: a.current.startTimeIso }
+          : undefined,
+      },
+      // Open first: what is outstanding is what a supervisor is looking for.
+      tickets: [...a.tickets].sort((x, y) => Number(x.isResolved) - Number(y.isResolved)),
     });
   }
 

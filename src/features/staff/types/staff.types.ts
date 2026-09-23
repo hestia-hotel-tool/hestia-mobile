@@ -1,4 +1,13 @@
-export type StaffTab = 'shifts' | 'am' | 'pm';
+/**
+ * The roster's two shift tabs.
+ *
+ * Was `'shifts' | 'am' | 'pm'`, where "Shifts" held the grouped roster and
+ * AM/PM held a flat list of stat cards. The revised frame (3240:561) drops
+ * "Shifts" and gives both remaining tabs the roster, each scoped to its own
+ * shift — so the three-way split, and the two card components that served it,
+ * go with it.
+ */
+export type StaffTab = 'am' | 'pm';
 
 /** Tab for reassign modal: On Shift, AM, PM, Departments */
 export type ReassignTab = 'OnShift' | 'AM' | 'PM' | 'departments';
