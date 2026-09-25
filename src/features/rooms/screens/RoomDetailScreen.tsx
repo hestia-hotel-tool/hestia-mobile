@@ -33,7 +33,6 @@ import type { RootStackParamList } from '@/types/navigation';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { authService } from '@features/auth/services/auth';
-import { notifyServer } from '@/lib/notifications';
 import { colors } from '@/theme';
 import { getMockHistoryEvents } from '@/mocks/mockHistoryData';
 import { generateHistoryReport } from '../utils/generateHistoryReport';
@@ -957,15 +956,7 @@ export default function RoomDetailScreen() {
           updateRoom(room.id, { house_keeping_status: 'Dirty' }).catch((e) =>
             console.warn('[RoomDetailScreen] Failed to reject room', e)
           );
-          const assignedUserId = room.roomAttendantAssigned?.userId ?? localRoom.roomAttendantAssigned?.userId;
-          if (assignedUserId) {
-            notifyServer({
-              type: 'room_assignment',
-              roomId: room.id,
-              shiftId: shift,
-              assignedUserId,
-            }).catch(() => {});
-          }
+          // The attendant is told by a database trigger (room sent back to Dirty).
         }}
         buttonPosition={buttonPositionForInspection}
         headerHeight={modalHeaderHeight}

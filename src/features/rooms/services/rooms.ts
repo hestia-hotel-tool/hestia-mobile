@@ -5,7 +5,6 @@
 
 import { supabase } from '@/lib/supabase';
 import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
-import { notifyServer } from '@/lib/notifications';
 import { getMyHotelId } from '@/lib/tenant';
 import { formatClockTime } from '@/utils/formatting';
 import type {
@@ -1084,8 +1083,8 @@ export async function assignRoomToStaff(
     }
   }
 
-  // Fire-and-forget push notification to assigned staff member.
-  notifyServer({ type: 'room_assignment', roomId, shiftId, assignedUserId: userId }).catch(() => {});
+  // The assignee's notification is written by a database trigger
+  // (20260925000100_task_notifications.sql), with the hotel and who assigned it.
 
   // Defer so tab bar listeners run after Supabase write is visible to the next read.
   queueMicrotask(() => invalidateNotificationBadges());

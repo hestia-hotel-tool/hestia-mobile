@@ -23,7 +23,6 @@ import {
   invalidateNotificationBadges,
   markAllRoomAssignmentNotificationsRead,
 } from '@/lib/inAppNotifications';
-import { notifyServer } from '@/lib/notifications';
 import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
@@ -963,15 +962,7 @@ export default function AllRoomsScreen() {
           updateRoom(roomForInspection.id, { house_keeping_status: 'Dirty' }).catch((e) =>
             console.warn('[AllRoomsScreen] Failed to reject room', e)
           );
-          const assignedUserId = roomForInspection.roomAttendantAssigned?.userId;
-          if (assignedUserId) {
-            notifyServer({
-              type: 'room_assignment',
-              roomId: roomForInspection.id,
-              shiftId: displayData.selectedShift ?? 'AM',
-              assignedUserId,
-            }).catch(() => {});
-          }
+          // The attendant is told by a database trigger (room sent back to Dirty).
         }}
         buttonPosition={buttonPositionForInspection}
         headerHeight={modalHeaderHeight}

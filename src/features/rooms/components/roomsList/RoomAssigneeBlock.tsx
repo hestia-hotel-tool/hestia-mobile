@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { ROOM_CARD } from './roomCardLayout';
+import { AssignRoomButton } from '../allRooms/AssignRoomButton';
 
 export type RoomAssigneeBlockProps = {
   /** Null when nobody is on this room yet. */
@@ -20,24 +21,15 @@ export type RoomAssigneeBlockProps = {
  * Who is working the room — Figma 3883:6158.
  *
  * A 35px photo, the name, and one line of assignment state. When nobody is
- * assigned it becomes the affordance to assign someone.
+ * assigned it becomes the "Assign room" button (Figma 2702:7771).
  *
  * Deliberately no chevron: the design has none, and the whole card is already
  * a tap target for the room.
  */
 export function RoomAssigneeBlock({ name, avatarUrl, statusLine, onPress }: RoomAssigneeBlockProps) {
   if (!name) {
-    return (
-      <Pressable
-        onPress={onPress}
-        disabled={!onPress}
-        accessibilityRole="button"
-        accessibilityLabel="Assign staff"
-        className="self-start rounded-sm border border-border-card px-md py-xs"
-      >
-        <Text className="font-hestia-primary text-hestia-base text-ink-accent">Not assigned</Text>
-      </Pressable>
-    );
+    // Figma 2702:7771: an empty circle where the photo will go, and an "Assign room" pill.
+    return <AssignRoomButton onPress={onPress} />;
   }
 
   const Container = onPress ? Pressable : View;

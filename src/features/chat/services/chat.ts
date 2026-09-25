@@ -10,7 +10,6 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '@/types';
 import type { ChatItemData } from '../components/ChatItem';
 import { base64ToArrayBuffer } from '@/utils/encoding';
-import { notifyServer } from '@/lib/notifications';
 import { getMyHotelId } from '@/lib/tenant';
 
 const MESSAGE_TYPE = 'text'; // DB: text, image, system
@@ -557,9 +556,8 @@ export async function sendMessage(
   if (error) throw error;
   const row = inserted as unknown as MessageRow & { users?: null };
 
-  // Fire-and-forget push notifications to other participants.
-  // Server will create in-app notification rows and dispatch Expo push.
-  notifyServer({ type: 'chat_message', messageId: row.id }).catch(() => {});
+  // The other participants' notifications are written by a database trigger
+  // (20260925000100_task_notifications.sql).
 
   const msg: ChatMessage = {
     id: row.id,

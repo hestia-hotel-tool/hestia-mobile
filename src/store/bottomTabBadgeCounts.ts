@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { TASK_NOTIFICATION_TYPES } from '@/lib/inAppNotifications';
 
 /**
  * The tab bar's three unread counts, shared by every mounted bar.
@@ -22,11 +23,13 @@ export type BadgeCounts = {
   chatMessage: number;
   /** Unread General Announcements — shown on the Chat tab alongside messages. */
   general: number;
+  /** Unread Tasks (every TASK_NOTIFICATION_TYPES row) — on the Chat tab. */
+  tasks: number;
   ticketTag: number;
   roomAssignment: number;
 };
 
-const ZERO: BadgeCounts = { chatMessage: 0, general: 0, ticketTag: 0, roomAssignment: 0 };
+const ZERO: BadgeCounts = { chatMessage: 0, general: 0, tasks: 0, ticketTag: 0, roomAssignment: 0 };
 
 let counts: BadgeCounts = ZERO;
 const listeners = new Set<() => void>();
@@ -55,6 +58,7 @@ function setCounts(next: BadgeCounts) {
   if (
     counts.chatMessage === next.chatMessage &&
     counts.general === next.general &&
+    counts.tasks === next.tasks &&
     counts.ticketTag === next.ticketTag &&
     counts.roomAssignment === next.roomAssignment
   ) {
@@ -77,7 +81,7 @@ export async function refreshBadgeCounts(userId: string | undefined) {
   if (inflight) return inflight;
 
   inflight = (async () => {
-    const [chatRes, generalRes, ticketRes, roomAssignRes] = await Promise.all([
+    const [chatRes, generalRes, tasksRes, ticketRes, roomAssignRes] = await Promise.all([
       supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -88,6 +92,11 @@ export async function refreshBadgeCounts(userId: string | undefined) {
         .select('*', { count: 'exact', head: true })
         .is('read_at', null)
         .eq('type', 'general'),
+      supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .is('read_at', null)
+        .in('type', [...TASK_NOTIFICATION_TYPES]),
       supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -106,6 +115,9 @@ export async function refreshBadgeCounts(userId: string | undefined) {
     if (generalRes.error) {
       console.warn('[badgeCounts] general count', generalRes.error.message);
     }
+    if (tasksRes.error) {
+      console.warn('[badgeCounts] tasks count', tasksRes.error.message);
+    }
     if (ticketRes.error) {
       console.warn('[badgeCounts] ticket_tag count', ticketRes.error.message);
     }
@@ -116,6 +128,7 @@ export async function refreshBadgeCounts(userId: string | undefined) {
     setCounts({
       chatMessage: chatRes.count ?? 0,
       general: generalRes.count ?? 0,
+      tasks: tasksRes.count ?? 0,
       ticketTag: ticketRes.count ?? 0,
       roomAssignment: roomAssignRes.count ?? 0,
     });

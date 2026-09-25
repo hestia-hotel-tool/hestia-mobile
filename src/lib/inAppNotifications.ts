@@ -1,5 +1,28 @@
 import { supabase, isSupabaseConfigured } from './supabase';
 
+/**
+ * Every notification type listed under Chat > Notifications > Tasks and
+ * counted on the Chat badge. Written by triggers in
+ * 20260925000100_task_notifications.sql.
+ */
+export const TASK_NOTIFICATION_TYPES = [
+  'room_assignment',
+  'room_flagged',
+  'room_priority',
+  'room_cleaned',
+  'room_rejected',
+  'ticket_assigned',
+] as const;
+
+/** The task types that are about a room — read by opening that room. */
+export const ROOM_TASK_NOTIFICATION_TYPES = [
+  'room_assignment',
+  'room_flagged',
+  'room_priority',
+  'room_cleaned',
+  'room_rejected',
+] as const;
+
 const badgeInvalidateListeners = new Set<() => void>();
 
 /** Dev / HMR: drop all badge listeners so stale callbacks cannot run after refactors. */
@@ -98,13 +121,13 @@ export async function markNotificationRead(id: string): Promise<void> {
   }
 }
 
-/** User opened a room — clear its unread `room_assignment` rows (a task's "detail" is its room). */
+/** User opened a room — clear its unread room tasks (a room task's "detail" is its room). */
 export async function markRoomAssignmentNotificationsReadForRoom(roomId: string): Promise<void> {
   if (!isSupabaseConfigured || !roomId) return;
   const { error } = await supabase
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
-    .eq('type', 'room_assignment')
+    .in('type', [...ROOM_TASK_NOTIFICATION_TYPES])
     .is('read_at', null)
     .contains('data', { roomId });
   if (error) {

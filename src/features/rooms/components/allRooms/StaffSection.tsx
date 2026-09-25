@@ -1,9 +1,10 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, typography } from '@/theme';
 import { RoomStatus, StaffInfo } from '../../types/allRooms.types';
 import type { ShiftType } from '@/types/shift.types';
 import { scaleX, STAFF_SECTION } from '../../constants/allRoomsStyles';
+import { AssignRoomButton } from './AssignRoomButton';
 
 interface StaffSectionProps {
   staff: StaffInfo | null; // When null, show "Assign Staff" button
@@ -36,28 +37,16 @@ function formatHHMM(d: Date): string {
 export default function StaffSection({ staff, roomId, roomStatus, isPriority = false, frontOfficeStatus = '', selectedShift, onAssignPress, onStaffSectionPress, isLoading = false, isPaused = false }: StaffSectionProps) {
   const isDeparture = frontOfficeStatus === 'Departure';
 
-  // No staff assigned: show "Assign Staff" button
+  // No staff assigned: the "Assign room" circle + pill, where the photo and name will go.
   if (!staff) {
     return (
-      <View style={styles.container}>
-        <TouchableOpacity
-          style={[
-            styles.assignButton,
-            {
-              left: (STAFF_SECTION.nameStandard?.left ?? STAFF_SECTION.name.left) * scaleX,
-              top: (STAFF_SECTION.nameStandard?.top ?? STAFF_SECTION.name.top) * scaleX,
-            },
-          ]}
+      <View style={styles.container} pointerEvents="box-none">
+        <AssignRoomButton
+          left={isPriority ? STAFF_SECTION.avatar.left : (STAFF_SECTION.avatarStandard?.left ?? STAFF_SECTION.avatar.left)}
+          top={isPriority ? STAFF_SECTION.avatar.top : (STAFF_SECTION.avatarStandard?.top ?? STAFF_SECTION.avatar.top)}
+          loading={isLoading}
           onPress={onAssignPress}
-          activeOpacity={0.7}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#5a759d" />
-          ) : (
-            <Text style={styles.assignButtonText}>Not assigned</Text>
-          )}
-        </TouchableOpacity>
+        />
       </View>
     );
   }
@@ -295,24 +284,6 @@ const styles = StyleSheet.create({
   },
   forwardArrowIconPM: {
     tintColor: '#ffffff',
-  },
-  assignButton: {
-    position: 'absolute',
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#e4eefe',
-    borderWidth: 1,
-    borderColor: '#5a759d',
-    minWidth: 100,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  assignButtonText: {
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: '#5a759d',
   },
 });
 

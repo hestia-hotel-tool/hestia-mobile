@@ -3,7 +3,6 @@ import type { TicketsScreenData, TicketData, TicketStatus } from '../types/ticke
 import { getDepartmentIdByName } from '@features/account/services/user';
 import * as FileSystem from 'expo-file-system/legacy';
 import { base64ToArrayBuffer } from '@/utils/encoding';
-import { notifyServer } from '@/lib/notifications';
 import { getMyHotelId } from '@/lib/tenant';
 import { buildFriendlyRoomHistoryMessage } from '@features/rooms/services/roomHistory';
 
@@ -481,7 +480,6 @@ export async function createTicket(input: CreateTicketInput): Promise<void> {
 
   // Persist ticket tags (multi-tag staff) and notify tagged staff.
   const taggedIds = Array.from(new Set((input.taggedStaffIds ?? []).filter(Boolean)));
-  const taggedOtherUsers = taggedIds.filter((id) => id !== userId);
   if (ticketId && taggedIds.length > 0) {
     const { error: tagErr } = await supabase.from('ticket_tags').insert(
       taggedIds.map((tagged_user_id) => ({
@@ -494,9 +492,9 @@ export async function createTicket(input: CreateTicketInput): Promise<void> {
     if (tagErr) {
       // Non-blocking: ticket is created; tags can fail if migration not applied yet.
       console.warn('[tickets.createTicket] Failed to save ticket tags', tagErr.message, tagErr.code);
-    } else if (taggedOtherUsers.length > 0) {
-      notifyServer({ type: 'ticket_tag', ticketId, taggedUserIds: taggedOtherUsers }).catch(() => {});
     }
+    // Tagged staff are notified by a database trigger on ticket_tags
+    // (20260925000100_task_notifications.sql).
   }
 
   const pictures = (input.pictures ?? []).filter(Boolean);

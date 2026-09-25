@@ -287,3 +287,55 @@ export async function fetchStaffTicketStats(
   return map;
 }
 
+
+/** The only job title rooms are assigned to — see `fetchRoomAttendants`. */
+export const ROOM_ATTENDANT_JOB_TITLE_KEY = 'housekeeping_room_attendant';
+
+/**
+ * Housekeeping Room Attendants — the only staff a room can be assigned to.
+ *
+ * The Assign / Reassign sheets used `fetchStaffFromSupabase`, which returns
+ * every user in the hotel (engineers, front office, managers) and stamps each
+ * one `onShift: true, shift: 'AM'`, so the sheet's AM / PM tabs never meant
+ * anything. This filters on the job title server-side (inner join) and reads
+ * each attendant's real shift from `users.shift_id`.
+ */
+export async function fetchRoomAttendants(): Promise<StaffMember[]> {
+  if (!isSupabaseConfigured) return [];
+
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, full_name, avatar_url, departments(name), job_titles!inner(key, name), shifts(name)')
+    .eq('job_titles.key', ROOM_ATTENDANT_JOB_TITLE_KEY)
+    .order('full_name', { ascending: true });
+
+  if (error || !data) {
+    console.warn('[staff] fetchRoomAttendants', error);
+    return [];
+  }
+
+  type Row = {
+    id: string;
+    full_name: string | null;
+    avatar_url: string | null;
+    departments: { name: string } | null;
+    job_titles: { key: string; name: string } | null;
+    shifts: { name: string } | null;
+  };
+
+  // Through `unknown`: the generated types predate `users.job_title_id` / `shift_id`.
+  return (data as unknown as Row[]).map((row) => {
+    const shiftName = row.shifts?.name?.trim().toUpperCase() ?? '';
+    const shift = shiftName.includes('PM') ? 'PM' : shiftName.includes('AM') ? 'AM' : undefined;
+    return {
+      id: row.id,
+      name: row.full_name ?? 'Staff',
+      avatar: row.avatar_url ?? undefined,
+      department: row.departments?.name ?? undefined,
+      role: row.job_titles?.name ?? undefined,
+      // Unrostered (no shift) attendants are listed under neither AM nor PM.
+      onShift: shift != null,
+      shift,
+    };
+  });
+}

@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { Modal, View, StyleSheet, TextInput, Keyboard } from 'react-native';
 import { scaleX } from '../../constants/reassignModalStyles';
-import { fetchStaffFromSupabase } from '@features/staff/services/staff';
+import { fetchRoomAttendants } from '@features/staff/services/staff';
 import { ReassignTab, StaffMember } from '@features/staff/types/staff.types';
 import ReassignHeader from './ReassignHeader';
 import ReassignTabs from './ReassignTabs';
@@ -48,17 +48,19 @@ export default function ReassignModal({
     searchInputRef.current?.focus();
   };
 
-  // Load staff list from Supabase when modal is visible; fall back to mock data if empty/error.
+  /*
+   * Rooms are assigned to Housekeeping Room Attendants only, so that is all
+   * this sheet lists — on the Rooms list, Room Detail and a staff member's
+   * rooms alike. Loaded each time it opens, so a newly rostered attendant shows.
+   */
   React.useEffect(() => {
     if (!visible) return;
     let cancelled = false;
     setLoadingStaff(true);
     (async () => {
-      const supabaseStaff = await fetchStaffFromSupabase();
+      const attendants = await fetchRoomAttendants();
       if (cancelled) return;
-      if (supabaseStaff.length > 0) {
-        setStaff(supabaseStaff);
-      }
+      setStaff(attendants);
       setLoadingStaff(false);
     })();
     return () => {
