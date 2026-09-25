@@ -202,6 +202,12 @@ export interface CreateLostAndFoundItemInput {
 export interface CreateLostAndFoundItemResult {
   id: string | null;
   trackingNumber: string | null;
+  /**
+   * Why the row was not saved, when it was not. The screen shows its success
+   * sheet before the insert settles, so without this a rejected insert looked
+   * exactly like a saved one — the item simply never appeared in the list.
+   */
+  error?: string;
 }
 
 async function uploadLostAndFoundImage(hotelId: string, imageUri: string): Promise<string | null> {
@@ -308,7 +314,8 @@ export async function createLostAndFoundItem(
   const selectedDate: Date = itemData.selectedDate ?? new Date();
   const selectedHour: number = itemData.selectedHour ?? selectedDate.getHours();
   const selectedMinute: number = itemData.selectedMinute ?? selectedDate.getMinutes();
-  const registeredByIdFromForm: string | null = itemData.registeredBy ?? null;
+  // `||`, not `??`: the form's blank value is '', which is not a user id.
+  const registeredByIdFromForm: string | null = itemData.registeredBy || null;
 
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData?.session?.user?.id ?? null;
@@ -354,7 +361,7 @@ export async function createLostAndFoundItem(
 
   if (!userId) {
     console.warn('[lostAndFound] No authenticated user – item not persisted.');
-    return { id: null, trackingNumber: null };
+    return { id: null, trackingNumber: null, error: 'You are not signed in.' };
   }
 
   const { data: inserted, error } = await supabase
@@ -376,8 +383,15 @@ export async function createLostAndFoundItem(
     .single();
 
   if (error) {
-    console.warn('[lostAndFound] Failed to persist lost & found item', error);
-    return { id: null, trackingNumber: null };
+    console.warn('[lostAndFound] Failed to persist lost & found item', {
+      selectedLocation,
+      foundLocation,
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return { id: null, trackingNumber: null, error: error.message || 'The item could not be saved.' };
   }
 
   return { id: inserted?.id ?? null, trackingNumber: inserted?.tracking_number ?? null };

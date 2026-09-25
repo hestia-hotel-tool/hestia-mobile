@@ -46,9 +46,8 @@ export default function MorePopup({ visible, onClose, onMenuItemPress }: MorePop
             {options.map((option) => (
               <MoreMenuItem
                 key={option.id}
-                icon={option.icon}
+                iconName={option.iconName}
                 label={option.label}
-                iconWidth={option.iconWidth}
                 iconHeight={option.iconHeight}
                 onPress={() => onMenuItemPress(option.id)}
               />

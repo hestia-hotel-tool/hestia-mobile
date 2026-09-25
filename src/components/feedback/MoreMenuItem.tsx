@@ -1,32 +1,19 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { colors } from '@/theme';
 import { normalizedScaleX } from '@/utils/responsive';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DESIGN_WIDTH = 440;
+import { Icon, type IconName } from '@/components/Icon';
+import { TINTABLE_ICONS } from '@/components/Icon/registry';
 
 interface MoreMenuItemProps {
-  icon: any;
+  iconName: IconName;
   label: string;
   onPress: () => void;
-  iconWidth?: number;
+  /** Glyph height in design px; width follows the SVG's aspect ratio. */
   iconHeight?: number;
 }
 
-export default function MoreMenuItem({ 
-  icon, 
-  label, 
-  onPress, 
-  iconWidth = 40, 
-  iconHeight = 40 
-}: MoreMenuItemProps) {
-  const iconStyle = {
-    width: Math.round(iconWidth * normalizedScaleX),
-    height: Math.round(iconHeight * normalizedScaleX),
-    tintColor: colors.primary.main,
-  };
-
+export default function MoreMenuItem({ iconName, label, onPress, iconHeight = 40 }: MoreMenuItemProps) {
   return (
     <TouchableOpacity
       style={styles.container}
@@ -34,10 +21,10 @@ export default function MoreMenuItem({
       activeOpacity={0.7}
     >
       <View style={styles.iconContainer}>
-        <Image
-          source={icon}
-          style={iconStyle}
-          resizeMode="contain"
+        <Icon
+          name={iconName}
+          size={Math.round(iconHeight * normalizedScaleX)}
+          {...(TINTABLE_ICONS.has(iconName) ? { color: colors.primary.main } : null)}
         />
       </View>
       <Text style={styles.label}>{label}</Text>

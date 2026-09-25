@@ -63,7 +63,8 @@ export const LOST_AND_FOUND_CARD_CHROME: Record<
   },
   shipped: {
     pillLabel: 'Shipped',
-    pillGlyph: 'tick',
+    // Node 3871:3630 is the same 17x8 down-chevron the Stored pill carries.
+    pillGlyph: 'chevron',
     pillTone: 'shipped',
     footerLabel: 'Shipped By',
     locationLabel: 'Shipped Location',
@@ -80,7 +81,7 @@ export const LOST_AND_FOUND_CARD_CHROME: Record<
    */
   returned: {
     pillLabel: 'Shipped',
-    pillGlyph: 'tick',
+    pillGlyph: 'chevron',
     pillTone: 'shipped',
     footerLabel: 'Shipped By',
     locationLabel: 'Shipped Location',

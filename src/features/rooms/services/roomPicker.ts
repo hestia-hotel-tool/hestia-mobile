@@ -103,11 +103,13 @@ async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
 
     const guests: RoomPickerGuest[] = toArray<any>(reservation?.guests).map((g: any) => {
       const imageUrl = String(g?.image_url ?? '').trim();
+      const email = String(g?.primary_email ?? '').trim();
       return {
         id: g?.id ? String(g.id) : undefined,
         fullName: g?.full_name ? String(g.full_name) : undefined,
         vipCode: g?.vip_code ?? null,
         imageUrl: imageUrl || undefined,
+        email: email || undefined,
       };
     });
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View } from '@/tw';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
+import { LOST_AND_FOUND_CARD_LAYOUT as L } from './lostAndFoundCardLayout';
 
 export type ItemLocationBlockProps = {
   /** "Stored Location" or "Shipped Location" — from the chrome row. */
@@ -22,16 +23,16 @@ export function ItemLocationBlock({ label, value }: ItemLocationBlockProps) {
   return (
     <View>
       <Text
-        className="font-hestia-primary font-light text-ink-primary"
-        style={{ fontSize: 13 * scaleX, fontFamily: typography.fontFamily.primary }}
+        className="font-hestia-primary font-light text-black"
+        style={{ fontSize: L.labelFontSize * scaleX, fontFamily: typography.fontFamily.primary }}
       >
         {label}
       </Text>
       <Text
-        className="font-hestia-primary font-bold text-ink-primary"
+        className="font-hestia-primary font-bold text-black"
         numberOfLines={1}
         style={{
-          fontSize: 14 * scaleX,
+          fontSize: L.locationValueFontSize * scaleX,
           fontFamily: typography.fontFamily.primary,
           marginTop: 2 * scaleX,
         }}

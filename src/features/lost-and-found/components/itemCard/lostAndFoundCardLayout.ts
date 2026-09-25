@@ -43,28 +43,57 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
   rightColumn: 178,
 
   /**
-   * Node 3871:3671 — **144x119**, the second card's photo.
+   * Node 3871:3589 — **121x115, radius 10**, the first card's photo.
    *
-   * The first card (3871:3589) draws 121x115 instead. Drift, not intent: both
-   * sit at the same x=34 and the same 55 below the card top, and the boxes were
-   * drawn around two different mock photographs. 144 is the one that agrees
-   * with the right column — 18 + 144 + 16 lands exactly on 178 — so it wins.
+   * The second card (3871:3671) draws 144x119 at radius 16. The two disagree,
+   * and the first card's box was chosen for every card. The right column
+   * still starts at frame x=194, so the gap beside the photo is derived from
+   * `rightColumn` rather than fixed — see `LostAndFoundCard`.
    */
-  photo: { width: 144, height: 119, radius: 10, top: 55 },
+  photo: { width: 121, height: 115, radius: 10, top: 55 },
 
-  /** Node 3871:3601 — Helvetica Bold, and the tracking chip follows it in flow. */
-  titleFontSize: 18,
+  /** Node 3871:3601 — Helvetica Bold 21, and the tracking chip follows it in flow. */
+  titleFontSize: 21,
 
-  /** Nodes 3871:3602 (tracking), 3871:3615 (room), 3871:3721 (public area). */
-  trackingChip: { height: 22, paddingX: 10, paddingY: 3, fontSize: 14 },
-  chip: { height: 18, paddingX: 10, paddingY: 4, fontSize: 10 },
+  /**
+   * Node 3871:3602 — the tracking number: `#e4eefe` at radius 2, Helvetica
+   * Light 14 in `#1e1e1e`.
+   */
+  trackingChip: {
+    height: 22,
+    paddingX: 10,
+    paddingY: 3,
+    fontSize: 14,
+    radius: 2,
+    background: '#e4eefe',
+    text: '#1e1e1e',
+  },
+  /**
+   * Nodes 3871:3615 (room number) and 3871:3721 (public area) — radius 7,
+   * Helvetica Light 9 in black. The two differ only in fill.
+   */
+  chip: {
+    height: 18,
+    paddingX: 10,
+    paddingY: 4,
+    fontSize: 9,
+    radius: 7,
+    text: '#000000',
+    roomBackground: 'rgba(59, 193, 246, 0.25)',
+    publicAreaBackground: '#caecfb',
+  },
+
+  /** 11 light — "Found In", "Stored Location" and the footer's "Stored by". */
+  labelFontSize: 11,
+  /** Node 3871:3599 — the location value, Helvetica Bold 13. */
+  locationValueFontSize: 13,
 
   /** Node 3871:3607. */
   guestThumb: { size: 34.588, radius: 5 },
-  /** Nodes 3871:3608 / 3871:3609 — the disc and the mirrored arrow inside it. */
-  vipDisc: { size: 14.118, glyph: 3.294 },
-  /** Nodes 3871:3704 / 3871:3706 — the public-area tile and its glyph. */
-  publicTile: { width: 41, height: 38, radius: 5, glyph: 24 },
+  /** Nodes 3871:3608 / 3871:3609 — the `#f92424` disc and the mirrored arrow inside it. */
+  vipDisc: { size: 14.118, glyph: 3.294, color: '#f92424' },
+  /** Nodes 3871:3704 / 3871:3706 — the public-area tile (`#caecfb`) and its glyph. */
+  publicTile: { width: 41, height: 38, radius: 5, glyph: 24, background: '#caecfb' },
 
   /** "Found In" label, card-relative y (frame 274). */
   foundInTop: 59,
@@ -115,7 +144,7 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
     fontSize: 16,
     /** Node 3871:3596 — 17x8, a chevron turned down. */
     chevron: { width: 17, height: 8 },
-    /** Node 3871:3630 — the tick on a shipped pill. */
+    /** Unused by any current frame (3871:3630 is a chevron); kept for the `tick` glyph option. */
     tick: { width: 14, height: 10 },
   },
 } as const;

@@ -43,7 +43,7 @@ export type LostAndFoundStatusPopoverProps = {
 
 const STATUS_TONE: Record<'stored' | 'shipped' | 'discarded', string> = {
   stored: '#f0be1b',
-  shipped: '#41d541',
+  shipped: '#39d47f',
   discarded: '#9ca3af',
 };
 

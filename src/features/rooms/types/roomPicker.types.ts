@@ -21,6 +21,8 @@ export interface RoomPickerGuest {
    * the guest id, which attaches a stranger's face to a named, real guest.
    */
   imageUrl?: string;
+  /** `guests.primary_email` — prefills Lost & Found's reclamation email. */
+  email?: string;
 }
 
 export interface RoomPickerRoom {

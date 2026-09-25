@@ -15,6 +15,7 @@
 // actions
 import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
 import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
+import ActionCheckBold from '@assets/icons/actions/action-check-bold.svg';
 import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
@@ -69,6 +70,8 @@ import NavAi from '@assets/icons/nav/nav-ai.svg';
 import NavChat from '@assets/icons/nav/nav-chat.svg';
 import NavHome from '@assets/icons/nav/nav-home.svg';
 import NavLostFound from '@assets/icons/nav/nav-lost-found.svg';
+import NavRooms from '@assets/icons/nav/nav-rooms.svg';
+import NavSettings from '@assets/icons/nav/nav-settings.svg';
 import NavStaff from '@assets/icons/nav/nav-staff.svg';
 import NavTickets from '@assets/icons/nav/nav-tickets.svg';
 // room-status
@@ -85,6 +88,7 @@ export const icons = {
   // actions
   'action-add-note': ActionAddNote,
   'action-add-photo': ActionAddPhoto,
+  'action-check-bold': ActionCheckBold,
   'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
@@ -139,6 +143,8 @@ export const icons = {
   'nav-chat': NavChat,
   'nav-home': NavHome,
   'nav-lost-found': NavLostFound,
+  'nav-rooms': NavRooms,
+  'nav-settings': NavSettings,
   'nav-staff': NavStaff,
   'nav-tickets': NavTickets,
   // room-status
@@ -163,6 +169,7 @@ export type IconName = keyof typeof icons;
 export const ICON_ASPECT: Record<IconName, number> = {
   'action-add-note': 1,
   'action-add-photo': 1.0162,
+  'action-check-bold': 1.0714,
   'action-check': 1.1798,
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
@@ -213,6 +220,8 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'nav-chat': 1.0003,
   'nav-home': 1.0744,
   'nav-lost-found': 0.9066,
+  'nav-rooms': 1.9231,
+  'nav-settings': 0.9375,
   'nav-staff': 1.0771,
   'nav-tickets': 0.8567,
   'status-approved': 1.1265,
@@ -231,6 +240,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
  */
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-add-note',
+  'action-check-bold',
   'action-check',
   'action-checkbox-checked',
   'action-chevron',
@@ -273,6 +283,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'checklist-minibar',
   'location-pin',
   'nav-chat',
+  'nav-rooms',
+  'nav-settings',
   'nav-staff',
   'nav-tickets',
   'status-approved',

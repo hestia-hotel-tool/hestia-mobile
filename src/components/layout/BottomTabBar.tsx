@@ -107,37 +107,24 @@ const TAB_ORDER_BY_VARIANT: Record<HomeVariant, readonly string[]> = {
   dining: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms', 'LostAndFound', 'Staff'],
 };
 
-const MAIN_TABS = [
-  {
-    id: 'Home',
-    icon: require('@assets/icons/home-icon.png'),
-    label: 'Home',
-    iconWidth: 56,
-    iconHeight: 56,
-  },
-  {
-    id: 'Rooms',
-    icon: require('@assets/icons/rooms-icon.png'),
-    label: 'Rooms',
-    iconWidth: 70,
-    iconHeight: 56,
-  },
-  {
-    id: 'Chat',
-    icon: require('@assets/icons/chat-icon.png'),
-    label: 'Chat',
-    iconWidth: 56,
-    iconHeight: 56,
-    iconOffsetX: -2,
-  },
-  {
-    id: 'Tickets',
-    icon: require('@assets/icons/tickets-icon.png'),
-    label: 'Tickets',
-    iconWidth: 49,
-    iconHeight: 54,
-    iconOffsetX: -3,
-  },
+/*
+ * Every tab is a registry SVG. `iconHeight` is the glyph's own height in the
+ * tab bar of Figma 3128:32 — Home 3128:149, Rooms 3128:154, Chat 3128:141,
+ * Tickets 3128:184 — and width follows each SVG's aspect ratio. These replace
+ * PNGs whose 56x56 boxes carried their own padding.
+ */
+type TabDef = {
+  id: string;
+  iconName: IconName;
+  label: string;
+  iconHeight: number;
+};
+
+const MAIN_TABS: TabDef[] = [
+  { id: 'Home', iconName: 'nav-home', label: 'Home', iconHeight: 30 },
+  { id: 'Rooms', iconName: 'nav-rooms', label: 'Rooms', iconHeight: 26 },
+  { id: 'Chat', iconName: 'nav-chat', label: 'Chat', iconHeight: 28 },
+  { id: 'Tickets', iconName: 'nav-tickets', label: 'Tickets', iconHeight: 27 },
   {
     id: 'AIHome',
     /*
@@ -148,9 +135,8 @@ const MAIN_TABS = [
      * tints PNGs to the active/inactive colour, so it rendered as a single flat
      * house — neither the design's gradient nor its ring.
      */
-    iconName: 'nav-ai' as const,
+    iconName: 'nav-ai',
     label: '',
-    iconWidth: 56,
     iconHeight: 56,
   },
 ];
@@ -183,11 +169,10 @@ export default function BottomTabBar() {
     () => {
       const all = [
         ...MAIN_TABS,
-        ...MORE_MENU_OPTIONS.map((option) => ({
+        ...MORE_MENU_OPTIONS.map((option): TabDef => ({
           id: option.navigationTarget,
-          icon: option.icon,
+          iconName: option.iconName,
           label: option.label,
-          iconWidth: option.iconWidth,
           iconHeight: option.iconHeight,
         })),
       ];
@@ -318,8 +303,7 @@ export default function BottomTabBar() {
             onLayout={handleTabLayout(tab.id)}
           >
             <TabBarItem
-              icon={tab.icon}
-              iconName={'iconName' in tab ? (tab as { iconName?: IconName }).iconName : undefined}
+              iconName={tab.iconName}
               label={tab.label}
               active={activeTab === tab.id}
               badge={
@@ -337,9 +321,7 @@ export default function BottomTabBar() {
                   tab.id === 'Rooms' && roomsAssignmentCount > 0 ? { fromRoomsAssignmentBadge: true } : undefined
                 )
               }
-              iconWidth={tab.iconWidth}
               iconHeight={tab.iconHeight}
-              iconOffsetX={'iconOffsetX' in tab ? (tab as any).iconOffsetX : 0}
             />
           </View>
         ))}

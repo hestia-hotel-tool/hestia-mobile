@@ -18,6 +18,7 @@ import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/
 import { LOST_AND_FOUND_COLORS, scaleX } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@/types/navigation';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
+import { useToast } from '@/contexts/ToastContext';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -67,6 +68,7 @@ const TAB_STATUS: Record<LostAndFoundTab, LostAndFoundStatus[] | null> = {
 
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
+  const toast = useToast();
   const route = useRoute();
   const userProfile = useUserStore((s) => s.profile);
   const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
@@ -363,7 +365,7 @@ export default function LostAndFoundScreen() {
       itemData: data.itemData,
     });
     setShowRegisterModal(false);
-    setTimeout(() => setShowSuccessModal(true), 250);
+    const successTimer = setTimeout(() => setShowSuccessModal(true), 250);
 
     registerInflightRef.current = (async () => {
       try {
@@ -374,6 +376,13 @@ export default function LostAndFoundScreen() {
         });
         if (result.trackingNumber) trackingNumberFromDb = result.trackingNumber;
         if (result.id) pendingInsertedItemIdRef.current = result.id;
+        if (result.error) {
+          // The success sheet opened optimistically; take it back and say why.
+          clearTimeout(successTimer);
+          setShowSuccessModal(false);
+          setSuccessData(null);
+          toast.show(result.error, { type: 'error', title: 'Item not registered', duration: 6000 });
+        }
         // Do not refresh here; we refresh once when the user closes the success modal.
       }
       } catch (e) {

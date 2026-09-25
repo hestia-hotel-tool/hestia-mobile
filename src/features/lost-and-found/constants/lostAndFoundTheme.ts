@@ -23,7 +23,8 @@ export const LOST_AND_FOUND_CARD_THEME: Record<
   { pill: string; label: string; glyph: string }
 > = {
   stored: { pill: '#f0be1b', label: '#ffffff', glyph: '#ffffff' },
-  shipped: { pill: '#41d541', label: '#ffffff', glyph: '#ffffff' },
+  // Node 3871:3621 — #39d47f, not the #41d541 status green it used to borrow.
+  shipped: { pill: '#39d47f', label: '#ffffff', glyph: '#ffffff' },
   /*
    * **`#9ca3af` matches no token in the design system**, and no frame draws a
    * discarded pill to check it against. It is carried over from the previous

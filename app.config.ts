@@ -3,7 +3,7 @@ import { ConfigContext, ExpoConfig } from "expo/config";
 const EAS_PROJECT_ID = "1ac5a146-2c0d-497b-b6c6-ddebcaed2b38";
 const PROJECT_SLUG = "hestia";
 const OWNER = "wallace-mua-2";
-const VERSION = "1.0.1";
+const VERSION = "1.2.0";
 
 const APP_NAME = "Hestia";
 const BUNDLE_IDENTIFIER = "com.hestiahotels.app";

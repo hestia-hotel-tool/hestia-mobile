@@ -52,7 +52,7 @@ export function FoundInPublicAreaRow({
             width: L.publicTile.width * scaleX,
             height: L.publicTile.height * scaleX,
             borderRadius: L.publicTile.radius * scaleX,
-            backgroundColor: '#f0f5fb',
+            backgroundColor: L.publicTile.background,
           }}
         >
           {/* aspect 0.9615, so a height of 24 paints 23.08 wide. */}
@@ -63,18 +63,18 @@ export function FoundInPublicAreaRow({
       <View className="shrink">
         <View className="flex-row items-center" style={{ gap: 8 * scaleX }}>
           <Text
-            className="shrink font-hestia-primary font-bold text-ink-primary"
+            className="shrink font-hestia-primary font-bold text-black"
             numberOfLines={1}
             ellipsizeMode="tail"
             style={{ fontSize: 14 * scaleX, fontFamily: typography.fontFamily.primary }}
           >
             {areaName}
           </Text>
-          {chipLabel ? <MetaChip label={chipLabel} /> : null}
+          {chipLabel ? <MetaChip label={chipLabel} variant={showTile ? 'publicArea' : 'room'} /> : null}
         </View>
         {timestamp ? (
           <Text
-            className="font-hestia-primary font-light text-ink-primary"
+            className="font-hestia-primary font-light text-black"
             numberOfLines={1}
             ellipsizeMode="tail"
             style={{

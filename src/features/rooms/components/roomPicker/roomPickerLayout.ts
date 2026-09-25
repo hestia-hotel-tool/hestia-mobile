@@ -27,15 +27,18 @@ export const ROOM_PICKER_LAYOUT = {
     minHeight: 90.7627,
     radius: 12,
     /**
-     * Blue-grey and broad. The page behind the card is pure white and
-     * immediately outside the card it reads `#e5e9f1`, i.e. `rgb(100,131,176)`
-     * at ~17% — the same tint the nav shadow token uses. A neutral black
-     * shadow at 10% is both too weak and the wrong hue.
+     * Node 1102:3198 — `#6483b0` at 40%, blur 105, spread -35, no offset: a
+     * wide, faint halo on all four sides. React Native has no spread, so the
+     * negative spread is approximated by a lower opacity over a smaller radius
+     * (blur / 2 is RN's equivalent, less the spread). Android's `elevation`
+     * cannot tint or widen, so it stays a light lift there.
      */
     shadowColor: '#6483b0',
-    shadowOpacity: 0.45,
-    shadowRadius: 10,
-    shadowOffsetY: 4,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffsetY: 0,
+    /** The same node's 1px `#e6e6e6` outline, round the card and the tab. */
+    borderColor: '#e6e6e6',
   },
 
   /**
@@ -77,7 +80,8 @@ export const ROOM_PICKER_LAYOUT = {
   divider: {
     left: 165,
     height: 54,
-    color: '#e5e7eb',
+    /** Node 1102:3203 strokes #e3e3e3. */
+    color: '#e3e3e3',
   },
 
   guest: {

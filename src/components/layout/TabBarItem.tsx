@@ -1,68 +1,41 @@
 import React, { useMemo } from 'react';
-import { View, Text, Image, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { colors, typography } from '@/theme';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { Icon, type IconName } from '@/components/Icon';
+import { TINTABLE_ICONS } from '@/components/Icon/registry';
 
 interface TabBarItemProps {
-  /** Legacy PNG, tinted to the active/inactive colour. Ignored when `iconName` is set. */
-  icon?: any;
   /**
-   * A registered SVG from the icon registry, drawn instead of `icon`.
+   * A registered SVG from `assets/icons/nav/`.
    *
-   * Rendered untinted, because the mark that needed this is the AI assistant
-   * button (`nav-ai`) — a two-tone gradient over a gradient ring, which the
-   * `Image` path's `tintColor` flattens to a single flat colour. The other tabs
-   * are single-colour PNGs that tint correctly, so they are left alone; this is
-   * the seam for moving them to SVG one at a time.
+   * Single-colour marks are tinted to the active/inactive colour. Two-tone
+   * marks (`nav-home`, `nav-lost-found`, `nav-ai`) keep their own fills —
+   * `Icon` warns if a colour is passed to one, and flattening them would
+   * destroy the mark.
    */
-  iconName?: IconName;
+  iconName: IconName;
   label: string;
   active?: boolean;
   badge?: number;
   onPress: () => void;
-  iconWidth?: number;
-  iconHeight?: number;
-  iconOpacity?: number;
-  /** Some PNGs are not visually centered; allow a small horizontal nudge. */
-  iconOffsetX?: number;
+  /** Glyph height in design px; width follows the SVG's aspect ratio. */
+  iconHeight: number;
 }
 
 export default function TabBarItem({
-  icon,
   iconName,
   label,
   active = false,
   badge,
   onPress,
-  iconWidth,
   iconHeight,
-  iconOpacity,
-  iconOffsetX = 0,
 }: TabBarItemProps) {
   const { normalizedScaleX: ns } = useDesignScale();
   const styles = useMemo(() => buildTabBarItemStyles(ns), [ns]);
 
-  const finalOpacity = iconOpacity !== undefined ? iconOpacity : 1;
-  const activeColor = colors.text.pink;
-  const inactiveColor = colors.primary.main;
-  const iconColor = active ? activeColor : inactiveColor;
+  const iconColor = active ? colors.text.pink : colors.primary.main;
   const labelNumberOfLines = 1;
-  const iconStyle = iconWidth && iconHeight
-    ? ([
-        {
-          width: Math.round(iconWidth * ns),
-          height: Math.round(iconHeight * ns),
-          opacity: finalOpacity,
-          tintColor: iconColor,
-          ...(iconOffsetX ? { transform: [{ translateX: iconOffsetX * ns }] } : null),
-        },
-      ] as any)
-    : ([
-        styles.icon,
-        { opacity: finalOpacity, tintColor: iconColor },
-        iconOffsetX ? { transform: [{ translateX: iconOffsetX * ns }] } : null,
-      ].filter(Boolean) as any);
 
   return (
     <Pressable
@@ -74,16 +47,11 @@ export default function TabBarItem({
       <View style={styles.contentWrapper}>
         <View style={styles.iconWrapper}>
           <View style={styles.iconContainer}>
-            {iconName ? (
-              // No `color`: this path exists for marks that carry their own.
-              <Icon
-                name={iconName}
-                size={Math.round((iconHeight ?? 56) * ns)}
-                opacity={finalOpacity}
-              />
-            ) : (
-              <Image source={icon} style={iconStyle} resizeMode="contain" />
-            )}
+            <Icon
+              name={iconName}
+              size={Math.round(iconHeight * ns)}
+              {...(TINTABLE_ICONS.has(iconName) ? { color: iconColor } : null)}
+            />
             {badge !== undefined && badge > 0 ? (
               <View style={styles.badgeContainer}>
                 <View style={styles.badge}>
@@ -148,10 +116,6 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
       justifyContent: 'center',
       alignItems: 'center',
       overflow: 'visible',
-    },
-    icon: {
-      width: '100%',
-      height: '100%',
     },
     // Inset from icon corner so the pill doesn’t sit flush on the artwork (Chat + Tickets).
     badgeContainer: {

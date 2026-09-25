@@ -128,7 +128,7 @@ export default function RoomPickerCard({
                         name="guest-occupancy"
                         width={L.guest.occupancy.width * scaleX}
                         height={L.guest.occupancy.height * scaleX}
-                        color="#666"
+                        color="#000000"
                         style={styles.occupancyIcon}
                       />
                       <Text style={styles.guestCount}>{room.guestCount}/2</Text>
@@ -151,8 +151,8 @@ export default function RoomPickerCard({
    */
   return (
     <View style={styles.selectedWrap}>
-      <View style={styles.notch} />
       {card}
+      <View style={styles.notch} />
     </View>
   );
 }
@@ -208,9 +208,9 @@ function buildRoomPickerCardStyles(scaleX: number) {
       zIndex: 1,
     },
     cardSelected: {
-      // No border and no tint: the frame draws a plain white card and gives it
-      // its edge with the shadow alone.
-      borderWidth: 0,
+      // Node 1102:3198 — white, with a 1px #e6e6e6 outline and a soft halo.
+      borderWidth: 1,
+      borderColor: L.card.borderColor,
       // A clipped view casts no shadow, and without one a white card on a
       // white page has no edge at all.
       overflow: 'visible',
@@ -218,7 +218,7 @@ function buildRoomPickerCardStyles(scaleX: number) {
       shadowOffset: { width: 0, height: L.card.shadowOffsetY },
       shadowOpacity: L.card.shadowOpacity,
       shadowRadius: L.card.shadowRadius,
-      elevation: 5,
+      elevation: 3,
     },
     selectedWrap: {
       position: 'relative',
@@ -233,12 +233,15 @@ function buildRoomPickerCardStyles(scaleX: number) {
       height: L.notch.side * scaleX,
       backgroundColor: '#fff',
       borderRadius: L.notch.radius * scaleX,
+      // After the 45deg turn, top and left are the tab's two exposed edges.
+      borderTopWidth: 1,
+      borderLeftWidth: 1,
+      borderColor: L.card.borderColor,
       transform: [{ rotate: '45deg' }],
-      shadowColor: L.card.shadowColor,
-      shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.18,
-      shadowRadius: 6,
-      elevation: 3,
+      // Above the card, so its lower half hides the card's outline where the
+      // tab joins it — the frame draws the two as one shape (a Union).
+      zIndex: 2,
+      elevation: 4,
     },
     content: {
       flexDirection: 'row',
@@ -302,7 +305,8 @@ function buildRoomPickerCardStyles(scaleX: number) {
       width: L.guest.vip.size * scaleX,
       height: L.guest.vip.size * scaleX,
       borderRadius: (L.guest.vip.size / 2) * scaleX,
-      backgroundColor: '#ff0000',
+      // Node 2961:186.
+      backgroundColor: '#f92424',
       alignItems: 'center',
       justifyContent: 'center',
     },

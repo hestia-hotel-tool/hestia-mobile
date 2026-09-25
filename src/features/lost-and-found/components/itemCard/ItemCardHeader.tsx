@@ -41,7 +41,7 @@ export function ItemCardHeader({ itemName, itemId }: ItemCardHeaderProps) {
   return (
     <View className="flex-row items-center" style={{ gap: 10 * scaleX }}>
       <Text
-        className="shrink font-hestia-primary font-bold text-ink-primary"
+        className="shrink font-hestia-primary font-bold text-black"
         numberOfLines={2}
         style={{
           fontSize: L.titleFontSize * scaleX,
@@ -51,7 +51,7 @@ export function ItemCardHeader({ itemName, itemId }: ItemCardHeaderProps) {
         {itemName}
       </Text>
 
-      <MetaChip label={itemId} size="tracking" />
+      <MetaChip label={itemId} variant="tracking" />
 
       <Pressable
         onPress={handleCopy}

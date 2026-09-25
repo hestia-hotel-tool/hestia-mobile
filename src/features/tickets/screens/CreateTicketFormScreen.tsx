@@ -331,6 +331,14 @@ export default function CreateTicketFormScreen() {
         allowsMultipleSelection: false,
         allowsEditing: false,
         quality: 0.8,
+        /*
+         * iOS otherwise hands back the original HEIC, which the upload stores
+         * under a .jpg name and an image/jpeg type — the bytes then fail to
+         * render on the card, and Android cannot decode HEIC at all.
+         * `Compatible` makes iOS transcode to JPEG before returning it.
+         */
+        preferredAssetRepresentationMode:
+          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
       });
 
       if (!result.canceled && result.assets && result.assets[0]) {

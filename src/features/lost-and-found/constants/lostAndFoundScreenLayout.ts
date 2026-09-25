@@ -39,10 +39,13 @@ export const LOST_AND_FOUND_SCREEN_LAYOUT = {
     /** Title x=69 against the chevron's x=27. */
     titleGap: 42,
     titleFontSize: 24,
-    /** Node 3128:120 — "+ Register" is one text node; the `+` is a character. */
-    registerRight: 46,
-    registerPlusFontSize: 24,
-    registerTextFontSize: 20,
+    /**
+     * Node 4244:634 — a filled pill, 117x42, radius 61, 10px padding, holding
+     * "Register" in Helvetica Regular 19 (node 3128:120). It ends at x=406, so
+     * 34 from the frame's right edge.
+     */
+    registerRight: 34,
+    register: { height: 42, paddingX: 21, radius: 61, fontSize: 19 },
     /**
      * Space below the title row inside the band: the band ends at 133 and the
      * row ends at 97.

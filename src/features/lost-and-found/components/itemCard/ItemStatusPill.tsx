@@ -46,27 +46,44 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false }: Item
    * popover appears immediately and merely re-points once the real rect lands,
    * rather than not opening.
    */
+  /** Where the finger landed — the fallback anchor if measuring fails. */
+  const touchEstimate = useRef<LostAndFoundStatusAnchorLayout | null>(null);
+
   const handlePressIn = (event: { nativeEvent?: { pageX?: number; pageY?: number } }) => {
-    if (!onStatusPress) return;
     const { pageX, pageY } = event.nativeEvent ?? {};
     if (typeof pageX !== 'number' || typeof pageY !== 'number') return;
     const height = L.statusPill.height * scaleX;
-    onStatusPress({ x: pageX, y: pageY - height / 2, width: 0, height });
+    touchEstimate.current = { x: pageX, y: pageY - height / 2, width: 0, height };
   };
 
+  /*
+   * Open the popover exactly once, anchored to the pill.
+   *
+   * This used to fire three times: an estimate on press-in (which opened the
+   * popover mid-tap), then `onStatusPress(undefined)` on press — wiping that
+   * estimate, so the popover fell back to sitting flush under the header — and
+   * then a measurement that never arrived, because `measureInWindow` was read
+   * off the ref and called detached. Without its `this` it threw, the empty
+   * `catch` swallowed it, and the popover stayed at the top of the screen.
+   */
   const handlePress = () => {
     if (!onStatusPress) return;
-    onStatusPress(undefined);
-
-    const measure = (ref.current as unknown as {
+    const fallback = touchEstimate.current ?? undefined;
+    const node = ref.current as unknown as {
       measureInWindow?: (cb: (x: number, y: number, w: number, h: number) => void) => void;
-    } | null)?.measureInWindow;
-    if (typeof measure !== 'function') return;
+    } | null;
+
+    if (!node?.measureInWindow) {
+      onStatusPress(fallback);
+      return;
+    }
     try {
-      measure((x, y, width, height) => onStatusPress({ x, y, width, height }));
+      node.measureInWindow((x, y, width, height) => {
+        const measured = [x, y, width, height].every((v) => typeof v === 'number' && !Number.isNaN(v));
+        onStatusPress(measured && height > 0 ? { x, y, width, height } : fallback);
+      });
     } catch {
-      // iOS can throw here (__internalInstanceHandle undefined). The popover is
-      // already open on the estimate; it just keeps that position.
+      onStatusPress(fallback);
     }
   };
 

@@ -439,7 +439,8 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
             id,
             full_name,
             vip_code,
-            image_url
+            image_url,
+            primary_email
           ),
           arrival_date,
           departure_date,

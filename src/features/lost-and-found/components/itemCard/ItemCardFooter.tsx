@@ -47,7 +47,7 @@ export function ItemCardFooter({
       />
 
       <Text
-        className="font-hestia-primary font-light text-ink-primary"
+        className="font-hestia-primary font-light text-black"
         style={{ fontSize: 11 * scaleX, fontFamily: typography.fontFamily.primary }}
       >
         {label}
@@ -58,14 +58,14 @@ export function ItemCardFooter({
           <Avatar uri={avatarUri} name={name} size={L.footerAvatar * scaleX} />
           <View className="shrink">
             <Text
-              className="font-hestia-primary font-bold text-ink-secondary"
+              className="font-hestia-primary font-bold text-ink-primary"
               numberOfLines={1}
               style={{ fontSize: 13 * scaleX, fontFamily: typography.fontFamily.primary }}
             >
               {name}
             </Text>
             <Text
-              className="font-hestia-primary font-light text-ink-primary"
+              className="font-hestia-primary font-light text-black"
               numberOfLines={1}
               style={{
                 fontSize: 12 * scaleX,

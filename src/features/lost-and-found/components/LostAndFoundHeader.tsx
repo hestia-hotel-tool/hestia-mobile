@@ -64,7 +64,7 @@ export default function LostAndFoundHeader({
           accessibilityLabel="Go back"
         >
           {/* Node 3128:123 — 14x28; `action-chevron`'s aspect is exactly 0.5. */}
-          <Icon name="action-chevron" size={S.header.backChevron * scaleX} color="#607AA1" />
+          <Icon name="action-chevron" size={S.header.backChevron * scaleX} color="#5a759d" />
         </Pressable>
 
         {/* Chevron ends at x=41, title starts at x=69. */}
@@ -90,38 +90,28 @@ export default function LostAndFoundHeader({
 
         <View className="flex-1" />
 
-        {/*
-          Node 3128:120 is a single 95x28 text node — the "+" is a character in
-          it, not a glyph, so this stays one Text with two weights rather than an
-          icon beside a label.
-        */}
+        {/* Node 4244:634 — a filled pill. The earlier "+ Register" pink text
+            (3128:120 on its own) is gone from the frame. */}
         <Pressable
           onPress={onRegisterPress}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel="Register a lost and found item"
+          className="items-center justify-center bg-ink-accent"
+          style={{
+            height: S.header.register.height * scaleX,
+            paddingHorizontal: S.header.register.paddingX * scaleX,
+            borderRadius: S.header.register.radius * scaleX,
+          }}
         >
-          <Text style={{ color: '#ff46a3', fontFamily: typography.fontFamily.primary }}>
-            <Text
-              style={{
-                fontSize: S.header.registerPlusFontSize * scaleX,
-                fontWeight: '700',
-                fontFamily: typography.fontFamily.primary,
-                color: '#ff46a3',
-              }}
-            >
-              +{' '}
-            </Text>
-            <Text
-              style={{
-                fontSize: S.header.registerTextFontSize * scaleX,
-                fontWeight: '300',
-                fontFamily: typography.fontFamily.primary,
-                color: '#ff46a3',
-              }}
-            >
-              Register
-            </Text>
+          <Text
+            className="font-hestia-primary text-ink-white"
+            style={{
+              fontSize: S.header.register.fontSize * scaleX,
+              fontFamily: typography.fontFamily.primary,
+            }}
+          >
+            Register
           </Text>
         </Pressable>
       </View>

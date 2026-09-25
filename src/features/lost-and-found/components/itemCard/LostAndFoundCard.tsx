@@ -27,10 +27,11 @@ function formatTimestamp(iso?: string): string {
   if (!iso) return '';
   const dt = new Date(iso);
   if (Number.isNaN(dt.getTime())) return '';
+  // Node 3871:3716 — "11:00, 12/2/2026": padded clock, a comma, unpadded day/month.
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(dt.getHours())}:${pad(dt.getMinutes())} ${pad(dt.getDate())}/${pad(
+  return `${pad(dt.getHours())}:${pad(dt.getMinutes())}, ${dt.getDate()}/${
     dt.getMonth() + 1
-  )}/${dt.getFullYear()}`;
+  }/${dt.getFullYear()}`;
 }
 
 /**
@@ -138,15 +139,20 @@ export function LostAndFoundCard({
     >
       <ItemCardHeader itemName={item.itemName} itemId={item.itemId} />
 
-      <View className="flex-row" style={{ gap: 16 * scaleX }}>
+      {/* The right column starts at `rightColumn` whatever the photo's width,
+          so the gap is what is left between them (178 - 18 - 121 = 39). */}
+      <View
+        className="flex-row"
+        style={{ gap: (L.rightColumn - L.paddingLeft - L.photo.width) * scaleX }}
+      >
         {/* Keyed on the source: a new photo is a new component, which is how
             `ItemPhoto` clears its loading state without a reset effect. */}
         <ItemPhoto key={photoKey} source={item.image} />
 
         <View className="flex-1" style={{ gap: 10 * scaleX }}>
           <Text
-            className="font-hestia-primary font-light text-ink-primary"
-            style={{ fontSize: 14 * scaleX, fontFamily: typography.fontFamily.primary }}
+            className="font-hestia-primary font-light text-black"
+            style={{ fontSize: L.labelFontSize * scaleX, fontFamily: typography.fontFamily.primary }}
           >
             Found In
           </Text>

@@ -94,7 +94,7 @@ export function FoundInGuestRow({
               width: disc,
               height: disc,
               borderRadius: disc / 2,
-              backgroundColor: '#ff0000',
+              backgroundColor: L.vipDisc.color,
               right: -4 * scaleX,
               bottom: -4 * scaleX,
             }}
@@ -119,7 +119,7 @@ export function FoundInGuestRow({
         <View className="flex-row items-center" style={{ gap: 8 * scaleX }}>
           {guestName ? (
             <Text
-              className="shrink font-hestia-primary font-bold text-ink-primary"
+              className="shrink font-hestia-primary font-bold text-black"
               numberOfLines={1}
               ellipsizeMode="tail"
               style={{ fontSize: 14 * scaleX, fontFamily: typography.fontFamily.primary }}
@@ -127,11 +127,11 @@ export function FoundInGuestRow({
               {guestName}
             </Text>
           ) : null}
-          {roomNumber ? <MetaChip label={roomNumber} /> : null}
+          {roomNumber ? <MetaChip label={roomNumber} variant="room" /> : null}
         </View>
         {guestDates ? (
           <Text
-            className="font-hestia-primary font-light text-ink-primary"
+            className="font-hestia-primary font-light text-black"
             numberOfLines={1}
             ellipsizeMode="tail"
             style={{
