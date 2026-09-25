@@ -267,7 +267,7 @@ export default function ChatScreen() {
                 {generalNotification ? (
                   <NotificationItem
                     item={generalNotification}
-                    onPress={() => (navigation as any).navigate('announcements/index')}
+                    onPress={() => (navigation as any).navigate('(chats)/announcements')}
                   />
                 ) : null}
                 {tasksNotification ? (

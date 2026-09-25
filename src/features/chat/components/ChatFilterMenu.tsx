@@ -6,18 +6,22 @@ import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 
 export type ChatListFilter = 'all' | 'unread' | 'groups' | 'direct';
 
-const OPTIONS: { id: ChatListFilter; label: string }[] = [
+export type FilterOption<T extends string> = { id: T; label: string };
+
+const CHAT_OPTIONS: FilterOption<ChatListFilter>[] = [
   { id: 'all', label: 'All chats' },
   { id: 'unread', label: 'Unread' },
   { id: 'groups', label: 'Groups' },
   { id: 'direct', label: 'Direct' },
 ];
 
-type Props = {
+type Props<T extends string> = {
   visible: boolean;
-  value: ChatListFilter;
-  onChange: (value: ChatListFilter) => void;
+  value: T;
+  onChange: (value: T) => void;
   onClose: () => void;
+  /** Defaults to the chat list's All / Unread / Groups / Direct. */
+  options?: FilterOption<T>[];
 };
 
 /*
@@ -34,12 +38,18 @@ const MENU_TOP = L.search.top + L.search.filterTop + 12 + 14;
  * treatment of the app's other pickers (white, r9, #e6e6e6 hairline, soft blue
  * halo) rather than inventing a new one.
  */
-export function ChatFilterMenu({ visible, value, onChange, onClose }: Props) {
+export function ChatFilterMenu<T extends string = ChatListFilter>({
+  visible,
+  value,
+  onChange,
+  onClose,
+  options = CHAT_OPTIONS as unknown as FilterOption<T>[],
+}: Props<T>) {
   return (
     <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
       <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="Close filter" />
       <View style={styles.card}>
-        {OPTIONS.map((option, index) => {
+        {options.map((option, index) => {
           const selected = option.id === value;
           return (
             <Pressable

@@ -84,16 +84,16 @@ export async function markAllRoomAssignmentNotificationsRead(): Promise<void> {
   }
 }
 
-/** User opened the announcements list — clear unread `general` inbox rows. */
-export async function markAllGeneralNotificationsRead(): Promise<void> {
-  if (!isSupabaseConfigured) return;
-  const readAt = new Date().toISOString();
+
+/** User opened one notification's detail — clear just that row. */
+export async function markNotificationRead(id: string): Promise<void> {
+  if (!isSupabaseConfigured || !id) return;
   const { error } = await supabase
     .from('notifications')
-    .update({ read_at: readAt })
-    .eq('type', 'general')
+    .update({ read_at: new Date().toISOString() })
+    .eq('id', id)
     .is('read_at', null);
   if (error) {
-    console.warn('[inAppNotifications] markAllGeneralNotificationsRead', error.message);
+    console.warn('[inAppNotifications] markNotificationRead', error.message);
   }
 }

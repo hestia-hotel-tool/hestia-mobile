@@ -46,6 +46,14 @@ const ROUTE_TO_TAB: Record<string, string> = Object.fromEntries(
   Object.entries(TAB_ROUTE_NAMES).map(([tab, route]) => [route, tab])
 );
 
+/**
+ * Screens inside a tab's group that are not its root — they draw the bar with
+ * their tab highlighted, and pressing that tab returns to the root.
+ */
+const SUB_ROUTE_TO_TAB: Record<string, string> = {
+  '(chats)/announcements': 'Chat',
+};
+
 /** Route name used as the `returnToTab` param, keyed by the currently active tab. */
 const TAB_RETURN_ROUTE: Record<string, ReturnToTab> = {
   Home: '(home)/index',
@@ -156,7 +164,10 @@ export default function BottomTabBar() {
    * the route this bar is rendered inside, which never changes for the life of
    * the screen: each copy is correct by construction and re-renders never.
    */
-  const activeTab = ROUTE_TO_TAB[useRoute().name] ?? 'Home';
+  const routeName = useRoute().name;
+  /** Set only when this bar is on a tab's root screen. */
+  const rootTab = ROUTE_TO_TAB[routeName];
+  const activeTab = rootTab ?? SUB_ROUTE_TO_TAB[routeName] ?? 'Home';
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
@@ -227,24 +238,25 @@ export default function BottomTabBar() {
       openAIChatOverlay();
       return;
     }
-    const routeName = TAB_ROUTE_NAMES[tabId];
-    if (!routeName) return;
+    const targetRoute = TAB_ROUTE_NAMES[tabId];
+    if (!targetRoute) return;
     /*
      * Re-tapping the tab you are on used to re-dispatch `navigate` with fresh
      * params, which changed `route.params` identity and re-ran every focus
      * effect keyed on it — a full refetch for a press that changes nothing.
      */
-    if (tabId === activeTab) return;
+    // From a sub-screen (Announcements) the same tab still goes back to its root.
+    if (tabId === rootTab) return;
     if (tabId === 'Rooms') {
-      (navigation as any).navigate(routeName, {
+      (navigation as any).navigate(targetRoute, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
     } else if (tabId === 'LostAndFound' || tabId === 'Staff' || tabId === 'Settings') {
-      (navigation as any).navigate(routeName, {
+      (navigation as any).navigate(targetRoute, {
         returnToTab: TAB_RETURN_ROUTE[activeTab] ?? '(home)/index',
       });
     } else {
-      (navigation as any).navigate(routeName);
+      (navigation as any).navigate(targetRoute);
     }
   };
 

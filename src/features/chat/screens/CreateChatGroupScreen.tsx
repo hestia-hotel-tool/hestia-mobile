@@ -1,385 +1,599 @@
 /**
- * Create Chat Group – name the group and select participants (Supabase).
- * Creates a group chat and navigates to ChatDetail.
+ * Create Chat Group — name the group, pick members, create.
+ *
+ * No Figma frame yet; it matches New Chat: native stack header (platform back
+ * chevron, no "Back" label, native search), everyone listed under sticky
+ * department headers. On top of that:
+ *
+ * - the group name sits in a card at the head of the list, with a character
+ *   count and an inline error if Create is pressed without one;
+ * - picked members show as removable chips, so the choice is visible without
+ *   scrolling back through every department;
+ * - each department header can select or clear its whole team;
+ * - one full-width Create button at the bottom says how many will be added.
+ *
+ * It replaces a list capped at the first 50 users, hidden inside collapsed
+ * department accordions, with a small "Create" link in the header.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
   ActivityIndicator,
-  Image,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
   TextInput,
+  View,
 } from 'react-native';
-import { useNavigation , NativeStackNavigationProp } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import type { RootStackParamList } from '@/types/navigation';
-import type { User } from '@/types';
-import { getUsers } from '@features/account/services/user';
-import { createGroupChat, getCurrentUserId } from '../services/chat';
+import { Stack, useNavigation, type NativeStackNavigationProp } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from '@/components/Icon';
+import { Avatar } from '@/components/ui/Avatar';
 import { useToast } from '@/contexts/ToastContext';
-import { colors } from '@/theme';
-import { scaleX } from '../constants/chatStyles';
+import { typography } from '@/theme';
+import type { User } from '@/types';
+import type { RootStackParamList } from '@/types/navigation';
+import { createGroupChat } from '../services/chat';
+import { groupByDepartment, loadAllColleagues, matchesColleague } from '../utils/colleagues';
+import { CHAT_COLORS, scaleX } from '../constants/chatStyles';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'create-chat-group/index'>;
+
+const NAME_MAX = 64;
 
 export default function CreateChatGroupScreen() {
   const navigation = useNavigation<Nav>();
   const toast = useToast();
+  const insets = useSafeAreaInsets();
   const [users, setUsers] = useState<User[]>([]);
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [query, setQuery] = useState('');
   const [groupName, setGroupName] = useState('');
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [showNameError, setShowNameError] = useState(false);
-  const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(new Set());
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [creating, setCreating] = useState(false);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
-      const [uid, res] = await Promise.all([getCurrentUserId(), getUsers({ limit: 50 })]);
-      setCurrentUserId(uid);
-      const list = uid ? res.data.filter((u) => u.id !== uid) : res.data;
-      setUsers(list);
-    } catch {
-      setUsers([]);
+      setUsers(await loadAllColleagues());
+      setFailed(false);
+    } catch (e) {
+      console.warn('[CreateGroup] load staff', e);
+      setFailed(true);
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
 
-  const toggleUser = (id: string) => {
+  const sections = useMemo(
+    () => groupByDepartment(users.filter((u) => matchesColleague(u, query))),
+    [users, query]
+  );
+  const selectedUsers = useMemo(
+    () => users.filter((u) => selectedIds.has(u.id)).sort((a, b) => a.name.localeCompare(b.name)),
+    [users, selectedIds]
+  );
+
+  const toggle = (id: string) =>
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
-  };
 
-  const toggleDepartment = (department: string) => {
-    setExpandedDepartments((prev) => {
+  const setMany = (ids: string[], on: boolean) =>
+    setSelectedIds((prev) => {
       const next = new Set(prev);
-      if (next.has(department)) next.delete(department);
-      else next.add(department);
+      for (const id of ids) {
+        if (on) next.add(id);
+        else next.delete(id);
+      }
       return next;
     });
-  };
 
   const nameTrimmed = groupName.trim();
-  const canCreate = nameTrimmed.length > 0 && selectedIds.size > 0 && !creating;
+  const count = selectedIds.size;
+  const canCreate = count > 0 && !creating;
 
   const handleCreate = async () => {
     if (!nameTrimmed) {
       setShowNameError(true);
       return;
     }
-    if (selectedIds.size === 0 || creating) return;
+    if (!canCreate) return;
     setCreating(true);
     try {
-      const chatId = await createGroupChat(Array.from(selectedIds), nameTrimmed);
-      if (chatId) {
-        navigation.replace('chat/[chatId]', {
-          chatId,
-          chat: {
-            id: chatId,
-            name: nameTrimmed,
-            lastMessage: '',
-            isGroup: true,
-          },
+      const chatId = await createGroupChat([...selectedIds], nameTrimmed);
+      if (!chatId) {
+        toast.show('Please try again. If it keeps failing, check your connection.', {
+          type: 'error',
+          title: 'Could not create group',
         });
-      } else {
-        toast.show('Please try again. If it keeps failing, check your connection.', { type: 'error', title: 'Could not create group' });
+        return;
       }
+      navigation.replace('chat/[chatId]', {
+        chatId,
+        chat: { id: chatId, name: nameTrimmed, lastMessage: '', isGroup: true },
+      });
     } catch (e) {
-      console.warn('Failed to create group', e);
-      toast.show('Something went wrong. Please try again.', { type: 'error', title: 'Error' });
+      console.warn('[CreateGroup] create', e);
+      toast.show('Something went wrong. Please try again.', { type: 'error', title: 'Could not create group' });
     } finally {
       setCreating(false);
     }
   };
 
-  const departmentSections = users.reduce<Record<string, User[]>>((acc, user) => {
-    const department = user.department?.trim() || 'Other';
-    if (!acc[department]) acc[department] = [];
-    acc[department].push(user);
-    return acc;
-  }, {});
+  const header = (
+    <Stack.Screen
+      options={{
+        headerShown: true,
+        title: 'New Group',
+        // The platform chevron alone — no "Back" / previous-title label.
+        headerBackButtonDisplayMode: 'minimal',
+        headerTintColor: CHAT_COLORS.glyph,
+        headerStyle: { backgroundColor: CHAT_COLORS.headerBackground },
+        headerTitleStyle: {
+          fontFamily: typography.fontFamily.primary,
+          fontWeight: '700',
+          fontSize: 20,
+          color: CHAT_COLORS.title,
+        },
+        headerShadowVisible: false,
+        headerSearchBarOptions: {
+          placeholder: 'Search name, role or department',
+          hideWhenScrolling: false,
+          autoCapitalize: 'none',
+          tintColor: CHAT_COLORS.glyph,
+          onChangeText: (e) => setQuery(e.nativeEvent.text),
+          onCancelButtonPress: () => setQuery(''),
+        },
+      }}
+    />
+  );
 
-  const sortedDepartmentNames = Object.keys(departmentSections).sort((a, b) => {
-    if (a === 'Other') return 1;
-    if (b === 'Other') return -1;
-    return a.localeCompare(b);
-  });
-
-  const renderItem = ({ item }: { item: User }) => {
-    const selected = selectedIds.has(item.id);
+  if (loading) {
     return (
-      <TouchableOpacity
-        style={[styles.row, selected && styles.rowSelected]}
-        onPress={() => toggleUser(item.id)}
-        activeOpacity={0.7}
-      >
-        {item.avatar ? (
-          <Image source={{ uri: item.avatar }} style={styles.avatar} />
-        ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarInitial}>{(item.name || '?').charAt(0).toUpperCase()}</Text>
-          </View>
-        )}
-        <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-        <View style={[styles.checkbox, selected && styles.checkboxSelected]}>
-          {selected && <Text style={styles.checkmark}>✓</Text>}
-        </View>
-      </TouchableOpacity>
+      <View style={styles.centered}>
+        {header}
+        <ActivityIndicator size="large" color={CHAT_COLORS.glyph} />
+        <Text style={styles.stateText}>Loading your colleagues…</Text>
+      </View>
     );
-  };
+  }
+
+  if (failed && users.length === 0) {
+    return (
+      <View style={styles.centered}>
+        {header}
+        <Text style={styles.stateTitle}>Couldn’t load staff</Text>
+        <Text style={styles.stateText}>Check your connection and try again.</Text>
+        <Pressable
+          style={styles.retry}
+          onPress={() => {
+            setLoading(true);
+            void load();
+          }}
+          accessibilityRole="button"
+        >
+          <Text style={styles.primaryText}>Try again</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
+  const nameInvalid = showNameError && !nameTrimmed;
+
+  const listHeader = (
+    <View>
+      <View style={styles.nameCard}>
+        <View style={styles.groupIcon}>
+          <Icon name="action-group" size={22 * scaleX} color="#ffffff" />
+        </View>
+        <View style={styles.nameField}>
+          <TextInput
+            value={groupName}
+            onChangeText={(t) => {
+              setGroupName(t);
+              if (showNameError) setShowNameError(false);
+            }}
+            placeholder="Group name"
+            placeholderTextColor="rgba(0,0,0,0.36)"
+            maxLength={NAME_MAX}
+            returnKeyType="done"
+            style={[styles.nameInput, nameInvalid ? styles.nameInputError : null]}
+            accessibilityLabel="Group name"
+          />
+          <Text style={[styles.nameHint, nameInvalid ? styles.nameHintError : null]}>
+            {nameInvalid ? 'Give the group a name' : `${groupName.length}/${NAME_MAX}`}
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.membersHeader}>
+        <Text style={styles.membersTitle}>Members</Text>
+        <Text style={styles.membersCount}>{count === 0 ? 'None selected' : `${count} selected`}</Text>
+      </View>
+
+      {selectedUsers.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chips}
+          keyboardShouldPersistTaps="handled"
+        >
+          {selectedUsers.map((u) => (
+            <Pressable
+              key={u.id}
+              style={styles.chip}
+              onPress={() => toggle(u.id)}
+              accessibilityRole="button"
+              accessibilityLabel={`Remove ${u.name}`}
+            >
+              <Avatar uri={u.avatar} name={u.name} size={24 * scaleX} />
+              <Text style={styles.chipText} numberOfLines={1}>
+                {u.name.split(/\s+/)[0]}
+              </Text>
+              <View style={styles.chipRemove}>
+                <Icon name="action-plus" size={9 * scaleX} color={CHAT_COLORS.glyph} />
+              </View>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : null}
+    </View>
+  );
 
   return (
     <View style={styles.container}>
-      {/* WhatsApp-style header: back | title | Create (menu button) */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.title}>New group</Text>
-        <TouchableOpacity
-          style={[styles.headerAction, !canCreate && styles.headerActionDisabled]}
+      {header}
+      <SectionList
+        sections={sections}
+        keyExtractor={(u) => u.id}
+        stickySectionHeadersEnabled
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        contentInsetAdjustmentBehavior="automatic"
+        extraData={selectedIds}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            tintColor={CHAT_COLORS.glyph}
+            onRefresh={async () => {
+              setRefreshing(true);
+              await load();
+              setRefreshing(false);
+            }}
+          />
+        }
+        ListHeaderComponent={listHeader}
+        renderSectionHeader={({ section }) => {
+          const ids = section.data.map((u) => u.id);
+          const allOn = ids.every((id) => selectedIds.has(id));
+          return (
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {section.title} <Text style={styles.sectionCount}>· {section.data.length}</Text>
+              </Text>
+              <Pressable
+                onPress={() => setMany(ids, !allOn)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`${allOn ? 'Clear' : 'Select all in'} ${section.title}`}
+              >
+                <Text style={styles.sectionAction}>{allOn ? 'Clear' : 'Select all'}</Text>
+              </Pressable>
+            </View>
+          );
+        }}
+        renderItem={({ item }) => {
+          const selected = selectedIds.has(item.id);
+          const subtitle = item.jobTitle || item.role;
+          return (
+            <Pressable
+              style={({ pressed }) => [styles.row, pressed ? styles.pressed : null]}
+              onPress={() => toggle(item.id)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: selected }}
+              accessibilityLabel={`${item.name}${subtitle ? `, ${subtitle}` : ''}`}
+            >
+              <Avatar uri={item.avatar} name={item.name} size={44 * scaleX} />
+              <View style={styles.rowText}>
+                <Text style={styles.name} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                {subtitle ? (
+                  <Text style={styles.subtitle} numberOfLines={1}>
+                    {subtitle}
+                  </Text>
+                ) : null}
+              </View>
+              <View style={[styles.checkbox, selected ? styles.checkboxOn : null]}>
+                {selected ? <Icon name="action-check-bold" size={12 * scaleX} color="#ffffff" /> : null}
+              </View>
+            </Pressable>
+          );
+        }}
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        ListEmptyComponent={
+          <View style={styles.empty}>
+            <Text style={styles.stateTitle}>{query ? 'No matches' : 'No colleagues yet'}</Text>
+            <Text style={styles.stateText}>
+              {query ? `Nobody matches “${query.trim()}”.` : 'Staff added to your hotel will appear here.'}
+            </Text>
+          </View>
+        }
+        contentContainerStyle={styles.listContent}
+      />
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 12 * scaleX }]}>
+        <Pressable
+          style={[styles.primary, !canCreate ? styles.primaryDisabled : null]}
           onPress={handleCreate}
           disabled={!canCreate}
-          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityState={{ disabled: !canCreate, busy: creating }}
         >
           {creating ? (
-            <ActivityIndicator size="small" color="#5A759D" />
+            <ActivityIndicator color="#ffffff" />
           ) : (
-            <Text style={[styles.headerActionText, !canCreate && styles.headerActionTextDisabled]}>
-              Create
+            <Text style={styles.primaryText}>
+              {count === 0 ? 'Select members' : `Create group · ${count} ${count === 1 ? 'member' : 'members'}`}
             </Text>
           )}
-        </TouchableOpacity>
+        </Pressable>
       </View>
-
-      <Text style={styles.label}>Group name</Text>
-      <TextInput
-        style={[styles.input, showNameError && !nameTrimmed && styles.inputError]}
-        placeholder="Enter group name"
-        placeholderTextColor="#999"
-        value={groupName}
-        onChangeText={(t) => {
-          setGroupName(t);
-          if (showNameError) setShowNameError(false);
-        }}
-        maxLength={64}
-      />
-      {showNameError && !nameTrimmed && (
-        <Text style={styles.requiredHint}>Group name is required</Text>
-      )}
-
-      <Text style={[styles.label, { marginTop: 16 * scaleX }]}>Add members</Text>
-      {loading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary?.main ?? '#5A759D'} />
-        </View>
-      ) : (
-        <FlatList
-          data={sortedDepartmentNames}
-          keyExtractor={(item) => item}
-          renderItem={({ item: department }) => {
-            const staff = departmentSections[department] ?? [];
-            const isExpanded = expandedDepartments.has(department);
-            const selectedCount = staff.filter((u) => selectedIds.has(u.id)).length;
-
-            return (
-              <View style={styles.departmentSection}>
-                <TouchableOpacity
-                  style={styles.departmentHeader}
-                  onPress={() => toggleDepartment(department)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.departmentHeaderLeft}>
-                    <Text style={styles.departmentTitle}>{department}</Text>
-                    <Text style={styles.departmentMeta}>
-                      {selectedCount}/{staff.length} selected
-                    </Text>
-                  </View>
-                  <Ionicons
-                    name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                    size={18 * scaleX}
-                    color="#5A759D"
-                  />
-                </TouchableOpacity>
-
-                {isExpanded &&
-                  staff.map((user) => (
-                    <View key={user.id}>{renderItem({ item: user })}</View>
-                  ))}
-              </View>
-            );
-          }}
-          ListEmptyComponent={<Text style={styles.empty}>No users to add</Text>}
-          contentContainerStyle={sortedDepartmentNames.length === 0 ? styles.emptyList : styles.membersList}
-        />
-      )}
     </View>
   );
 }
 
+const AVATAR = 44;
+const SIDE = 20;
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: '#ffffff',
   },
-  header: {
-    flexDirection: 'row',
+  centered: {
+    flex: 1,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16 * scaleX,
-    paddingTop: 56,
-    paddingBottom: 16 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E5E5',
+    justifyContent: 'center',
+    paddingHorizontal: 32 * scaleX,
   },
-  backBtn: { marginRight: 12 },
-  backText: { fontSize: 16, color: '#5A759D' },
-  title: { fontSize: 18, fontWeight: '600', color: '#1E1E1E', flex: 1 },
-  headerAction: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    minWidth: 64,
-    alignItems: 'flex-end',
+  listContent: {
+    paddingBottom: 24 * scaleX,
   },
-  headerActionDisabled: {
-    opacity: 0.4,
+  nameCard: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingHorizontal: SIDE * scaleX,
+    paddingTop: 18 * scaleX,
+    paddingBottom: 6 * scaleX,
   },
-  headerActionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#5A759D',
+  groupIcon: {
+    width: 52 * scaleX,
+    height: 52 * scaleX,
+    borderRadius: 26 * scaleX,
+    backgroundColor: CHAT_COLORS.glyph,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerActionTextDisabled: {
-    color: '#999',
+  nameField: {
+    flex: 1,
+    marginLeft: 14 * scaleX,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1E1E1E',
-    marginHorizontal: 16 * scaleX,
-    marginBottom: 6 * scaleX,
-  },
-  input: {
-    height: 44 * scaleX,
+  nameInput: {
+    height: 52 * scaleX,
     borderWidth: 1,
-    borderColor: '#E5E5E5',
+    borderColor: '#afa9ad',
     borderRadius: 8 * scaleX,
-    paddingHorizontal: 12 * scaleX,
-    marginHorizontal: 16 * scaleX,
-    fontSize: 16,
-    color: '#1E1E1E',
+    paddingHorizontal: 15 * scaleX,
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#000000',
   },
-  inputError: {
-    borderColor: '#c62828',
+  nameInputError: {
+    borderColor: '#ff0000',
   },
-  requiredHint: {
-    fontSize: 12,
-    color: '#c62828',
-    marginHorizontal: 16 * scaleX,
+  nameHint: {
     marginTop: 4 * scaleX,
+    alignSelf: 'flex-end',
+    fontSize: 11 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#6b7a90',
   },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  membersList: {
-    paddingBottom: 12 * scaleX,
+  nameHintError: {
+    alignSelf: 'flex-start',
+    color: '#ff0000',
+    fontWeight: '400',
   },
-  departmentSection: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+  membersHeader: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: SIDE * scaleX,
+    paddingTop: 12 * scaleX,
+    paddingBottom: 10 * scaleX,
   },
-  departmentHeader: {
+  membersTitle: {
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: CHAT_COLORS.textPrimary,
+  },
+  membersCount: {
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '400',
+    color: CHAT_COLORS.glyph,
+  },
+  chips: {
+    paddingHorizontal: SIDE * scaleX,
+    paddingBottom: 14 * scaleX,
+    gap: 8 * scaleX,
+  },
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 34 * scaleX,
+    paddingLeft: 5 * scaleX,
+    paddingRight: 8 * scaleX,
+    borderRadius: 17 * scaleX,
+    backgroundColor: CHAT_COLORS.headerBackground,
+  },
+  chipText: {
+    maxWidth: 110 * scaleX,
+    marginLeft: 6 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '600',
+    color: CHAT_COLORS.textPrimary,
+  },
+  chipRemove: {
+    marginLeft: 6 * scaleX,
+    width: 16 * scaleX,
+    height: 16 * scaleX,
+    borderRadius: 8 * scaleX,
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+    // `action-plus` turned into a ×.
+    transform: [{ rotate: '45deg' }],
+  },
+  sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: 12 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    backgroundColor: '#F8FAFD',
+    paddingHorizontal: SIDE * scaleX,
+    paddingVertical: 8 * scaleX,
+    backgroundColor: '#f4f7fc',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: 'rgba(90, 117, 157, 0.15)',
   },
-  departmentHeaderLeft: {
-    flexDirection: 'column',
-  },
-  departmentTitle: {
-    fontSize: 15,
+  sectionTitle: {
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#1E1E1E',
+    letterSpacing: 0.3,
+    color: CHAT_COLORS.glyph,
   },
-  departmentMeta: {
-    marginTop: 2 * scaleX,
-    fontSize: 12,
-    color: '#5A759D',
+  sectionCount: {
+    fontWeight: '400',
+  },
+  sectionAction: {
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '600',
+    color: CHAT_COLORS.badge,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: SIDE * scaleX,
     paddingVertical: 12 * scaleX,
-    paddingHorizontal: 20 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
+    backgroundColor: '#ffffff',
   },
-  rowSelected: {
-    backgroundColor: '#F1F6FC',
+  pressed: {
+    backgroundColor: 'rgba(90, 117, 157, 0.07)',
   },
-  avatar: {
-    width: 44 * scaleX,
-    height: 44 * scaleX,
-    borderRadius: 22 * scaleX,
-  },
-  avatarPlaceholder: {
-    width: 44 * scaleX,
-    height: 44 * scaleX,
-    borderRadius: 22 * scaleX,
-    backgroundColor: '#E3ECF5',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#5A759D',
+  rowText: {
+    flex: 1,
+    minWidth: 0,
+    marginLeft: 14 * scaleX,
+    marginRight: 12 * scaleX,
   },
   name: {
-    flex: 1,
-    marginLeft: 12 * scaleX,
-    fontSize: 16,
-    color: '#1E1E1E',
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '600',
+    color: CHAT_COLORS.textPrimary,
+  },
+  subtitle: {
+    marginTop: 2 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#6b7a90',
   },
   checkbox: {
     width: 24 * scaleX,
     height: 24 * scaleX,
-    borderRadius: 12 * scaleX,
-    borderWidth: 2,
-    borderColor: '#ccc',
-    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: '#b7c2d3',
+    borderRadius: 4 * scaleX,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  checkboxSelected: {
-    backgroundColor: '#5A759D',
-    borderColor: '#5A759D',
+  checkboxOn: {
+    backgroundColor: CHAT_COLORS.glyph,
+    borderColor: CHAT_COLORS.glyph,
   },
-  checkmark: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
+  separator: {
+    height: StyleSheet.hairlineWidth,
+    marginLeft: (SIDE + AVATAR + 14) * scaleX,
+    backgroundColor: 'rgba(0, 0, 0, 0.11)',
   },
   empty: {
-    fontSize: 15,
-    color: '#999',
-    textAlign: 'center',
-    marginTop: 32,
+    alignItems: 'center',
+    paddingTop: 48 * scaleX,
+    paddingHorizontal: 32 * scaleX,
   },
-  emptyList: { flexGrow: 1 },
+  stateTitle: {
+    fontSize: 17 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: CHAT_COLORS.textPrimary,
+    textAlign: 'center',
+  },
+  stateText: {
+    marginTop: 8 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#6b7a90',
+    textAlign: 'center',
+  },
+  retry: {
+    marginTop: 20 * scaleX,
+    paddingHorizontal: 28 * scaleX,
+    height: 46 * scaleX,
+    justifyContent: 'center',
+    backgroundColor: CHAT_COLORS.glyph,
+  },
+  footer: {
+    paddingHorizontal: SIDE * scaleX,
+    paddingTop: 12 * scaleX,
+    backgroundColor: '#ffffff',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(0, 0, 0, 0.11)',
+  },
+  primary: {
+    height: 56 * scaleX,
+    backgroundColor: CHAT_COLORS.glyph,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryDisabled: {
+    opacity: 0.45,
+  },
+  primaryText: {
+    fontSize: 17 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
 });

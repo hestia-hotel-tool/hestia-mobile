@@ -842,29 +842,18 @@ export type Announcement = {
   senderAvatar?: string | null;
 };
 
-/** The signed-in user's General Announcements, newest first, with who sent each. */
-export async function fetchAnnouncements(limit = 50): Promise<Announcement[]> {
-  const userId = await getCurrentUserId();
-  if (!isSupabaseConfigured || !userId) return [];
-  const { data, error } = await supabase
-    .from('notifications')
-    .select('id,title,body,data,created_at,read_at')
-    .eq('user_id', userId)
-    .eq('type', 'general')
-    .order('created_at', { ascending: false })
-    .limit(limit);
-  if (error) {
-    console.warn('[Chat] fetch announcements', error.message);
-    return [];
-  }
-  const rows = (data ?? []) as {
-    id: string;
-    title: string;
-    body: string;
-    data: { senderId?: string } | null;
-    created_at: string;
-    read_at: string | null;
-  }[];
+type AnnouncementRow = {
+  id: string;
+  title: string;
+  body: string;
+  data: { senderId?: string } | null;
+  created_at: string;
+  read_at: string | null;
+};
+
+const ANNOUNCEMENT_COLUMNS = 'id,title,body,data,created_at,read_at';
+
+async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]> {
   const senders = await getUsersByIds(
     Array.from(new Set(rows.map((r) => r.data?.senderId).filter((id): id is string => Boolean(id))))
   );
@@ -880,4 +869,40 @@ export async function fetchAnnouncements(limit = 50): Promise<Announcement[]> {
       senderAvatar: sender?.avatar_url ?? null,
     };
   });
+}
+
+/** The signed-in user's General Announcements, newest first, with who sent each. */
+export async function fetchAnnouncements(limit = 50): Promise<Announcement[]> {
+  const userId = await getCurrentUserId();
+  if (!isSupabaseConfigured || !userId) return [];
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(ANNOUNCEMENT_COLUMNS)
+    .eq('user_id', userId)
+    .eq('type', 'general')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[Chat] fetch announcements', error.message);
+    return [];
+  }
+  return toAnnouncements((data ?? []) as AnnouncementRow[]);
+}
+
+/** One announcement by its notification id — `null` if missing or not yours (RLS). */
+export async function fetchAnnouncement(id: string): Promise<Announcement | null> {
+  if (!isSupabaseConfigured || !id) return null;
+  const { data, error } = await supabase
+    .from('notifications')
+    .select(ANNOUNCEMENT_COLUMNS)
+    .eq('id', id)
+    .eq('type', 'general')
+    .maybeSingle();
+  if (error) {
+    console.warn('[Chat] fetch announcement', error.message);
+    return null;
+  }
+  if (!data) return null;
+  const [item] = await toAnnouncements([data as AnnouncementRow]);
+  return item ?? null;
 }
