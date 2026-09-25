@@ -3,7 +3,7 @@ import * as Haptics from 'expo-haptics';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
 import { getToast } from '../utils/toast';
-import { invalidateNotificationBadges } from './inAppNotifications';
+import { getOpenChatId, invalidateNotificationBadges, markNotificationRead } from './inAppNotifications';
 import type { PushData } from './notifications';
 
 const DEDUPE_MS = 4500;
@@ -93,6 +93,12 @@ export function subscribeToIncomingNotificationRows(userId: string): () => void 
           row.type !== 'room_assignment' &&
           row.type !== 'general'
         ) {
+          return;
+        }
+        // A message in the chat already open is being read — no toast, no badge.
+        const chatId = (row.data as { chatId?: string } | null)?.chatId;
+        if (row.type === 'chat_message' && row.id && chatId && chatId === getOpenChatId()) {
+          void markNotificationRead(row.id).then(invalidateNotificationBadges);
           return;
         }
         const key = incomingAlertDedupeKeyFromRow(row);

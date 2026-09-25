@@ -15,10 +15,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
-import { useAuth } from '@features/auth/hooks/useAuth';
-import { fetchStaffFromSupabase } from '@features/staff/services/staff';
-import type { StaffMember } from '@features/staff/types/staff.types';
-import { ExcludeStaffModal } from '../components/ExcludeStaffModal';
+import type { User } from '@/types';
+import { ExcludeStaffModal, summariseExclusion } from '../components/ExcludeStaffModal';
+import { loadAllColleagues } from '../utils/colleagues';
 import { ANNOUNCEMENT_LIMITS, publishAnnouncement } from '../services/chat';
 import { CHAT_COLORS, scaleX } from '../constants/chatStyles';
 
@@ -61,39 +60,39 @@ export default function GeneralAnnouncementScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
-  const { session } = useAuth();
-  const currentUserId = session?.user?.id ?? null;
 
   const [subject, setSubject] = useState('');
   const [message, setMessage] = useState('');
   const [excluded, setExcluded] = useState<string[]>([]);
   const [showExclude, setShowExclude] = useState(false);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [staff, setStaff] = useState<User[]>([]);
   const [staffLoading, setStaffLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    fetchStaffFromSupabase()
+    // Everyone but the sender — they never receive their own announcement.
+    loadAllColleagues()
       .then((list) => {
-        if (cancelled) return;
-        // The sender never receives their own announcement, so they are not offered.
-        setStaff(list.filter((m) => m.id !== currentUserId).sort((a, b) => a.name.localeCompare(b.name)));
+        if (!cancelled) setStaff(list);
       })
+      .catch((e) => console.warn('[Announcement] load staff', e))
       .finally(() => {
         if (!cancelled) setStaffLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [currentUserId]);
+  }, []);
 
+  /** "None", "Engineering", "Laundry, Zoe Tsakeri", "Engineering, Laundry and 3 others". */
   const excludedLabel = (() => {
     if (excluded.length === 0) return 'None';
-    const names = excluded.map((id) => staff.find((m) => m.id === id)?.name).filter(Boolean) as string[];
-    if (names.length === 1) return names[0];
-    if (names.length === 2) return `${names[0]}, ${names[1]}`;
-    return `${names[0]} and ${excluded.length - 1} others`;
+    const { departments, people } = summariseExclusion(staff, excluded);
+    const parts = [...departments.map((d) => d.title), ...people.map((u) => u.name)];
+    if (parts.length === 0) return `${excluded.length} staff`;
+    if (parts.length <= 2) return parts.join(', ');
+    return `${parts.slice(0, 2).join(', ')} and ${parts.length - 2} others`;
   })();
 
   const canPublish = subject.trim().length > 0 && message.trim().length > 0 && !publishing;

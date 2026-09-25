@@ -33,6 +33,8 @@ interface ChatState {
   updateChatName: (chatId: string, name: string) => void;
   /** Update chat list last-message fields (e.g. from realtime) */
   applyIncomingMessageToChatList: (chatId: string, message: ChatMessage) => void;
+  /** Zero one chat's unread count locally — it was just opened. */
+  markChatReadLocally: (chatId: string) => void;
 }
 
 export const useChatStore = create<ChatState>((set, get) => ({
@@ -114,6 +116,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set((s) => ({
       chats: s.chats.map((c) => (c.id === chatId ? { ...c, name } : c)),
     })),
+
+  markChatReadLocally: (chatId) =>
+    set((s) =>
+      s.chats.some((c) => c.id === chatId && (c.unreadCount ?? 0) > 0)
+        ? { chats: s.chats.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c)) }
+        : s
+    ),
 
   applyIncomingMessageToChatList: (chatId, message) =>
     set((s) => {

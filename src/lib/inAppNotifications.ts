@@ -97,3 +97,32 @@ export async function markNotificationRead(id: string): Promise<void> {
     console.warn('[inAppNotifications] markNotificationRead', error.message);
   }
 }
+
+/** User opened a room — clear its unread `room_assignment` rows (a task's "detail" is its room). */
+export async function markRoomAssignmentNotificationsReadForRoom(roomId: string): Promise<void> {
+  if (!isSupabaseConfigured || !roomId) return;
+  const { error } = await supabase
+    .from('notifications')
+    .update({ read_at: new Date().toISOString() })
+    .eq('type', 'room_assignment')
+    .is('read_at', null)
+    .contains('data', { roomId });
+  if (error) {
+    console.warn('[inAppNotifications] markRoomAssignmentNotificationsReadForRoom', error.message);
+  }
+}
+
+/**
+ * The chat on screen right now, if any. A `chat_message` notification for it is
+ * already being read, so it is marked read as it arrives rather than toasting
+ * and bumping the badge while the user is looking at the conversation.
+ */
+let openChatId: string | null = null;
+
+export function setOpenChatId(chatId: string | null): void {
+  openChatId = chatId;
+}
+
+export function getOpenChatId(): string | null {
+  return openChatId;
+}

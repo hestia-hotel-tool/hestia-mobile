@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { colors, typography } from '@/theme';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { Icon, type IconName } from '@/components/Icon';
-import { TINTABLE_ICONS } from '@/components/Icon/registry';
+import { ICON_ASPECT, TINTABLE_ICONS } from '@/components/Icon/registry';
 
 interface TabBarItemProps {
   /**
@@ -34,6 +34,9 @@ export default function TabBarItem({
   const { normalizedScaleX: ns } = useDesignScale();
   const styles = useMemo(() => buildTabBarItemStyles(ns), [ns]);
 
+  const glyphHeight = Math.round(iconHeight * ns);
+  // Sized exactly to the glyph, so the badge's offsets are the frame's.
+  const glyphBox = { width: glyphHeight * (ICON_ASPECT[iconName] ?? 1), height: glyphHeight };
   const iconColor = active ? colors.text.pink : colors.primary.main;
   const labelNumberOfLines = 1;
 
@@ -47,20 +50,19 @@ export default function TabBarItem({
       <View style={styles.contentWrapper}>
         <View style={styles.iconWrapper}>
           <View style={styles.iconContainer}>
-            <Icon
-              name={iconName}
-              size={Math.round(iconHeight * ns)}
-              {...(TINTABLE_ICONS.has(iconName) ? { color: iconColor } : null)}
-            />
-            {badge !== undefined && badge > 0 ? (
-              <View style={styles.badgeContainer}>
-                <View style={styles.badge}>
-                  <Text style={styles.badgeText}>
-                    {badge > 99 ? '99+' : String(badge)}
-                  </Text>
+            {/* The badge is placed against the glyph itself, not the 70x56 slot. */}
+            <View style={[styles.glyph, glyphBox]}>
+              <Icon
+                name={iconName}
+                size={glyphHeight}
+                {...(TINTABLE_ICONS.has(iconName) ? { color: iconColor } : null)}
+              />
+              {badge !== undefined && badge > 0 ? (
+                <View style={styles.badge} accessibilityLabel={`${badge} unread`}>
+                  <Text style={styles.badgeText}>{badge > 99 ? '99+' : String(badge)}</Text>
                 </View>
-              </View>
-            ) : null}
+              ) : null}
+            </View>
           </View>
         </View>
         {label ? (
@@ -117,30 +119,38 @@ function buildTabBarItemStyles(normalizedScaleX: number) {
       alignItems: 'center',
       overflow: 'visible',
     },
-    // Inset from icon corner so the pill doesn’t sit flush on the artwork (Chat + Tickets).
-    badgeContainer: {
-      position: 'absolute',
-      top: Math.round(10 * ns),
-      right: Math.round(18 * ns),
-      zIndex: 10,
+    glyph: {
+      position: 'relative',
+      overflow: 'visible',
     },
+    /*
+     * Figma 3272:62 (node 3272:126): a 20 disc, #ff46a3, no ring, holding the
+     * count in Helvetica Light 15 white. The Chat glyph is 28x28 at x205 y850;
+     * the disc sits at x228 y849 — 1 above the glyph's top and overhanging its
+     * right edge by 15. More digits widen it to the right.
+     */
     badge: {
-      backgroundColor: colors.text.pink,
-      borderRadius: Math.round(10.2275 * ns),
-      minWidth: Math.round(20.455 * ns),
-      height: Math.round(20.455 * ns),
+      position: 'absolute',
+      top: -1 * ns,
+      left: '100%',
+      marginLeft: -5 * ns,
+      minWidth: 20 * ns,
+      height: 20 * ns,
+      borderRadius: 10 * ns,
+      paddingHorizontal: 4 * ns,
+      backgroundColor: '#ff46a3',
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: Math.round(4 * ns),
-      borderWidth: Math.round(2 * ns),
-      borderColor: colors.background.primary,
+      zIndex: 10,
     },
     badgeText: {
-      color: colors.text.white,
-      fontSize: Math.round(13 * ns),
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: typography.fontWeights.light as any,
+      color: '#ffffff',
+      fontSize: 15 * ns,
+      lineHeight: 17 * ns,
+      fontFamily: Platform.OS === 'ios' ? 'Helvetica' : typography.fontFamily.primary,
+      fontWeight: '300',
       includeFontPadding: false,
+      textAlign: 'center',
     },
     label: {
       fontSize: Math.round(15 * ns),

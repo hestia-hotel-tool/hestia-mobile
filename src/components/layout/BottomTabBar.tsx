@@ -52,6 +52,7 @@ const ROUTE_TO_TAB: Record<string, string> = Object.fromEntries(
  */
 const SUB_ROUTE_TO_TAB: Record<string, string> = {
   '(chats)/announcements': 'Chat',
+  '(chats)/tasks': 'Chat',
 };
 
 /** Route name used as the `returnToTab` param, keyed by the currently active tab. */

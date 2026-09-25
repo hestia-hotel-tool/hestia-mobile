@@ -840,13 +840,18 @@ export type Announcement = {
   unread: boolean;
   senderName?: string;
   senderAvatar?: string | null;
+  /** Tasks only: the room the assignment is for — its detail screen. */
+  roomId?: string;
 };
+
+/** The two inbox types the Chat screen lists under Notifications. */
+export type InboxType = 'general' | 'room_assignment';
 
 type AnnouncementRow = {
   id: string;
   title: string;
   body: string;
-  data: { senderId?: string } | null;
+  data: { senderId?: string; roomId?: string } | null;
   created_at: string;
   read_at: string | null;
 };
@@ -867,23 +872,24 @@ async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]>
       unread: r.read_at == null,
       senderName: sender?.full_name ?? undefined,
       senderAvatar: sender?.avatar_url ?? null,
+      roomId: r.data?.roomId,
     };
   });
 }
 
-/** The signed-in user's General Announcements, newest first, with who sent each. */
-export async function fetchAnnouncements(limit = 50): Promise<Announcement[]> {
+/** The signed-in user's General Announcements or Tasks, newest first, with who sent each. */
+export async function fetchAnnouncements(type: InboxType = 'general', limit = 50): Promise<Announcement[]> {
   const userId = await getCurrentUserId();
   if (!isSupabaseConfigured || !userId) return [];
   const { data, error } = await supabase
     .from('notifications')
     .select(ANNOUNCEMENT_COLUMNS)
     .eq('user_id', userId)
-    .eq('type', 'general')
+    .eq('type', type)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
-    console.warn('[Chat] fetch announcements', error.message);
+    console.warn('[Chat] fetch inbox', type, error.message);
     return [];
   }
   return toAnnouncements((data ?? []) as AnnouncementRow[]);

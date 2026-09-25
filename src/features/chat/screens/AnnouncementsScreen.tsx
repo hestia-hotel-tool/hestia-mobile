@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import BottomTabBar from '@/components/layout/BottomTabBar';
+import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';
 import { subscribeNotificationBadgeInvalidate } from '@/lib/inAppNotifications';
 import { typography } from '@/theme';
@@ -51,17 +52,27 @@ function formatTime(iso: string): string {
     : `${time}, ${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
 }
 
+type Kind = 'general' | 'tasks';
+
+const KIND = {
+  general: { type: 'general', pill: 'General', colour: L.notification.general, empty: 'No announcements yet' },
+  tasks: { type: 'room_assignment', pill: 'Tasks', colour: L.notification.tasks, empty: 'No tasks yet' },
+} as const;
+
 /**
  * General notifications — Figma 3272:186, opened from the "General" row on the
- * Chat list.
+ * Chat list. The same screen lists Tasks (room assignments) from the "Tasks"
+ * row, with a blue pill; the frame shows only General.
  *
  * The chat list's header (titled "Notifications"), the pink General pill, then
  * one row per announcement: sender photo, bold subject, one line of the message
- * and the time. Tapping a row opens it in full, which is what marks it read —
+ * and the time. Tapping a row opens its detail — the announcement in full, or
+ * for a task the room it assigns — and opening that is what marks it read —
  * so the list shows which ones are still new with a pink dot (the frame has no
  * unread state; without one the list cannot say which to open).
  */
-export default function AnnouncementsScreen() {
+export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind }) {
+  const config = KIND[kind];
   const router = useRouter();
   const [items, setItems] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,9 +82,9 @@ export default function AnnouncementsScreen() {
   const [showFilter, setShowFilter] = useState(false);
 
   const load = useCallback(async () => {
-    setItems(await fetchAnnouncements());
+    setItems(await fetchAnnouncements(config.type));
     setLoading(false);
-  }, []);
+  }, [config.type]);
 
   // On focus: coming back from a detail screen, that one is now read.
   useFocusEffect(
@@ -120,23 +131,36 @@ export default function AnnouncementsScreen() {
           />
         }
         ListHeaderComponent={
-          <View style={styles.pill}>
-            <Text style={styles.pillText}>General</Text>
+          <View style={[styles.pill, { backgroundColor: config.colour }]}>
+            <Text style={styles.pillText}>{config.pill}</Text>
           </View>
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
-            {loading ? 'Loading…' : items.length === 0 ? 'No announcements yet' : 'No announcements match'}
+            {loading ? 'Loading…' : items.length === 0 ? config.empty : 'Nothing matches your search'}
           </Text>
         }
         renderItem={({ item, index }) => (
           <Pressable
             style={[styles.row, { marginTop: (index === 0 ? N.firstRowTop : N.rowGap) * scaleX }]}
-            onPress={() => router.push(`/announcement/${item.id}` as never)}
+            onPress={() => {
+              if (kind === 'general') {
+                router.push(`/announcement/${item.id}` as never);
+              } else if (item.roomId) {
+                // Room detail marks this room's task notifications read.
+                router.push({ pathname: '/room/[roomId]', params: { roomId: item.roomId } } as never);
+              }
+            }}
             accessibilityRole="button"
             accessibilityLabel={`${item.unread ? 'New. ' : ''}${item.subject}`}
           >
-            <Avatar uri={item.senderAvatar} name={item.senderName} size={N.avatar * scaleX} />
+            {kind === 'general' ? (
+              <Avatar uri={item.senderAvatar} name={item.senderName} size={N.avatar * scaleX} />
+            ) : (
+              <View style={[styles.taskIcon, { backgroundColor: config.colour }]}>
+                <Icon name="nav-rooms" size={16 * scaleX} color="#ffffff" />
+              </View>
+            )}
             <View style={styles.text}>
               <Text style={styles.subject} numberOfLines={1}>
                 {item.subject}
@@ -192,7 +216,6 @@ const styles = StyleSheet.create({
     height: N.pillHeight * scaleX,
     paddingHorizontal: N.pillPaddingX * scaleX,
     borderRadius: N.pillRadius * scaleX,
-    backgroundColor: L.notification.general,
     justifyContent: 'center',
   },
   pillText: {
@@ -235,6 +258,13 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: CHAT_COLORS.textPrimary,
+  },
+  taskIcon: {
+    width: N.avatar * scaleX,
+    height: N.avatar * scaleX,
+    borderRadius: (N.avatar / 2) * scaleX,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   unreadDot: {
     width: 10 * scaleX,

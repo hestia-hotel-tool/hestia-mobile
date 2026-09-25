@@ -72,7 +72,7 @@ export default function ChatScreen() {
 
     const latestOfType = async (
       type: string,
-      row: Pick<NotificationItemData, 'label' | 'pillBackgroundColor'> & { showTime: boolean }
+      row: Pick<NotificationItemData, 'label' | 'pillBackgroundColor'> & { showTime: boolean; useBody: boolean }
     ): Promise<NotificationItemData | null> => {
       const [countRes, latestRes] = await Promise.all([
         supabase
@@ -83,14 +83,19 @@ export default function ChatScreen() {
           .is('read_at', null),
         supabase
           .from('notifications')
-          .select('id,title,created_at')
+          .select('id,title,body,created_at')
           .eq('user_id', userId)
           .eq('type', type)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
       ]);
-      const latest = latestRes.data as { id?: string; title?: string | null; created_at?: string | null } | null;
+      const latest = latestRes.data as {
+        id?: string;
+        title?: string | null;
+        body?: string | null;
+        created_at?: string | null;
+      } | null;
       if (!latest?.id || !latest.title) return null;
 
       const createdAt = latest.created_at ? new Date(latest.created_at) : null;
@@ -99,13 +104,15 @@ export default function ChatScreen() {
           ? createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
           : undefined;
 
-      return { id: latest.id, title: latest.title, timeText: row.showTime ? timeText : undefined, unreadCount: countRes.count ?? 0, label: row.label, pillBackgroundColor: row.pillBackgroundColor };
+      // Figma 3272:62: General shows the subject; Tasks the message itself ("You have been assigned to Room 201").
+      const text = row.useBody && latest.body ? latest.body : latest.title;
+      return { id: latest.id, title: text, timeText: row.showTime ? timeText : undefined, unreadCount: countRes.count ?? 0, label: row.label, pillBackgroundColor: row.pillBackgroundColor };
     };
 
     const [general, tasks] = await Promise.all([
       // Figma 3272:62: the General row has no time under it; Tasks does.
-      latestOfType('general', { label: 'General', pillBackgroundColor: L.notification.general, showTime: false }),
-      latestOfType('room_assignment', { label: 'Tasks', pillBackgroundColor: L.notification.tasks, showTime: true }),
+      latestOfType('general', { label: 'General', pillBackgroundColor: L.notification.general, showTime: false, useBody: false }),
+      latestOfType('room_assignment', { label: 'Tasks', pillBackgroundColor: L.notification.tasks, showTime: true, useBody: true }),
     ]);
     setGeneralNotification(general);
     setTasksNotification(tasks);
@@ -273,7 +280,8 @@ export default function ChatScreen() {
                 {tasksNotification ? (
                   <NotificationItem
                     item={tasksNotification}
-                    onPress={() => navigation.navigate('(rooms)/index' as any)}
+                    // Each task is read by opening its room, from this list.
+                    onPress={() => (navigation as any).navigate('(chats)/tasks')}
                   />
                 ) : null}
               </>

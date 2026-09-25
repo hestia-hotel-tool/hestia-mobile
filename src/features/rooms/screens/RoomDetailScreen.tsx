@@ -44,6 +44,7 @@ import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
 import { supabase } from '@/lib/supabase';
+import { invalidateNotificationBadges, markRoomAssignmentNotificationsReadForRoom } from '@/lib/inAppNotifications';
 import { buildFriendlyRoomHistoryMessage, getRoomHistoryEvents, logRoomHistoryEvent } from '../services/roomHistory';
 
 type RoomDetailScreenNavigationProp = NativeStackNavigationProp<
@@ -114,6 +115,17 @@ export default function RoomDetailScreen() {
     department?: string;
   } | null>(null);
   const [fetchedLostAndFound, setFetchedLostAndFound] = useState<LostAndFoundItem[] | null>(null);
+
+  /*
+   * A task notification ("You have been assigned to Room 201") is read by
+   * opening its room — from the Tasks list, the Rooms list or a push. Clears
+   * it from the Tasks row and the Chat and Rooms tab badges.
+   */
+  const detailRoomId = roomId ?? initialRoom?.id;
+  useEffect(() => {
+    if (!detailRoomId || !UUID_REGEX.test(detailRoomId)) return;
+    void markRoomAssignmentNotificationsReadForRoom(detailRoomId).then(invalidateNotificationBadges);
+  }, [detailRoomId]);
 
   useEffect(() => {
     // When we navigated here from the room card, do not refetch/overwrite the room payload.

@@ -53,6 +53,7 @@ import { useChatStore } from '../store/useChatStore';
 import {
   markChatMessageNotificationsReadForChat,
   invalidateNotificationBadges,
+  setOpenChatId,
 } from '@/lib/inAppNotifications';
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
@@ -171,7 +172,15 @@ export default function ChatDetailScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!isSupabaseChat) return;
+      /*
+       * The Chat tab badge takes the higher of the server's unread rows and the
+       * list's per-chat counts. Zero this chat's count here too, or the badge
+       * keeps it until the chat list next reloads.
+       */
+      useChatStore.getState().markChatReadLocally(chatId);
       void markChatMessageNotificationsReadForChat(chatId).then(() => invalidateNotificationBadges());
+      setOpenChatId(chatId);
+      return () => setOpenChatId(null);
     }, [chatId, isSupabaseChat])
   );
 
