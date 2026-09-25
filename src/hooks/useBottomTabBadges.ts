@@ -20,7 +20,8 @@ if (__DEV__) {
 
 /**
  * Tab bar badges: Chat uses the higher of unread thread counts vs unread in-app
- * `chat_message` notifications (avoids double-counting when both match). Tickets
+ * `chat_message` notifications (avoids double-counting when both match), plus
+ * unread General Announcements, which have no thread to be counted in. Tickets
  * uses unread `ticket_tag` notifications for the logged-in user (RLS).
  * Rooms uses unread `room_assignment` notifications; cleared when user opens Rooms from the badge.
  *
@@ -50,7 +51,7 @@ export function useBottomTabBadges() {
     return subscribeNotificationBadgeInvalidate(refresh);
   }, [refresh]);
 
-  const chatBadgeCount = Math.max(chatUnreadSum, shared.chatMessage);
+  const chatBadgeCount = Math.max(chatUnreadSum, shared.chatMessage) + shared.general;
   const ticketsBadgeCount = shared.ticketTag;
 
   return { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount: shared.roomAssignment };

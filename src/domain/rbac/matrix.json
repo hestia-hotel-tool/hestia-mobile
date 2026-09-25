@@ -137,6 +137,10 @@
     {
       "key": "lost_and_found.manage",
       "description": "Edit and resolve lost & found items"
+    },
+    {
+      "key": "chat.announce",
+      "description": "Publish a General Announcement to all staff"
     }
   ],
   "rights": [
@@ -285,6 +289,12 @@
     "tickets.close",
     "lost_and_found.manage"
   ],
+  "extraGrants": {
+    "chat.announce": [
+      "full_access",
+      "ops_senior"
+    ]
+  },
   "departments": [
     {
       "key": "housekeeping",

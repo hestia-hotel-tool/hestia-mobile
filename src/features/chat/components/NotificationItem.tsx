@@ -1,7 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { typography } from '@/theme';
-import { CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
+import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
+import { UnreadBadge } from './UnreadBadge';
 
 export type NotificationItemData = {
   id: string;
@@ -18,25 +19,27 @@ type Props = {
   onPress?: () => void;
 };
 
+/**
+ * A notification row on the chat list — Figma 3272:62 (General, Tasks).
+ *
+ * Coloured pill, bold one-line title with an optional time under it, and the
+ * unread badge raised above the pill's top edge. A 1px rule closes the row.
+ */
 export default function NotificationItem({ item, onPress }: Props) {
   const unreadCount = typeof item.unreadCount === 'number' ? item.unreadCount : 0;
-  const hasUnread = unreadCount > 0;
-
-  const pillBackgroundColor = item.pillBackgroundColor ?? '#4a91fc';
-  const pillTextColor = item.pillTextColor ?? '#ffffff';
 
   return (
     <TouchableOpacity
       style={styles.container}
       onPress={onPress}
+      disabled={!onPress}
       activeOpacity={0.7}
+      accessibilityRole={onPress ? 'button' : undefined}
     >
-      <View style={styles.left}>
-        <View style={[styles.pill, { backgroundColor: pillBackgroundColor }]}>
-          <Text style={[styles.pillText, { color: pillTextColor }]} numberOfLines={1}>
-            {item.label}
-          </Text>
-        </View>
+      <View style={[styles.pill, { backgroundColor: item.pillBackgroundColor ?? L.notification.tasks }]}>
+        <Text style={[styles.pillText, { color: item.pillTextColor ?? '#ffffff' }]} numberOfLines={1}>
+          {item.label}
+        </Text>
       </View>
 
       <View style={styles.content}>
@@ -50,11 +53,9 @@ export default function NotificationItem({ item, onPress }: Props) {
         ) : null}
       </View>
 
-      {hasUnread ? (
+      {unreadCount > 0 ? (
         <View style={styles.badge}>
-          <Text style={styles.badgeText} numberOfLines={1}>
-            {unreadCount > 99 ? '99+' : String(unreadCount)}
-          </Text>
+          <UnreadBadge count={unreadCount} />
         </View>
       ) : null}
     </TouchableOpacity>
@@ -65,63 +66,49 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: CHAT_ITEM.avatar.left * scaleX,
-    paddingVertical: 12 * scaleX,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 26 * scaleX,
+    paddingRight: L.badge.right * scaleX,
+    paddingTop: L.notification.paddingTop * scaleX,
+    paddingBottom: L.notification.paddingBottom * scaleX,
+    borderBottomWidth: 1,
     borderBottomColor: CHAT_COLORS.divider,
   },
-  left: {
-    marginRight: 12 * scaleX,
-  },
   pill: {
-    paddingHorizontal: 20 * scaleX,
-    paddingVertical: 4 * scaleX,
-    borderRadius: 44 * scaleX,
-    height: 33 * scaleX,
+    height: L.notification.pillHeight * scaleX,
+    paddingHorizontal: L.notification.pillPaddingX * scaleX,
+    borderRadius: L.notification.pillRadius * scaleX,
     justifyContent: 'center',
     alignItems: 'center',
   },
   pillText: {
-    fontSize: 11 * scaleX,
+    fontSize: L.notification.pillFontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '300' as any,
+    fontWeight: '300',
     includeFontPadding: false,
   },
   content: {
     flex: 1,
     minWidth: 0,
+    marginLeft: L.notification.titleGap * scaleX,
+    marginRight: 12 * scaleX,
   },
   title: {
-    fontSize: 13 * scaleX,
+    fontSize: L.notification.titleFontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '700' as any,
+    fontWeight: '700',
     color: CHAT_COLORS.textPrimary,
     includeFontPadding: false,
   },
   time: {
     marginTop: 2 * scaleX,
-    fontSize: 11 * scaleX,
+    fontSize: L.notification.timeFontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '300' as any,
+    fontWeight: '300',
     color: CHAT_COLORS.textPrimary,
-    opacity: 0.9,
     includeFontPadding: false,
   },
   badge: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
-    borderRadius: 16 * scaleX,
-    backgroundColor: CHAT_ITEM.badge.backgroundColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 12 * scaleX,
-  },
-  badgeText: {
-    fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700' as any,
-    color: '#ffffff',
-    includeFontPadding: false,
+    alignSelf: 'flex-start',
+    marginTop: -L.notification.badgeLift * scaleX,
   },
 });
-

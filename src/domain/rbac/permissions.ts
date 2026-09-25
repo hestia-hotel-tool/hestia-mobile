@@ -66,6 +66,8 @@ export const PERMISSIONS = {
   CHAT_CREATE: 'chat.create',
   /** Create and administer group chats */
   CHAT_GROUPS_MANAGE: 'chat.groups.manage',
+  /** Publish a General Announcement to all staff */
+  CHAT_ANNOUNCE: 'chat.announce',
 
   // Tickets
   /** Raise a ticket */

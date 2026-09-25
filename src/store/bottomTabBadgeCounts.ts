@@ -20,11 +20,13 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
  */
 export type BadgeCounts = {
   chatMessage: number;
+  /** Unread General Announcements — shown on the Chat tab alongside messages. */
+  general: number;
   ticketTag: number;
   roomAssignment: number;
 };
 
-const ZERO: BadgeCounts = { chatMessage: 0, ticketTag: 0, roomAssignment: 0 };
+const ZERO: BadgeCounts = { chatMessage: 0, general: 0, ticketTag: 0, roomAssignment: 0 };
 
 let counts: BadgeCounts = ZERO;
 const listeners = new Set<() => void>();
@@ -52,6 +54,7 @@ function setCounts(next: BadgeCounts) {
   // would re-render every bar with identical values.
   if (
     counts.chatMessage === next.chatMessage &&
+    counts.general === next.general &&
     counts.ticketTag === next.ticketTag &&
     counts.roomAssignment === next.roomAssignment
   ) {
@@ -74,12 +77,17 @@ export async function refreshBadgeCounts(userId: string | undefined) {
   if (inflight) return inflight;
 
   inflight = (async () => {
-    const [chatRes, ticketRes, roomAssignRes] = await Promise.all([
+    const [chatRes, generalRes, ticketRes, roomAssignRes] = await Promise.all([
       supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
         .is('read_at', null)
         .eq('type', 'chat_message'),
+      supabase
+        .from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .is('read_at', null)
+        .eq('type', 'general'),
       supabase
         .from('notifications')
         .select('*', { count: 'exact', head: true })
@@ -95,6 +103,9 @@ export async function refreshBadgeCounts(userId: string | undefined) {
     if (chatRes.error) {
       console.warn('[badgeCounts] chat_message count', chatRes.error.message);
     }
+    if (generalRes.error) {
+      console.warn('[badgeCounts] general count', generalRes.error.message);
+    }
     if (ticketRes.error) {
       console.warn('[badgeCounts] ticket_tag count', ticketRes.error.message);
     }
@@ -104,6 +115,7 @@ export async function refreshBadgeCounts(userId: string | undefined) {
 
     setCounts({
       chatMessage: chatRes.count ?? 0,
+      general: generalRes.count ?? 0,
       ticketTag: ticketRes.count ?? 0,
       roomAssignment: roomAssignRes.count ?? 0,
     });

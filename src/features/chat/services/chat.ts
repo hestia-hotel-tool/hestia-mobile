@@ -797,3 +797,87 @@ export async function createGroupChat(participantUserIds: string[], groupName: s
   }
   return newChat.id;
 }
+
+/** Length limits enforced by `publish_announcement` — mirrored so the form can stop early. */
+export const ANNOUNCEMENT_LIMITS = { subject: 120, body: 2000 } as const;
+
+/**
+ * Publish a General Announcement — Figma 4241:405.
+ *
+ * Every member of staff in the caller's hotel, except the caller and
+ * `excludeUserIds`, gets a `general` notification. The server checks
+ * `chat.announce` and the limits; the result is the recipient count or the
+ * server's error message.
+ */
+export async function publishAnnouncement(input: {
+  subject: string;
+  body: string;
+  excludeUserIds: string[];
+}): Promise<{ recipients: number } | { error: string }> {
+  if (!isSupabaseConfigured) return { error: 'Not connected' };
+  // The generated types predate `publish_announcement`; see the Supabase codegen note.
+  const client = supabase as unknown as {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }>;
+  };
+  // Called as a method on the client, not detached — `rpc` needs its `this`.
+  const { data, error } = await client.rpc('publish_announcement', {
+    p_subject: input.subject,
+    p_body: input.body,
+    p_exclude_user_ids: input.excludeUserIds,
+  });
+  if (error) {
+    console.warn('[Chat] publish announcement', error.message);
+    return { error: error.message };
+  }
+  return { recipients: typeof data === 'number' ? data : 0 };
+}
+
+export type Announcement = {
+  id: string;
+  subject: string;
+  body: string;
+  createdAt: string;
+  unread: boolean;
+  senderName?: string;
+  senderAvatar?: string | null;
+};
+
+/** The signed-in user's General Announcements, newest first, with who sent each. */
+export async function fetchAnnouncements(limit = 50): Promise<Announcement[]> {
+  const userId = await getCurrentUserId();
+  if (!isSupabaseConfigured || !userId) return [];
+  const { data, error } = await supabase
+    .from('notifications')
+    .select('id,title,body,data,created_at,read_at')
+    .eq('user_id', userId)
+    .eq('type', 'general')
+    .order('created_at', { ascending: false })
+    .limit(limit);
+  if (error) {
+    console.warn('[Chat] fetch announcements', error.message);
+    return [];
+  }
+  const rows = (data ?? []) as {
+    id: string;
+    title: string;
+    body: string;
+    data: { senderId?: string } | null;
+    created_at: string;
+    read_at: string | null;
+  }[];
+  const senders = await getUsersByIds(
+    Array.from(new Set(rows.map((r) => r.data?.senderId).filter((id): id is string => Boolean(id))))
+  );
+  return rows.map((r) => {
+    const sender = r.data?.senderId ? senders.get(r.data.senderId) : undefined;
+    return {
+      id: r.id,
+      subject: r.title,
+      body: r.body,
+      createdAt: r.created_at,
+      unread: r.read_at == null,
+      senderName: sender?.full_name ?? undefined,
+      senderAvatar: sender?.avatar_url ?? null,
+    };
+  });
+}

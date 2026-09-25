@@ -1,6 +1,9 @@
 /**
- * Design tokens extracted from Figma for Chat screen
- * Based on design: https://www.figma.com/design/q59hfVJCVzzUixq1HFRGEh/HESTIA-APP-AND-DASHBOARD?node-id=667-2925
+ * Chat list layout — Figma 3272:62.
+ * https://www.figma.com/design/q59hfVJCVzzUixq1HFRGEh/HESTIA-APP-AND-DASHBOARD?node-id=3272-62
+ *
+ * Every number is in design px on the 440-wide frame; multiply by `scaleX`.
+ * Positions quoted in comments are the frame's own x/y.
  */
 
 import { Dimensions } from 'react-native';
@@ -12,199 +15,111 @@ export const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 // Compact chat header bar height (WhatsApp-style, used for chat detail)
 export const CHAT_HEADER_BAR_HEIGHT = 56;
 
-// Header Styles (legacy / list header)
-export const CHAT_HEADER = {
-  height: 217,
-  background: {
-    height: 133,
-    backgroundColor: '#e4eefe', // Light blue background
-  },
-  backButton: {
-    left: 27,
-    top: 69,
-    width: 32, // Increased size to match Figma design (same as AllRoomsHeader)
-    height: 32, // Increased size to match Figma design (same as AllRoomsHeader)
-  },
-  title: {
-    left: 87, // Positioned after back button: 27 (arrow start) + 32 (arrow width) + 28 (spacing) = 87px to match Figma visual spacing
-    top: 69,
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: '#607aa1',
-  },
-  messageButton: {
-    right: 38, // 440 - 316 - 54 = 38px from right (adjusted for circular button)
-    top: 57,
-    width: 54,
-    height: 54,
-    borderRadius: 27, // Half of width/height to make it fully circular
-    backgroundColor: 'rgba(90, 117, 157, 0.59)', // Semi-transparent blue
-    borderRadiusInner: 27, // Inner circle border radius (same as outer for circular)
-  },
-} as const;
-
-// Search Bar Styles
-export const SEARCH_BAR = {
-  container: {
-    left: 26,
-    top: 158,
-    width: 301,
-    height: 59,
-    borderRadius: 82,
-    backgroundColor: '#f1f6fc',
-    paddingLeft: 20,
-    paddingRight: 20,
-  },
-  placeholder: {
-    left: 46,
-    top: 180,
-    fontSize: 13,
-    fontWeight: 'semiBold' as const,
-    color: '#000000',
-    opacity: 0.36,
-  },
-  searchIcon: {
-    width: 19,
-    height: 19,
-    tintColor: '#b1afaf',
-    rotation: 270, // Rotated 270 degrees
-  },
-  filterIcon: {
-    left: 354, // Positioned to the right of search bar
-    top: 176,
-    width: 26,
-    height: 12,
-  },
-} as const;
-
-// Chat List Item Styles
-export const CHAT_ITEM = {
-  avatar: {
-    size: 44,
-    left: 27,
-    borderRadius: 22, // Circular
-  },
-  name: {
-    left: 88, // Avatar (27) + size (44) + spacing (17) = 88px
-    fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: '#1e1e1e',
-  },
-  message: {
-    left: 88,
-    fontSize: 13,
-    fontWeight: 'regular' as const,
-    color: '#1e1e1e',
-    maxWidth: 181,
-  },
-  messageLight: {
-    fontWeight: 'light' as const, // For messages with sender name prefix
-  },
-  badge: {
-    /** Match BottomTabBar / TabBarItem chat tab badge */
-    minHeight: 22,
-    minWidth: 22,
-    paddingHorizontal: 6,
-    backgroundColor: '#FF46A3',
-    borderRadius: 11,
-    fontSize: 13,
-    fontWeight: 'bold' as const,
-    color: '#ffffff',
-    right: 48, // legacy; list row uses flex layout (kept for any absolute refs)
-  },
-  groupLabel: {
-    backgroundColor: '#ffebeb',
-    borderRadius: 44,
-    paddingHorizontal: 20,
-    paddingVertical: 4,
-    fontSize: 11,
-    fontWeight: 'light' as const,
-    color: '#000000',
-    left: 88,
-  },
-  divider: {
-    height: 0, // 1px line
-    width: 440,
-    color: '#e6e6e6', // Light gray
-  },
-} as const;
-
-// Chat Item Positions (from Figma metadata)
-export const CHAT_ITEM_POSITIONS = {
-  first: {
-    avatar: { top: 269 },
-    name: { top: 272 },
-    message: { top: 295 },
-    groupLabel: { top: 319 },
-    badge: { top: 277 },
-    divider: { top: 356 },
-  },
-  second: {
-    avatar: { top: 382 },
-    name: { top: 385 },
-    message: { top: 408 },
-    badge: { top: 390 },
-    divider: { top: 454 },
-  },
-} as const;
-
-// Spacing
-export const CHAT_SPACING = {
-  itemHeight: 98, // Approximate height per chat item (382 - 269 = 113px, but accounting for spacing)
-  itemSpacing: 16, // Space between items
-  contentPaddingTop: 240, // Space below header (217 header + 23 spacing)
-  contentPaddingBottom: 152, // Bottom nav height
-} as const;
-
-// Colors
 export const CHAT_COLORS = {
   background: '#ffffff',
   headerBackground: '#e4eefe',
   searchBackground: '#f1f6fc',
-  badgeBackground: '#FF46A3',
-  divider: '#e6e6e6',
+  badge: '#ff46a3',
+  /** Full-width rules, 1px black at 11%. */
+  divider: 'rgba(0, 0, 0, 0.11)',
   textPrimary: '#1e1e1e',
-  textSecondary: '#607aa1',
-  textPlaceholder: '#000000', // With 0.36 opacity
+  title: '#607aa1',
+  glyph: '#5a759d',
 } as const;
 
-// Typography
-export const CHAT_TYPOGRAPHY = {
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold' as const,
-    color: '#607aa1',
+export const CHAT_LIST = {
+  header: {
+    /** Tinted band, y 0–133. */
+    bandHeight: 133,
+    /** Back chevron at x27 y69, 14x28; title at x69 (28 past the chevron). */
+    left: 27,
+    top: 69,
+    backChevron: 28,
+    titleGap: 28,
+    titleFontSize: 24,
   },
-  chatName: {
+  search: {
+    /** Pill x26 y158, 301x59, r82. */
+    top: 158,
+    left: 26,
+    width: 301,
+    height: 59,
+    radius: 82,
+    paddingLeft: 20,
+    /** Glyph at x274, 19x19 — 34 in from the pill's right edge. */
+    iconSize: 19,
+    iconRight: 34,
+    placeholderFontSize: 13,
+    placeholderOpacity: 0.36,
+    /** Filter glyph x354 y176, 26x12: 27 past the pill, 18 below its top. */
+    filterGap: 27,
+    filterTop: 18,
+    filterHeight: 14,
+    /** Rule under the search row, y241. */
+    dividerTop: 241,
+  },
+  section: {
     fontSize: 16,
-    fontWeight: 'bold' as const,
-    color: '#1e1e1e',
+    lineHeight: 21,
+    /** "Notifications" y256 — 15 below the rule. "Chats" y429 — 20 below. */
+    notificationsTop: 15,
+    chatsTop: 20,
   },
-  message: {
-    fontSize: 13,
-    fontWeight: 'regular' as const,
-    color: '#1e1e1e',
+  notification: {
+    /** Pills x26: General 80x33, Tasks 68x33 — text + 20 each side. */
+    pillHeight: 33,
+    pillPaddingX: 20,
+    pillRadius: 44,
+    pillFontSize: 11,
+    /** General's title starts 9 past its pill. */
+    titleGap: 9,
+    titleFontSize: 13,
+    timeFontSize: 11,
+    paddingTop: 18,
+    paddingBottom: 15,
+    /** Badge sits 6 above the pill's top edge. */
+    badgeLift: 6,
+    general: '#ff46a3',
+    tasks: '#4a91fc',
   },
-  messageLight: {
-    fontSize: 13,
-    fontWeight: 'light' as const,
-    color: '#1e1e1e',
+  chat: {
+    /** Avatar x27, 44; name at x88 (17 past it). */
+    avatar: 44,
+    avatarGap: 17,
+    groupAvatarBorder: '#acbdd5',
+    /** Row 2: rule y558 → avatar y584 (26) … avatar end 628 → rule y656 (28). */
+    paddingTop: 26,
+    paddingBottom: 16,
+    minHeight: 98,
+    nameTop: 3,
+    nameFontSize: 16,
+    nameLineHeight: 21,
+    messageTop: 2,
+    messageFontSize: 13,
+    messageLineHeight: 15,
+    /** "Group" tag x88 y521, 71x21, r44. */
+    tagTop: 9,
+    tagHeight: 21,
+    tagPaddingX: 20,
+    tagRadius: 44,
+    tagFontSize: 11,
+    tagBackground: '#ffebeb',
+    /** Badge 5 below the name's top. */
+    badgeTop: 8,
   },
   badge: {
-    fontSize: 13,
-    fontWeight: 'bold' as const,
-    color: '#ffffff',
+    /** 32 disc; x358–391, so 49 in from the right edge. */
+    size: 32,
+    right: 49,
+    fontSize: 15,
   },
-  groupLabel: {
-    fontSize: 11,
-    fontWeight: 'light' as const,
-    color: '#000000',
-  },
-  searchPlaceholder: {
-    fontSize: 13,
-    fontWeight: 'semiBold' as const,
-    color: '#000000',
-    opacity: 0.36,
+  fab: {
+    /** 54 disc at x350 y695 — 36 from the right, 207 above the frame's bottom. */
+    size: 54,
+    right: 36,
+    bottom: 207,
+    background: 'rgba(90, 117, 157, 0.59)',
+    plus: 20,
+    plusStroke: 3,
   },
 } as const;
-

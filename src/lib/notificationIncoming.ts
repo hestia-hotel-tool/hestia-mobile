@@ -87,7 +87,12 @@ export function subscribeToIncomingNotificationRows(userId: string): () => void 
           body: string;
           data: unknown;
         };
-        if (row.type !== 'chat_message' && row.type !== 'ticket_tag' && row.type !== 'room_assignment') {
+        if (
+          row.type !== 'chat_message' &&
+          row.type !== 'ticket_tag' &&
+          row.type !== 'room_assignment' &&
+          row.type !== 'general'
+        ) {
           return;
         }
         const key = incomingAlertDedupeKeyFromRow(row);

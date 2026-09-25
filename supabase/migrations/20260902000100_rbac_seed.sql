@@ -82,7 +82,8 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'staff.manage',
   'settings.manage',
   'tickets.close',
-  'lost_and_found.manage'
+  'lost_and_found.manage',
+  'chat.announce'
 );
 
 -- 3. Departments.
@@ -152,7 +153,8 @@ INSERT INTO public.permissions (name, description) VALUES
   ('staff.manage', 'Assign rooms to staff and edit staff records'),
   ('settings.manage', 'Change hotel-level settings'),
   ('tickets.close', 'Close a ticket'),
-  ('lost_and_found.manage', 'Edit and resolve lost & found items')
+  ('lost_and_found.manage', 'Edit and resolve lost & found items'),
+  ('chat.announce', 'Publish a General Announcement to all staff')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- 5. Roles — one per distinct permission profile.
@@ -214,6 +216,7 @@ SELECT r.id, p.id
   ('full_access', 'settings.manage'),
   ('full_access', 'tickets.close'),
   ('full_access', 'lost_and_found.manage'),
+  ('full_access', 'chat.announce'),
   ('hk_room_attendant', 'tab.rooms.view'),
   ('hk_room_attendant', 'rooms.read'),
   ('hk_room_attendant', 'tab.chat.view'),
@@ -298,6 +301,7 @@ SELECT r.id, p.id
   ('ops_senior', 'rooms.reservation_status.view'),
   ('ops_senior', 'rooms.rush.toggle'),
   ('ops_senior', 'rooms.flag.toggle'),
+  ('ops_senior', 'chat.announce'),
   ('fo_agent', 'tab.home.view'),
   ('fo_agent', 'tab.rooms.view'),
   ('fo_agent', 'rooms.read'),
@@ -529,11 +533,11 @@ BEGIN
   IF n_titles <> 54 THEN
     RAISE EXCEPTION 'expected 54 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 34 THEN
-    RAISE EXCEPTION 'expected 34 permissions, found %', n_perms;
+  IF n_perms  <> 35 THEN
+    RAISE EXCEPTION 'expected 35 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 230 THEN
-    RAISE EXCEPTION 'expected 230 role_permissions, found %', n_grants;
+  IF n_grants <> 232 THEN
+    RAISE EXCEPTION 'expected 232 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

@@ -1,23 +1,17 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/Icon';
 import { typography, colors } from '@/theme';
-import {
-  CHAT_HEADER,
-  SEARCH_BAR,
-  CHAT_COLORS,
-  CHAT_TYPOGRAPHY,
-  CHAT_ITEM,
-  CHAT_HEADER_BAR_HEIGHT,
-  scaleX,
-} from '../constants/chatStyles';
+import { CHAT_COLORS, CHAT_LIST as L, CHAT_HEADER_BAR_HEIGHT, scaleX } from '../constants/chatStyles';
 import SearchInput from '@/components/ui/SearchInput';
 
 interface ChatHeaderProps {
   onBackPress?: () => void;
   onSearch?: (text: string) => void;
   onFilterPress?: () => void;
-  onMessagePress?: () => void;
+  /** Marks the filter glyph when the list is filtered to something other than All. */
+  filterActive?: boolean;
   searchPlaceholder?: string | { bold: string; normal: string };
   showSearch?: boolean;
   title?: string;
@@ -26,7 +20,6 @@ interface ChatHeaderProps {
   isGroup?: boolean;
   avatar?: any;
   showAvatar?: boolean;
-  showMessageButton?: boolean;
   onGroupOptionsPress?: () => void;
 }
 
@@ -34,15 +27,13 @@ export default function ChatHeader({
   onBackPress,
   onSearch,
   onFilterPress,
-  onMessagePress,
+  filterActive = false,
   searchPlaceholder = 'Search',
   showSearch = true,
   title = 'Chat',
   subtitle,
-  isGroup = false,
   avatar,
   showAvatar = false,
-  showMessageButton = true,
   onGroupOptionsPress,
 }: ChatHeaderProps) {
   const handleSearchChange = (text: string) => onSearch?.(text);
@@ -110,79 +101,60 @@ export default function ChatHeader({
     );
   }
 
-  // Legacy list header with search
+  /*
+   * Chat list header — Figma 3272:62: tinted band with back chevron and title,
+   * then the search pill, the filter glyph and a full-width rule.
+   *
+   * The + (new chat) button used to sit in the band; the frame moves it to a
+   * floating button above the tab bar, which the screen draws.
+   */
   return (
     <View style={styles.container}>
       <View style={styles.headerBackground} />
       <View style={styles.topSection}>
         <TouchableOpacity
-          style={showAvatar ? styles.avatarButton : styles.backButton}
-          onPress={onBackPress || (() => {})}
+          onPress={onBackPress}
           activeOpacity={0.7}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          {showAvatar ? (
-            avatar ? (
-              <Image source={avatar} style={styles.avatar} resizeMode="cover" />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Text style={styles.avatarInitial}>
-                  {(typeof title === 'string' ? title : 'Chat').charAt(0).toUpperCase()}
-                </Text>
-              </View>
-            )
-          ) : (
-            <Image
-              source={require('../../../../assets/icons/back-arrow.png')}
-              style={styles.backArrow}
-              tintColor="#607aa1"
-              resizeMode="contain"
-            />
-          )}
+          {/* 14x28; `action-chevron`'s aspect is exactly 0.5. */}
+          <Icon name="action-chevron" size={L.header.backChevron * scaleX} color={CHAT_COLORS.glyph} />
         </TouchableOpacity>
         <Text style={styles.title}>{typeof title === 'string' ? title : 'Chat'}</Text>
-        {onGroupOptionsPress ? (
-          <TouchableOpacity style={styles.messageButton} onPress={onGroupOptionsPress} activeOpacity={0.7}>
-            <Text style={styles.groupOptionsIcon}>⋮</Text>
-          </TouchableOpacity>
-        ) : showMessageButton ? (
-          <TouchableOpacity style={styles.messageButton} onPress={onMessagePress || (() => {})} activeOpacity={0.7}>
-            <View style={styles.messageButtonInner}>
-              <Text style={styles.messageIconText}>+</Text>
-            </View>
+      </View>
+
+      <View style={styles.searchSection}>
+        <View style={styles.searchBar}>
+          <SearchInput
+            placeholder={searchPlaceholder}
+            onSearch={handleSearchChange}
+            inputStyle={styles.searchInput}
+            placeholderStyle={styles.placeholderText}
+            inputWrapperStyle={styles.searchInputWrapper}
+          />
+          {/* The registry glyph has its handle bottom-left; the frame's is bottom-right. */}
+          <View style={styles.searchIcon} pointerEvents="none">
+            <Icon name="action-search" size={L.search.iconSize * scaleX} color="rgba(90, 117, 157, 0.59)" />
+          </View>
+        </View>
+        {onFilterPress ? (
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={onFilterPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }}
+            accessibilityRole="button"
+            accessibilityLabel="Filter chats"
+            accessibilityState={{ selected: filterActive }}
+          >
+            <Icon name="action-filter" size={L.search.filterHeight * scaleX} color={CHAT_COLORS.glyph} />
+            {filterActive ? <View style={styles.filterDot} /> : null}
           </TouchableOpacity>
         ) : null}
       </View>
-      {shouldShowSearch && (
-        <>
-          <View style={styles.searchSection}>
-            <View style={styles.searchBar}>
-              <SearchInput
-                placeholder={searchPlaceholder}
-                onSearch={handleSearchChange}
-                inputStyle={styles.searchInput}
-                placeholderStyle={styles.placeholderText}
-                inputWrapperStyle={styles.searchInputWrapper}
-              />
-              <TouchableOpacity style={styles.searchIconContainer} activeOpacity={0.7}>
-                <Image
-                  source={require('../../../../assets/icons/search-icon.png')}
-                  style={styles.searchIcon}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            </View>
-            {onFilterPress && (
-              <TouchableOpacity style={styles.filterButton} onPress={onFilterPress} activeOpacity={0.7}>
-                <Image
-                  source={require('../../../../assets/icons/menu-icon.png')}
-                  style={styles.filterIcon}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </>
-      )}
+      <View style={styles.searchDivider} />
     </View>
   );
 }
@@ -261,13 +233,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 4,
   },
-  // Legacy list header
+  // Chat list header — Figma 3272:62
   container: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
-    height: CHAT_HEADER.height * scaleX,
+    height: (L.search.dividerTop + 1) * scaleX,
+    backgroundColor: CHAT_COLORS.background,
     zIndex: 10,
   },
   headerBackground: {
@@ -275,145 +248,82 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    height: CHAT_HEADER.background.height * scaleX,
+    height: L.header.bandHeight * scaleX,
     backgroundColor: CHAT_COLORS.headerBackground,
   },
   topSection: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: CHAT_HEADER.backButton.left * scaleX,
-    paddingTop: CHAT_HEADER.backButton.top * scaleX,
-    height: CHAT_HEADER.background.height * scaleX,
-  },
-  backButton: {
-    width: CHAT_HEADER.backButton.width * scaleX,
-    height: CHAT_HEADER.backButton.height * scaleX,
-    marginRight: 17 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  backArrow: {
-    width: CHAT_HEADER.backButton.width * scaleX,
-    height: CHAT_HEADER.backButton.height * scaleX,
-  },
-  avatarButton: {
-    width: CHAT_ITEM.avatar.size * scaleX,
-    height: CHAT_ITEM.avatar.size * scaleX,
-    marginRight: 17 * scaleX,
-  },
-  avatar: {
-    width: '100%',
-    height: '100%',
-    borderRadius: CHAT_ITEM.avatar.borderRadius * scaleX,
-  },
-  avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
-    borderRadius: CHAT_ITEM.avatar.borderRadius * scaleX,
-    backgroundColor: CHAT_COLORS.searchBackground,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitial: {
-    fontSize: 18 * scaleX,
-    fontWeight: 'bold' as any,
-    color: CHAT_COLORS.textSecondary,
+    paddingLeft: L.header.left * scaleX,
+    paddingTop: L.header.top * scaleX,
+    height: L.header.bandHeight * scaleX,
   },
   title: {
-    fontSize: 24 * scaleX,
-    fontFamily: 'Helvetica',
-    fontWeight: '700' as any,
-    color: '#607AA1',
-    lineHeight: 24 * scaleX,
-    flex: 1,
+    marginLeft: L.header.titleGap * scaleX,
+    fontSize: L.header.titleFontSize * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: CHAT_COLORS.title,
     includeFontPadding: false,
-    textAlignVertical: 'center',
-  },
-  groupOptionsIcon: {
-    fontSize: 24 * scaleX,
-    fontWeight: '700' as any,
-    color: '#607AA1',
-    lineHeight: 28 * scaleX,
-  },
-  messageButton: {
-    position: 'absolute',
-    right: CHAT_HEADER.messageButton.right * scaleX,
-    top: CHAT_HEADER.messageButton.top * scaleX,
-    width: CHAT_HEADER.messageButton.width * scaleX,
-    height: CHAT_HEADER.messageButton.height * scaleX,
-    borderRadius: CHAT_HEADER.messageButton.borderRadius * scaleX,
-    backgroundColor: CHAT_HEADER.messageButton.backgroundColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  messageButtonInner: {
-    width: '100%',
-    height: '100%',
-    borderRadius: CHAT_HEADER.messageButton.borderRadiusInner * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  messageIconText: {
-    fontSize: 32 * scaleX,
-    fontWeight: '300' as any,
-    color: '#ffffff',
-    lineHeight: 32 * scaleX,
   },
   searchSection: {
+    position: 'absolute',
+    top: L.search.top * scaleX,
+    left: L.search.left * scaleX,
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: SEARCH_BAR.container.left * scaleX,
-    marginTop: (SEARCH_BAR.container.top - CHAT_HEADER.background.height) * scaleX,
-    gap: 12 * scaleX,
+    alignItems: 'flex-start',
   },
   searchBar: {
-    flex: 1,
-    height: SEARCH_BAR.container.height * scaleX,
-    backgroundColor: SEARCH_BAR.container.backgroundColor,
-    borderRadius: SEARCH_BAR.container.borderRadius * scaleX,
+    width: L.search.width * scaleX,
+    height: L.search.height * scaleX,
+    backgroundColor: CHAT_COLORS.searchBackground,
+    borderRadius: L.search.radius * scaleX,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingLeft: SEARCH_BAR.container.paddingLeft * scaleX,
-    paddingRight: SEARCH_BAR.container.paddingRight * scaleX,
+    paddingLeft: L.search.paddingLeft * scaleX,
+    paddingRight: (L.search.iconRight + L.search.iconSize + 8) * scaleX,
   },
-  searchInputWrapper: { justifyContent: 'center' },
+  searchInputWrapper: { flex: 1, justifyContent: 'center' },
   searchInput: {
-    fontSize: CHAT_TYPOGRAPHY.searchPlaceholder.fontSize * scaleX,
+    fontSize: L.search.placeholderFontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.light as any,
     color: CHAT_COLORS.textPrimary,
     paddingVertical: 0,
     includeFontPadding: false,
     textAlignVertical: 'center',
-    height: SEARCH_BAR.container.height * scaleX,
+    height: L.search.height * scaleX,
   },
   placeholderText: {
-    fontSize: CHAT_TYPOGRAPHY.searchPlaceholder.fontSize * scaleX,
+    fontSize: L.search.placeholderFontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: CHAT_COLORS.textPlaceholder,
-    opacity: CHAT_TYPOGRAPHY.searchPlaceholder.opacity,
-  },
-  searchIconContainer: {
-    width: 26 * scaleX,
-    height: 26 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: 10 * scaleX,
+    fontWeight: '600',
+    color: '#000000',
+    opacity: L.search.placeholderOpacity,
   },
   searchIcon: {
-    width: 19 * scaleX,
-    height: 19 * scaleX,
-    tintColor: SEARCH_BAR.searchIcon.tintColor,
+    position: 'absolute',
+    right: L.search.iconRight * scaleX,
+    transform: [{ scaleX: -1 }],
   },
   filterButton: {
-    width: SEARCH_BAR.filterIcon.width * scaleX,
-    height: SEARCH_BAR.filterIcon.height * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
+    marginLeft: L.search.filterGap * scaleX,
+    marginTop: L.search.filterTop * scaleX - 1,
   },
-  filterIcon: {
-    width: SEARCH_BAR.filterIcon.width * scaleX,
-    height: SEARCH_BAR.filterIcon.height * scaleX,
+  filterDot: {
+    position: 'absolute',
+    top: -4 * scaleX,
+    right: -5 * scaleX,
+    width: 8 * scaleX,
+    height: 8 * scaleX,
+    borderRadius: 4 * scaleX,
+    backgroundColor: CHAT_COLORS.badge,
+  },
+  searchDivider: {
+    position: 'absolute',
+    top: L.search.dividerTop * scaleX,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: CHAT_COLORS.divider,
   },
 });

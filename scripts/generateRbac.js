@@ -52,6 +52,10 @@ function permissionsForRole(role) {
   if (role.key === 'full_access') {
     for (const key of matrix.adminOnlyPermissions) keys.add(key);
   }
+  // Keys with no spec column, granted to named roles (parse-spec.py EXTRA_GRANTS).
+  for (const [key, roles] of Object.entries(matrix.extraGrants ?? {})) {
+    if (roles.includes(role.key)) keys.add(key);
+  }
   return [...keys];
 }
 

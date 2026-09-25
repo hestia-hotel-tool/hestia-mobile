@@ -70,6 +70,17 @@ ADMIN_ONLY_PERMISSIONS = [
     "lost_and_found.manage",
 ]
 
+# Keys the PDF has no column for, granted to a named set of roles. Like
+# ADMIN_ONLY_PERMISSIONS they sit outside the 18 rights, so the seed still
+# verifies 1:1 against the PDF for everything else.
+#
+# chat.announce — publish a General Announcement to every member of staff
+# (Figma 4241:405). Leadership only: housekeeping leadership and executives
+# (full_access) and the Front Office / Concierge / IRD leads (ops_senior).
+EXTRA_GRANTS = {
+    "chat.announce": ["full_access", "ops_senior"],
+}
+
 PERMISSION_DESCRIPTIONS = {
     "tab.home.view": "See the Home (Dashboard) tab",
     "tab.rooms.view": "See the Rooms tab",
@@ -96,6 +107,7 @@ PERMISSION_DESCRIPTIONS = {
     "rooms.flag.toggle": "Flag and unflag a room",
     "chat.create": "Start a direct chat",
     "chat.groups.manage": "Create and administer group chats",
+    "chat.announce": "Publish a General Announcement to all staff",
     "tickets.create": "Raise a ticket",
     "tickets.update": "Edit a ticket",
     "tickets.close": "Close a ticket",
@@ -402,6 +414,9 @@ def main():
     for p in ADMIN_ONLY_PERMISSIONS:
         if p not in perm_keys:
             perm_keys.append(p)
+    for p in EXTRA_GRANTS:
+        if p not in perm_keys:
+            perm_keys.append(p)
 
 
     doc = {
@@ -418,6 +433,7 @@ def main():
             for r in RIGHTS
         ],
         "adminOnlyPermissions": list(ADMIN_ONLY_PERMISSIONS),
+        "extraGrants": {p: list(roles) for p, roles in EXTRA_GRANTS.items()},
         "departments": [
             {"key": k, "name": n, "description": d} for k, n, d in DEPARTMENTS
         ],

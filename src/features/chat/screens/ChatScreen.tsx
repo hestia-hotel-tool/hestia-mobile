@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingVie
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
-import { BlurView } from 'expo-blur';
+import { PERMISSIONS, usePermissions } from '@/domain/rbac';
 import { typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
@@ -11,12 +11,13 @@ import ChatHeader from '../components/ChatHeader';
 import ChatItem, { ChatItemData } from '../components/ChatItem';
 import NotificationItem, { NotificationItemData } from '../components/NotificationItem';
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
+import { NewChatFab } from '../components/NewChatFab';
+import { ChatFilterMenu, type ChatListFilter } from '../components/ChatFilterMenu';
 import { useChatStore } from '../store/useChatStore';
-import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
+import { invalidateNotificationBadges, subscribeNotificationBadgeInvalidate } from '@/lib/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@features/auth/hooks/useAuth';
-import { useUserStore } from '@features/account/store/useUserStore';
-import { CHAT_SPACING, CHAT_COLORS, CHAT_ITEM, scaleX } from '../constants/chatStyles';
+import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import type { RootStackParamList } from '@/types/navigation';
@@ -39,81 +40,76 @@ type ChatScreenNavigationProp = CompositeNavigationProp<
 export default function ChatScreen() {
   const navigation = useNavigation<ChatScreenNavigationProp>();
   const { session } = useAuth();
-  const userProfile = useUserStore((s) => s.profile);
+  const { can } = usePermissions();
   const [showNewChatMenu, setShowNewChatMenu] = useState(false);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [filter, setFilter] = useState<ChatListFilter>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const { chats, loading, fetchChats, applyIncomingMessageToChatList } = useChatStore();
   const [refreshing, setRefreshing] = useState(false);
-  const [topNotification, setTopNotification] = useState<NotificationItemData | null>(null);
-  const [dummyGeneralUnreadCount, setDummyGeneralUnreadCount] = useState(() => Math.floor(Math.random() * 10) + 1);
-  const [dummyTasksUnreadCount, setDummyTasksUnreadCount] = useState(() => Math.floor(Math.random() * 10) + 1);
-
-  const rerollDummyNotificationCounts = useCallback(() => {
-    setDummyGeneralUnreadCount(Math.floor(Math.random() * 10) + 1);
-    setDummyTasksUnreadCount(Math.floor(Math.random() * 10) + 1);
-  }, []);
-
-  const dummyGeneralNotification: NotificationItemData = {
-    id: 'dummy-general',
-    label: 'General',
-    title: 'All hotel staff are invited for the...',
-    timeText: '20:00',
-    unreadCount: dummyGeneralUnreadCount,
-    pillBackgroundColor: '#ff46a3',
-    pillTextColor: '#ffffff',
-  };
+  /*
+   * Both notification rows come from `notifications` — nothing made up.
+   *
+   * These used to be a hard-coded "General" row and random unread counts
+   * re-rolled on every focus. A row with no notice of its type is hidden.
+   * Nothing writes `general` notices yet, so that row stays hidden until
+   * something does.
+   */
+  const [generalNotification, setGeneralNotification] = useState<NotificationItemData | null>(null);
+  const [tasksNotification, setTasksNotification] = useState<NotificationItemData | null>(null);
 
   const loadChats = useCallback(async () => {
     await fetchChats();
   }, [fetchChats]);
 
-  const loadTopNotification = useCallback(async () => {
-    if (!isSupabaseConfigured || !session?.user?.id) {
-      setTopNotification(null);
+  const loadNotifications = useCallback(async () => {
+    const userId = session?.user?.id;
+    if (!isSupabaseConfigured || !userId) {
+      setGeneralNotification(null);
+      setTasksNotification(null);
       return;
     }
-    const [countRes, latestRes] = await Promise.all([
-      supabase
-        .from('notifications')
-        .select('*', { count: 'exact', head: true })
-        .is('read_at', null)
-        .eq('type', 'room_assignment'),
-      supabase
-        .from('notifications')
-        .select('id,title,created_at')
-        .eq('type', 'room_assignment')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+
+    const latestOfType = async (
+      type: string,
+      row: Pick<NotificationItemData, 'label' | 'pillBackgroundColor'> & { showTime: boolean }
+    ): Promise<NotificationItemData | null> => {
+      const [countRes, latestRes] = await Promise.all([
+        supabase
+          .from('notifications')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', userId)
+          .eq('type', type)
+          .is('read_at', null),
+        supabase
+          .from('notifications')
+          .select('id,title,created_at')
+          .eq('user_id', userId)
+          .eq('type', type)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      ]);
+      const latest = latestRes.data as { id?: string; title?: string | null; created_at?: string | null } | null;
+      if (!latest?.id || !latest.title) return null;
+
+      const createdAt = latest.created_at ? new Date(latest.created_at) : null;
+      const timeText =
+        createdAt && !Number.isNaN(createdAt.getTime())
+          ? createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+          : undefined;
+
+      return { id: latest.id, title: latest.title, timeText: row.showTime ? timeText : undefined, unreadCount: countRes.count ?? 0, label: row.label, pillBackgroundColor: row.pillBackgroundColor };
+    };
+
+    const [general, tasks] = await Promise.all([
+      // Figma 3272:62: the General row has no time under it; Tasks does.
+      latestOfType('general', { label: 'General', pillBackgroundColor: L.notification.general, showTime: false }),
+      latestOfType('room_assignment', { label: 'Tasks', pillBackgroundColor: L.notification.tasks, showTime: true }),
     ]);
-
-    const unreadCount = countRes.count ?? 0;
-    const latest = latestRes.data as { id?: string; title?: string | null; created_at?: string | null } | null;
-    if (!latest?.id || !latest?.title) {
-      setTopNotification(null);
-      return;
-    }
-
-    const createdAt = latest.created_at ? new Date(latest.created_at) : null;
-    const timeText =
-      createdAt && !Number.isNaN(createdAt.getTime())
-        ? createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
-        : undefined;
-
-    setTopNotification({
-      id: latest.id,
-      label: 'Tasks',
-      title: latest.title,
-      timeText,
-      unreadCount,
-    });
+    setGeneralNotification(general);
+    setTasksNotification(tasks);
   }, [session?.user?.id]);
-
-  useEffect(() => {
-    loadChats();
-    void loadTopNotification();
-    rerollDummyNotificationCounts();
-  }, [loadChats, loadTopNotification]);
 
   // Realtime: keep chat list last-message updated instantly.
   useEffect(() => {
@@ -173,13 +169,20 @@ export default function ChatScreen() {
     };
   }, [session?.user?.id, chats, applyIncomingMessageToChatList]);
 
+  /*
+   * A new announcement (or anything else marked read or arriving) invalidates
+   * the badges; refresh the Notifications rows with them, so a General
+   * Announcement shows up here without leaving the screen.
+   */
+  useEffect(() => subscribeNotificationBadgeInvalidate(() => void loadNotifications()), [loadNotifications]);
+
+  // Runs on first mount too, so this is the only initial load.
   useFocusEffect(
     useCallback(() => {
       void loadChats();
-      void loadTopNotification();
+      // Also reloads the Notifications rows, through the subscription above.
       invalidateNotificationBadges();
-      rerollDummyNotificationCounts();
-    }, [loadChats, loadTopNotification])
+    }, [loadChats])
   );
 
 
@@ -212,27 +215,32 @@ export default function ChatScreen() {
       case 'newChat':
         (navigation as any).navigate('new-chat/index');
         break;
+      case 'announcement':
+        (navigation as any).navigate('general-announcement/index');
+        break;
     }
   };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    rerollDummyNotificationCounts();
-    await loadChats();
-    await loadTopNotification();
+    await Promise.all([loadChats(), loadNotifications()]);
     setRefreshing(false);
-  }, [loadChats, loadTopNotification, rerollDummyNotificationCounts]);
+  }, [loadChats, loadNotifications]);
 
   const isLoading = loading && chats.length === 0;
 
-  // Filter chats based on search query
-  const filteredChats = searchQuery
-    ? chats.filter(
-        (chat) =>
-          (typeof chat.name === 'string' && chat.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-          (typeof chat.lastMessage === 'string' && chat.lastMessage.toLowerCase().includes(searchQuery.toLowerCase()))
-      )
-    : chats;
+  const query = searchQuery.trim().toLowerCase();
+  const filteredChats = chats.filter((chat) => {
+    if (filter === 'unread' && !((chat.unreadCount ?? 0) > 0)) return false;
+    if (filter === 'groups' && !chat.isGroup) return false;
+    if (filter === 'direct' && chat.isGroup) return false;
+    if (!query) return true;
+    return (
+      (typeof chat.name === 'string' && chat.name.toLowerCase().includes(query)) ||
+      (typeof chat.lastMessage === 'string' && chat.lastMessage.toLowerCase().includes(query))
+    );
+  });
+  const hasNotifications = Boolean(generalNotification || tasksNotification);
 
   return (
     <View style={styles.container}>
@@ -253,41 +261,37 @@ export default function ChatScreen() {
             }
             keyboardShouldPersistTaps="handled"
           >
-            <Text style={styles.sectionTitle}>Notifications</Text>
-            <NotificationItem item={dummyGeneralNotification} />
-            <NotificationItem
-              item={
-                topNotification ?? {
-                  id: 'dummy-tasks',
-                  label: 'Tasks',
-                  title: 'You have been assigned to Room 201',
-                  timeText: '20:00',
-                  unreadCount: dummyTasksUnreadCount,
-                  pillBackgroundColor: '#4a91fc',
-                  pillTextColor: '#ffffff',
-                }
-              }
-              onPress={() => navigation.navigate('(rooms)/index' as any)}
-            />
+            {hasNotifications ? (
+              <>
+                <Text style={[styles.sectionTitle, styles.notificationsTitle]}>Notifications</Text>
+                {generalNotification ? (
+                  <NotificationItem
+                    item={generalNotification}
+                    onPress={() => (navigation as any).navigate('announcements/index')}
+                  />
+                ) : null}
+                {tasksNotification ? (
+                  <NotificationItem
+                    item={tasksNotification}
+                    onPress={() => navigation.navigate('(rooms)/index' as any)}
+                  />
+                ) : null}
+              </>
+            ) : null}
 
-            <Text style={styles.sectionTitle}>Chats</Text>
-            {/* Chat Items */}
+            <Text style={[styles.sectionTitle, hasNotifications ? styles.chatsTitle : styles.notificationsTitle]}>
+              Chats
+            </Text>
             {filteredChats.map((chat) => (
-              <React.Fragment key={chat.id}>
-                <ChatItem
-                  chat={chat}
-                  onPress={() => handleChatPress(chat)}
-                />
-              </React.Fragment>
+              <ChatItem key={chat.id} chat={chat} onPress={() => handleChatPress(chat)} />
             ))}
+            {!isLoading && filteredChats.length === 0 ? (
+              <Text style={styles.emptyText}>
+                {chats.length === 0 ? 'No chats yet' : 'No chats match'}
+              </Text>
+            ) : null}
           </ScrollView>
 
-          {/* Blur Overlay for content only */}
-          {showNewChatMenu && (
-            <BlurView intensity={80} style={styles.contentBlurOverlay} tint="light">
-              <View style={styles.blurOverlayDarkener} />
-            </BlurView>
-          )}
         </View>
       </KeyboardAvoidingView>
 
@@ -295,17 +299,29 @@ export default function ChatScreen() {
       <ChatHeader
         onBackPress={handleBackPress}
         onSearch={handleSearch}
-        onMessagePress={handleMessagePress}
+        onFilterPress={() => setShowFilterMenu(true)}
+        filterActive={filter !== 'all'}
       />
+
+      {/* New chat — Figma 3272:98, floating above the tab bar. */}
+      <NewChatFab onPress={handleMessagePress} accessibilityLabel="New chat" />
 
       {/* Bottom Navigation - Outside KeyboardAvoidingView to prevent movement */}
       <BottomTabBar />
+
+      <ChatFilterMenu
+        visible={showFilterMenu}
+        value={filter}
+        onChange={setFilter}
+        onClose={() => setShowFilterMenu(false)}
+      />
 
       {/* New Chat Menu */}
       <NewChatMenu
         visible={showNewChatMenu}
         onClose={handleNewChatMenuClose}
         onOptionPress={handleNewChatOptionPress}
+        canAnnounce={can(PERMISSIONS.CHAT_ANNOUNCE)}
       />
     </View>
   );
@@ -327,31 +343,36 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: CHAT_SPACING.contentPaddingTop * scaleX,
-    paddingBottom: CHAT_SPACING.contentPaddingBottom * scaleX,
+    // The header (band, search row and its rule) ends at y242.
+    paddingTop: (L.search.dividerTop + 1) * scaleX,
+    // Tab bar (152) plus room to scroll the last row clear of the + button.
+    paddingBottom: (L.fab.bottom + L.fab.size) * scaleX,
     minHeight: '100%',
   },
   sectionTitle: {
-    marginTop: 12 * scaleX,
-    marginBottom: 8 * scaleX,
-    paddingHorizontal: CHAT_ITEM.avatar.left * scaleX,
-    fontSize: 16 * scaleX,
+    paddingLeft: 28 * scaleX,
+    fontSize: L.section.fontSize * scaleX,
+    lineHeight: L.section.lineHeight * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '700' as any,
+    fontWeight: '700',
     color: CHAT_COLORS.textPrimary,
-    includeFontPadding: false,
   },
-  contentBlurOverlay: {
-    position: 'absolute',
-    top: 217 * scaleX, // Start below header
-    left: 0,
-    right: 0,
-    bottom: 152 * scaleX, // Stop above bottom nav
-    zIndex: 1,
+  notificationsTitle: {
+    marginTop: L.section.notificationsTop * scaleX,
+    // The first row's own top padding carries the gap down to the pill.
+    marginBottom: -6 * scaleX,
   },
-  blurOverlayDarkener: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: 'rgba(200, 200, 200, 0.6)',
+  chatsTitle: {
+    marginTop: L.section.chatsTop * scaleX,
+    marginBottom: -5 * scaleX,
+  },
+  emptyText: {
+    marginTop: 24 * scaleX,
+    paddingHorizontal: 28 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: CHAT_COLORS.textPrimary,
   },
 });
 

@@ -666,7 +666,6 @@ export default function ChatDetailScreen() {
           isGroup={isGroup}
           avatar={chat.avatar}
           showAvatar={true}
-          showMessageButton={false}
           onGroupOptionsPress={isGroupAdmin ? handleGroupOptionsPress : undefined}
         />
 

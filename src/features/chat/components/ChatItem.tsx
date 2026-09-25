@@ -1,12 +1,8 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
-import {
-  CHAT_ITEM,
-  CHAT_COLORS,
-  CHAT_TYPOGRAPHY,
-  scaleX,
-} from '../constants/chatStyles';
+import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
+import { UnreadBadge } from './UnreadBadge';
 
 export interface ChatItemData {
   id: string;
@@ -23,74 +19,63 @@ interface ChatItemProps {
   onPress?: () => void;
 }
 
+/**
+ * "Zoe Tsakeri:" → "Zoe:". The frame prefixes a group's last message with the
+ * sender's first name; "You:" passes through unchanged.
+ */
+function senderPrefix(sender: string): string {
+  const name = sender.replace(/:\s*$/, '').trim();
+  return name ? `${name.split(/\s+/)[0]}:` : '';
+}
+
+/**
+ * A conversation row on the chat list — Figma 3272:62.
+ *
+ * Group ("House keeping Minions"): ringed avatar, bold name, "Zoe: " in bold
+ * before a light message, and a pink "Group" tag. Direct ("Etleva Hoxha"): no
+ * ring, no sender prefix, regular-weight message. Unread badge on the right.
+ */
 export default function ChatItem({ chat, onPress }: ChatItemProps) {
   const unreadCount = typeof chat.unreadCount === 'number' ? chat.unreadCount : 0;
-  const hasUnread = unreadCount > 0;
+  const name = typeof chat.name === 'string' ? chat.name : 'Chat';
   const lastMsg = typeof chat.lastMessage === 'string' ? chat.lastMessage : '';
-  const sender = typeof chat.lastMessageSender === 'string' ? chat.lastMessageSender : '';
+  const sender =
+    chat.isGroup && typeof chat.lastMessageSender === 'string' ? senderPrefix(chat.lastMessageSender) : '';
 
   return (
-    <TouchableOpacity
-      style={styles.container}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      {/* Avatar */}
-      <View style={styles.avatarContainer}>
+    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+      <View style={[styles.avatar, chat.isGroup ? styles.avatarGroup : null]}>
         {chat.avatar ? (
-          <Image source={chat.avatar} style={styles.avatar} resizeMode="cover" />
+          <Image source={chat.avatar} style={styles.avatarImage} resizeMode="cover" />
         ) : (
-          <View style={styles.avatarPlaceholder}>
-            <Text style={styles.avatarInitial}>
-              {(typeof chat.name === 'string' ? chat.name : '?').charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <Text style={styles.avatarInitial}>{name.charAt(0).toUpperCase()}</Text>
         )}
       </View>
 
-      <View style={styles.mainRow}>
-        {/* Content */}
-        <View style={styles.contentContainer}>
-          <Text style={[styles.name, hasUnread ? styles.nameUnread : null]}>
-            {typeof chat.name === 'string' ? chat.name : 'Chat'}
+      <View style={styles.content}>
+        <Text style={styles.name} numberOfLines={1}>
+          {name}
+        </Text>
+
+        {lastMsg ? (
+          <Text style={[styles.message, sender ? styles.messageLight : null]} numberOfLines={1}>
+            {sender ? <Text style={styles.messageSender}>{sender} </Text> : null}
+            {lastMsg}
           </Text>
+        ) : null}
 
-          <Text
-            style={[
-              styles.message,
-              sender ? styles.messageLight : null,
-              hasUnread ? styles.messageUnread : null,
-            ]}
-            numberOfLines={1}
-          >
-            {sender ? (
-              <>
-                <Text style={styles.messageSender}>{sender} </Text>
-                <Text>{lastMsg}</Text>
-              </>
-            ) : (
-              lastMsg
-            )}
-          </Text>
-
-          {chat.isGroup ? (
-            <View style={styles.groupLabel}>
-              <Text style={styles.groupLabelText}>Group</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {/* Figma: unread badge at top-right for every chat (dummy when missing) */}
-        {hasUnread ? (
-          <View style={styles.rightMeta}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText} numberOfLines={1}>
-                {unreadCount > 99 ? '99+' : String(unreadCount)}
-              </Text>
-            </View>
+        {chat.isGroup ? (
+          <View style={styles.tag}>
+            <Text style={styles.tagText}>Group</Text>
           </View>
         ) : null}
       </View>
+
+      {unreadCount > 0 ? (
+        <View style={styles.badge}>
+          <UnreadBadge count={unreadCount} />
+        </View>
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -99,108 +84,84 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: CHAT_ITEM.avatar.left * scaleX,
-    paddingVertical: 12 * scaleX,
-    minHeight: 98 * scaleX,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingLeft: 27 * scaleX,
+    paddingRight: L.badge.right * scaleX,
+    paddingTop: L.chat.paddingTop * scaleX,
+    paddingBottom: L.chat.paddingBottom * scaleX,
+    minHeight: L.chat.minHeight * scaleX,
+    borderBottomWidth: 1,
     borderBottomColor: CHAT_COLORS.divider,
   },
-  avatarContainer: {
-    width: CHAT_ITEM.avatar.size * scaleX,
-    height: CHAT_ITEM.avatar.size * scaleX,
-    borderRadius: CHAT_ITEM.avatar.borderRadius * scaleX,
-    overflow: 'hidden',
-    marginRight: 17 * scaleX, // Spacing between avatar and content
-  },
   avatar: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
+    width: L.chat.avatar * scaleX,
+    height: L.chat.avatar * scaleX,
+    borderRadius: (L.chat.avatar / 2) * scaleX,
+    // Android does not clip an image to borderRadius without this.
+    overflow: 'hidden',
     backgroundColor: CHAT_COLORS.searchBackground,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  avatarGroup: {
+    borderWidth: 1,
+    borderColor: L.chat.groupAvatarBorder,
+    backgroundColor: '#ffffff',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
   avatarInitial: {
     fontSize: 18 * scaleX,
-    fontWeight: 'bold' as any,
-    color: CHAT_COLORS.textSecondary,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: CHAT_COLORS.title,
   },
-  mainRow: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'stretch',
-    minWidth: 0,
-  },
-  contentContainer: {
+  content: {
     flex: 1,
     minWidth: 0,
+    marginLeft: L.chat.avatarGap * scaleX,
+    marginRight: 12 * scaleX,
   },
   name: {
-    fontSize: CHAT_TYPOGRAPHY.chatName.fontSize * scaleX,
+    marginTop: L.chat.nameTop * scaleX,
+    fontSize: L.chat.nameFontSize * scaleX,
+    lineHeight: L.chat.nameLineHeight * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: CHAT_TYPOGRAPHY.chatName.fontWeight as any,
-    color: CHAT_TYPOGRAPHY.chatName.color,
-    marginBottom: 2 * scaleX,
-  },
-  nameUnread: {
-    fontWeight: '700' as any,
+    fontWeight: '700',
+    color: CHAT_COLORS.textPrimary,
   },
   message: {
-    fontSize: CHAT_TYPOGRAPHY.message.fontSize * scaleX,
+    marginTop: L.chat.messageTop * scaleX,
+    fontSize: L.chat.messageFontSize * scaleX,
+    lineHeight: L.chat.messageLineHeight * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: CHAT_TYPOGRAPHY.message.fontWeight as any,
-    color: CHAT_TYPOGRAPHY.message.color,
-    marginTop: 2 * scaleX,
+    fontWeight: '400',
+    color: CHAT_COLORS.textPrimary,
   },
   messageLight: {
-    fontWeight: CHAT_TYPOGRAPHY.messageLight.fontWeight as any,
+    fontWeight: '300',
   },
   messageSender: {
-    fontWeight: '700' as any,
-    color: CHAT_TYPOGRAPHY.message.color,
+    fontWeight: '700',
   },
-  messageUnread: {
-    fontWeight: '600' as any,
-    color: CHAT_TYPOGRAPHY.message.color,
-  },
-  groupLabel: {
+  tag: {
     alignSelf: 'flex-start',
-    backgroundColor: CHAT_ITEM.groupLabel.backgroundColor,
-    borderRadius: CHAT_ITEM.groupLabel.borderRadius * scaleX,
-    paddingHorizontal: CHAT_ITEM.groupLabel.paddingHorizontal * scaleX,
-    paddingVertical: CHAT_ITEM.groupLabel.paddingVertical * scaleX,
-    marginTop: 4 * scaleX,
-  },
-  groupLabelText: {
-    fontSize: CHAT_TYPOGRAPHY.groupLabel.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: CHAT_TYPOGRAPHY.groupLabel.fontWeight as any,
-    color: CHAT_TYPOGRAPHY.groupLabel.color,
-  },
-  rightMeta: {
-    alignSelf: 'stretch',
-    justifyContent: 'flex-start',
-    alignItems: 'flex-end',
-    paddingLeft: 8 * scaleX,
-    paddingTop: 2 * scaleX,
-  },
-  badge: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
-    borderRadius: 16 * scaleX,
-    backgroundColor: CHAT_ITEM.badge.backgroundColor, // #FF46A3
+    marginTop: L.chat.tagTop * scaleX,
+    height: L.chat.tagHeight * scaleX,
+    paddingHorizontal: L.chat.tagPaddingX * scaleX,
+    borderRadius: L.chat.tagRadius * scaleX,
+    backgroundColor: L.chat.tagBackground,
     justifyContent: 'center',
-    alignItems: 'center',
   },
-  badgeText: {
-    fontSize: 15 * scaleX,
+  tagText: {
+    fontSize: L.chat.tagFontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: CHAT_TYPOGRAPHY.badge.fontWeight as any,
-    color: CHAT_TYPOGRAPHY.badge.color,
+    fontWeight: '300',
+    color: '#000000',
     includeFontPadding: false,
   },
+  badge: {
+    marginTop: L.chat.badgeTop * scaleX,
+  },
 });
-

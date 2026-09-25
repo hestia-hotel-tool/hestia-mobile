@@ -15,6 +15,7 @@
 // actions
 import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
 import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
+import ActionAnnouncement from '@assets/icons/actions/action-announcement.svg';
 import ActionCheckBold from '@assets/icons/actions/action-check-bold.svg';
 import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
@@ -25,7 +26,9 @@ import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
 import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
+import ActionGroup from '@assets/icons/actions/action-group.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
+import ActionNewChat from '@assets/icons/actions/action-new-chat.svg';
 import ActionPhone from '@assets/icons/actions/action-phone.svg';
 import ActionPlus from '@assets/icons/actions/action-plus.svg';
 import ActionPrint from '@assets/icons/actions/action-print.svg';
@@ -88,6 +91,7 @@ export const icons = {
   // actions
   'action-add-note': ActionAddNote,
   'action-add-photo': ActionAddPhoto,
+  'action-announcement': ActionAnnouncement,
   'action-check-bold': ActionCheckBold,
   'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
@@ -98,7 +102,9 @@ export const icons = {
   'action-filter': ActionFilter,
   'action-flag-outline': ActionFlagOutline,
   'action-flag': ActionFlag,
+  'action-group': ActionGroup,
   'action-mic': ActionMic,
+  'action-new-chat': ActionNewChat,
   'action-phone': ActionPhone,
   'action-plus': ActionPlus,
   'action-print': ActionPrint,
@@ -169,6 +175,7 @@ export type IconName = keyof typeof icons;
 export const ICON_ASPECT: Record<IconName, number> = {
   'action-add-note': 1,
   'action-add-photo': 1.0162,
+  'action-announcement': 1.037,
   'action-check-bold': 1.0714,
   'action-check': 1.1798,
   'action-checkbox-checked': 1,
@@ -179,7 +186,9 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-filter': 2,
   'action-flag-outline': 0.7179,
   'action-flag': 1.1833,
+  'action-group': 1.1154,
   'action-mic': 0.7727,
+  'action-new-chat': 1,
   'action-phone': 1,
   'action-plus': 1,
   'action-print': 1,
@@ -240,6 +249,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
  */
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-add-note',
+  'action-announcement',
   'action-check-bold',
   'action-check',
   'action-checkbox-checked',
@@ -250,7 +260,9 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-filter',
   'action-flag-outline',
   'action-flag',
+  'action-group',
   'action-mic',
+  'action-new-chat',
   'action-phone',
   'action-plus',
   'action-print',
