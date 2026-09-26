@@ -189,3 +189,51 @@ export const formatDatesOfStayCompact = (
   datesOfStay: { from: string; to: string } | undefined | null
 ): string => formatDatesOfStay(datesOfStay).replace(' - ', '-');
 
+
+/**
+ * A moment, the way staff say it — 24-hour, and only as much date as needed:
+ * "14:30" today, "tomorrow 09:00", "yesterday 18:10", otherwise
+ * "Mon 29 Sep 09:00".
+ *
+ * Replaces showing the bare clock for Return Later and Promise Time, where a
+ * time on another day read as today's.
+ */
+export const formatDueTime = (at: Date | number, now: Date = new Date()): string => {
+  const d = typeof at === 'number' ? new Date(at) : at;
+  if (!Number.isFinite(d.getTime())) return '';
+  const clock = formatClock24(d);
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
+  if (days === 0) return clock;
+  if (days === 1) return `tomorrow ${clock}`;
+  if (days === -1) return `yesterday ${clock}`;
+  // Fixed names, not toLocaleDateString: en-GB writes "Sept", and the
+  // server-side notification text (to_char 'Dy FMDD Mon') writes "Sep".
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+  return `${weekday} ${d.getDate()} ${month} ${clock}`;
+};
+
+/**
+ * A span, rounded to whole minutes: "1 min", "25 min", "1 h", "1 h 5 min".
+ * Under half a minute reads "under a minute". No seconds: a ticking seconds
+ * counter on a housekeeping card is noise, not information.
+ */
+export const formatMinutesSpan = (ms: number): string => {
+  const mins = Math.round(Math.abs(ms) / 60_000);
+  if (mins < 1) return 'under a minute';
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+};
+
+/**
+ * How far off a deadline is: "in 25 min", "in 1 h 5 min", "due now", or
+ * "25 min late" once it has passed.
+ */
+export const formatDueIn = (at: number, now: number = Date.now()): string => {
+  const diff = at - now;
+  if (Math.abs(diff) < 60_000) return 'due now';
+  return diff > 0 ? `in ${formatMinutesSpan(diff)}` : `${formatMinutesSpan(diff)} late`;
+};

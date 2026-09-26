@@ -397,10 +397,19 @@ export async function createLostAndFoundItem(
   return { id: inserted?.id ?? null, trackingNumber: inserted?.tracking_number ?? null };
 }
 
-/** Update an item's status (non-shipped transitions). Throws on failure. */
-export async function updateLostAndFoundStatus(id: string, status: LostAndFoundStatus): Promise<void> {
-  const { error } = await supabase.from('lost_and_found_items').update({ status }).eq('id', id);
+/**
+ * Update an item's status (non-shipped transitions). Throws on failure.
+ * Returns the room it was found in, if any, so that room's card can update.
+ */
+export async function updateLostAndFoundStatus(id: string, status: LostAndFoundStatus): Promise<string | null> {
+  const { data, error } = await supabase
+    .from('lost_and_found_items')
+    .update({ status })
+    .eq('id', id)
+    .select('room_id')
+    .maybeSingle();
   if (error) throw error;
+  return data?.room_id ?? null;
 }
 
 /**
@@ -412,29 +421,32 @@ export async function setLostAndFoundShipped(
   id: string,
   location: string,
   shippedLocationColumnAvailable: boolean | null
-): Promise<{ shippedLocationColumnAvailable: boolean }> {
+): Promise<{ shippedLocationColumnAvailable: boolean; roomId: string | null }> {
   const statusOnly = async () => {
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('lost_and_found_items')
       .update({ status: 'shipped' })
-      .eq('id', id);
+      .eq('id', id)
+      .select('room_id')
+      .maybeSingle();
     if (error) throw error;
+    return data?.room_id ?? null;
   };
 
   if (shippedLocationColumnAvailable === false) {
-    await statusOnly();
-    return { shippedLocationColumnAvailable: false };
+    return { shippedLocationColumnAvailable: false, roomId: await statusOnly() };
   }
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('lost_and_found_items')
     .update({ status: 'shipped', shipped_location: location })
-    .eq('id', id);
+    .eq('id', id)
+    .select('room_id')
+    .maybeSingle();
 
   if (error && (error as any).code === 'PGRST204') {
-    await statusOnly();
-    return { shippedLocationColumnAvailable: false };
+    return { shippedLocationColumnAvailable: false, roomId: await statusOnly() };
   }
   if (error) throw error;
-  return { shippedLocationColumnAvailable: true };
+  return { shippedLocationColumnAvailable: true, roomId: data?.room_id ?? null };
 }

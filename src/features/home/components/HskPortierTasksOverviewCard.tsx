@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity } from 'react-native';
 import { typography } from '@/theme';
 import { useDesignScale } from '@/hooks/useDesignScale';
+import { formatDueTime } from '@/utils/formatting';
 
 export default function HskPortierTasksOverviewCard({
   total,
@@ -49,8 +50,9 @@ export default function HskPortierTasksOverviewCard({
       const mm = String(dt.getMinutes()).padStart(2, '0');
       return `${hh}:${mm}`;
     }
-    // Return Later: show the set return time (not countdown)
-    return dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+    // Return Later: the set return time, 24-hour like everywhere else
+    // ("14:30", "tomorrow 09:00").
+    return formatDueTime(dt);
   }, [latestPill]);
 
   return (

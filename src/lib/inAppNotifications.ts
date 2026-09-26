@@ -11,6 +11,9 @@ export const TASK_NOTIFICATION_TYPES = [
   'room_priority',
   'room_cleaned',
   'room_rejected',
+  'room_paused',
+  'room_overdue',
+  'room_promise',
   'ticket_assigned',
 ] as const;
 
@@ -21,6 +24,9 @@ export const ROOM_TASK_NOTIFICATION_TYPES = [
   'room_priority',
   'room_cleaned',
   'room_rejected',
+  'room_paused',
+  'room_overdue',
+  'room_promise',
 ] as const;
 
 const badgeInvalidateListeners = new Set<() => void>();

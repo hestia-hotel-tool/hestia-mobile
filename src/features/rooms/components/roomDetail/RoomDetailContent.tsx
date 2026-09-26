@@ -74,6 +74,7 @@ export default function RoomDetailContent({
   onDownloadHistoryReport,
   onResumePause,
   onReturnLaterElapsed,
+  cleaning,
   onHeaderHeightChange,
   onClearRefuseService,
   activity = { kind: 'none' },
@@ -145,6 +146,7 @@ export default function RoomDetailContent({
         activity={activity}
         onResumePause={onResumePause}
         onReturnLaterElapsed={onReturnLaterElapsed}
+        cleaning={cleaning}
         onHeightChange={onHeaderHeightChange}
         onClearRefuseService={onClearRefuseService}
         flagged={flagged}

@@ -14,6 +14,7 @@ import EmptyLostAndFoundState from '../components/EmptyLostAndFoundState';
 import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
 import ItemRegisteredSuccessModal from '../components/ItemRegisteredSuccessModal';
 import { useUserStore } from '@features/account/store/useUserStore';
+import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
 import { LOST_AND_FOUND_COLORS, scaleX } from '../constants/lostAndFoundStyles';
 import type { ReturnToTab } from '@/types/navigation';
@@ -69,6 +70,7 @@ const TAB_STATUS: Record<LostAndFoundTab, LostAndFoundStatus[] | null> = {
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
   const toast = useToast();
+  const refreshRoomBadges = useRoomsStore((s) => s.refreshRoomBadges);
   const route = useRoute();
   const userProfile = useUserStore((s) => s.profile);
   const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
@@ -376,6 +378,11 @@ export default function LostAndFoundScreen() {
         });
         if (result.trackingNumber) trackingNumberFromDb = result.trackingNumber;
         if (result.id) pendingInsertedItemIdRef.current = result.id;
+        // The room's card on Rooms gets its lost-and-found tile now, not on
+        // the list's next refetch.
+        if (result.id && data.itemData?.selectedLocation === 'room') {
+          void refreshRoomBadges(data.itemData?.selectedRoom?.id);
+        }
         if (result.error) {
           // The success sheet opened optimistically; take it back and say why.
           clearTimeout(successTimer);
@@ -458,7 +465,8 @@ export default function LostAndFoundScreen() {
     setStatusUpdatingItemId(item?.id ?? null);
     if (!item || !isSupabaseConfigured) return;
     try {
-      await updateLostAndFoundStatus(item.id, newStatus);
+      const roomId = await updateLostAndFoundStatus(item.id, newStatus);
+      void refreshRoomBadges(roomId);
       setStatusModalItem(null);
       setStatusAnchor(null);
       await loadItems('focus');
@@ -505,12 +513,13 @@ export default function LostAndFoundScreen() {
         });
 
         // Handles PostgREST schema-cache lag on `shipped_location` internally.
-        const { shippedLocationColumnAvailable } = await setLostAndFoundShipped(
+        const { shippedLocationColumnAvailable, roomId: shippedRoomId } = await setLostAndFoundShipped(
           item.id,
           trimmed,
           shippedLocationColumnAvailableRef.current
         );
         shippedLocationColumnAvailableRef.current = shippedLocationColumnAvailable;
+        void refreshRoomBadges(shippedRoomId);
 
         setStatusModalItem(null);
         setStatusAnchor(null);
@@ -530,7 +539,7 @@ export default function LostAndFoundScreen() {
         setStatusUpdatingItemId(null);
       }
     },
-    [statusModalItem, loadItems]
+    [statusModalItem, loadItems, refreshRoomBadges]
   );
 
 

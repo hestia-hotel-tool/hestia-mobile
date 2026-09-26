@@ -35,6 +35,9 @@ type RoomRow = {
   paused_at?: string | null;
   refuse_service_at?: string | null;
   refuse_service_reason?: string | null;
+  promise_time_at?: string | null;
+  cleaning_started_at?: string | null;
+  cleaning_elapsed_seconds?: number | null;
 };
 
 /** Aggregated note info per room (from room_notes table) */
@@ -392,6 +395,9 @@ function mapRoomToCard(
     pausedAt: (room.paused_at ?? null) as string | null,
     refuseServiceAt: (room.refuse_service_at ?? null) as string | null,
     refuseServiceReason: (room.refuse_service_reason ?? null) as string | null,
+    promiseTimeAt: room.promise_time_at ?? null,
+    cleaningStartedAt: room.cleaning_started_at ?? null,
+    cleaningElapsedSeconds: room.cleaning_elapsed_seconds ?? 0,
     guests: guestsForCard,
     roomAttendantAssigned: attendant,
     isPriority: room.priority === 'high',
@@ -444,6 +450,28 @@ const fetchRoomNotesAggregate = async (roomIds: string[]): Promise<Map<string, R
   }
   return map;
 };
+
+/**
+ * One room's badge counts — its notes and the lost & found items still stored
+ * from it — re-read after either changes, so its card's bell and
+ * lost-and-found tiles update without refetching every room.
+ */
+export async function fetchRoomBadgeCounts(roomId: string): Promise<{
+  noteCount: number;
+  lastNoteBy: RoomNotesAggregate['lastNoteBy'];
+  lostAndFoundCount: number;
+}> {
+  const [notes, lostAndFound] = await Promise.all([
+    fetchRoomNotesAggregate([roomId]),
+    fetchStoredLostAndFoundCounts([roomId]),
+  ]);
+  const agg = notes.get(roomId);
+  return {
+    noteCount: agg?.count ?? 0,
+    lastNoteBy: agg?.lastNoteBy ?? null,
+    lostAndFoundCount: lostAndFound.get(roomId) ?? 0,
+  };
+}
 
 /**
  * Raw `rooms → reservations → guests` rows for location pickers
@@ -532,7 +560,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason'
+        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds'
       )
       .order('room_number', { ascending: true }));
 
@@ -670,6 +698,19 @@ export type RoomStateUpdate = {
   refuse_service_reason?: string | null;
   /** Reason string or null to clear. */
   return_later_reason?: string | null;
+  /** Promised ready-by time (ISO), or null to clear. */
+  promise_time_at?: string | null;
+};
+
+/**
+ * The cleaning clock as the database left it after a write. A trigger starts,
+ * stops and resets it (see migration 20260926000400), so the client reads it
+ * back rather than guessing.
+ */
+export type RoomClock = {
+  promiseTimeAt: string | null;
+  cleaningStartedAt: string | null;
+  cleaningElapsedSeconds: number;
 };
 
 function isValidUUID(id: string): boolean {
@@ -820,9 +861,9 @@ function postgrestError(
   return err;
 }
 
-export async function updateRoom(roomId: string, updates: RoomStateUpdate): Promise<void> {
+export async function updateRoom(roomId: string, updates: RoomStateUpdate): Promise<RoomClock | null> {
   if (!isValidUUID(roomId)) {
-    return;
+    return null;
   }
   const payload: Record<string, unknown> = {};
   if (updates.house_keeping_status != null) payload.house_keeping_status = updates.house_keeping_status;
@@ -836,7 +877,8 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
   if (updates.refuse_service_at !== undefined) payload.refuse_service_at = updates.refuse_service_at;
   if (updates.refuse_service_reason !== undefined) payload.refuse_service_reason = updates.refuse_service_reason;
   if (updates.return_later_reason !== undefined) payload.return_later_reason = updates.return_later_reason;
-  if (Object.keys(payload).length === 0) return;
+  if (updates.promise_time_at !== undefined) payload.promise_time_at = updates.promise_time_at;
+  if (Object.keys(payload).length === 0) return null;
   /**
    * Columns added by later migrations, which a database may not have yet.
    *
@@ -849,6 +891,7 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
     'paused_at',
     'refuse_service_at',
     'refuse_service_reason',
+    'promise_time_at',
   ] as const;
 
   /**
@@ -891,10 +934,30 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
     if (dropping.length === 0) break;
 
     for (const key of dropping) delete (payload as Record<string, unknown>)[key];
-    if (Object.keys(payload).length === 0) return;
+    if (Object.keys(payload).length === 0) return null;
     result = await supabase.from('rooms').update(payload).eq('id', roomId);
   }
   if (result.error) throw postgrestError('Could not update the room', result.error);
+
+  // Read back what the triggers made of it: the clock starts, stops or resets
+  // on status and pause changes, and Cleaned/Inspected clear the promise time.
+  let clock: RoomClock | null = null;
+  {
+    const { data: row } = await supabase
+      .from('rooms')
+      .select('promise_time_at, cleaning_started_at, cleaning_elapsed_seconds')
+      .eq('id', roomId)
+      .maybeSingle();
+    if (row) {
+      // Via unknown: the generated Supabase types predate these columns.
+      const r = row as unknown as { promise_time_at: string | null; cleaning_started_at: string | null; cleaning_elapsed_seconds: number | null };
+      clock = {
+        promiseTimeAt: r.promise_time_at ?? null,
+        cleaningStartedAt: r.cleaning_started_at ?? null,
+        cleaningElapsedSeconds: r.cleaning_elapsed_seconds ?? 0,
+      };
+    }
+  }
 
   // When a room moves to In Progress, stamp the assignment so the staff card's
   // credit countdown starts from this moment. start_time is set only once (so a
@@ -924,6 +987,7 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
       console.warn('[updateRoom] could not mark room_assignments completed', e);
     }
   }
+  return clock;
 }
 
 /**
@@ -1344,6 +1408,9 @@ export function fullRoomDetailsToRoomCardData(
     promisedTime: (promisedTime === '12:00' || promisedTime === '13:00' ? promisedTime : null) as PromisedTime,
     returnLaterAt: (room.return_later_at ?? null) as string | null,
     pausedAt: ((room as any).paused_at ?? null) as string | null,
+    promiseTimeAt: ((room as any).promise_time_at ?? null) as string | null,
+    cleaningStartedAt: ((room as any).cleaning_started_at ?? null) as string | null,
+    cleaningElapsedSeconds: ((room as any).cleaning_elapsed_seconds ?? 0) as number,
     refuseServiceAt: ((room as any).refuse_service_at ?? null) as string | null,
     refuseServiceReason: ((room as any).refuse_service_reason ?? null) as string | null,
     guests: guestsForCard,
@@ -1390,7 +1457,7 @@ export async function getFullRoomDetails(
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
-      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, paused_at, refuse_service_at, refuse_service_reason'
+      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds'
     )
     .order('room_number', { ascending: true });
   const roomsQueryBase = supabase

@@ -1,5 +1,4 @@
-import type { GuestInfo, RoomCardData, RoomStatus } from '../types/allRooms.types';
-import { isRoomPaused } from '../types/allRooms.types';
+import type { GuestInfo, RoomCardData } from '../types/allRooms.types';
 import type { GuestRowKind } from '../components/roomsList/GuestRow';
 import { getStayoverWithLinen } from './stayoverLinen';
 import { formatClockTime } from '@/utils/formatting';
@@ -32,49 +31,6 @@ export function guestRowKind(room: RoomCardData, index: number): GuestRowKind {
     default:
       return 'occupied';
   }
-}
-
-/**
- * The line under the assignee's name.
- *
- * Pausing overlays whatever the housekeeping status is rather than replacing
- * it, so it is checked first.
- *
- * Pulled out of `StaffSection`, where it lived in a `useMemo` placed *after* an
- * early `return` — so assigning or unassigning a room changed the hook order
- * and React's rules-of-hooks lint flagged it. A plain function cannot.
- *
- * The design shows richer copy than this — "Started: 40 mins", "Paused at
- * 18:00", "Time: 60 mins". Those need a real assignment start time, which the
- * schema does not yet carry; the previous card faked them from a hash of the
- * room id. Deliberately not reproduced.
- */
-export function assigneeStatusLine(
-  roomStatus: RoomStatus,
-  isPaused: boolean
-): string {
-  if (isPaused) return 'Paused';
-  switch (roomStatus) {
-    case 'InProgress':
-      return 'Started';
-    case 'Cleaned':
-      return 'Cleaned';
-    case 'Inspected':
-      return 'Inspected';
-    case 'Dirty':
-    default:
-      return 'Not started';
-  }
-}
-
-/** Everything the card tree needs to know about a room's state, resolved once. */
-export function roomCardState(room: RoomCardData) {
-  const paused = isRoomPaused(room);
-  return {
-    paused,
-    isArrivalDeparture: room.frontOfficeStatus === 'Arrival/Departure',
-    statusLine: assigneeStatusLine(room.houseKeepingStatus, paused),
-  };
 }
 
 /**

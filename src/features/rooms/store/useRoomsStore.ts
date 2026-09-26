@@ -4,7 +4,8 @@
 
 import { create } from 'zustand';
 import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
-import { dashboardService, type RoomStateUpdate } from '../services/dashboard';
+import { dashboardService, type RoomClock, type RoomStateUpdate } from '../services/dashboard';
+import { fetchRoomBadgeCounts } from '../services/rooms';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
 import type { ShiftType } from '@/types/shift.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
@@ -54,9 +55,17 @@ interface RoomsState {
   /** The shift `data` was fetched for, so a shift change always refetches. */
   lastFetchedShift: ShiftType | null;
   fetchRooms: (shift?: ShiftType, options?: { force?: boolean }) => Promise<void>;
-  updateRoom: (roomId: string, updates: RoomStateUpdate) => Promise<void>;
+  /** Resolves with the room's cleaning clock as the database left it. */
+  updateRoom: (roomId: string, updates: RoomStateUpdate) => Promise<RoomClock | null>;
   /** Set assigned staff for a room (optimistic update after assign from modal). */
   setRoomAttendant: (roomId: string, staff: StaffInfo | null) => void;
+  /**
+   * Re-read one room's note and lost & found counts and patch its card, so
+   * the bell and lost-and-found tiles appear (or go) as soon as a note is
+   * added or an item is registered, returned, shipped or discarded — without
+   * waiting for the list's next refetch. No-op when the list is not loaded.
+   */
+  refreshRoomBadges: (roomId: string | null | undefined) => Promise<void>;
   setData: (data: AllRoomsScreenData | null) => void;
   setSelectedShift: (shift: ShiftType) => void;
 }
@@ -88,6 +97,37 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
       },
     });
     queueMicrotask(() => invalidateNotificationBadges());
+  },
+
+  refreshRoomBadges: async (roomId) => {
+    if (!roomId || !get().data) return;
+    let counts: Awaited<ReturnType<typeof fetchRoomBadgeCounts>>;
+    try {
+      counts = await fetchRoomBadgeCounts(roomId);
+    } catch (e) {
+      console.warn('[useRoomsStore] refreshRoomBadges', e);
+      return;
+    }
+    // Read again: the list may have been refetched or cleared meanwhile.
+    const { data } = get();
+    if (!data) return;
+    const patch = (room: RoomCardData): RoomCardData =>
+      room.id !== roomId
+        ? room
+        : {
+            ...room,
+            notes: counts.noteCount > 0 ? { count: counts.noteCount, hasRushed: room.notes?.hasRushed ?? false } : undefined,
+            roomNotes: counts.noteCount > 0 ? undefined : null,
+            noteMadeBy: counts.lastNoteBy ?? null,
+            lostAndFoundCount: counts.lostAndFoundCount,
+          };
+    set({
+      data: {
+        ...data,
+        rooms: data.rooms.map(patch),
+        roomsPM: data.roomsPM?.map(patch) ?? data.roomsPM,
+      },
+    });
   },
 
   fetchRooms: async (shift?: ShiftType, options?: { force?: boolean }) => {
@@ -162,9 +202,9 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
   updateRoom: async (roomId: string, updates: RoomStateUpdate) => {
     set({ updatingRoomId: roomId });
     try {
-      await dashboardService.updateRoomState(roomId, updates);
+      const clock = await dashboardService.updateRoomState(roomId, updates);
       const { data } = get();
-      if (!data) return;
+      if (!data) return clock;
       const updateInList = (room: RoomCardData): RoomCardData => {
         if (room.id !== roomId) return room;
         return {
@@ -178,6 +218,13 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
           ...(updates.paused_at !== undefined && { pausedAt: updates.paused_at }),
           ...(updates.refuse_service_at !== undefined && { refuseServiceAt: updates.refuse_service_at }),
           ...(updates.refuse_service_reason !== undefined && { refuseServiceReason: updates.refuse_service_reason }),
+          ...(updates.promise_time_at !== undefined && { promiseTimeAt: updates.promise_time_at }),
+          // The trigger's word on the clock (and on a promise kept by Cleaned/Inspected).
+          ...(clock && {
+            promiseTimeAt: clock.promiseTimeAt,
+            cleaningStartedAt: clock.cleaningStartedAt,
+            cleaningElapsedSeconds: clock.cleaningElapsedSeconds,
+          }),
         };
       };
       set({
@@ -187,6 +234,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
           roomsPM: data.roomsPM?.map(updateInList) ?? data.roomsPM,
         },
       });
+      return clock;
     } catch (e) {
       const err = e instanceof Error ? e : new Error(String(e));
       set({ error: err });

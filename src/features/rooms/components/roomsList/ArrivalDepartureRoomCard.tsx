@@ -3,7 +3,9 @@ import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
 import { STATUS_CONFIGS, getRoomDisplayStatus } from '../../types/allRooms.types';
-import { guestRowKind, guestTimeLabelForKind, roomCardState } from '../../utils/roomCardProps';
+import { guestRowKind, guestTimeLabelForKind } from '../../utils/roomCardProps';
+import { assigneeStatus, promiseLine } from '../../utils/cleaningClock';
+import { useNow } from '@/hooks/useNow';
 import { View } from '@/tw';
 import { ROOM_CARD } from './roomCardLayout';
 import { RoomCardShell } from './RoomCardShell';
@@ -52,7 +54,10 @@ export function ArrivalDepartureRoomCard({
   measureRef,
   statusPillRef,
 }: ArrivalDepartureRoomCardProps) {
-  const { statusLine } = roomCardState(room);
+  // Live: the credit countdown and "Return at" / "Ready by" move with the clock.
+  const now = useNow();
+  const status = assigneeStatus(room, now);
+  const promise = promiseLine(room, now);
   const displayStatus = getRoomDisplayStatus(room);
   const config = STATUS_CONFIGS[displayStatus];
   const staff = room.roomAttendantAssigned;
@@ -106,7 +111,10 @@ export function ArrivalDepartureRoomCard({
           <RoomAssigneeBlock
             name={staff?.name}
             avatarUrl={staff?.avatar}
-            statusLine={statusLine}
+            // Unassigned rooms skip "Not started" — the Assign room button says it.
+            statusLine={staff?.name || status.text !== 'Not started' ? status.text : null}
+            statusTone={status.tone}
+            secondaryLine={promise}
             onPress={onAssignPress}
           />
         }

@@ -42,7 +42,8 @@ import { findBlockingInProgressRoomForUser } from '../utils/attendantRules';
 import { usePermissions } from '@/domain/rbac/usePermissions';
 import { PERMISSIONS } from '@/domain/rbac';
 import { useMessageModal } from '@/contexts/MessageModalContext';
-import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
+import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, type RoomStateUpdate, assignRoomToStaff } from '../services/rooms';
+import { formatDueTime } from '@/utils/formatting';
 import { supabase } from '@/lib/supabase';
 import { invalidateNotificationBadges, markRoomAssignmentNotificationsReadForRoom } from '@/lib/inAppNotifications';
 import { buildFriendlyRoomHistoryMessage, getRoomHistoryEvents, logRoomHistoryEvent } from '../services/roomHistory';
@@ -483,6 +484,27 @@ export default function RoomDetailScreen() {
     }
   };
 
+  /**
+   * Save to the room, then keep the cleaning clock the database worked out —
+   * a trigger starts, stops and resets it on status and pause changes, so the
+   * header's countdown follows what was actually stored.
+   */
+  const saveRoom = useCallback(
+    async (updates: RoomStateUpdate) => {
+      const clock = await updateRoom(room.id, updates);
+      if (clock) {
+        setLocalRoom((prev) => ({
+          ...prev,
+          promiseTimeAt: clock.promiseTimeAt,
+          cleaningStartedAt: clock.cleaningStartedAt,
+          cleaningElapsedSeconds: clock.cleaningElapsedSeconds,
+        }));
+      }
+      return clock;
+    },
+    [room.id, updateRoom]
+  );
+
   const handleStatusPress = () => {
     if (statusButtonRef.current) {
       statusButtonRef.current.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
@@ -535,7 +557,7 @@ export default function RoomDetailScreen() {
       const newIsPriority = !localRoom.isPriority;
       setLocalRoom((prev) => ({ ...prev, isPriority: newIsPriority }));
       const priorityPayload = newIsPriority ? 'high' : 'normal';
-      updateRoom(room.id, {
+      saveRoom({
         ...(localRoom.houseKeepingStatus && { house_keeping_status: localRoom.houseKeepingStatus }),
         priority: priorityPayload,
       }).catch((e) => console.warn('Failed to update room status in Supabase', e));
@@ -562,7 +584,7 @@ export default function RoomDetailScreen() {
 
     setActivity(nextActivity);
     setPendingActivity(null);
-    updateRoom(room.id, {
+    saveRoom({
       house_keeping_status: newStatus,
       ...activityStateToUpdate(nextActivity),
     }).catch((e) => console.warn('Failed to update room status in Supabase', e));
@@ -598,7 +620,7 @@ export default function RoomDetailScreen() {
       };
       setActivity(next);
       // Persist to DB so Return Later survives reloads.
-      updateRoom(room.id, {
+      saveRoom({
         house_keeping_status: 'InProgress',
         ...activityStateToUpdate(next),
       }).catch((e) => console.warn('Failed to persist return later in Supabase', e));
@@ -612,26 +634,38 @@ export default function RoomDetailScreen() {
     // Time elapsed: clear Return Later and revert header to normal state.
     setActivity({ kind: 'none' });
     setPendingActivity(null);
-    updateRoom(room.id, activityStateToUpdate({ kind: 'none' })).catch((e) =>
+    saveRoom(activityStateToUpdate({ kind: 'none' })).catch((e) =>
       console.warn('Failed to clear return later in Supabase', e)
     );
     void refreshHistory();
-  }, [room.id, updateRoom, refreshHistory]);
+  }, [saveRoom, refreshHistory]);
 
-  const handlePromiseTimeConfirm = (promiseTime: string, period: 'AM' | 'PM', _formattedDateTime?: string, promiseAtTimestamp?: number) => {
-    // TODO: persist the promise time (no `promise_time_at` column yet).
+  const handlePromiseTimeConfirm = (
+    _promiseTime: string,
+    _period: 'AM' | 'PM',
+    _formattedDateTime?: string,
+    promiseAtTimestamp?: number
+  ) => {
     if (promiseAtTimestamp != null) {
-      setActivity({ kind: 'promisedTime', dueAt: promiseAtTimestamp });
+      const promiseTimeAt = new Date(promiseAtTimestamp).toISOString();
+      // A promise does not pause or replace anything else going on in the
+      // room; the header shows it whenever nothing else is (committedActivity).
+      setLocalRoom((prev) => ({ ...prev, promiseTimeAt }));
+      // Persisted so it survives reloads and shows on the room's card; the
+      // attendant is notified by a trigger.
+      saveRoom({ promise_time_at: promiseTimeAt }).catch((e) =>
+        console.warn('Failed to persist promise time in Supabase', e)
+      );
+      void logRoomHistoryEvent({
+        roomId: room.id,
+        type: 'promise_time',
+        description: buildFriendlyRoomHistoryMessage({
+          type: 'promise_time',
+          promiseTimeLabel: formatDueTime(promiseAtTimestamp),
+        }),
+      });
     }
     setPendingActivity(null);
-    // TODO: Promised Time has no column, so unlike its three peers in
-    // RoomActivityState it does not survive a reload. Only room_history records
-    // it. Add `promise_time_at` to `rooms` to make it persist.
-    void logRoomHistoryEvent({
-      roomId: room.id,
-      type: 'promise_time',
-      description: buildFriendlyRoomHistoryMessage({ type: 'promise_time', promiseTimeLabel: `${promiseTime} ${period}` }),
-    });
     setShowPromiseTimeModal(false);
     void refreshHistory();
   };
@@ -642,7 +676,7 @@ export default function RoomDetailScreen() {
     setActivity(next);
     setPendingActivity(null);
     // Persist to DB so Refuse Service survives reloads.
-    updateRoom(room.id, {
+    saveRoom({
       house_keeping_status: 'InProgress',
       ...activityStateToUpdate(next),
     }).catch((e) => console.warn('Failed to persist refuse service in Supabase', e));
@@ -658,7 +692,7 @@ export default function RoomDetailScreen() {
   const handleResumePause = () => {
     setActivity({ kind: 'none' });
     setPendingActivity(null);
-    updateRoom(room.id, activityStateToUpdate({ kind: 'none' })).catch((e) =>
+    saveRoom(activityStateToUpdate({ kind: 'none' })).catch((e) =>
       console.warn('Failed to resume pause in Supabase', e)
     );
     void refreshHistory();
@@ -667,11 +701,11 @@ export default function RoomDetailScreen() {
   const handleClearRefuseService = useCallback(() => {
     setActivity({ kind: 'none' });
     setPendingActivity(null);
-    updateRoom(room.id, activityStateToUpdate({ kind: 'none' })).catch((e) =>
+    saveRoom(activityStateToUpdate({ kind: 'none' })).catch((e) =>
       console.warn('Failed to clear refuse service in Supabase', e)
     );
     void refreshHistory();
-  }, [room.id, updateRoom, refreshHistory]);
+  }, [saveRoom, refreshHistory]);
 
   const handleAddNote = () => {
     setShowAddNoteModal(true);
@@ -713,6 +747,8 @@ export default function RoomDetailScreen() {
       try {
         const newNote = await addRoomNote(room.id, noteText);
         setNotes((prev) => [...prev, newNote]);
+        // The card on Rooms shows its bell now, not on the list's next refetch.
+        void useRoomsStore.getState().refreshRoomBadges(room.id);
         setLocalRoom((prev) => ({
           ...prev,
           notes: { count: (prev.notes?.count ?? 0) + 1, hasRushed: prev.notes?.hasRushed || false },
@@ -894,14 +930,22 @@ export default function RoomDetailScreen() {
    * different one — then preview that with no time yet, which is what the user
    * is in the middle of choosing.
    */
+  const promiseDueAt = localRoom.promiseTimeAt ? Date.parse(localRoom.promiseTimeAt) : NaN;
+  const committedActivity: RoomActivityState =
+    (activity.kind === 'none' || activity.kind === 'promisedTime') && Number.isFinite(promiseDueAt)
+      ? { kind: 'promisedTime', dueAt: promiseDueAt }
+      : activity.kind === 'promisedTime'
+        ? { kind: 'none' }
+        : activity;
+
   const effectiveActivity: RoomActivityState =
-    pendingActivity && pendingActivity !== activity.kind
+    pendingActivity && pendingActivity !== committedActivity.kind
       ? ({
           returnLater: { kind: 'returnLater', dueAt: null, reason: null },
           promisedTime: { kind: 'promisedTime', dueAt: null },
           refuseService: { kind: 'refuseService', at: null, reason: null },
         } as const)[pendingActivity]
-      : activity;
+      : committedActivity;
 
   return (
     <View style={{ flex: 1 }}>
@@ -938,6 +982,11 @@ export default function RoomDetailScreen() {
         onDownloadHistoryReport={handleDownloadReport}
         onResumePause={handleResumePause}
         onReturnLaterElapsed={handleReturnLaterElapsed}
+        cleaning={{
+          credit: localRoom.credit,
+          cleaningStartedAt: localRoom.cleaningStartedAt,
+          cleaningElapsedSeconds: localRoom.cleaningElapsedSeconds,
+        }}
         onHeaderHeightChange={setHeaderDesignHeight}
         onClearRefuseService={handleClearRefuseService}
         initialTab={initialTab}
@@ -971,7 +1020,7 @@ export default function RoomDetailScreen() {
           // One write for the flag, its reason and the tags. Awaited: the menu
           // shows a spinner and closes only once this has saved.
           try {
-            await updateRoom(room.id, {
+            await saveRoom({
               flagged,
               flag_reason: flagReason,
               flag_mention_ids: flagged ? mentionIds : [],
@@ -1002,7 +1051,7 @@ export default function RoomDetailScreen() {
         onReject={() => {
           setShowInspectedModal(false);
           setButtonPositionForInspection(null);
-          updateRoom(room.id, { house_keeping_status: 'Dirty' }).catch((e) =>
+          saveRoom({ house_keeping_status: 'Dirty' }).catch((e) =>
             console.warn('[RoomDetailScreen] Failed to reject room', e)
           );
           // The attendant is told by a database trigger (room sent back to Dirty).

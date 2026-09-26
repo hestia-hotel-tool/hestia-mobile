@@ -1,45 +1,50 @@
-import { formatClock24, formatTime } from '@/utils/formatting';
-import type { RoomActivityState } from '../types/allRooms.types';
+import { formatClock24, formatDueIn, formatDueTime, formatMinutesSpan, formatTime } from '@/utils/formatting';
+import type { RoomActivityState, RoomStatus } from '../types/allRooms.types';
+import type { CleaningClock } from './cleaningClock';
 
 export type RoomActivityDescription = {
   /** The line's main text. Empty means no line at all. */
   text: string;
-  /** A second, bolder segment after it — Return Later's live countdown. */
+  /** A second, bolder segment after it — "in 25 min", "32 min". */
   emphasis?: string;
 };
 
 export type DescribeRoomActivityOptions = {
-  /** Live "45 mins" from `useCountdown`, when the room is returning later. */
-  returnLaterRemaining?: string;
-  /** Live "1h 20 min 6s" from `useCountdown`, when a time was promised. */
-  promiseTimeRemaining?: string;
+  /** The time to describe against — `useNow()`, so the line moves each tick. */
+  now?: number;
+  /** The room's status, for the cleaning countdown when nothing else is going on. */
+  status?: RoomStatus;
+  /** The cleaning clock (`cleaningClock`), or null when there is none. */
+  clock?: CleaningClock | null;
 };
+
+/** "32 min left" / "8 min over" — the credit, as far as the clock has got. */
+function clockSummary(clock: CleaningClock): string {
+  return clock.overdue
+    ? `${formatMinutesSpan(clock.remainingMs)} over`
+    : `${formatMinutesSpan(clock.remainingMs)} left`;
+}
 
 /**
  * The single line under the status button — its text, and optionally a second
  * bolder segment. An empty `text` means no line at all.
  *
- * Pure, and separate from the view, because the four states are *not* four
- * copies of one rule and the differences are easy to "tidy" away by accident:
+ * Every time is 24-hour and only as precise as it is useful: "Return at
+ * 14:30" / "in 25 min", "Ready by tomorrow 09:00" / "in 18 h 5 min". The old
+ * line ticked seconds ("30min 2s", "1h 20 min 6s", "0h 0 min 0s"), mixed 12-
+ * and 24-hour clocks, and never said the day, so a return time tomorrow read
+ * as today's.
  *
- *  - `paused` with no timestamp still prints something — the bare word
- *    "Paused" — because a paused room must look paused even when the column
- *    that says when is null.
- *  - `returnLater` and `promisedTime` with no `dueAt` print **nothing**. A
- *    return time is the entire content of that line; without one there is no
- *    line, and an empty row would just push the layout around.
- *  - `refuseService` prints its reason, falling back to the time it happened,
- *    and renders when *either* is present.
- *
- * Keeping that asymmetry here means it can be read in one place and checked
- * without mounting a component.
- *
- * Wording follows Figma 2333-132 for paused: "Paused at 11:22" — 24-hour, and
- * no colon after "at". The previous implementation wrote "Paused at: 14:05".
+ *  - `paused` with no timestamp still prints "Paused"; with a clock it adds
+ *    how much of the credit is left (the clock is stopped meanwhile).
+ *  - `returnLater` and `promisedTime` with no due time print nothing.
+ *  - `refuseService` prints its reason, falling back to the time it happened.
+ *  - Otherwise, a room In Progress counts down its credit: "Time left 32 min",
+ *    then "Over expected time by 8 min". A finished room says how long it took.
  */
 export function describeRoomActivity(
   activity: RoomActivityState,
-  { returnLaterRemaining = '', promiseTimeRemaining = '' }: DescribeRoomActivityOptions = {}
+  { now = Date.now(), status, clock = null }: DescribeRoomActivityOptions = {}
 ): RoomActivityDescription {
   switch (activity.kind) {
     case 'paused':
@@ -48,44 +53,23 @@ export function describeRoomActivity(
           activity.since == null
             ? 'Paused'
             : `Paused at ${formatClock24(new Date(activity.since))}`,
+        emphasis: clock ? `· ${clockSummary(clock)}` : undefined,
       };
 
-    /*
-     * Figma 2333-312 prints two things: "Return at 11:22" in Regular and the
-     * countdown "30min 2s" in Bold beside it. The old code built one string —
-     * `11:22 PM · 30 mins` — which differs in three ways at once: 12-hour
-     * instead of 24, a `·` the frame does not have, and one weight instead of
-     * two.
-     */
     case 'returnLater':
       if (activity.dueAt == null) return { text: '' };
       return {
-        text: `Return at ${formatClock24(new Date(activity.dueAt))}`,
-        emphasis: returnLaterRemaining || undefined,
+        text: `Return at ${formatDueTime(activity.dueAt, new Date(now))}`,
+        emphasis: formatDueIn(activity.dueAt, now),
       };
 
-    /*
-     * Promised Time is **unverified** — its frame has not been read, so it
-     * keeps the older `11:22 PM · 30 mins` shape rather than being reshaped to
-     * look like Return Later on the assumption that they match.
-     */
     case 'promisedTime':
       if (activity.dueAt == null) return { text: '' };
       return {
-        text: `${formatTime(new Date(activity.dueAt))}${
-          promiseTimeRemaining ? ` · ${promiseTimeRemaining}` : ''
-        }`,
+        text: `Ready by ${formatDueTime(activity.dueAt, new Date(now))}`,
+        emphasis: formatDueIn(activity.dueAt, now),
       };
 
-    /*
-     * Figma 2333-835 prints the reason and nothing else — "Guest Is Resting or
-     * Sleeping", Light 14, centred. The old code prefixed it with "Refused: ",
-     * which the frame does not have; the status label directly above already
-     * says "Refused Service", so the prefix repeated it.
-     *
-     * The time fallback stays: `refuse_service_at` can be set with no reason,
-     * and a state with a blank line under it looks like a rendering failure.
-     */
     case 'refuseService': {
       if (activity.reason == null && activity.at == null) return { text: '' };
       return {
@@ -95,6 +79,15 @@ export function describeRoomActivity(
 
     case 'none':
     default:
+      if (!clock) return { text: '' };
+      if (status === 'InProgress') {
+        return clock.overdue
+          ? { text: 'Over expected time by', emphasis: formatMinutesSpan(clock.remainingMs) }
+          : { text: 'Time left', emphasis: formatMinutesSpan(clock.remainingMs) };
+      }
+      if ((status === 'Cleaned' || status === 'Inspected') && clock.elapsedMs >= 60_000) {
+        return { text: 'Cleaned in', emphasis: formatMinutesSpan(clock.elapsedMs) };
+      }
       return { text: '' };
   }
 }

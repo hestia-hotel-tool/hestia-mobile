@@ -2,6 +2,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { HistoryEvent } from '../types/roomDetail.types';
 import type { TablesInsert } from '@/types/supabase';
 import { getActivityLogsForRoom, logActivity } from '@/lib/activityLogs';
+import { formatDueTime } from '@/utils/formatting';
 
 type RoomHistoryInsert = TablesInsert<'room_history'>;
 
@@ -16,13 +17,6 @@ function safeInitials(name: string): string {
   return initials || '?';
 }
 
-function formatTimeForHuman(isoOrDate: string | Date): string {
-  const dt = typeof isoOrDate === 'string' ? new Date(isoOrDate) : isoOrDate;
-  if (!Number.isFinite(dt.getTime())) return '';
-  const hh = String(dt.getHours()).padStart(2, '0');
-  const mm = String(dt.getMinutes()).padStart(2, '0');
-  return `${hh}:${mm}`;
-}
 
 function snippet(text: string, maxLen = 64): string {
   const t = (text ?? '').trim().replace(/\s+/g, ' ');
@@ -76,7 +70,7 @@ export function buildFriendlyRoomHistoryMessage(input: {
       return 'Updated room flag';
     }
     case 'return_later': {
-      const t = input.returnLaterAtIso ? formatTimeForHuman(input.returnLaterAtIso) : '';
+      const t = input.returnLaterAtIso ? formatDueTime(new Date(input.returnLaterAtIso)) : '';
       return t ? `Set Return Later for ${t}` : 'Set Return Later';
     }
     case 'promise_time': {

@@ -102,6 +102,15 @@ export interface RoomCardData {
   pausedAt?: string | null;
   /** When set, room is in "Refused Service" state (for header + list styling). */
   refuseServiceReason?: string | null;
+  /** Promised ready-by time (ISO), from the Promise Time sheet. */
+  promiseTimeAt?: string | null;
+  /**
+   * The cleaning clock (kept by a database trigger): when the current running
+   * stretch began — null while stopped — and the seconds banked before it.
+   * Compared against `credit` (minutes) — see utils/cleaningClock.
+   */
+  cleaningStartedAt?: string | null;
+  cleaningElapsedSeconds?: number;
   /** When set (ISO timestamp), room is in "Refused Service" state (for display). */
   refuseServiceAt?: string | null;
   guests: GuestInfo[]; // Array to support Arrival/Departure rooms with 2 guests
@@ -205,6 +214,7 @@ export function deriveRoomActivityState(
     | 'refuseServiceAt'
     | 'refuseServiceReason'
     | 'roomAttendantAssigned'
+    | 'promiseTimeAt'
   >
 ): RoomActivityState {
   // Via isRoomPaused so both pause signals count. Reading `pausedAt` alone is
@@ -233,9 +243,12 @@ export function deriveRoomActivityState(
     };
   }
 
-  // Promised Time has no column yet — see handlePromiseTimeConfirm, which only
-  // writes room_history. It exists in this union as screen-local state until one
-  // is added, so it can never be derived here.
+  // Lowest precedence: a promise to the guest does not pause anything, so it
+  // only fills the header when nothing else is going on.
+  if (room.promiseTimeAt) {
+    return { kind: 'promisedTime', dueAt: toEpochMs(room.promiseTimeAt) };
+  }
+
   return { kind: 'none' };
 }
 
@@ -278,7 +291,8 @@ export function activityStateToUpdate(state: RoomActivityState): {
         refuse_service_at: iso(state.at) ?? new Date().toISOString(),
         refuse_service_reason: state.reason,
       };
-    // Promised Time is not persisted, so it writes the same as clearing.
+    // Promised Time is its own column (`promise_time_at`), independent of these
+    // four — set by handlePromiseTimeConfirm, cleared by Cleaned/Inspected.
     case 'promisedTime':
     case 'none':
       return cleared;

@@ -167,6 +167,8 @@ export interface RoomDetailScreenProps {
   onResumePause?: () => void;
   /** When return later time elapses, clear it and return to normal UI. */
   onReturnLaterElapsed?: () => void;
+  /** The room's credit and cleaning clock, for the header's countdown. */
+  cleaning?: RoomCleaningInput;
   /**
    * The header's measured height, in design px, reported on every layout.
    *
@@ -199,3 +201,11 @@ export interface RoomDetailScreenProps {
   // Optional: Department name for ticket creation
   departmentName?: string;
 }
+
+/** What the header needs to show the cleaning countdown — see utils/cleaningClock. */
+export type RoomCleaningInput = {
+  /** Expected cleaning time, in minutes. */
+  credit: number;
+  cleaningStartedAt?: string | null;
+  cleaningElapsedSeconds?: number;
+};

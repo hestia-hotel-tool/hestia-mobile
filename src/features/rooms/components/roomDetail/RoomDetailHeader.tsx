@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View as RNView, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +7,9 @@ import { Icon } from '@/components/Icon';
 import { scaleX } from '@/utils/responsive';
 import { resolveRoomDetailHeader } from '../../constants/roomDetailHeaderTheme';
 import type { RoomStatus, RoomActivityState } from '../../types/allRooms.types';
-import { useCountdown } from '../../hooks/useCountdown';
+import type { RoomCleaningInput } from '../../types/roomDetail.types';
+import { useNow } from '@/hooks/useNow';
+import { cleaningClock } from '../../utils/cleaningClock';
 import { describeRoomActivity } from '../../utils/describeRoomActivity';
 import { ROOM_DETAIL_HEADER_LAYOUT as L } from './roomDetailHeaderLayout';
 import { RoomActivityLine } from './RoomActivityLine';
@@ -43,6 +45,8 @@ export interface RoomDetailHeaderProps {
    */
   onResumePause?: () => void;
   onReturnLaterElapsed?: () => void;
+  /** Credit and cleaning clock — drives "32 min left" / "Over time by 8 min". */
+  cleaning?: RoomCleaningInput;
   onClearRefuseService?: () => void;
   /** Red flag in a white disc after the room number. */
   flagged?: boolean;
@@ -92,6 +96,7 @@ export default function RoomDetailHeader({
   statusButtonRef,
   onResumePause,
   onReturnLaterElapsed,
+  cleaning,
   onClearRefuseService,
   flagged = false,
   frontOfficeLabel,
@@ -100,16 +105,18 @@ export default function RoomDetailHeader({
 }: RoomDetailHeaderProps) {
   const insets = useSafeAreaInsets();
   const { chrome, theme, label, mark } = resolveRoomDetailHeader(activity, status);
+  // One shared tick for every live label; times are shown to the minute.
+  const now = useNow();
+  const clock = cleaning ? cleaningClock(cleaning, now) : null;
 
-  // `compact` and the seconds are the frame's: 2333-312 shows "30min 2s".
-  const returnLaterRemaining = useCountdown(
-    activity.kind === 'returnLater' ? activity.dueAt : null,
-    { withSeconds: true, compact: true, onElapsed: onReturnLaterElapsed }
-  );
-  const promiseTimeRemaining = useCountdown(
-    activity.kind === 'promisedTime' ? activity.dueAt : null,
-    { withSeconds: true }
-  );
+  // Return Later clears itself once its time comes — once per return time.
+  const returnDueAt = activity.kind === 'returnLater' ? activity.dueAt : null;
+  const firedFor = useRef<number | null>(null);
+  useEffect(() => {
+    if (returnDueAt == null || now < returnDueAt || firedFor.current === returnDueAt) return;
+    firedFor.current = returnDueAt;
+    onReturnLaterElapsed?.();
+  }, [returnDueAt, now, onReturnLaterElapsed]);
 
   /*
    * Back, without the caller having to wire it.
@@ -125,10 +132,7 @@ export default function RoomDetailHeader({
     else router.replace('/(tabs)/(rooms)');
   };
 
-  const activityLine = describeRoomActivity(activity, {
-    returnLaterRemaining,
-    promiseTimeRemaining,
-  });
+  const activityLine = describeRoomActivity(activity, { now, status, clock });
 
   const action =
     chrome.inlineAction === 'resume' && onResumePause

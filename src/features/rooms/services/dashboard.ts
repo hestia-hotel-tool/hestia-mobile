@@ -8,12 +8,12 @@ import type { AllRoomsScreenData , StaffInfo } from '../types/allRooms.types';
 import type { TicketsScreenData } from '@features/tickets/types/tickets.types';
 import type { ChatItemData } from '@features/chat/components/ChatItem';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
-import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomStateUpdate } from './rooms';
+import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomClock, type RoomStateUpdate } from './rooms';
 import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets/services/tickets';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getToast } from '@/utils/toast';
 
-export type { RoomStateUpdate } from './rooms';
+export type { RoomClock, RoomStateUpdate } from './rooms';
 
 const dashboard = {
   async getHomeData(): Promise<HomeScreenData> {
@@ -26,9 +26,9 @@ const dashboard = {
     return await fetchAllRooms(currentShift);
   },
 
-  async updateRoomState(roomId: string, updates: RoomStateUpdate): Promise<void> {
-    if (!isSupabaseConfigured) return;
-    await updateRoom(roomId, updates);
+  async updateRoomState(roomId: string, updates: RoomStateUpdate): Promise<RoomClock | null> {
+    if (!isSupabaseConfigured) return null;
+    return await updateRoom(roomId, updates);
   },
 
   /**

@@ -16,6 +16,9 @@ const META: Record<string, TaskMeta> = {
   room_priority: { label: 'Priority room', icon: 'action-priority', iconSize: 20, target: 'room' },
   room_cleaned: { label: 'Room cleaned', icon: 'action-check-bold', iconSize: 16, target: 'room' },
   room_rejected: { label: 'Room sent back', icon: 'action-return-later', iconSize: 20, target: 'room' },
+  room_paused: { label: 'Cleaning on hold', icon: 'status-paused', iconSize: 20, target: 'room' },
+  room_overdue: { label: 'Taking longer than expected', icon: 'action-promised-time', iconSize: 20, target: 'room' },
+  room_promise: { label: 'Promise time', icon: 'action-promised-time', iconSize: 20, target: 'room' },
   ticket_assigned: { label: 'Ticket assigned', icon: 'nav-tickets', iconSize: 20, target: 'tickets' },
 };
 
