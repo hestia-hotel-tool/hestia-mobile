@@ -47,6 +47,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   // Reading an announcement needs only the Chat tab; publishing needs chat.announce.
   // The list itself lives in the Chat tab group and inherits its permission.
   'announcement': PERMISSIONS.CHAT_VIEW,
+  'task': PERMISSIONS.CHAT_VIEW,
 
   // Tickets
   'create-ticket-form': PERMISSIONS.TICKETS_CREATE,

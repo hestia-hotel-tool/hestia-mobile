@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, ActivityIndicator } from 'react-native';
+import { Platform, StyleSheet, ActivityIndicator } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { View, Text, TextInput, Pressable, ScrollView } from '@/tw';

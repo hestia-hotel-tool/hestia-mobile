@@ -9,9 +9,9 @@ import {
   TextInput,
   StyleSheet,
   Dimensions,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';

@@ -172,6 +172,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
           ...(updates.house_keeping_status != null && { houseKeepingStatus: updates.house_keeping_status as RoomCardData['houseKeepingStatus'] }),
           ...(updates.priority != null && { isPriority: updates.priority === 'high' }),
           ...(updates.flagged != null && { flagged: updates.flagged }),
+          ...(updates.flag_reason !== undefined && { flagReason: updates.flag_reason }),
           ...(updates.special_instructions !== undefined && { specialInstructions: updates.special_instructions }),
           ...(updates.return_later_at !== undefined && { returnLaterAt: updates.return_later_at }),
           ...(updates.paused_at !== undefined && { pausedAt: updates.paused_at }),

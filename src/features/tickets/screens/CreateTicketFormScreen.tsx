@@ -9,9 +9,9 @@ import {
   ScrollView,
   Dimensions,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
 } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useNavigation, useRoute, useRouter , NativeStackNavigationProp } from 'expo-router';

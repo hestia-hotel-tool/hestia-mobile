@@ -12,6 +12,8 @@ import { RoomCardHeader } from './RoomCardHeader';
 import { GuestRow } from './GuestRow';
 import { RoomStatusPill } from './RoomStatusPill';
 import { RoomAssigneeBlock } from './RoomAssigneeBlock';
+import { isActivePriority } from '../../utils/roomGroups';
+import { roomBadges } from './RoomBadgeTile';
 
 export type ArrivalDepartureRoomCardProps = {
   room: RoomCardData;
@@ -81,7 +83,7 @@ export function ArrivalDepartureRoomCard({
       onPress={onPress}
       onLayout={onLayout}
       measureRef={measureRef}
-      framed={room.isPriority}
+      framed={isActivePriority(room)}
       cap={
         capped ? (
           <RoomStatusCap
@@ -97,6 +99,9 @@ export function ArrivalDepartureRoomCard({
         roomNumber={room.roomNumber}
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel="Arrival/Departure"
+        flagged={room.flagged}
+        flagLabel={room.flagReason ?? undefined}
+        badges={roomBadges(room)}
         assignee={
           <RoomAssigneeBlock
             name={staff?.name}
@@ -128,7 +133,7 @@ export function ArrivalDepartureRoomCard({
         <View className="items-center justify-center" style={{ width: ROOM_CARD.pill.width }}>
           <RoomStatusPill
             status={displayStatus}
-            tone={room.isPriority ? 'priority' : 'solid'}
+            tone={isActivePriority(room) ? 'priority' : 'solid'}
             onPress={onStatusPress}
             loading={isChangingStatus}
             measureRef={statusPillRef}

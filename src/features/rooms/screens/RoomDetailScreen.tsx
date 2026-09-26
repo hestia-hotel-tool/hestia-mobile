@@ -40,6 +40,7 @@ import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';
 import { getDefaultTaskText } from '../utils/defaultTasks';
 import { findBlockingInProgressRoomForUser } from '../utils/attendantRules';
 import { usePermissions } from '@/domain/rbac/usePermissions';
+import { PERMISSIONS } from '@/domain/rbac';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, assignRoomToStaff } from '../services/rooms';
 import { supabase } from '@/lib/supabase';
@@ -95,7 +96,13 @@ export default function RoomDetailScreen() {
 
   const { updateRoom, updatingRoomId, data: roomsData } = useRoomsStore();
   const { session } = useAuth();
-  const { roomsVariant } = usePermissions();
+  const { roomsVariant, can } = usePermissions();
+  /*
+   * Only holders of rooms.reassign (not room attendants) may change who a room
+   * is assigned to. Without it every Reassign control is withheld, not just
+   * disabled, so the attendant sees who has the room and nothing to tap.
+   */
+  const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
   const messageModal = useMessageModal();
   const shift = roomsData?.selectedShift ?? 'AM';
 
@@ -900,7 +907,7 @@ export default function RoomDetailScreen() {
         historyEvents={historyEvents}
         onBackPress={handleBackPress}
         onStatusPress={handleStatusPress}
-        onReassign={handleReassign}
+        onReassign={canReassign ? handleReassign : undefined}
         onAddNote={handleAddNote}
         onAddTask={handleAddTask}
         onSeeMoreTask={handleSeeMoreTask}
@@ -933,9 +940,28 @@ export default function RoomDetailScreen() {
         buttonPosition={statusButtonPosition}
         headerHeight={modalHeaderHeight}
         showTriangle={false}
-        onFlagToggle={(flagged) => {
-          setLocalRoom((prev) => ({ ...prev, flagged }));
-          updateRoom(room.id, { flagged }).catch((e) => console.warn('Failed to update room flag in Supabase', e));
+        // Room attendants: no Priority, no Inspected, no Flag Room — see AllRoomsScreen.
+        canSetPriority={can(PERMISSIONS.ROOMS_RUSH_TOGGLE)}
+        canInspect={roomsVariant !== 'attendant'}
+        onFlagToggle={!can(PERMISSIONS.ROOMS_FLAG_TOGGLE) ? undefined : async (flagged, reason, mentionIds) => {
+          const flagReason = flagged ? reason : null;
+          // One write for the flag, its reason and the tags. Awaited: the menu
+          // shows a spinner and closes only once this has saved.
+          try {
+            await updateRoom(room.id, {
+              flagged,
+              flag_reason: flagReason,
+              flag_mention_ids: flagged ? mentionIds : [],
+            });
+          } catch (e) {
+            messageModal.show({
+              title: flagged ? 'Room not flagged' : 'Room not unflagged',
+              message: e instanceof Error ? e.message : 'Please try again.',
+              buttons: [{ text: 'OK' }],
+            });
+            throw e;
+          }
+          setLocalRoom((prev) => ({ ...prev, flagged, flagReason }));
         }}
       />
 
@@ -972,7 +998,7 @@ export default function RoomDetailScreen() {
         onConfirm={handleReturnLaterConfirm}
         roomNumber={room.roomNumber}
         assignedTo={assignedStaff}
-        onReassignPress={handleReassign}
+        onReassignPress={canReassign ? handleReassign : undefined}
       />
 
       <PromiseTimeModal
@@ -997,7 +1023,7 @@ export default function RoomDetailScreen() {
         onConfirm={handleRefuseServiceConfirm}
         roomNumber={room.roomNumber}
         assignedTo={assignedStaff}
-        onReassignPress={handleReassign}
+        onReassignPress={canReassign ? handleReassign : undefined}
       />
 
       <ReassignModal

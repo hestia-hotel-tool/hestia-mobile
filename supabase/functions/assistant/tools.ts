@@ -303,7 +303,8 @@ export const TOOLS: ToolDefinition[] = [
     async execute(db, input) {
       let q = db
         .from("room_assignments")
-        .select("work_status, start_time, end_time, rooms(room_number), users(full_name), shifts(name)")
+        // `!room_assignments_user_id_fkey`: two links to users since `assigned_by_id`; this is the assignee.
+        .select("work_status, start_time, end_time, rooms(room_number), users!room_assignments_user_id_fkey(full_name), shifts(name)")
         .limit(cap(input.limit));
 
       if (typeof input.work_status === "string") q = q.eq("work_status", input.work_status);

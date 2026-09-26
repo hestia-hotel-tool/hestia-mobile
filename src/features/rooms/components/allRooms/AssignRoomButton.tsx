@@ -35,7 +35,7 @@ const B = {
  * labelled "Assign room" where their name will go, so the card does not shift
  * once someone is assigned. One touch target for both, with a faint "+" in the
  * circle to read as an action, a spring press, and a spinner in the pill while
- * the assignment saves.
+ * the assignment saves. Without `onPress` it renders read-only.
  *
  * Replaces a bordered "Not assigned" box, which read as a status rather than
  * something to tap.
@@ -43,6 +43,34 @@ const B = {
 export function AssignRoomButton({ left, top, roomNumber, loading = false, onPress }: Props) {
   // Created once; state rather than a ref so it is not read off a ref during render.
   const [scale] = useState(() => new Animated.Value(1));
+  const placement =
+    left != null && top != null
+      ? [styles.hit, { left: left * scaleX, top: (top + B.pillOffsetY) * scaleX }]
+      : styles.inline;
+
+  /*
+   * Read-only: no handler means the viewer may not assign rooms (no
+   * rooms.reassign — room attendants). Same slot, so the card does not
+   * shift, but a plain View: no "+", no press, and it says what is true.
+   */
+  if (!onPress) {
+    return (
+      <View
+        style={placement}
+        accessibilityLabel={roomNumber ? `Room ${roomNumber} is not assigned` : 'Not assigned'}
+      >
+        <View style={styles.row}>
+          <View style={styles.circle} />
+          <View style={styles.pill}>
+            <Text style={[styles.label, styles.labelReadOnly]} numberOfLines={1}>
+              Not assigned
+            </Text>
+          </View>
+        </View>
+      </View>
+    );
+  }
+
   const springTo = (value: number) =>
     Animated.spring(scale, { toValue: value, useNativeDriver: true, speed: 40, bounciness: 6 }).start();
 
@@ -51,16 +79,12 @@ export function AssignRoomButton({ left, top, roomNumber, loading = false, onPre
       onPress={onPress}
       onPressIn={() => springTo(0.95)}
       onPressOut={() => springTo(1)}
-      disabled={loading || !onPress}
+      disabled={loading}
       hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={roomNumber ? `Assign room ${roomNumber}` : 'Assign room'}
       accessibilityState={{ busy: loading }}
-      style={
-        left != null && top != null
-          ? [styles.hit, { left: left * scaleX, top: (top + B.pillOffsetY) * scaleX }]
-          : styles.inline
-      }
+      style={placement}
     >
       <Animated.View style={[styles.row, { transform: [{ scale }] }]}>
         <View style={styles.circle}>
@@ -84,8 +108,13 @@ const styles = StyleSheet.create({
   hit: {
     position: 'absolute',
   },
+  /*
+   * In a card header's right column. Stretches to the column so the pill can
+   * give way when the column is narrowed for the badge tiles (see
+   * RoomCardHeader's headerLayout) instead of spilling past the card edge.
+   */
   inline: {
-    alignSelf: 'flex-start',
+    alignSelf: 'stretch',
   },
   row: {
     flexDirection: 'row',
@@ -104,11 +133,19 @@ const styles = StyleSheet.create({
   pill: {
     marginLeft: (B.pillOffsetX - B.circle) * scaleX,
     width: B.pillWidth * scaleX,
+    // Gives way in a narrowed column, never below what "Assign room" needs.
+    flexShrink: 1,
+    minWidth: 76,
+    paddingHorizontal: 6,
     height: B.pillHeight * scaleX,
     borderRadius: (B.pillHeight / 2) * scaleX,
     backgroundColor: B.fill,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  labelReadOnly: {
+    fontWeight: '400',
+    color: '#8a94a6',
   },
   label: {
     fontSize: B.fontSize * scaleX,

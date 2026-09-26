@@ -65,6 +65,8 @@ import GuestVacant from '@assets/icons/guest-status/guest-vacant.svg';
 import AiAssistantMark from '@assets/icons/misc/ai-assistant-mark.svg';
 import AiTypingDots from '@assets/icons/misc/ai-typing-dots.svg';
 import AreaPublic from '@assets/icons/misc/area-public.svg';
+import BadgeBell from '@assets/icons/misc/badge-bell.svg';
+import BadgeLostFound from '@assets/icons/misc/badge-lost-found.svg';
 import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
 import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
 import LocationPin from '@assets/icons/misc/location-pin.svg';
@@ -141,6 +143,8 @@ export const icons = {
   'ai-assistant-mark': AiAssistantMark,
   'ai-typing-dots': AiTypingDots,
   'area-public': AreaPublic,
+  'badge-bell': BadgeBell,
+  'badge-lost-found': BadgeLostFound,
   'checklist-curtains': ChecklistCurtains,
   'checklist-minibar': ChecklistMinibar,
   'location-pin': LocationPin,
@@ -222,6 +226,8 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'ai-assistant-mark': 0.9778,
   'ai-typing-dots': 3.7753,
   'area-public': 0.9615,
+  'badge-bell': 1,
+  'badge-lost-found': 0.9286,
   'checklist-curtains': 1.931,
   'checklist-minibar': 0.9987,
   'location-pin': 1,
@@ -291,6 +297,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'guest-vacant',
   'ai-typing-dots',
   'area-public',
+  'badge-bell',
+  'badge-lost-found',
   'checklist-curtains',
   'checklist-minibar',
   'location-pin',

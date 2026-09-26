@@ -57,11 +57,26 @@ const GROUP_COLOR: Record<RoomGroupKey, string> = {
   inspected: STATUS_CONFIGS.Inspected.color,
 };
 
+/**
+ * Priority as the list should show it: only while the room still needs doing.
+ *
+ * `isPriority` stays set in the database after the room is cleaned, and the
+ * priority styling used to win regardless — the rush pill replaced the status
+ * and the room stayed in the Priority band. So an attendant marking a priority
+ * room Cleaned saw nothing change but one small line, and read it as not saved.
+ * Once Cleaned or Inspected it shows that status, in that band.
+ */
+export function isActivePriority(room: Pick<RoomCardData, 'isPriority' | 'houseKeepingStatus'>): boolean {
+  return (
+    !!room.isPriority && room.houseKeepingStatus !== 'Cleaned' && room.houseKeepingStatus !== 'Inspected'
+  );
+}
+
 /** Which band a room belongs to. Exported so a caller can highlight one room. */
 export function roomGroupKey(room: RoomCardData): RoomGroupKey {
   if (isRoomPaused(room)) return 'paused';
   if (room.houseKeepingStatus === 'InProgress') return 'inProgress';
-  if (room.isPriority) return 'priority';
+  if (isActivePriority(room)) return 'priority';
   switch (room.houseKeepingStatus) {
     case 'Cleaned':
       return 'cleaned';

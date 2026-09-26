@@ -5,11 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  KeyboardAvoidingView,
   Platform,
   useWindowDimensions,
   PixelRatio,
 } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NativeStackNavigationProp } from 'expo-router';
 import { Icon } from '@/components/Icon';

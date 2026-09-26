@@ -151,13 +151,15 @@ export default function RefuseServiceModal({
                   <Text style={styles.assignedToName} numberOfLines={1}>
                     {assignedTo.name}
                   </Text>
-                  <TouchableOpacity
-                    style={styles.reassignButton}
-                    onPress={() => onReassignPress?.()}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.reassignButtonText}>Reassign</Text>
-                  </TouchableOpacity>
+                  {onReassignPress ? (
+                    <TouchableOpacity
+                      style={styles.reassignButton}
+                      onPress={onReassignPress}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.reassignButtonText}>Reassign</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </>
             )}

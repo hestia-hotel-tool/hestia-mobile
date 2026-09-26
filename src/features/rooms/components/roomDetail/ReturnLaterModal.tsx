@@ -747,7 +747,7 @@ export default function ReturnLaterModal({
               {assignedTo && (
                 <AssignedToSection
                   staff={assignedTo}
-                  onReassignPress={() => onReassignPress?.()}
+                  onReassignPress={onReassignPress}
                 />
               )}
 

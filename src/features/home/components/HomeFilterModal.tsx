@@ -126,12 +126,17 @@ export default function HomeFilterModal({
     return { all: fallback };
   }, [safeFilterCounts.floors, derivedTotalRooms]);
 
-  // Reset filters when modal closes
+  /*
+   * On close, mirror what is actually applied, so the sheet reopens on it.
+   * With nothing applied (filters cleared from the screen's filter bar) it
+   * resets — it used to keep the last selection, so a cleared filter reappeared
+   * ticked the next time the sheet opened.
+   */
   useEffect(() => {
-    if (!visible && initialFilters) {
-      setFilters(initialFilters);
-    }
-  }, [visible, initialFilters, setFilters]);
+    if (visible) return;
+    if (initialFilters) setFilters(initialFilters);
+    else resetFilters();
+  }, [visible, initialFilters, setFilters, resetFilters]);
 
   const resultCount = useMemo(() => {
     // If actual filtered count is provided, use it (more accurate)

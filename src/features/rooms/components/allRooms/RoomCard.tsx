@@ -1,4 +1,5 @@
 import React, { forwardRef, useState, useRef } from 'react';
+import { Icon } from '@/components/Icon';
 import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { colors, typography } from '@/theme';
 import { scaleX ,
@@ -256,12 +257,9 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
             {`${room.roomCategory} - ${room.credit}`}
           </Text>
           {room.flagged && (
-            <Image
-              source={require('../../../../../assets/icons/flag.png')}
-              style={styles.roomTypeFlagIcon}
-              resizeMode="contain"
-              tintColor="#f92424"
-            />
+            <View style={styles.roomTypeFlagIcon}>
+              <Icon name="action-flag-outline" size={14 * scaleX} color="#f92424" />
+            </View>
           )}
         </View>
         
@@ -376,8 +374,8 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
         isPriority={room.isPriority}
         frontOfficeStatus={room.frontOfficeStatus}
         selectedShift={selectedShift ?? 'AM'}
-        onAssignPress={room.roomAttendantAssigned == null ? () => onAssignStaffPress?.(room) : undefined}
-        onStaffSectionPress={room.roomAttendantAssigned != null ? () => onAssignStaffPress?.(room) : undefined}
+        onAssignPress={onAssignStaffPress && room.roomAttendantAssigned == null ? () => onAssignStaffPress(room) : undefined}
+        onStaffSectionPress={onAssignStaffPress && room.roomAttendantAssigned != null ? () => onAssignStaffPress(room) : undefined}
         isLoading={isAssigningStaff}
         isPaused={isAssignmentPaused}
       />
@@ -516,6 +514,8 @@ const styles = StyleSheet.create({
   roomTypeFlagIcon: {
     width: 14 * scaleX,
     height: 14 * scaleX,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   priorityTextHeader: {
     fontSize: ROOM_HEADER.priorityBadge.fontSize * scaleX,

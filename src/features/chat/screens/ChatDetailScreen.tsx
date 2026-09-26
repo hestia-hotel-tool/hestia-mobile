@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Pressable,
   Keyboard,
-  KeyboardAvoidingView,
   Platform,
   Text,
   Image,
@@ -17,6 +16,7 @@ import {
   ActivityIndicator,
   ActionSheetIOS,
 } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useSafeAreaInsets , SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';

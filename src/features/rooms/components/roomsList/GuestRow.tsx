@@ -139,7 +139,7 @@ export function GuestRow({
         {/* Android does not clip children to borderRadius — hence overflow. */}
         <View className="h-full w-full overflow-hidden rounded-sm bg-surface-secondary">
           {imageUrl ? (
-            <Image source={{ uri: imageUrl }} className="h-full w-full" resizeMode="cover" />
+            <Image source={{ uri: imageUrl }} className="h-full w-full" contentFit="cover" />
           ) : null}
         </View>
         <View

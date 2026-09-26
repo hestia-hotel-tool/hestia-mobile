@@ -1,5 +1,6 @@
 import React from 'react';
-import { ScrollView, StyleSheet, KeyboardAvoidingView, Platform, View, Text, ActivityIndicator } from 'react-native';
+import { ScrollView, StyleSheet, Platform, View, Text, ActivityIndicator } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation , NativeStackNavigationProp } from 'expo-router';
 import { RootStackParamList } from '@/types/navigation';
 import { colors, typography } from '@/theme';

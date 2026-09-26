@@ -100,3 +100,51 @@ export function applyRoomFilters(
   if (!filters || !hasAnyActiveFilter(filters)) return rooms;
   return rooms.filter((room) => roomMatchesFilters(room, filters));
 }
+
+const ROOM_STATE_LABELS: Record<string, string> = {
+  dirty: 'Dirty',
+  inProgress: 'In Progress',
+  cleaned: 'Cleaned',
+  inspected: 'Inspected',
+  priority: 'Priority',
+  paused: 'Paused',
+  refused: 'Refused',
+  returnLater: 'Return Later',
+};
+
+const GUEST_LABELS: Record<string, string> = {
+  arrivals: 'Arrivals',
+  departures: 'Departures',
+  turnDown: 'Turndown',
+  noTask: 'No Task',
+  stayOver: 'Stayover',
+  stayOverWithLinen: 'Stayover with linen',
+  stayOverNoLinen: 'Stayover no linen',
+  checkedIn: 'Checked in',
+  checkedOut: 'Checked out',
+  checkedOutDueIn: 'Due in',
+  outOfOrder: 'Out of order',
+  outOfService: 'Out of service',
+};
+
+/**
+ * What is narrowing the list, in words — for the filter bar that says a
+ * filter is on and offers to clear it. A Home category (the badge tapped to
+ * get here) comes first; floors collapse to a count.
+ */
+export function describeActiveFilters(filters: FilterState | undefined, category?: string | null): string[] {
+  const parts: string[] = [];
+  if (category) parts.push(category);
+  Object.entries(filters?.roomStates ?? {}).forEach(([k, on]) => {
+    if (on && ROOM_STATE_LABELS[k]) parts.push(ROOM_STATE_LABELS[k]);
+  });
+  Object.entries(filters?.guests ?? {}).forEach(([k, on]) => {
+    if (on && GUEST_LABELS[k]) parts.push(GUEST_LABELS[k]);
+  });
+  if (filters?.reservations?.occupied) parts.push('Occupied');
+  if (filters?.reservations?.vacant) parts.push('Vacant');
+  const floors = Object.entries(filters?.floors ?? {}).filter(([k, on]) => on && k !== 'all');
+  if (floors.length === 1) parts.push(`Floor ${floors[0][0]}`);
+  else if (floors.length > 1) parts.push(`${floors.length} floors`);
+  return parts;
+}

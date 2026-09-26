@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, Platform } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@/theme';
@@ -13,9 +14,14 @@ import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
 import { useUser } from '@features/account/hooks/useUser';
 import RoomCard from '../components/allRooms/RoomCard';
+import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
 import { RoomListCard } from '../components/roomsList';
 import BottomTabBar from '@/components/layout/BottomTabBar';
-import StatusChangeModal, { STATUS_MODAL_HEIGHT, STATUS_MODAL_SPACING } from '../components/StatusChangeModal';
+import StatusChangeModal, {
+  STATUS_MODAL_SPACING,
+  statusOptionsFor,
+  statusSheetHeight,
+} from '../components/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import type { RootStackParamList, MainTabsParamList } from '@/types/navigation';
 import { useAuth } from '@features/auth/hooks/useAuth';
@@ -35,7 +41,7 @@ import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
-import { applyRoomFilters, hasAnyActiveFilter } from '../utils/roomFilters';
+import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
 import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
@@ -137,6 +143,21 @@ export default function AllRoomsScreen() {
    * not check this permission, so it stops the affordance, not the write.
    */
   const canChangeStatus = can(PERMISSIONS.ROOMS_STATUS_UPDATE);
+  /** Assigning / reassigning a room — withheld from room attendants (no rooms.reassign). */
+  const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
+  /*
+   * What the status menu offers this reader. Room attendants get neither
+   * Priority (no rooms.rush.toggle) nor Inspected (inspection is a supervisor's
+   * check on the attendant's work), and no Flag Room row (no rooms.flag.toggle).
+   */
+  const canSetPriority = can(PERMISSIONS.ROOMS_RUSH_TOGGLE);
+  const canInspect = roomsVariant !== 'attendant';
+  const canFlag = can(PERMISSIONS.ROOMS_FLAG_TOGGLE);
+  /** Tallest the menu can be for this reader (current status not excluded) — sizes the lift. */
+  const statusSheetDesignHeight = statusSheetHeight(
+    statusOptionsFor('Unknown' as never, { canSetPriority, canInspect }).length,
+    canFlag
+  );
   const { user: profile } = useUser();
   /**
    * Supervisors and housekeeping leadership get the profile header — Figma
@@ -294,6 +315,13 @@ export default function AllRoomsScreen() {
       });
     } else if (routeFilters) {
       setLocalFilters(routeFilters);
+    } else {
+      /*
+       * The route no longer carries a filter — the Rooms tab was opened afresh,
+       * or Clear dropped the params. This screen stays mounted between visits,
+       * so without this the last filter outlived the navigation that set it.
+       */
+      setLocalFilters(undefined);
     }
   }, [routeFilters, routeCategoryFilter]);
   
@@ -305,6 +333,12 @@ export default function AllRoomsScreen() {
   const hasActiveFilters = useMemo(
     () => hasAnyActiveFilter(activeFilters) || !!searchQuery,
     [activeFilters, searchQuery]
+  );
+
+  /** What the filter bar lists — the Home category first, then the sheet's selection. */
+  const activeFilterParts = useMemo(
+    () => describeActiveFilters(activeFilters, routeCategoryFilter?.category ?? null),
+    [activeFilters, routeCategoryFilter]
   );
 
   const handleShiftToggle = (shift: ShiftType) => {
@@ -444,9 +478,28 @@ export default function AllRoomsScreen() {
     return { roomStates, guests, reservations, floors, totalRooms };
   }, [displayData.rooms, displayData.roomsPM, uiShift]);
 
+  /**
+   * Back to every room: the sheet's selection, and the Home category / filters
+   * that arrived in the route params. Those params used to outlive everything —
+   * the sheet's Reset cleared only its own selection — so once a Home badge had
+   * narrowed the list there was no way back to all rooms.
+   */
+  const clearAllFilters = useCallback(() => {
+    setLocalFilters(undefined);
+    (navigation as unknown as { setParams: (p: Record<string, unknown>) => void }).setParams({
+      filters: undefined,
+      categoryFilter: undefined,
+    });
+  }, [navigation]);
+
   const handleApplyFilters = (appliedFilters: FilterState) => {
-    setLocalFilters(appliedFilters);
     setShowFilterModal(false);
+    // Applying an empty selection (Reset, then apply) means "all rooms".
+    if (!hasAnyActiveFilter(appliedFilters)) {
+      clearAllFilters();
+      return;
+    }
+    setLocalFilters(appliedFilters);
   };
 
   const handleBackPress = () => {
@@ -491,7 +544,7 @@ export default function AllRoomsScreen() {
     screenHeight: SCREEN_HEIGHT,
     topInset: insets.top,
     bottomInset: insets.bottom,
-    sheetHeight: STATUS_MODAL_HEIGHT,
+    sheetHeight: statusSheetDesignHeight,
     spacing: STATUS_MODAL_SPACING,
   });
 
@@ -657,8 +710,23 @@ export default function AllRoomsScreen() {
       rooms = rooms.filter((room) => room.frontOfficeStatus !== 'Turndown');
     }
 
+    /*
+     * Attendants see only the rooms assigned to them on this shift — strictly.
+     *
+     * The shared path below shows every room while the assignment lookup is in
+     * flight, and when this shift has none it falls back to matching the card's
+     * assignee by user id *or by name*. For an attendant that flashed the whole
+     * hotel on open and could show a namesake's rooms. Here: nothing until the
+     * lookup lands, then exactly the DB's assignments for this shift.
+     */
+    if (isAttendant) {
+      const idSet = new Set(assignedRoomIdsForShiftOrdered.map(String));
+      rooms = assignedRoomOrderLoading ? [] : rooms.filter((r) => idSet.has(String(r.id)));
+      const orderIndex = new Map(assignedRoomIdsForShiftOrdered.map((id, i) => [String(id), i]));
+      rooms.sort((a, b) => (orderIndex.get(String(a.id)) ?? 0) - (orderIndex.get(String(b.id)) ?? 0));
+    }
     // Tab badge: show only rooms assigned to this user, newest assignment first (room_assignments.created_at).
-    if (shouldPrioritizeAssignedOnly && !assignedRoomOrderLoading) {
+    else if (shouldPrioritizeAssignedOnly && !assignedRoomOrderLoading) {
       // Authoritative: filter by assignments from DB for the current shift.
       if (assignedRoomIdsForShiftOrdered.length > 0) {
         const idSet = new Set(assignedRoomIdsForShiftOrdered.map(String));
@@ -707,6 +775,7 @@ export default function AllRoomsScreen() {
     uiShift,
     searchQuery,
     routeCategoryFilter,
+    isAttendant,
     shouldPrioritizeAssignedOnly,
     assignedRoomOrderLoading,
     assignedRoomIdsOrdered,
@@ -782,6 +851,17 @@ export default function AllRoomsScreen() {
           </View>
         )}
 
+        {useProfileHeader && !statusOverlayActive && activeFilterParts.length > 0 ? (
+          <View style={{ paddingTop: 4 * scaleX, paddingBottom: 8 * scaleX }}>
+            <ActiveFiltersBar
+              parts={activeFilterParts}
+              resultCount={filteredRooms.length}
+              onClear={clearAllFilters}
+              scaleX={scaleX}
+            />
+          </View>
+        ) : null}
+
         {/* Scrollable Content with conditional blur */}
         <View
           style={[
@@ -813,6 +893,12 @@ export default function AllRoomsScreen() {
                 styles.scrollContent,
                 // The in-flow header already occupies this space.
                 useProfileHeader && styles.scrollContentInFlowHeader,
+                /*
+                 * Room to lift the last cards: the menu always opens *below*
+                 * the pill, so a card near the end of the list must be able to
+                 * scroll up by the menu's height. Only while it is opening/open.
+                 */
+                statusOverlayActive && { paddingBottom: (172 + statusSheetDesignHeight) * scaleX },
               ],
               showsVerticalScrollIndicator: false,
               scrollEnabled: !showStatusModal,
@@ -843,7 +929,7 @@ export default function AllRoomsScreen() {
                 isAssigningStaff={assigningStaffRoomId === room.id}
                 onPress={handleRoomPress}
                 onStatusPress={handleStatusPress}
-                onAssignPress={handleAssignStaffPress}
+                onAssignPress={canReassign ? handleAssignStaffPress : undefined}
                 registerCardRef={registerCardRef}
                 registerPillRef={registerPillRef}
                 RebuiltCard={RoomListCard}
@@ -887,6 +973,16 @@ export default function AllRoomsScreen() {
 
             return (
               <ScrollView ref={scrollViewRef} {...scrollProps}>
+                {!useProfileHeader && activeFilterParts.length > 0 ? (
+                  <View style={{ marginBottom: 12 * scaleX }}>
+                    <ActiveFiltersBar
+                      parts={activeFilterParts}
+                      resultCount={filteredRooms.length}
+                      onClear={clearAllFilters}
+                      scaleX={scaleX}
+                    />
+                  </View>
+                ) : null}
                 {showNoMatchingRoomsEmptyState
                   ? emptyState
                   : filteredRooms.map(renderRoomCard)}
@@ -937,12 +1033,28 @@ export default function AllRoomsScreen() {
         buttonPosition={statusButtonPosition}
         headerHeight={modalHeaderHeight}
         blurTop={statusBlurTop}
-        onFlagToggle={(flagged) => {
+        canSetPriority={canSetPriority}
+        canInspect={canInspect}
+        onFlagToggle={!canFlag ? undefined : async (flagged, reason, mentionIds) => {
           if (selectedRoomForStatusChange) {
-            statusPopover.patchRoom((current) => ({ ...current, flagged }));
-            updateRoom(selectedRoomForStatusChange.id, { flagged }).catch((e) =>
-              console.warn('Failed to update room flag in Supabase', e)
-            );
+            const flagReason = flagged ? reason : null;
+            // One write for the flag, its reason and the tags, so every
+            // notification carries the reason. Awaited: the menu shows a
+            // spinner and closes only once this has saved.
+            try {
+              await updateRoom(selectedRoomForStatusChange.id, {
+                flagged,
+                flag_reason: flagReason,
+                flag_mention_ids: flagged ? mentionIds : [],
+              });
+            } catch (e) {
+              toast.show(e instanceof Error ? e.message : 'Please try again.', {
+                type: 'error',
+                title: flagged ? 'Room not flagged' : 'Room not unflagged',
+              });
+              throw e;
+            }
+            statusPopover.patchRoom((current) => ({ ...current, flagged, flagReason }));
           }
         }}
       />

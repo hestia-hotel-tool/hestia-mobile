@@ -27,6 +27,7 @@ type RoomRow = {
   linen_status: string | null;
   priority: string | null;
   flagged: boolean | null;
+  flag_reason?: string | null;
   special_instructions: string | null;
   house_keeping_status: string | null;
   return_later_at?: string | null;
@@ -213,10 +214,16 @@ async function fetchRoomAssignmentsForShiftId(shiftId: string | null): Promise<M
 
   const { data, error } = await supabase
     .from('room_assignments')
-    .select('room_id, user_id, work_status, users(full_name, avatar_url)')
+    // `!room_assignments_user_id_fkey`: since `assigned_by_id` there are two links to users; this is the assignee.
+    .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url)')
     .eq('shift_id', shiftId);
 
-  if (error) return map;
+  if (error) {
+    // Logged, not thrown: the list still renders, but a broken query (like the
+    // ambiguous users embed) no longer hides as "Not assigned" on every card.
+    console.warn('[fetchRoomAssignmentsForShiftId]', error.message);
+    return map;
+  }
 
   const rows = (data ?? []) as RoomAssignmentRow[];
   for (const row of rows) {
@@ -302,11 +309,35 @@ function mapToGuestInfo(
   };
 }
 
+/**
+ * How many lost & found items each room still holds (status `stored`) — the
+ * card's lost-and-found tile shows while this is above zero. Returned, shipped
+ * and discarded items are dealt with, so they do not count.
+ */
+async function fetchStoredLostAndFoundCounts(roomIds: string[]): Promise<Map<string, number>> {
+  const map = new Map<string, number>();
+  if (roomIds.length === 0) return map;
+  const { data, error } = await supabase
+    .from('lost_and_found_items')
+    .select('room_id')
+    .in('room_id', roomIds)
+    .eq('status', 'stored');
+  if (error) {
+    console.warn('[fetchStoredLostAndFoundCounts]', error.message);
+    return map;
+  }
+  for (const row of (data ?? []) as { room_id: string | null }[]) {
+    if (row.room_id) map.set(row.room_id, (map.get(row.room_id) ?? 0) + 1);
+  }
+  return map;
+}
+
 function mapRoomToCard(
   room: RoomRow,
   reservations: { res: ReservationRow; guest: GuestRow | null }[],
   attendant: StaffInfo | null,
-  notesAgg: RoomNotesAggregate | null
+  notesAgg: RoomNotesAggregate | null,
+  lostAndFoundCount = 0
 ): RoomCardData {
   const firstRes = reservations[0]?.res;
   const rawFrontOffice = firstRes?.front_office_status ?? 'Stayover';
@@ -365,10 +396,12 @@ function mapRoomToCard(
     roomAttendantAssigned: attendant,
     isPriority: room.priority === 'high',
     flagged: room.flagged ?? false,
+    flagReason: room.flag_reason ?? null,
     specialInstructions: room.special_instructions ?? null,
     roomNotes: noteCount > 0 ? undefined : null,
     noteMadeBy: notesAgg?.lastNoteBy ? ({ name: notesAgg.lastNoteBy.name, avatar: notesAgg.lastNoteBy.avatar } as NoteMadeBy) : null,
     notes: noteCount > 0 ? { count: noteCount, hasRushed: false } : undefined,
+    lostAndFoundCount,
   };
 }
 
@@ -499,7 +532,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason'
+        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason'
       )
       .order('room_number', { ascending: true }));
 
@@ -524,7 +557,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
   const roomIds = rooms.map((r) => r.id);
 
   // Wave 2: the three room-keyed queries.
-  const [notesByRoom, assignmentByRoom, reservations] = await Promise.all([
+  const [notesByRoom, assignmentByRoom, reservations, lostAndFoundByRoom] = await Promise.all([
     fetchRoomNotesAggregate(roomIds),
     fetchRoomAssignmentsForShiftId(shiftId),
     (async () => {
@@ -536,6 +569,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
       if (resError) throw resError;
       return (resData ?? []) as ReservationRow[];
     })(),
+    fetchStoredLostAndFoundCounts(roomIds),
   ]);
 
   // Wave 3: the one query that genuinely depends on a previous result.
@@ -606,7 +640,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     const resList = resByRoom.get(room.id) ?? [];
     const notesAgg = notesByRoom.get(room.id) ?? null;
     const attendant = assignmentByRoom.get(room.id) ?? null;
-    return mapRoomToCard(room, resList, attendant, notesAgg);
+    return mapRoomToCard(room, resList, attendant, notesAgg, lostAndFoundByRoom.get(room.id) ?? 0);
   });
 
   return {
@@ -621,6 +655,10 @@ export type RoomStateUpdate = {
   house_keeping_status?: RoomStatus;
   priority?: 'high' | 'normal';
   flagged?: boolean;
+  /** Why it is flagged (Figma 406-1783); null to clear. */
+  flag_reason?: string | null;
+  /** Staff @mentioned in the reason; newly added ones are notified by a trigger. */
+  flag_mention_ids?: string[];
   special_instructions?: string | null;
   /** ISO timestamp (timestamptz) or null to clear. */
   return_later_at?: string | null;
@@ -790,6 +828,8 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
   if (updates.house_keeping_status != null) payload.house_keeping_status = updates.house_keeping_status;
   if (updates.priority != null) payload.priority = updates.priority;
   if (updates.flagged != null) payload.flagged = updates.flagged;
+  if (updates.flag_reason !== undefined) payload.flag_reason = updates.flag_reason;
+  if (updates.flag_mention_ids !== undefined) payload.flag_mention_ids = updates.flag_mention_ids;
   if (updates.special_instructions !== undefined) payload.special_instructions = updates.special_instructions;
   if (updates.return_later_at !== undefined) payload.return_later_at = updates.return_later_at;
   if (updates.paused_at !== undefined) payload.paused_at = updates.paused_at;
@@ -1164,6 +1204,7 @@ export interface FullRoomDetails {
     linen_status: string | null;
     priority: string | null;
     flagged: boolean | null;
+    flag_reason?: string | null;
     special_instructions: string | null;
     house_keeping_status: string | null;
     return_later_at?: string | null;
@@ -1309,10 +1350,12 @@ export function fullRoomDetailsToRoomCardData(
     roomAttendantAssigned: attendant,
     isPriority: room.priority === 'high',
     flagged: room.flagged ?? false,
+    flagReason: room.flag_reason ?? null,
     specialInstructions: room.special_instructions ?? null,
     roomNotes: noteCount > 0 ? undefined : null,
     noteMadeBy: notesAgg?.lastNoteBy ? ({ name: notesAgg.lastNoteBy.name, avatar: notesAgg.lastNoteBy.avatar } as NoteMadeBy) : null,
     notes: noteCount > 0 ? { count: noteCount, hasRushed: false } : undefined,
+    lostAndFoundCount: full.lostAndFoundItems.filter((i) => i.status === 'stored').length,
   };
 }
 
@@ -1347,7 +1390,7 @@ export async function getFullRoomDetails(
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
-      'id, room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, return_later_at, paused_at, refuse_service_at, refuse_service_reason'
+      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, paused_at, refuse_service_at, refuse_service_reason'
     )
     .order('room_number', { ascending: true });
   const roomsQueryBase = supabase
@@ -1401,7 +1444,8 @@ export async function getFullRoomDetails(
       .order('created_at', { ascending: false }),
     supabase
       .from('room_assignments')
-      .select('room_id, user_id, work_status, users(full_name, avatar_url), shifts(name)')
+      // `!room_assignments_user_id_fkey`: since `assigned_by_id` there are two links to users; this is the assignee.
+      .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url), shifts(name)')
       .in('room_id', roomIds),
     supabase
       .from('lost_and_found_items')

@@ -12,6 +12,8 @@ import { RoomGuestPanel } from './RoomGuestPanel';
 import { GuestRow } from './GuestRow';
 import { RoomStatusPill } from './RoomStatusPill';
 import { RoomAssigneeBlock } from './RoomAssigneeBlock';
+import { isActivePriority } from '../../utils/roomGroups';
+import { roomBadges } from './RoomBadgeTile';
 
 export type SingleGuestRoomCardProps = {
   room: RoomCardData;
@@ -65,7 +67,7 @@ export function SingleGuestRoomCard({
       onPress={onPress}
       onLayout={onLayout}
       measureRef={measureRef}
-      framed={room.isPriority}
+      framed={isActivePriority(room)}
       cap={
         capped ? (
           <RoomStatusCap
@@ -81,6 +83,9 @@ export function SingleGuestRoomCard({
         roomNumber={room.roomNumber}
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel={getStayoverDisplayLabel(room)}
+        flagged={room.flagged}
+        flagLabel={room.flagReason ?? undefined}
+        badges={roomBadges(room)}
         assignee={
           <RoomAssigneeBlock
             name={staff?.name}
@@ -95,7 +100,7 @@ export function SingleGuestRoomCard({
         action={
           <RoomStatusPill
             status={displayStatus}
-            tone={room.isPriority ? 'priority' : 'solid'}
+            tone={isActivePriority(room) ? 'priority' : 'solid'}
             onPress={onStatusPress}
             loading={isChangingStatus}
             measureRef={statusPillRef}

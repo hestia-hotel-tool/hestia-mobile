@@ -9,6 +9,7 @@ import { typography } from '@/theme';
 import ChatHeader from '../components/ChatHeader';
 import { ChatFilterMenu, type FilterOption } from '../components/ChatFilterMenu';
 import { fetchAnnouncements, type Announcement } from '../services/chat';
+import { taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 
 type AnnouncementFilter = 'all' | 'unread';
@@ -56,18 +57,20 @@ type Kind = 'general' | 'tasks';
 
 const KIND = {
   general: { type: 'general', pill: 'General', colour: L.notification.general, empty: 'No announcements yet' },
-  tasks: { type: 'room_assignment', pill: 'Tasks', colour: L.notification.tasks, empty: 'No tasks yet' },
+  tasks: { type: 'tasks', pill: 'Tasks', colour: L.notification.tasks, empty: 'No tasks yet' },
 } as const;
 
 /**
  * General notifications — Figma 3272:186, opened from the "General" row on the
- * Chat list. The same screen lists Tasks (room assignments) from the "Tasks"
- * row, with a blue pill; the frame shows only General.
+ * Chat list. The same screen lists Tasks — room assigned, flagged, priority,
+ * cleaned, sent back, ticket assigned — from the "Tasks" row, with a blue pill;
+ * the frame shows only General.
  *
  * The chat list's header (titled "Notifications"), the pink General pill, then
  * one row per announcement: sender photo, bold subject, one line of the message
- * and the time. Tapping a row opens its detail — the announcement in full, or
- * for a task the room it assigns — and opening that is what marks it read —
+ * and the time. Tapping a row opens its detail screen — the announcement, or
+ * the task (which links on to its room or ticket) — and opening that is what
+ * marks it read —
  * so the list shows which ones are still new with a pink dot (the frame has no
  * unread state; without one the list cannot say which to open).
  */
@@ -144,12 +147,8 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
           <Pressable
             style={[styles.row, { marginTop: (index === 0 ? N.firstRowTop : N.rowGap) * scaleX }]}
             onPress={() => {
-              if (kind === 'general') {
-                router.push(`/announcement/${item.id}` as never);
-              } else if (item.roomId) {
-                // Room detail marks this room's task notifications read.
-                router.push({ pathname: '/room/[roomId]', params: { roomId: item.roomId } } as never);
-              }
+              // Both open their own detail screen, which is what marks them read.
+              router.push((kind === 'general' ? `/announcement/${item.id}` : `/task/${item.id}`) as never);
             }}
             accessibilityRole="button"
             accessibilityLabel={`${item.unread ? 'New. ' : ''}${item.subject}`}
@@ -158,7 +157,7 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
               <Avatar uri={item.senderAvatar} name={item.senderName} size={N.avatar * scaleX} />
             ) : (
               <View style={[styles.taskIcon, { backgroundColor: config.colour }]}>
-                <Icon name="nav-rooms" size={16 * scaleX} color="#ffffff" />
+                <Icon name={taskMeta(item.type).icon} size={taskMeta(item.type).iconSize * scaleX} color="#ffffff" />
               </View>
             )}
             <View style={styles.text}>

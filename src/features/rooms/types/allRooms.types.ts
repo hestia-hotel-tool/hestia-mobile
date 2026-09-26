@@ -109,7 +109,11 @@ export interface RoomCardData {
   roomAttendantAssigned: StaffInfo | null;
   isPriority: boolean; // Must be true or false; red border for priority rooms when true
   flagged: boolean; // Must be true or false; when true, room contributes to "Flagged" category on Home
+  /** Why it is flagged — Flag Room > Reason/note (Figma 406-1783). */
+  flagReason?: string | null;
   notes?: NotesInfo;
+  /** Lost & found items still stored for this room — shows the card's lost-and-found tile. */
+  lostAndFoundCount?: number;
   /** Special instructions for room. null for Departure rooms; displayed in room details for all other room types */
   specialInstructions?: string | null;
   /** Room note text. null when no note. Displayed in room details. */

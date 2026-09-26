@@ -37,7 +37,8 @@ export type RoomRowProps = {
   isAssigningStaff: boolean;
   onPress: (room: RoomCardData) => void;
   onStatusPress: (room: RoomCardData) => void;
-  onAssignPress: (room: RoomCardData) => void;
+  /** Absent without rooms.reassign — the card's assign control is then read-only. */
+  onAssignPress?: (room: RoomCardData) => void;
   /** The screen keeps the ref maps, for the status popover's anchoring. */
   registerCardRef: (roomId: string, ref: unknown) => void;
   registerPillRef: (roomId: string, ref: View | null) => void;
@@ -66,7 +67,7 @@ function RoomRowInner({
 }: RoomRowProps) {
   const handlePress = useCallback(() => onPress(room), [onPress, room]);
   const handleStatusPress = useCallback(() => onStatusPress(room), [onStatusPress, room]);
-  const handleAssignPress = useCallback(() => onAssignPress(room), [onAssignPress, room]);
+  const handleAssignPress = useCallback(() => onAssignPress?.(room), [onAssignPress, room]);
 
   const measureRef = useCallback(
     (ref: unknown) => {
@@ -88,7 +89,7 @@ function RoomRowInner({
           room={room}
           onPress={handlePress}
           onStatusPress={canChangeStatus ? handleStatusPress : undefined}
-          onAssignPress={handleAssignPress}
+          onAssignPress={onAssignPress ? handleAssignPress : undefined}
           isChangingStatus={isChangingStatus}
           measureRef={measureRef}
           statusPillRef={pillRef}

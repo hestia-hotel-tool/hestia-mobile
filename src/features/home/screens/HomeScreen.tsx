@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform, Pressable, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { HOME_CHROME } from '../constants/homeChrome';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
@@ -28,6 +29,8 @@ import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCa
 import HskPortierCategoryListCard from '../components/HskPortierCategoryListCard';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import HomeFilterModal from '../components/HomeFilterModal';
+import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
+import { describeActiveFilters, hasAnyActiveFilter } from '@features/rooms/utils/roomFilters';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
@@ -854,7 +857,20 @@ export default function HomeScreen() {
    * drilling in keeps the same selection.
    */
   const handleGoToResults = (filters: FilterState) => {
+    // An empty selection (the sheet's Reset) means no filter at all.
+    if (!hasAnyActiveFilter(filters)) {
+      clearHomeFilters();
+      return;
+    }
     setActiveFilters(filters);
+  };
+
+  /** Drop every Home filter, including one that arrived in the route params. */
+  const clearHomeFilters = () => {
+    setActiveFilters(undefined);
+    (navigation as unknown as { setParams: (p: Record<string, unknown>) => void }).setParams({
+      filters: undefined,
+    });
   };
 
   const handleAdvanceFilter = () => {
@@ -954,6 +970,16 @@ export default function HomeScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
           >
+            {/* Says a filter is on and clears it — it used to be invisible. */}
+            {!isTicketDashboard && hasAnyActiveFilter(activeFilters) ? (
+              <View style={{ paddingTop: 8 * scaleX, paddingBottom: 4 * scaleX }}>
+                <ActiveFiltersBar
+                  parts={describeActiveFilters(activeFilters)}
+                  onClear={clearHomeFilters}
+                  scaleX={scaleX}
+                />
+              </View>
+            ) : null}
             {isTicketDashboard ? (
               <>
                 <View style={{ paddingTop: 12 * scaleX, paddingBottom: 24 * scaleX }}>
@@ -1179,6 +1205,8 @@ export default function HomeScreen() {
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
         onGoToResults={handleGoToResults}
+        // Opens on what is applied, so it can be changed or reset.
+        initialFilters={activeFilters}
         onAdvanceFilter={handleAdvanceFilter}
         filterCounts={filterCounts}
         onFilterIconPress={handleFilterPress}

@@ -11,6 +11,7 @@ import type { ChatMessage } from '@/types';
 import type { ChatItemData } from '../components/ChatItem';
 import { base64ToArrayBuffer } from '@/utils/encoding';
 import { getMyHotelId } from '@/lib/tenant';
+import { TASK_NOTIFICATION_TYPES } from '@/lib/inAppNotifications';
 
 const MESSAGE_TYPE = 'text'; // DB: text, image, system
 export const CHAT_ATTACHMENTS_BUCKET = 'chat-attachments';
@@ -840,21 +841,27 @@ export type Announcement = {
   senderAvatar?: string | null;
   /** Tasks only: the room the assignment is for — its detail screen. */
   roomId?: string;
+  /** Ticket tasks only: the ticket it is about. */
+  ticketId?: string;
+  /** The notification type — which kind of task this is. */
+  type: string;
 };
 
 /** The two inbox types the Chat screen lists under Notifications. */
-export type InboxType = 'general' | 'room_assignment';
+/** General announcements, or every task type (see TASK_NOTIFICATION_TYPES). */
+export type InboxType = 'general' | 'tasks';
 
 type AnnouncementRow = {
   id: string;
   title: string;
   body: string;
-  data: { senderId?: string; roomId?: string } | null;
+  type: string;
+  data: { senderId?: string; roomId?: string; ticketId?: string } | null;
   created_at: string;
   read_at: string | null;
 };
 
-const ANNOUNCEMENT_COLUMNS = 'id,title,body,data,created_at,read_at';
+const ANNOUNCEMENT_COLUMNS = 'id,type,title,body,data,created_at,read_at';
 
 async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]> {
   const senders = await getUsersByIds(
@@ -870,7 +877,9 @@ async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]>
       unread: r.read_at == null,
       senderName: sender?.full_name ?? undefined,
       senderAvatar: sender?.avatar_url ?? null,
-      roomId: r.data?.roomId,
+      roomId: r.data?.roomId ?? undefined,
+      ticketId: r.data?.ticketId ?? undefined,
+      type: r.type,
     };
   });
 }
@@ -883,7 +892,7 @@ export async function fetchAnnouncements(type: InboxType = 'general', limit = 50
     .from('notifications')
     .select(ANNOUNCEMENT_COLUMNS)
     .eq('user_id', userId)
-    .eq('type', type)
+    .in('type', type === 'tasks' ? [...TASK_NOTIFICATION_TYPES] : ['general'])
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -893,14 +902,14 @@ export async function fetchAnnouncements(type: InboxType = 'general', limit = 50
   return toAnnouncements((data ?? []) as AnnouncementRow[]);
 }
 
-/** One announcement by its notification id — `null` if missing or not yours (RLS). */
-export async function fetchAnnouncement(id: string): Promise<Announcement | null> {
+/** One announcement (or, with `kind: 'tasks'`, one task) by its notification id — `null` if missing or not yours (RLS). */
+export async function fetchAnnouncement(id: string, kind: InboxType = 'general'): Promise<Announcement | null> {
   if (!isSupabaseConfigured || !id) return null;
   const { data, error } = await supabase
     .from('notifications')
     .select(ANNOUNCEMENT_COLUMNS)
     .eq('id', id)
-    .eq('type', 'general')
+    .in('type', kind === 'tasks' ? [...TASK_NOTIFICATION_TYPES] : ['general'])
     .maybeSingle();
   if (error) {
     console.warn('[Chat] fetch announcement', error.message);

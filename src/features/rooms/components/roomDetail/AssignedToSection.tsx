@@ -30,19 +30,22 @@ export default function AssignedToSection({
         <View style={styles.leftColumn}>
           <Text style={styles.unassignedLabel}>Not assigned</Text>
         </View>
-        <TouchableOpacity
-          style={styles.reassignButton}
-          onPress={onReassignPress}
-          activeOpacity={0.7}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={ASSIGNED_TO.reassignButton.color ?? '#ffffff'} />
-          ) : (
-            <Text style={styles.reassignButtonText}>Reassign</Text>
-          )}
-        </TouchableOpacity>
+        {/* No handler (no rooms.reassign): read-only, no button. */}
+        {onReassignPress ? (
+          <TouchableOpacity
+            style={styles.reassignButton}
+            onPress={onReassignPress}
+            activeOpacity={0.7}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <ActivityIndicator size="small" color={ASSIGNED_TO.reassignButton.color ?? '#ffffff'} />
+            ) : (
+              <Text style={styles.reassignButtonText}>Reassign</Text>
+            )}
+          </TouchableOpacity>
+        ) : null}
       </View>
     );
   }
@@ -85,20 +88,22 @@ export default function AssignedToSection({
         </View>
       </View>
 
-      {/* Right Column: Reassign Button */}
-      <TouchableOpacity
-        style={styles.reassignButton}
-        onPress={onReassignPress}
-        activeOpacity={0.7}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        disabled={isLoading}
-      >
-        {isLoading ? (
-          <ActivityIndicator size="small" color={ASSIGNED_TO.reassignButton.color ?? '#ffffff'} />
-        ) : (
-          <Text style={styles.reassignButtonText}>Reassign</Text>
-        )}
-      </TouchableOpacity>
+      {/* Right Column: Reassign Button — none without a handler (no rooms.reassign): read-only. */}
+      {onReassignPress ? (
+        <TouchableOpacity
+          style={styles.reassignButton}
+          onPress={onReassignPress}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <ActivityIndicator size="small" color={ASSIGNED_TO.reassignButton.color ?? '#ffffff'} />
+          ) : (
+            <Text style={styles.reassignButtonText}>Reassign</Text>
+          )}
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

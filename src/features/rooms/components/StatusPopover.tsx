@@ -1,10 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
@@ -112,6 +114,17 @@ export type StatusPopoverProps = {
    */
   clampHeight?: boolean;
   /**
+   * `'below'` always opens under the anchor, never above it: the card's top
+   * sits `spacing` below the button, its height is capped to the room left
+   * above the bottom inset, and anything taller scrolls inside the card. The
+   * caller is expected to scroll the anchor up first so the cap rarely bites
+   * (see useStatusPopoverAnchor). This is how platform menus behave — the menu
+   * stays attached to the control and never jumps to the other side of it.
+   *
+   * `'auto'` (default) keeps the older behaviour: below if it fits, else above.
+   */
+  placement?: 'auto' | 'below';
+  /**
    * The card's contents.
    *
    * Called with `dismiss`, which plays the close animation and *then* runs its
@@ -146,11 +159,29 @@ export default function StatusPopover({
   spacing: spacingProp = STATUS_MODAL_SPACING,
   contentHeight,
   clampHeight = false,
+  placement = 'auto',
   children,
 }: StatusPopoverProps) {
   const slideAnim = useRef(new Animated.Value(0)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
   const insets = useSafeAreaInsets();
+  /** Window y of the keyboard's top edge while it is up, else null. */
+  const [keyboardTop, setKeyboardTop] = useState<number | null>(null);
+  /** The card's rendered height, for keeping it clear of the keyboard. */
+  const [cardHeight, setCardHeight] = useState(0);
+
+  useEffect(() => {
+    if (!visible) return;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, (e) => setKeyboardTop(e.endCoordinates.screenY));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardTop(null));
+    return () => {
+      show.remove();
+      hide.remove();
+      setKeyboardTop(null);
+    };
+  }, [visible]);
 
   useEffect(() => {
     if (visible) {
@@ -217,8 +248,25 @@ export default function StatusPopover({
    */
   const minTopAbove = insets.top + 8 * scaleX;
   let placementFloor = minTop;
+  /** Set when `placement === 'below'`: the most the card may take before it scrolls. */
+  let belowMaxHeight: number | null = null;
 
-  if (showTriangle && buttonPosition) {
+  if (placement === 'below' && buttonPosition) {
+    const spacing = spacingProp * scaleX;
+    modalTopPosition = Math.max(minTop, buttonPosition.y + buttonPosition.height + spacing);
+    trianglePlacement = 'top';
+    // Never less than a usable card, even if the anchor is very low.
+    belowMaxHeight = Math.max(
+      160 * scaleX,
+      SCREEN_HEIGHT - insets.bottom - 12 * scaleX - modalTopPosition
+    );
+    modalLeft = left * scaleX;
+    const buttonCenterX = buttonPosition.x + buttonPosition.width / 2;
+    const rawTailLeft = buttonCenterX - modalLeft - (TAIL_WIDTH / 2) * scaleX;
+    const tailInset = 12 * scaleX;
+    const maxTailLeft = (width - TAIL_WIDTH) * scaleX - tailInset;
+    triangleLeft = Math.min(Math.max(tailInset, rawTailLeft), Math.max(tailInset, maxTailLeft));
+  } else if (showTriangle && buttonPosition) {
     const spacing = spacingProp * scaleX;
     const buttonBottom = buttonPosition.y + buttonPosition.height;
 
@@ -259,6 +307,28 @@ export default function StatusPopover({
   }
 
   modalTopPosition = Math.max(placementFloor, modalTopPosition);
+  const cardMaxHeight = belowMaxHeight ?? (clampHeight ? maxCardHeight : undefined);
+  /**
+   * Content that does not scroll itself (the status grid) scrolls here when the
+   * card is capped; content that does (the checklist, `clampHeight`) is left
+   * alone so two vertical scrollers are never nested.
+   */
+  const scrollInside = belowMaxHeight != null && !clampHeight;
+  const content = children(dismiss);
+
+  /*
+   * Typing in the card (the flag reason) raises the keyboard over its lower
+   * half. Lift the card by exactly the overlap, never above the safe area, and
+   * drop it back when the keyboard goes — the card stays attached to its pill
+   * the rest of the time.
+   */
+  const keyboardLift =
+    keyboardTop != null && cardHeight > 0
+      ? Math.min(
+          Math.max(0, modalTopPosition + cardHeight + 12 * scaleX - keyboardTop),
+          Math.max(0, modalTopPosition - (insets.top + 8 * scaleX))
+        )
+      : 0;
 
   const translateY = slideAnim.interpolate({
     inputRange: [0, 1],
@@ -308,7 +378,7 @@ export default function StatusPopover({
         <Animated.View
           style={[
             styles.modalWrapper,
-            { top: modalTopPosition, left: modalLeft, transform: [{ translateY }] },
+            { top: modalTopPosition - keyboardLift, left: modalLeft, transform: [{ translateY }] },
           ]}
           pointerEvents="box-none"
         >
@@ -340,13 +410,32 @@ export default function StatusPopover({
             style={[
               styles.modalContainer,
               { width: width * scaleX },
-              clampHeight && { maxHeight: maxCardHeight },
+              cardMaxHeight != null && { maxHeight: cardMaxHeight },
+              scrollInside && styles.modalContainerScrolling,
               !showTriangle && styles.modalContainerNoGap,
             ]}
             onPress={() => {}}
             onStartShouldSetResponder={() => true}
+            onLayout={(e) => setCardHeight(e.nativeEvent.layout.height)}
           >
-            {children(dismiss)}
+            {scrollInside ? (
+              <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+                bounces={false}
+                /*
+                 * Without this, the first tap while the keyboard is up only
+                 * dismisses it — the flag reason's send button and the @
+                 * suggestions needed two taps and read as broken.
+                 */
+                keyboardShouldPersistTaps="handled"
+              >
+                {content}
+              </ScrollView>
+            ) : (
+              content
+            )}
           </Pressable>
         </Animated.View>
       </Animated.View>
@@ -386,6 +475,17 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 35 * scaleX,
     elevation: 10,
+  },
+  /** The ScrollView carries the padding instead, so the scroll runs edge to edge. */
+  modalContainerScrolling: {
+    padding: 0,
+    paddingBottom: 0,
+  },
+  scroll: {
+    flexGrow: 0,
+  },
+  scrollContent: {
+    padding: 24 * scaleX,
   },
   modalContainerNoGap: {
     borderTopLeftRadius: 0,

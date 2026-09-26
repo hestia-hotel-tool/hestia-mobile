@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, Platform } from 'react-native';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
@@ -14,7 +15,11 @@ import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
 import { NewChatFab } from '../components/NewChatFab';
 import { ChatFilterMenu, type ChatListFilter } from '../components/ChatFilterMenu';
 import { useChatStore } from '../store/useChatStore';
-import { invalidateNotificationBadges, subscribeNotificationBadgeInvalidate } from '@/lib/inAppNotifications';
+import {
+  TASK_NOTIFICATION_TYPES,
+  invalidateNotificationBadges,
+  subscribeNotificationBadgeInvalidate,
+} from '@/lib/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
@@ -71,7 +76,7 @@ export default function ChatScreen() {
     }
 
     const latestOfType = async (
-      type: string,
+      types: readonly string[],
       row: Pick<NotificationItemData, 'label' | 'pillBackgroundColor'> & { showTime: boolean; useBody: boolean }
     ): Promise<NotificationItemData | null> => {
       const [countRes, latestRes] = await Promise.all([
@@ -79,13 +84,13 @@ export default function ChatScreen() {
           .from('notifications')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userId)
-          .eq('type', type)
+          .in('type', [...types])
           .is('read_at', null),
         supabase
           .from('notifications')
           .select('id,title,body,created_at')
           .eq('user_id', userId)
-          .eq('type', type)
+          .in('type', [...types])
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -111,8 +116,9 @@ export default function ChatScreen() {
 
     const [general, tasks] = await Promise.all([
       // Figma 3272:62: the General row has no time under it; Tasks does.
-      latestOfType('general', { label: 'General', pillBackgroundColor: L.notification.general, showTime: false, useBody: false }),
-      latestOfType('room_assignment', { label: 'Tasks', pillBackgroundColor: L.notification.tasks, showTime: true, useBody: true }),
+      latestOfType(['general'], { label: 'General', pillBackgroundColor: L.notification.general, showTime: false, useBody: false }),
+      // Every task type: assignments, flagged / priority rooms, cleaned rooms, tickets.
+      latestOfType(TASK_NOTIFICATION_TYPES, { label: 'Tasks', pillBackgroundColor: L.notification.tasks, showTime: true, useBody: true }),
     ]);
     setGeneralNotification(general);
     setTasksNotification(tasks);
