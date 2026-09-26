@@ -97,7 +97,7 @@ export const TOOLS: ToolDefinition[] = [
     async execute(db, input) {
       let q = db
         .from("rooms")
-        .select("room_number, house_keeping_status, linen_status, category, flagged, priority")
+        .select("room_number, house_keeping_status, linen_status, category, flagged, flag_reason, priority")
         .order("room_number", { ascending: true })
         .limit(cap(input.limit));
 
@@ -105,7 +105,8 @@ export const TOOLS: ToolDefinition[] = [
         q = q.in("house_keeping_status", houseKeepingVariants(input.housekeeping_status));
       }
       if (input.flagged === true) q = q.eq("flagged", true);
-      if (input.priority === true) q = q.eq("priority", true);
+      // `priority` is text ("high" | "normal"), not a boolean.
+      if (input.priority === true) q = q.eq("priority", "high");
 
       const data = rows(await q);
       return { count: data.length, rooms: data };
@@ -162,7 +163,7 @@ export const TOOLS: ToolDefinition[] = [
         await db
           .from("rooms")
           .select(
-            "id, room_number, house_keeping_status, linen_status, category, credit, flagged, priority, special_instructions, " +
+            "id, room_number, house_keeping_status, linen_status, category, credit, flagged, flag_reason, priority, special_instructions, " +
               "reservations(arrival_date, departure_date, adults, kids, front_office_status, guests(full_name, vip_code))",
           )
           .eq("room_number", roomNumber)
@@ -170,6 +171,95 @@ export const TOOLS: ToolDefinition[] = [
       );
       if (data.length === 0) return { found: false, room_number: roomNumber };
       return { found: true, room: data[0] };
+    },
+  },
+
+  {
+    name: "list_flag_events",
+    description:
+      "History of rooms being flagged, re-flagged with a new reason, and unflagged, with the reason given, who did it, who was @mentioned, and when. Use for reports such as 'rooms flagged this month and why' or 'why was room 204 flagged'. For which rooms are flagged right now, use list_rooms instead. Only flags made since flag history started being recorded are available.",
+    requiredPermission: "rooms.read",
+    input_schema: {
+      type: "object",
+      properties: {
+        from: {
+          type: "string",
+          description: "Start, inclusive: an ISO date (YYYY-MM-DD) or datetime with offset. For 'this month', the first day of the current month.",
+        },
+        to: {
+          type: "string",
+          description: "End, inclusive: an ISO date (YYYY-MM-DD) or datetime with offset. Omit for up to now.",
+        },
+        room_number: { type: "string", description: "Only events for this room." },
+        limit: { type: "integer", description: `Max events, default ${DEFAULT_ROWS}.` },
+      },
+      required: ["from"],
+    },
+    async execute(db, input) {
+      const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+      const parse = (value: unknown, endOfDay: boolean): string | null => {
+        if (typeof value !== "string" || !value.trim()) return null;
+        const raw = value.trim();
+        const d = new Date(DATE_ONLY.test(raw) ? `${raw}T00:00:00Z` : raw);
+        if (!Number.isFinite(d.getTime())) throw new Error(`Not a date: ${raw}`);
+        // An inclusive end date means "through the end of that day".
+        if (endOfDay && DATE_ONLY.test(raw)) d.setUTCDate(d.getUTCDate() + 1);
+        return d.toISOString();
+      };
+      const from = parse(input.from, false);
+      if (!from) throw new Error("from is required");
+      const to = parse(input.to, true);
+
+      let q = db
+        .from("room_history")
+        .select("event_type, description, attachments, created_at, rooms(room_number, category, flagged), users(full_name)")
+        .in("event_type", ["room_flagged", "room_flag_updated", "room_unflagged"])
+        .gte("created_at", from)
+        .order("created_at", { ascending: false })
+        .limit(cap(input.limit));
+      if (to) q = q.lt("created_at", to);
+
+      if (typeof input.room_number === "string" && input.room_number.trim()) {
+        const room = rows(
+          await db.from("rooms").select("id").eq("room_number", input.room_number.trim()).limit(1),
+        ) as { id: string }[];
+        if (room.length === 0) return { count: 0, events: [], note: `No room ${input.room_number}.` };
+        q = q.eq("room_id", room[0].id);
+      }
+
+      type Row = {
+        event_type: string;
+        description: string | null;
+        attachments: { kind?: string; name?: string }[] | null;
+        created_at: string;
+        rooms: { room_number: string; category: string | null; flagged: boolean | null } | null;
+        users: { full_name: string | null } | null;
+      };
+      const data = rows(await q) as Row[];
+
+      const events = data.map((r) => ({
+        room_number: r.rooms?.room_number ?? null,
+        category: r.rooms?.category ?? null,
+        event: r.event_type.replace(/^room_/, ""),
+        reason: r.description,
+        by: r.users?.full_name ?? null,
+        mentioned: (Array.isArray(r.attachments) ? r.attachments : [])
+          .filter((a) => a?.kind === "mention" && a.name)
+          .map((a) => a.name),
+        at: r.created_at,
+        currently_flagged: r.rooms?.flagged ?? null,
+      }));
+
+      return {
+        range: { from, to: to ?? "now" },
+        count: events.length,
+        rooms_flagged: new Set(events.filter((e) => e.event === "flagged").map((e) => e.room_number)).size,
+        events,
+        note:
+          events.length === 0
+            ? "No flag events in this range. Flag history is only recorded from 26 September 2026 onwards."
+            : undefined,
+      };
     },
   },
 

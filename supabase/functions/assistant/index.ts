@@ -329,6 +329,7 @@ const TOOL_STATUS: Record<string, string> = {
   list_rooms: "Checking rooms",
   count_rooms_by_status: "Counting rooms",
   get_room: "Looking up the room",
+  list_flag_events: "Checking flag history",
   list_tickets: "Checking tickets",
   list_lost_and_found: "Checking lost and found",
   list_staff: "Checking staff",

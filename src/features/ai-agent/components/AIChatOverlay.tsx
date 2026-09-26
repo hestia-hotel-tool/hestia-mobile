@@ -37,6 +37,7 @@ const SUGGESTIONS = [
   'Which rooms are flagged?',
   'Any unsolved tickets?',
   "What's in lost and found?",
+  'Make a report of all the rooms flagged within this month and the reasons they were flagged for',
 ];
 
 /**
