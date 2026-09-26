@@ -3,13 +3,13 @@ import {
   Animated,
   Dimensions,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   View,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BlurBackdrop } from '@/components/ui/BlurBackdrop';
 import { Icon } from '@/components/Icon';

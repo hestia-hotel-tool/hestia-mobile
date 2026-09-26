@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   FlatList,
 } from 'react-native';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
@@ -628,10 +629,12 @@ export default function TicketForm({
                 value={description}
                 onChangeText={setDescription}
                 multiline
+                inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
                 numberOfLines={5}
                 textAlignVertical="top"
                 underlineColorAndroid="transparent"
               />
+              <KeyboardDoneBar />
               <TouchableOpacity
                 style={styles.descriptionEditButton}
                 onPress={() => descriptionInputRef.current?.focus()}

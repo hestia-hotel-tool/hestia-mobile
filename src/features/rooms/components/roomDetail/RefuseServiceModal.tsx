@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, Image } from 'react-native';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
 import { ASSIGNED_TO } from '../../constants/roomDetailStyles';
 
@@ -113,11 +115,13 @@ export default function RefuseServiceModal({
               placeholder="Add custom reason..."
               placeholderTextColor="#999999"
               multiline
+              inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
               numberOfLines={4}
               value={customReason}
               onChangeText={handleCustomChange}
               textAlignVertical="top"
             />
+            <KeyboardDoneBar />
 
             {/* Confirm Button - enabled only when one reason or custom is selected */}
             <TouchableOpacity

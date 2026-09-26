@@ -5,13 +5,15 @@
 
 import React, { createContext, useCallback, useContext, useState } from 'react';
 import {
+  Alert,
   Dimensions,
-  Modal,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeModal as Modal, isAnyModalOpen } from '@/components/ui/SafeModal';
 import { colors, typography } from '../theme';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -62,6 +64,20 @@ export function MessageModalProvider({ children }: { children: React.ReactNode }
   }, []);
 
   const show = useCallback((options: MessageModalOptions) => {
+    // This modal is mounted at the root; iOS cannot present it over another
+    // Modal that is already open — it stayed invisible, so a confirm asked
+    // from inside a sheet (e.g. Register item → Remove picture) never
+    // appeared and the tap seemed to do nothing. A native alert can be
+    // presented over any modal, so use one there.
+    if (Platform.OS === 'ios' && isAnyModalOpen()) {
+      Alert.alert(
+        options.title,
+        options.message ?? undefined,
+        options.buttons.map((b) => ({ text: b.text, style: b.style, onPress: b.onPress })),
+        { cancelable: options.cancelable }
+      );
+      return;
+    }
     setState({ ...options, visible: true });
   }, []);
 
@@ -82,6 +98,7 @@ export function MessageModalProvider({ children }: { children: React.ReactNode }
     <MessageModalContext.Provider value={api}>
       {children}
       <Modal
+        untracked
         visible={state.visible}
         transparent
         animationType="fade"

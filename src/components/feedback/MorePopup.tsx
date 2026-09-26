@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
-import { View, Modal, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import MoreMenuItem from './MoreMenuItem';
 import { MORE_MENU_OPTIONS, MoreMenuItemId } from '@/types/more.types';
 import { TAB_PERMISSION } from '@/domain/rbac/permissions';

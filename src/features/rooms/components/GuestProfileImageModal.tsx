@@ -2,12 +2,12 @@ import React from 'react';
 import {
   Image,
   StyleSheet,
-  Modal,
   Pressable,
   StatusBar,
   Dimensions,
   Platform,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { BlurBackdrop } from '@/components/ui/BlurBackdrop';
 
 export interface GuestProfileModalGuest {

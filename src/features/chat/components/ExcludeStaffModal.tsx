@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
-import { Modal, Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';

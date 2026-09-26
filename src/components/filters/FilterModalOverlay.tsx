@@ -1,5 +1,5 @@
 import React from 'react';
-import { Modal } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { View, Pressable } from '@/tw';
 import { colors } from '@/theme';
 import { Icon } from '@/components/Icon';

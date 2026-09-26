@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions } from 'react-native';
-import { useMessageModal } from '@/contexts/MessageModalContext';
+import { dateAtWheelIndex, dateWheelDates, dateWheelIndex } from '../../utils/dateWheel';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions } from 'react-native';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
 import type { ShiftType } from '@/types/shift.types';
@@ -79,7 +81,12 @@ export default function ReturnLaterModal({
   assignedTo,
   onReassignPress,
 }: ReturnLaterModalProps) {
-  const messageModal = useMessageModal();
+  /**
+   * Shown inline, not through the app's message modal: that is a native Modal
+   * mounted at the root, and iOS cannot present it over this one — it stayed
+   * invisible and the sheet appeared to do nothing.
+   */
+  const [timeError, setTimeError] = useState<{ message: string; forTime: string } | null>(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
   const [returnTime, setReturnTime] = useState<string>('');
   const [selectedReason, setSelectedReason] = useState<string | null>(null);
@@ -99,12 +106,6 @@ export default function ReturnLaterModal({
       setSelectedHour(min.hour12);
       setSelectedMinute(min.minute);
       setSelectedPeriod(min.period);
-      setTimeout(() => {
-        dateScrollRef.current?.scrollTo({ y: 6 * ITEM_HEIGHT, animated: false });
-        hourScrollRef.current?.scrollTo({ y: (min.hour12 - 1) * ITEM_HEIGHT, animated: false });
-        minuteScrollRef.current?.scrollTo({ y: min.minute * ITEM_HEIGHT, animated: false });
-        periodScrollRef.current?.scrollTo({ y: (min.period === 'AM' ? 0 : 1) * ITEM_HEIGHT, animated: false });
-      }, 100);
     }
   }, [visible]);
 
@@ -158,8 +159,7 @@ export default function ReturnLaterModal({
     
     // Scroll to the new positions
     setTimeout(() => {
-      // Scroll date to center (index 6 in the 14-day range)
-      dateScrollRef.current?.scrollTo({ y: 6 * ITEM_HEIGHT, animated: true });
+      dateScrollRef.current?.scrollTo({ y: dateWheelIndex(newTime) * ITEM_HEIGHT, animated: true });
       hourScrollRef.current?.scrollTo({ y: (newHour12 - 1) * ITEM_HEIGHT, animated: true });
       minuteScrollRef.current?.scrollTo({ y: newMinute * ITEM_HEIGHT, animated: true });
       const periodIndex = newPeriod === 'AM' ? 0 : 1;
@@ -235,54 +235,17 @@ export default function ReturnLaterModal({
   };
 
   // Handle scroll events to update selected values
+  // Row i is always today + i (see utils/dateWheel), so reading the day off the
+  // scroll offset cannot move the list under the finger.
   const handleDateScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    // Index 6 is the center (selected date), calculate the actual date relative to current selectedDate
-    const date = new Date(selectedDate);
-    date.setDate(selectedDate.getDate() + index - 6);
-    
-    // Check if date is in the past
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    const isPast = checkDate.getTime() < now.getTime();
-    
-    // Only update if the date actually changed and is not in the past
-    if (date.toDateString() !== selectedDate.toDateString() && !isPast) {
-      setSelectedDate(date);
-    }
+    const date = dateAtWheelIndex(event.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    if (date.toDateString() !== selectedDate.toDateString()) setSelectedDate(date);
   };
-  
+
   const handleDateScrollEnd = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    // Ensure we're at index 6 (center) and update selectedDate
-    const date = new Date(selectedDate);
-    date.setDate(selectedDate.getDate() + index - 6);
-    
-    // Check if date is in the past
-    const now = new Date();
-    now.setHours(0, 0, 0, 0);
-    const checkDate = new Date(date);
-    checkDate.setHours(0, 0, 0, 0);
-    const isPast = checkDate.getTime() < now.getTime();
-    
-    if (!isPast) {
-      setSelectedDate(date);
-      // Scroll to center to ensure selected date is always between dividers
-      dateScrollRef.current?.scrollTo({ y: 6 * ITEM_HEIGHT, animated: true });
-    } else {
-      // If scrolled to past date, scroll back to current date
-      const currentDate = new Date();
-      const selected = new Date(selectedDate);
-      const daysDiff = Math.floor((currentDate.getTime() - selected.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff !== 0) {
-        setSelectedDate(currentDate);
-        dateScrollRef.current?.scrollTo({ y: 6 * ITEM_HEIGHT, animated: true });
-      }
-    }
+    const index = dateWheelIndex(dateAtWheelIndex(event.nativeEvent.contentOffset.y / ITEM_HEIGHT));
+    setSelectedDate(dateAtWheelIndex(index));
+    dateScrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
   };
 
   const handleHourScroll = (event: any) => {
@@ -392,13 +355,27 @@ export default function ReturnLaterModal({
     }
   };
 
+  // The "too soon" message belongs to the time it was about; picking another
+  // time makes it stale, so it only shows while that time is still selected.
+  const pickedTime = `${selectedDate.toDateString()} ${selectedHour}:${selectedMinute} ${selectedPeriod}`;
+  const visibleTimeError = timeError?.forTime === pickedTime ? timeError.message : null;
+
+  /**
+   * Line the wheels up with the defaulted time once the sheet is on screen.
+   * `onShow`, not a timer after `visible`: SafeModal can hold presentation
+   * back while another sheet finishes closing, and the wheels do not exist
+   * until it is shown.
+   */
+  const scrollWheelsToSelection = () => {
+    dateScrollRef.current?.scrollTo({ y: dateWheelIndex(selectedDate) * ITEM_HEIGHT, animated: false });
+    hourScrollRef.current?.scrollTo({ y: (selectedHour - 1) * ITEM_HEIGHT, animated: false });
+    minuteScrollRef.current?.scrollTo({ y: selectedMinute * ITEM_HEIGHT, animated: false });
+    periodScrollRef.current?.scrollTo({ y: (selectedPeriod === 'AM' ? 0 : 1) * ITEM_HEIGHT, animated: false });
+  };
+
   const handleConfirm = () => {
     if (!isAtLeast5MinFromNow(selectedDate, selectedHour, selectedMinute, selectedPeriod)) {
-      messageModal.show({
-        title: 'Invalid time',
-        message: `Return time must be at least ${MIN_MINUTES_FROM_NOW} minutes from now.`,
-        buttons: [{ text: 'OK' }],
-      });
+      setTimeError({ message: `Return time must be at least ${MIN_MINUTES_FROM_NOW} minutes from now.`, forTime: pickedTime });
       return;
     }
     const timeString = `${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')} ${selectedPeriod}`;
@@ -414,6 +391,7 @@ export default function ReturnLaterModal({
     <Modal
       transparent
       visible={visible}
+      onShow={scrollWheelsToSelection}
       animationType="fade"
       onRequestClose={onClose}
     >
@@ -469,9 +447,7 @@ export default function ReturnLaterModal({
                     onMomentumScrollEnd={handleDateScrollEnd}
                     scrollEventThrottle={16}
                   >
-                    {[...Array(14)].map((_, i) => {
-                      const date = new Date(selectedDate);
-                      date.setDate(selectedDate.getDate() + i - 6); // Show 6 days before and 7 days after selected date
+                    {dateWheelDates().map((date) => {
                       const isSelected = date.toDateString() === selectedDate.toDateString();
                       
                       // Check if date is in the past
@@ -491,6 +467,7 @@ export default function ReturnLaterModal({
                           onPress={() => {
                             if (!isPast) {
                               setSelectedDate(date);
+                              dateScrollRef.current?.scrollTo({ y: dateWheelIndex(date) * ITEM_HEIGHT, animated: true });
                             }
                           }}
                           style={styles.wheelItem}
@@ -721,11 +698,23 @@ export default function ReturnLaterModal({
                 placeholder="Add a message..."
                 placeholderTextColor="#999999"
                 multiline
+                inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
                 value={customReason}
                 onChangeText={setCustomReason}
                 textAlignVertical="top"
               />
+              <KeyboardDoneBar />
             </View>
+
+            {visibleTimeError ? (
+
+              <Text style={styles.timeError} accessibilityRole="alert">
+
+                {visibleTimeError}
+
+              </Text>
+
+            ) : null}
 
             {/* Confirm Button */}
             <TouchableOpacity
@@ -904,6 +893,12 @@ const styles = StyleSheet.create({
   },
   
   // Confirm Button
+  timeError: {
+    marginTop: 12 * scaleX,
+    textAlign: 'center',
+    fontSize: 14 * scaleX,
+    color: '#f92424',
+  },
   confirmButton: {
     marginTop: 40 * scaleX,
     marginHorizontal: 35 * scaleX,

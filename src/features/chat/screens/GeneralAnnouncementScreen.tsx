@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -13,6 +14,7 @@ import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/u
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { User } from '@/types';
@@ -68,6 +70,7 @@ export default function GeneralAnnouncementScreen() {
   const [staff, setStaff] = useState<User[]>([]);
   const [staffLoading, setStaffLoading] = useState(true);
   const [publishing, setPublishing] = useState(false);
+  const messageRef = useRef<TextInput>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -104,6 +107,7 @@ export default function GeneralAnnouncementScreen() {
 
   const handlePublish = async () => {
     if (!canPublish) return;
+    Keyboard.dismiss();
     setPublishing(true);
     const result = await publishAnnouncement({
       subject: subject.trim(),
@@ -138,64 +142,81 @@ export default function GeneralAnnouncementScreen() {
         <ScrollView
           contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 24 * scaleX }]}
           keyboardShouldPersistTaps="handled"
+          // The message box is multiline, so Return adds a line rather than
+          // closing the keyboard — and with the keyboard up, Exclude Staff
+          // and Publish sit underneath it. Dragging the form, tapping an empty
+          // part of it, or "Done" on the bar above the keyboard all close it.
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
           showsVerticalScrollIndicator={false}
         >
-          <Text style={[styles.label, { marginTop: A.firstLabelTop * scaleX }]}>Subject</Text>
-          <TextInput
-            value={subject}
-            onChangeText={setSubject}
-            placeholder="Welcome Message"
-            placeholderTextColor="rgba(0,0,0,0.36)"
-            maxLength={ANNOUNCEMENT_LIMITS.subject}
-            style={[styles.field, styles.subject]}
-            returnKeyType="next"
-            accessibilityLabel="Subject"
-          />
+          <Pressable onPress={Keyboard.dismiss} accessible={false}>
+            <Text style={[styles.label, { marginTop: A.firstLabelTop * scaleX }]}>Subject</Text>
+            <TextInput
+              value={subject}
+              onChangeText={setSubject}
+              placeholder="Welcome Message"
+              placeholderTextColor="rgba(0,0,0,0.36)"
+              maxLength={ANNOUNCEMENT_LIMITS.subject}
+              style={[styles.field, styles.subject]}
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => messageRef.current?.focus()}
+              inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
+              accessibilityLabel="Subject"
+            />
 
-          <Text style={[styles.label, { marginTop: A.sectionGap * scaleX }]}>Input text</Text>
-          <TextInput
-            value={message}
-            onChangeText={setMessage}
-            placeholder="Write the announcement"
-            placeholderTextColor="rgba(0,0,0,0.36)"
-            maxLength={ANNOUNCEMENT_LIMITS.body}
-            multiline
-            textAlignVertical="top"
-            style={[styles.field, styles.message]}
-            accessibilityLabel="Announcement text"
-          />
+            <Text style={[styles.label, { marginTop: A.sectionGap * scaleX }]}>Input text</Text>
+            <TextInput
+              ref={messageRef}
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Write the announcement"
+              placeholderTextColor="rgba(0,0,0,0.36)"
+              maxLength={ANNOUNCEMENT_LIMITS.body}
+              multiline
+              textAlignVertical="top"
+              style={[styles.field, styles.message]}
+              inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
+              accessibilityLabel="Announcement text"
+            />
 
-          <Text style={[styles.label, { marginTop: (A.sectionGap + 2) * scaleX }]}>Exclude Staff</Text>
-          <Pressable
-            style={[styles.field, styles.excludeField]}
-            onPress={() => setShowExclude(true)}
-            accessibilityRole="button"
-            accessibilityLabel={`Exclude staff: ${excludedLabel}`}
-          >
-            <Text style={styles.value} numberOfLines={1}>
-              {excludedLabel}
-            </Text>
-          </Pressable>
+            <Text style={[styles.label, { marginTop: (A.sectionGap + 2) * scaleX }]}>Exclude Staff</Text>
+            <Pressable
+              style={[styles.field, styles.excludeField]}
+              onPress={() => {
+                Keyboard.dismiss();
+                setShowExclude(true);
+              }}
+              accessibilityRole="button"
+              accessibilityLabel={`Exclude staff: ${excludedLabel}`}
+            >
+              <Text style={styles.value} numberOfLines={1}>
+                {excludedLabel}
+              </Text>
+            </Pressable>
 
-          <Pressable
-            style={[styles.publish, !canPublish ? styles.publishDisabled : null]}
-            onPress={handlePublish}
-            disabled={!canPublish}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: !canPublish, busy: publishing }}
-          >
-            {publishing ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.publishText}>Publish</Text>
-            )}
-          </Pressable>
+            <Pressable
+              style={[styles.publish, !canPublish ? styles.publishDisabled : null]}
+              onPress={handlePublish}
+              disabled={!canPublish}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !canPublish, busy: publishing }}
+            >
+              {publishing ? (
+                <ActivityIndicator color="#ffffff" />
+              ) : (
+                <Text style={styles.publishText}>Publish</Text>
+              )}
+            </Pressable>
 
-          <Pressable onPress={goBack} style={styles.cancel} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.cancelText}>Cancel</Text>
+            <Pressable onPress={goBack} style={styles.cancel} hitSlop={8} accessibilityRole="button">
+              <Text style={styles.cancelText}>Cancel</Text>
+            </Pressable>
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <KeyboardDoneBar />
 
       <ExcludeStaffModal
         visible={showExclude}

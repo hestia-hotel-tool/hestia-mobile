@@ -4,7 +4,6 @@ import {
   Animated,
   FlatList,
   Keyboard,
-  Modal,
   Platform,
   StyleSheet,
   Text,
@@ -12,6 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';

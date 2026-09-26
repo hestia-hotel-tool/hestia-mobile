@@ -10,12 +10,12 @@ import {
   Platform,
   Text,
   Image,
-  Modal,
   FlatList,
   useWindowDimensions,
   ActivityIndicator,
   ActionSheetIOS,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useSafeAreaInsets , SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';

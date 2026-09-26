@@ -2,12 +2,12 @@ import React from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   Dimensions,
   Pressable,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 

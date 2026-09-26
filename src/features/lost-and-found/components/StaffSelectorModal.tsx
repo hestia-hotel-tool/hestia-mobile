@@ -2,7 +2,6 @@ import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   Keyboard,
-  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '@/theme';
 import { Icon } from '@/components/Icon';

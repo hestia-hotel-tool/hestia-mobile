@@ -1,5 +1,6 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Modal, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
 import { Icon } from '@/components/Icon';
 import { scaleX } from '@/utils/responsive';

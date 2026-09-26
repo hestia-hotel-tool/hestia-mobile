@@ -1,11 +1,11 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
-  Modal,
   Platform,
   // The `src/tw` ScrollView does not forward refs, and the transcript needs
   // `scrollToEnd`, so this one list stays on the RN component.
   ScrollView,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';

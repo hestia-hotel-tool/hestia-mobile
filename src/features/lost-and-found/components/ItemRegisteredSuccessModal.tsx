@@ -2,12 +2,12 @@ import React from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet,
   ScrollView,
   useWindowDimensions,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import LostFoundRegistered from '@assets/illustrations/lost-found-registered.svg';
 import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';

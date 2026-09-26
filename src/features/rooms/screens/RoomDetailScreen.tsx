@@ -763,8 +763,31 @@ export default function RoomDetailScreen() {
 
 
 
+  /** The sheet Reassign was opened from, to go back to once it closes. */
+  const reassignReturnTo = useRef<'returnLater' | 'refuseService' | null>(null);
+
+  // Return Later and Refuse Service offer Reassign from inside their sheet.
+  // iOS can only present one top-level Modal at a time — opened on top, the
+  // Reassign sheet never appeared and the screen seemed frozen. So step out of
+  // the sheet (SafeModal waits for it to finish closing), and come back to it
+  // when Reassign is done.
   const handleReassign = () => {
+    if (showReturnLaterModal) {
+      reassignReturnTo.current = 'returnLater';
+      setShowReturnLaterModal(false);
+    } else if (showRefuseServiceModal) {
+      reassignReturnTo.current = 'refuseService';
+      setShowRefuseServiceModal(false);
+    }
     setShowReassignModal(true);
+  };
+
+  const closeReassign = () => {
+    setShowReassignModal(false);
+    const back = reassignReturnTo.current;
+    reassignReturnTo.current = null;
+    if (back === 'returnLater') setShowReturnLaterModal(true);
+    else if (back === 'refuseService') setShowRefuseServiceModal(true);
   };
 
   const handleStaffSelect = (staffId: string) => {
@@ -772,7 +795,7 @@ export default function RoomDetailScreen() {
     // Important: never reference variables that don't exist in this scope.
     // iOS was crashing because `selectedStaff` was undefined here.
     if (!staffId) {
-      setShowReassignModal(false);
+      closeReassign();
       return;
     }
 
@@ -799,7 +822,7 @@ export default function RoomDetailScreen() {
       department: undefined,
       avatarColor,
     });
-    setShowReassignModal(false);
+    closeReassign();
 
     // Persist assignment + refresh history (best-effort).
     (async () => {
@@ -827,7 +850,7 @@ export default function RoomDetailScreen() {
 
   const handleAutoAssign = () => {
     // TODO: auto-assign is not implemented.
-    setShowReassignModal(false);
+    closeReassign();
   };
 
   // Lost & found: use fetched items when loaded by roomId, else mock when config says withItems
@@ -1028,7 +1051,7 @@ export default function RoomDetailScreen() {
 
       <ReassignModal
         visible={showReassignModal}
-        onClose={() => setShowReassignModal(false)}
+        onClose={closeReassign}
         onStaffSelect={handleStaffSelect}
         onAutoAssign={handleAutoAssign}
         currentAssignedStaffId={assignedStaff?.id}

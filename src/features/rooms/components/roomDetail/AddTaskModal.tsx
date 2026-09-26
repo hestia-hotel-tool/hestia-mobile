@@ -2,13 +2,14 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Modal,
   ScrollView,
   TouchableOpacity,
   TextInput,
   StyleSheet,
   Platform,
 } from 'react-native';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
@@ -90,9 +91,11 @@ export default function AddTaskModal({
                 value={taskText}
                 onChangeText={setTaskText}
                 multiline
+                inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
                 textAlignVertical="top"
                 autoFocus
               />
+              <KeyboardDoneBar />
             </View>
           </ScrollView>
         </View>

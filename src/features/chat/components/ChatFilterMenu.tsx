@@ -1,5 +1,6 @@
 import React from 'react';
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';

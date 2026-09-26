@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import { Modal, View, StyleSheet, TextInput, Keyboard } from 'react-native';
+import { View, StyleSheet, TextInput, Keyboard } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { scaleX } from '../../constants/reassignModalStyles';
 import { fetchRoomAttendants } from '@features/staff/services/staff';
 import { ReassignTab, StaffMember } from '@features/staff/types/staff.types';

@@ -11,6 +11,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
@@ -738,10 +739,12 @@ export default function CreateTicketFormScreen() {
                 value={description}
                 onChangeText={setDescription}
                 multiline
+                inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
                 numberOfLines={5}
                 textAlignVertical="top"
                 underlineColorAndroid="transparent"
               />
+              <KeyboardDoneBar />
               <TouchableOpacity
                 style={styles.descriptionEditButton}
                 onPress={() => descriptionInputRef.current?.focus()}

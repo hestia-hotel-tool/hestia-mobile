@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
+import { View, Text, Pressable, StyleSheet,} from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { BlurView } from 'expo-blur';
 import { Icon, type IconName } from '@/components/Icon';
 import { typography } from '@/theme';

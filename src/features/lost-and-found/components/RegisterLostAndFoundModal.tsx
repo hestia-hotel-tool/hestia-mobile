@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  Modal,
   ScrollView,
   TouchableOpacity,
   Image,
@@ -11,6 +10,8 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/contexts/ToastContext';
@@ -774,9 +775,11 @@ export default function RegisterLostAndFoundModal({
                   value={notes}
                   onChangeText={setNotes}
                   multiline
+                  inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
                   placeholder="Wrist watch found in guest bathroom whole cleaning"
                   placeholderTextColor="#999999"
                 />
+                <KeyboardDoneBar />
                 <View style={styles.notesDivider} />
               </View>
             </>

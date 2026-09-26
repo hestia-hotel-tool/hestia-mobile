@@ -2,11 +2,11 @@ import React from 'react';
 import {
   View,
   Text,
-  Modal,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 import type { Task } from '../../types/roomDetail.types';

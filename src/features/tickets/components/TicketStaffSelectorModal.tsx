@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   ScrollView,
   StyleSheet,
@@ -10,6 +9,7 @@ import {
   ActivityIndicator,
   Pressable,
 } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography, colors } from '@/theme';
 import { Icon } from '@/components/Icon';

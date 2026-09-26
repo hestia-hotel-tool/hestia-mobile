@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  Modal,
   TouchableOpacity,
   StyleSheet } from 'react-native';
+import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
 import { scaleX } from '../constants/lostAndFoundStyles';
 
