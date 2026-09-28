@@ -1,8 +1,7 @@
 import React from 'react';
 import { ScrollView, StyleSheet, Platform, View, Text, ActivityIndicator } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
-import { useNavigation , NativeStackNavigationProp } from 'expo-router';
-import { RootStackParamList } from '@/types/navigation';
+import { router, useFocusEffect } from 'expo-router';
 import { colors, typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 import TicketCard from '@features/tickets/components/TicketCard';
@@ -16,8 +15,6 @@ interface RoomTicketsSectionProps {
   roomId?: string;
   onSubmit?: (ticketData: any) => void;
 }
-
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function RoomTicketsSection({
   roomNumber,
@@ -40,9 +37,13 @@ export default function RoomTicketsSection({
     }
   }, [roomId]);
 
-  React.useEffect(() => {
-    loadOpenTickets();
-  }, [loadOpenTickets]);
+  // On open, and again on return from a ticket (its status may have changed,
+  // or it may have been deleted).
+  useFocusEffect(
+    React.useCallback(() => {
+      void loadOpenTickets();
+    }, [loadOpenTickets])
+  );
 
   /*
    * Refetch rather than prepend the submitted ticket locally: `createTicket`
@@ -77,7 +78,13 @@ export default function RoomTicketsSection({
             </View>
           ) : openTickets.length > 0 ? (
             // Newest first — `getOpenTicketsForRoom` orders by created_at desc.
-            openTickets.map((ticket) => <TicketCard key={ticket.id} ticket={ticket} />)
+            openTickets.map((ticket) => (
+              <TicketCard
+                key={ticket.id}
+                ticket={ticket}
+                onPress={() => router.push({ pathname: '/ticket/[id]', params: { id: ticket.id } })}
+              />
+            ))
           ) : (
             <View style={styles.currentTicketEmpty}>
               <Text style={styles.currentTicketEmptyText}>

@@ -76,6 +76,8 @@ export const PERMISSIONS = {
   TICKETS_UPDATE: 'tickets.update',
   /** Close a ticket */
   TICKETS_CLOSE: 'tickets.close',
+  /** Edit or delete any ticket */
+  TICKETS_MANAGE: 'tickets.manage',
 
   // Lost & Found
   /** Browse lost & found items */

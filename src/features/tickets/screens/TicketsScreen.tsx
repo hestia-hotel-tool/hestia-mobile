@@ -10,7 +10,7 @@ import {
   ActivityIndicator,
   TextInput,
 } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
+import { router, useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@/types/navigation';
 import BottomTabBar from '@/components/layout/BottomTabBar';
@@ -218,9 +218,7 @@ export default function TicketsScreen() {
   };
 
   const handleTicketPress = (ticket: TicketData) => {
-    // TODO: Navigate to ticket detail screen
-    // TODO: there is no ticket-detail screen to open yet.
-    // navigation.navigate('TicketDetail', { ticketId: ticket.id });
+    router.push({ pathname: '/ticket/[id]', params: { id: ticket.id } });
   };
 
   const handleAssigneePress = async (ticket: TicketData) => {

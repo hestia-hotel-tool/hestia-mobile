@@ -35,6 +35,20 @@ export const formatClock24 = (date: Date): string =>
   `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
 
 /**
+ * An instant in full, for a record's detail screen: "Sat 26 Sep 2026 · 14:30".
+ * "—" when missing or unparseable. Fixed English names, like `formatDueTime`,
+ * rather than a locale's ("Sept").
+ */
+export const formatMoment = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '—';
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+  return `${day} ${d.getDate()} ${month} ${d.getFullYear()} · ${formatClock24(d)}`;
+};
+
+/**
  * A wall-clock time as "HH:mm", 24-hour.
  *
  * `reservations.eta` is a Postgres `time`, so PostgREST returns it with seconds

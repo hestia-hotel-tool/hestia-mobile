@@ -1,7 +1,10 @@
 import * as ImagePicker from 'expo-image-picker';
 
-/** Most photos one item may have — enough to show it from every side. */
-export const MAX_ITEM_PHOTOS = 8;
+/**
+ * Most photos one record (a lost & found item, a ticket) may have — enough to
+ * show it from every side.
+ */
+export const MAX_PHOTOS = 8;
 
 export type PickResult = { uris: string[] } | { error: string };
 
@@ -18,12 +21,12 @@ const COMMON: ImagePicker.ImagePickerOptions = {
 };
 
 /**
- * Photos for a lost & found item, from the library (several at once) or the
- * camera. `remaining` caps the selection so an item never passes
- * MAX_ITEM_PHOTOS. Cancelling returns no URIs, not an error.
+ * Photos from the library (several at once) or the camera. `remaining` caps
+ * the selection so a record never passes MAX_PHOTOS. Cancelling returns no
+ * URIs, not an error.
  */
-export async function pickItemPhotos(source: 'library' | 'camera', remaining: number): Promise<PickResult> {
-  if (remaining <= 0) return { error: `An item can have up to ${MAX_ITEM_PHOTOS} photos.` };
+export async function pickPhotos(source: 'library' | 'camera', remaining: number): Promise<PickResult> {
+  if (remaining <= 0) return { error: `You can add up to ${MAX_PHOTOS} photos.` };
   try {
     if (source === 'camera') {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -41,7 +44,7 @@ export async function pickItemPhotos(source: 'library' | 'camera', remaining: nu
     });
     return { uris: result.canceled ? [] : result.assets.map((a) => a.uri).slice(0, remaining) };
   } catch (e) {
-    console.warn('[pickItemPhotos]', e);
+    console.warn('[pickPhotos]', e);
     return { error: source === 'camera' ? 'Could not open the camera.' : 'Could not open your photos.' };
   }
 }

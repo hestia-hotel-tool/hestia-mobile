@@ -11,7 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
-import { MAX_ITEM_PHOTOS, pickItemPhotos } from '../utils/photoPicker';
+import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useToast } from '@/contexts/ToastContext';
@@ -253,15 +253,15 @@ export default function RegisterLostAndFoundModal({
     setSelectedRoom(matchedRoom);
   }, [visible, preselectedRoomId, rooms]);
 
-  // Several at once, up to MAX_ITEM_PHOTOS in all — the picker used to take one.
+  // Several at once, up to MAX_PHOTOS in all — the picker used to take one.
   const handleAddPicture = async () => {
     setShowPictureError(false);
-    const result = await pickItemPhotos('library', MAX_ITEM_PHOTOS - pictures.length);
+    const result = await pickPhotos('library', MAX_PHOTOS - pictures.length);
     if ('error' in result) {
       toast.show(result.error, { type: 'error', title: 'Photos' });
       return;
     }
-    if (result.uris.length > 0) setPictures((prev) => [...prev, ...result.uris].slice(0, MAX_ITEM_PHOTOS));
+    if (result.uris.length > 0) setPictures((prev) => [...prev, ...result.uris].slice(0, MAX_PHOTOS));
   };
 
   // Handle removing a picture

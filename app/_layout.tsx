@@ -31,7 +31,8 @@ function navigateFromPushData(data: Partial<PushData> & Record<string, unknown>)
     return;
   }
   if (data.type === 'ticket_tag') {
-    router.push('/(tabs)/(home)');
+    if (typeof data.ticketId === 'string') router.push({ pathname: '/ticket/[id]', params: { id: data.ticketId } });
+    else router.push('/(tabs)/(tickets)');
   }
 }
 
@@ -140,6 +141,9 @@ export default function RootLayout() {
             <Stack.Screen name="lost-and-found/[id]" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
             {/* A sheet over the item: Cancel / Save, and a swipe-down that asks first when there are edits. */}
             <Stack.Screen name="lost-and-found/edit/[id]" options={{ presentation: 'modal', headerShown: true }} />
+            {/* Ticket detail and its edit sheet — same arrangement as lost & found. */}
+            <Stack.Screen name="ticket/[id]" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            <Stack.Screen name="ticket/edit/[id]" options={{ presentation: 'modal', headerShown: true }} />
             <Stack.Screen name="user-profile" />
             <Stack.Screen name="select-ticket-location" />
             <Stack.Screen name="create-ticket-form" />

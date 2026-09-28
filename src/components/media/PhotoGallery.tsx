@@ -10,12 +10,14 @@ import {
   type NativeSyntheticEvent,
 } from 'react-native';
 import { Image } from 'expo-image';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { typography } from '@/theme';
 import { PhotoViewer } from './PhotoViewer';
 
 type Props = {
   photos: string[];
+  /** The mark on the empty state. */
+  emptyIcon?: IconName;
   /** Shown when there are no photos and the reader may add some. */
   onAddPhotos?: () => void;
 };
@@ -24,10 +26,10 @@ type Props = {
 const ASPECT = 3 / 4;
 
 /**
- * The item's photos, full width and swipeable, with a "2 / 5" counter and page
+ * A record's photos (a lost & found item, a ticket), full width and swipeable, with a "2 / 5" counter and page
  * dots. Tapping one opens it full screen (PhotoViewer).
  */
-export function PhotoGallery({ photos, onAddPhotos }: Props) {
+export function PhotoGallery({ photos, emptyIcon = 'action-add-photo', onAddPhotos }: Props) {
   const { width } = useWindowDimensions();
   const height = Math.round(width * ASPECT);
   const [index, setIndex] = useState(0);
@@ -45,7 +47,7 @@ export function PhotoGallery({ photos, onAddPhotos }: Props) {
   if (photos.length === 0) {
     return (
       <View style={[styles.empty, { height: Math.round(height * 0.6) }]}>
-        <Icon name="lost-found-basket" size={54} />
+        <Icon name={emptyIcon} size={54} />
         <Text style={styles.emptyText}>No photos yet</Text>
         {onAddPhotos ? (
           <Pressable onPress={onAddPhotos} style={styles.emptyButton} accessibilityRole="button">

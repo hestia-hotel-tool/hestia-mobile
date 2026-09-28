@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useNavigation, useRoute, useRouter , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
-import * as ImagePicker from 'expo-image-picker';
+import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
@@ -319,36 +319,16 @@ export default function CreateTicketFormScreen() {
     setShowFrequentCasesDropdown(false);
   };
 
+  // Several at once, up to MAX_PHOTOS in all — the picker used to take one.
   const handleAddPicture = async () => {
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        toast.show('Permission to access camera roll is required.', { type: 'error' });
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        allowsMultipleSelection: false,
-        allowsEditing: false,
-        quality: 0.8,
-        /*
-         * iOS otherwise hands back the original HEIC, which the upload stores
-         * under a .jpg name and an image/jpeg type — the bytes then fail to
-         * render on the card, and Android cannot decode HEIC at all.
-         * `Compatible` makes iOS transcode to JPEG before returning it.
-         */
-        preferredAssetRepresentationMode:
-          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        setPictures((prev) => [...prev, result.assets[0].uri]);
-        toast.show('Photo added successfully', { type: 'success' });
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      toast.show('Failed to add photo. Please try again.', { type: 'error' });
+    const result = await pickPhotos('library', MAX_PHOTOS - pictures.length);
+    if ('error' in result) {
+      toast.show(result.error, { type: 'error' });
+      return;
+    }
+    if (result.uris.length > 0) {
+      setPictures((prev) => [...prev, ...result.uris].slice(0, MAX_PHOTOS));
+      toast.show(result.uris.length === 1 ? 'Photo added' : `${result.uris.length} photos added`, { type: 'success' });
     }
   };
 

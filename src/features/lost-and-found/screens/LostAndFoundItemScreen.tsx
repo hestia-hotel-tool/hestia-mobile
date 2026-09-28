@@ -13,14 +13,14 @@ import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Avatar } from '@/components/ui/Avatar';
+import { DetailCard, DetailPersonRow, DetailRow } from '@/components/ui/DetailRows';
 import { useToast } from '@/contexts/ToastContext';
 import { usePermissions } from '@/domain/rbac/usePermissions';
 import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { typography } from '@/theme';
-import { formatClock24 } from '@/utils/formatting';
+import { formatMoment } from '@/utils/formatting';
 import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
-import { PhotoGallery } from '../components/detail/PhotoGallery';
+import { PhotoGallery } from '@/components/media/PhotoGallery';
 import {
   deleteLostAndFoundItem,
   fetchLostAndFoundItemDetail,
@@ -34,8 +34,6 @@ const C = {
   title: '#5a759d',
   ink: '#1e1e1e',
   muted: '#6b7a90',
-  card: '#f9fafc',
-  cardBorder: 'rgba(90,117,157,0.18)',
   danger: '#e5484d',
 } as const;
 
@@ -46,16 +44,6 @@ const STATUS: Record<LostAndFoundStatus, { label: string; color: string }> = {
   returned: { label: 'Returned', color: '#39d47f' },
   discarded: { label: 'Discarded', color: '#9ca3af' },
 };
-
-/** "Sat 26 Sep 2026 · 14:30". */
-function formatMoment(iso: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return '—';
-  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
-  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
-  return `${day} ${d.getDate()} ${month} ${d.getFullYear()} · ${formatClock24(d)}`;
-}
 
 /**
  * One lost & found item — reached from its card in Lost & Found or in a
@@ -204,7 +192,7 @@ export default function LostAndFoundItemScreen() {
           />
         }
       >
-        <PhotoGallery photos={item.photos} onAddPhotos={canManage ? openEdit : undefined} />
+        <PhotoGallery photos={item.photos} emptyIcon="lost-found-basket" onAddPhotos={canManage ? openEdit : undefined} />
 
         <View style={styles.body}>
           <View style={styles.titleRow}>
@@ -228,8 +216,8 @@ export default function LostAndFoundItemScreen() {
             </Pressable>
           ) : null}
 
-          <View style={styles.card}>
-            <Row
+          <DetailCard>
+            <DetailRow
               label="Found in"
               value={item.foundLocation}
               action={
@@ -242,18 +230,18 @@ export default function LostAndFoundItemScreen() {
               }
             />
             {item.guest ? (
-              <PersonRow
+              <DetailPersonRow
                 label="Guest"
                 name={item.guest.name}
                 avatarUrl={item.guest.imageUrl}
                 detail={item.guest.dates}
               />
             ) : null}
-            <Row label="Found on" value={formatMoment(item.foundAt)} />
-            <Row label={keptAt.label} value={keptAt.value || '—'} last={!item.foundBy && !item.registeredBy} />
-            {item.foundBy ? <PersonRow label="Found by" name={item.foundBy.name} avatarUrl={item.foundBy.avatarUrl} /> : null}
+            <DetailRow label="Found on" value={formatMoment(item.foundAt)} />
+            <DetailRow label={keptAt.label} value={keptAt.value || '—'} last={!item.foundBy && !item.registeredBy} />
+            {item.foundBy ? <DetailPersonRow label="Found by" name={item.foundBy.name} avatarUrl={item.foundBy.avatarUrl} /> : null}
             {item.registeredBy && item.registeredBy.id !== item.foundBy?.id ? (
-              <PersonRow
+              <DetailPersonRow
                 label="Registered by"
                 name={item.registeredBy.name}
                 avatarUrl={item.registeredBy.avatarUrl}
@@ -261,14 +249,14 @@ export default function LostAndFoundItemScreen() {
                 last
               />
             ) : null}
-          </View>
+          </DetailCard>
 
           <Text style={styles.sectionTitle}>Notes</Text>
-          <View style={styles.card}>
+          <DetailCard>
             <Text style={item.description ? styles.notes : styles.notesEmpty}>
               {item.description || 'No notes for this item.'}
             </Text>
-          </View>
+          </DetailCard>
 
           {item.updatedAt && item.createdAt && item.updatedAt !== item.createdAt ? (
             <Text style={styles.meta}>Last updated {formatMoment(item.updatedAt)}</Text>
@@ -287,61 +275,6 @@ export default function LostAndFoundItemScreen() {
           ) : null}
         </View>
       </ScrollView>
-    </View>
-  );
-}
-
-function Row({
-  label,
-  value,
-  action,
-  last,
-}: {
-  label: string;
-  value: string;
-  action?: { label: string; onPress: () => void };
-  last?: boolean;
-}) {
-  return (
-    <View style={[styles.row, !last && styles.rowDivider]}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.rowValueWrap}>
-        <Text style={styles.rowValue}>{value}</Text>
-        {action ? (
-          <Pressable onPress={action.onPress} hitSlop={8} accessibilityRole="link">
-            <Text style={styles.rowAction}>{action.label}</Text>
-          </Pressable>
-        ) : null}
-      </View>
-    </View>
-  );
-}
-
-function PersonRow({
-  label,
-  name,
-  avatarUrl,
-  detail,
-  last,
-}: {
-  label: string;
-  name: string;
-  avatarUrl?: string;
-  detail?: string;
-  last?: boolean;
-}) {
-  return (
-    <View style={[styles.row, !last && styles.rowDivider]}>
-      <Text style={styles.rowLabel}>{label}</Text>
-      <View style={styles.person}>
-        <Avatar uri={avatarUrl} name={name} size={28} />
-        <View style={styles.personText}>
-          <Text style={styles.rowValue} numberOfLines={1}>
-            {name}
-          </Text>
-          {detail ? <Text style={styles.personDetail}>{detail}</Text> : null}
-        </View>
-      </View>
     </View>
   );
 }
@@ -371,23 +304,6 @@ const styles = StyleSheet.create({
   trackingText: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 14, color: C.title, letterSpacing: 0.5 },
   trackingHint: { fontFamily: typography.fontFamily.primary, fontSize: 12, color: C.muted },
   pressed: { opacity: 0.7 },
-  card: {
-    marginTop: 16,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: C.cardBorder,
-    backgroundColor: C.card,
-    paddingHorizontal: 16,
-  },
-  row: { paddingVertical: 13, gap: 4 },
-  rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(90,117,157,0.25)' },
-  rowLabel: { fontFamily: typography.fontFamily.primary, fontSize: 12, color: C.muted, textTransform: 'uppercase', letterSpacing: 0.6 },
-  rowValueWrap: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
-  rowValue: { flexShrink: 1, fontFamily: typography.fontFamily.primary, fontSize: 16, color: C.ink },
-  rowAction: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 14, color: C.title },
-  person: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  personText: { flexShrink: 1 },
-  personDetail: { marginTop: 1, fontFamily: typography.fontFamily.primary, fontSize: 12, color: C.muted },
   sectionTitle: { marginTop: 24, fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 15, color: C.ink },
   notes: { paddingVertical: 14, fontFamily: typography.fontFamily.primary, fontSize: 15, lineHeight: 22, color: C.ink },
   notesEmpty: { paddingVertical: 14, fontFamily: typography.fontFamily.primary, fontSize: 15, color: C.muted },

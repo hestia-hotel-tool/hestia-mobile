@@ -83,6 +83,9 @@ EXTRA_GRANTS = {
     # (full_access) above; also the Front Office / Concierge / IRD leads, who
     # hand items back to guests (migration 20260928000100).
     "lost_and_found.manage": ["full_access", "ops_senior"],
+    # tickets.manage — edit any ticket (its author may always edit their own)
+    # and delete tickets. Same leadership set (migration 20260928000200).
+    "tickets.manage": ["full_access", "ops_senior"],
 }
 
 PERMISSION_DESCRIPTIONS = {
@@ -115,6 +118,7 @@ PERMISSION_DESCRIPTIONS = {
     "tickets.create": "Raise a ticket",
     "tickets.update": "Edit a ticket",
     "tickets.close": "Close a ticket",
+    "tickets.manage": "Edit or delete any ticket",
     "lost_and_found.read": "Browse lost & found items",
     "lost_and_found.register": "Register a found item",
     "lost_and_found.manage": "Edit and resolve lost & found items",

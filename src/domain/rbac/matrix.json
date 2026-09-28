@@ -141,6 +141,10 @@
     {
       "key": "chat.announce",
       "description": "Publish a General Announcement to all staff"
+    },
+    {
+      "key": "tickets.manage",
+      "description": "Edit or delete any ticket"
     }
   ],
   "rights": [
@@ -295,6 +299,10 @@
       "ops_senior"
     ],
     "lost_and_found.manage": [
+      "full_access",
+      "ops_senior"
+    ],
+    "tickets.manage": [
       "full_access",
       "ops_senior"
     ]

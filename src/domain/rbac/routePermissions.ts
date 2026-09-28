@@ -53,7 +53,10 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'lost-and-found': PERMISSIONS.LOST_AND_FOUND_READ,
   'lost-and-found/edit': PERMISSIONS.LOST_AND_FOUND_MANAGE,
 
-  // Tickets
+  // Tickets. The detail needs the Tickets tab; the edit sheet tickets.update —
+  // the screen and the database narrow it to the ticket's author and managers.
+  'ticket': PERMISSIONS.TICKETS_VIEW,
+  'ticket/edit': PERMISSIONS.TICKETS_UPDATE,
   'create-ticket-form': PERMISSIONS.TICKETS_CREATE,
   'select-ticket-location': PERMISSIONS.TICKETS_CREATE,
 };

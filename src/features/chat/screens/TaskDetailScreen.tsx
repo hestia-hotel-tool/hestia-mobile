@@ -63,7 +63,12 @@ export default function TaskDetailScreen() {
   const action =
     item && meta
       ? meta.target === 'tickets'
-        ? { label: 'View tickets', go: () => router.navigate('/(tabs)/(tickets)' as never) }
+        ? item.ticketId
+          ? {
+              label: 'View ticket',
+              go: () => router.push({ pathname: '/ticket/[id]', params: { id: item.ticketId! } }),
+            }
+          : { label: 'View tickets', go: () => router.navigate('/(tabs)/(tickets)' as never) }
         : item.roomId
           ? {
               label: 'View room',
