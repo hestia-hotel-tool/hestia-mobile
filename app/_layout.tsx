@@ -134,6 +134,12 @@ export default function RootLayout() {
             <Stack.Screen name="general-announcement" />
             <Stack.Screen name="announcement/[id]" />
             <Stack.Screen name="task/[id]" />
+            {/* headerShown here, not only from the screen: switching it on from inside a
+                modal remounts that modal (react-navigation), and the edit sheet then
+                reloaded itself forever. */}
+            <Stack.Screen name="lost-and-found/[id]" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            {/* A sheet over the item: Cancel / Save, and a swipe-down that asks first when there are edits. */}
+            <Stack.Screen name="lost-and-found/edit/[id]" options={{ presentation: 'modal', headerShown: true }} />
             <Stack.Screen name="user-profile" />
             <Stack.Screen name="select-ticket-location" />
             <Stack.Screen name="create-ticket-form" />

@@ -11,9 +11,9 @@ import {
   Platform,
 } from 'react-native';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
+import { MAX_ITEM_PHOTOS, pickItemPhotos } from '../utils/photoPicker';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
-import * as ImagePicker from 'expo-image-picker';
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { Icon } from '@/components/Icon';
@@ -253,44 +253,15 @@ export default function RegisterLostAndFoundModal({
     setSelectedRoom(matchedRoom);
   }, [visible, preselectedRoomId, rooms]);
 
-  // Handle adding pictures – align behavior with Tickets (direct gallery picker)
+  // Several at once, up to MAX_ITEM_PHOTOS in all — the picker used to take one.
   const handleAddPicture = async () => {
     setShowPictureError(false);
-    try {
-      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (status !== 'granted') {
-        toast.show('We need camera roll permissions to add pictures.', {
-          type: 'error',
-          title: 'Permission needed',
-        });
-        return;
-      }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: 'images',
-        allowsMultipleSelection: false,
-        allowsEditing: false,
-        quality: 0.8,
-        /*
-         * iOS otherwise hands back the original HEIC, which the upload stores
-         * under a .jpg name and an image/jpeg type — the bytes then fail to
-         * render on the card, and Android cannot decode HEIC at all.
-         * `Compatible` makes iOS transcode to JPEG before returning it.
-         */
-        preferredAssetRepresentationMode:
-          ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
-      });
-
-      if (!result.canceled && result.assets && result.assets[0]) {
-        setPictures((prev) => [...prev, result.assets[0].uri]);
-      }
-    } catch (error) {
-      console.error('Gallery error:', error);
-      toast.show('Failed to open gallery. Please try again.', {
-        type: 'error',
-        title: 'Error',
-      });
+    const result = await pickItemPhotos('library', MAX_ITEM_PHOTOS - pictures.length);
+    if ('error' in result) {
+      toast.show(result.error, { type: 'error', title: 'Photos' });
+      return;
     }
+    if (result.uris.length > 0) setPictures((prev) => [...prev, ...result.uris].slice(0, MAX_ITEM_PHOTOS));
   };
 
   // Handle removing a picture

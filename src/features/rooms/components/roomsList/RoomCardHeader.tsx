@@ -138,8 +138,8 @@ const DIVIDER = 1;
  */
 const RIGHT_COLUMN_MIN = 132;
 
-/** Smallest tile — still holds the 27-tall lost-and-found glyph at full size. */
-const MIN_TILE = 34;
+/** Smallest tile — still holds the 22-high glyphs (RoomBadgeTile) with a little clear. */
+const MIN_TILE = 26;
 
 type HeaderLayout = { rightColumn: number; tile: number; gap: number };
 
@@ -153,7 +153,8 @@ type HeaderLayout = { rightColumn: number; tile: number; gap: number };
  * remains is taken by shrinking the tiles, which always stay in one row.
  */
 function headerLayout(rowWidth: number, textWidth: number, count: number): HeaderLayout {
-  const fullGap = 8;
+  // Tight, so the bell and lost-and-found read as one group.
+  const fullGap = 4;
   const ideal = count * BADGE_TILE.width + (count - 1) * fullGap;
   const spaceWith = (right: number) =>
     rowWidth - ROW_PADDING - DIVIDER - right - textWidth - TILE_GAP_TEXT - TILE_GAP_DIVIDER;
@@ -164,9 +165,8 @@ function headerLayout(rowWidth: number, textWidth: number, count: number): Heade
   }
   const rightColumn = Math.max(RIGHT_COLUMN_MIN, ROOM_CARD.rightColumn - (ideal - atDesign));
   const space = spaceWith(rightColumn);
-  const gap = count > 1 ? 4 : 0;
-  // Not below 34 wide (31 tall): the lost-and-found glyph is 24.8x27 at its
-  // Figma size and needs that tile to sit in.
+  const gap = count > 1 ? 2 : 0;
+  // Not below MIN_TILE: room for the 22-high glyphs with clear space around them.
   const tile = Math.max(MIN_TILE, Math.min(BADGE_TILE.width, (space - gap * (count - 1)) / count));
   return { rightColumn, tile, gap };
 }

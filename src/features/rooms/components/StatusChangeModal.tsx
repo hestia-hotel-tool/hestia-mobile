@@ -22,6 +22,13 @@ export {
 const STATUS_OPTION_IDS: StatusChangeOption[] = ['Dirty', 'InProgress', 'Cleaned', 'Inspected'];
 
 /**
+ * Options that mean someone is cleaning the room — each sets it In Progress —
+ * so they need a room attendant assigned first (enforced by the database too,
+ * migration 20260928000000).
+ */
+const NEEDS_ATTENDANT: StatusChangeOption[] = ['InProgress', 'Pause', 'ReturnLater', 'RefuseService'];
+
+/**
  * How tall the status sheet actually renders, in design px.
  *
  * This is a *placement* estimate, not a size — the card is content-sized. It
@@ -129,6 +136,12 @@ interface StatusChangeModalProps {
   /** Hide options this reader may not use (room attendants: no Priority, no Inspected). */
   canSetPriority?: boolean;
   canInspect?: boolean;
+  /**
+   * False when nobody is assigned to the room: In Progress, Pause, Return Later
+   * and Refuse Service are then shown dimmed, and tapping one says to assign
+   * a room attendant first.
+   */
+  canStartCleaning?: boolean;
 }
 
 /** Which face of the popover is showing. */
@@ -150,6 +163,7 @@ export default function StatusChangeModal({
   onAddNotes,
   canSetPriority = true,
   canInspect = true,
+  canStartCleaning = true,
 }: StatusChangeModalProps) {
   /*
    * Choosing "Cleaned" turns this card into the clean checklist rather than
@@ -230,17 +244,27 @@ export default function StatusChangeModal({
         ) : (
           <>
             <Text style={styles.headerText}>Change Status</Text>
+            {!canStartCleaning ? (
+              <Text style={styles.needsAttendant} accessibilityRole="alert">
+                Assign a room attendant to start cleaning this room.
+              </Text>
+            ) : null}
 
             <View style={styles.optionsGrid}>
-              {options.map((option) => (
+              {options.map((option) => {
+                const blocked = !canStartCleaning && NEEDS_ATTENDANT.includes(option.id);
+                return (
                 <StatusOptionItem
                   key={option.id}
+                  disabled={blocked}
                   iconName={option.iconName}
                   glyphHeight={option.glyphHeight}
                   circleColor={option.circleColor}
                   glyphColor={option.glyphColor}
                   label={option.label}
                   onPress={() => {
+                    // Dimmed, and the line above says why; the room is not changed.
+                    if (blocked) return;
                     // Cleaned swaps this card over to the checklist; the status
                     // only changes once the slider is pulled.
                     if (option.id === 'Cleaned') {
@@ -254,7 +278,8 @@ export default function StatusChangeModal({
                     dismiss(() => onStatusSelect(option.id));
                   }}
                 />
-              ))}
+                );
+              })}
             </View>
 
             {/* Flag room row - matches Figma (red flag on a pale circle, red label, toggle).
@@ -669,6 +694,13 @@ const styles = StyleSheet.create({
     fontWeight: typography.fontWeights.bold as any,
     color: colors.primary.light,
     marginBottom: 16 * scaleX,
+  },
+  needsAttendant: {
+    marginTop: -8 * scaleX,
+    marginBottom: 14 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    color: '#f92424',
   },
   optionsGrid: {
     flexDirection: 'row',

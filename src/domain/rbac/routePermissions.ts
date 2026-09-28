@@ -49,6 +49,10 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'announcement': PERMISSIONS.CHAT_VIEW,
   'task': PERMISSIONS.CHAT_VIEW,
 
+  // Lost & found item detail, and its edit sheet (longest prefix wins).
+  'lost-and-found': PERMISSIONS.LOST_AND_FOUND_READ,
+  'lost-and-found/edit': PERMISSIONS.LOST_AND_FOUND_MANAGE,
+
   // Tickets
   'create-ticket-form': PERMISSIONS.TICKETS_CREATE,
   'select-ticket-location': PERMISSIONS.TICKETS_CREATE,

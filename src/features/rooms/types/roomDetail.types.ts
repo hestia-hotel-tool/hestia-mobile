@@ -162,6 +162,10 @@ export interface RoomDetailScreenProps {
   /** Opens a task in full — wired to ViewTaskModal. */
   onSeeMoreTask?: (task: Task) => void;
   onAddLostAndFoundItem?: () => void;
+  /** Open the Lost & Found screen (the section title, or its item). */
+  onOpenLostAndFound?: () => void;
+  /** Open one lost & found item's detail screen, pushed over this room. */
+  onOpenLostAndFoundItem?: (itemId: string) => void;
   onDownloadHistoryReport?: () => Promise<void>;
   /** When the room is paused, resume clears pause and returns to normal UI. */
   onResumePause?: () => void;

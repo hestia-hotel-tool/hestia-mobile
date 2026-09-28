@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
-import { useNavigation, useRoute, useFocusEffect } from 'expo-router';
+import { router, useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
 import { LOST_AND_FOUND_CARD_LAYOUT as CARD_LAYOUT } from '../components/itemCard/lostAndFoundCardLayout';
 import { LOST_AND_FOUND_SCREEN_LAYOUT as SCREEN_LAYOUT } from '../constants/lostAndFoundScreenLayout';
@@ -73,7 +73,20 @@ export default function LostAndFoundScreen() {
   const refreshRoomBadges = useRoomsStore((s) => s.refreshRoomBadges);
   const route = useRoute();
   const userProfile = useUserStore((s) => s.profile);
-  const params = route.params as { openRegisterModal?: boolean; preselectedRoomId?: string } | undefined;
+  const params = route.params as
+    | { openRegisterModal?: boolean; preselectedRoomId?: string; returnToRoomId?: string }
+    | undefined;
+  /**
+   * The room detail screen that sent us here to register an item, if any. Once
+   * the item is added — or the sheet is cancelled — we go back to that room
+   * rather than leaving the reader on the Lost & Found list.
+   */
+  const returnToRoomRef = React.useRef<string | null>(null);
+  const goBackToRoom = () => {
+    const roomId = returnToRoomRef.current;
+    returnToRoomRef.current = null;
+    if (roomId) router.push({ pathname: '/room/[roomId]', params: { roomId } });
+  };
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
   const [items, setItems] = useState<LostAndFoundItem[]>([]);
   const itemsRef = React.useRef<LostAndFoundItem[]>([]);
@@ -304,9 +317,10 @@ export default function LostAndFoundScreen() {
   useEffect(() => {
     if (params?.openRegisterModal) {
       setPreselectedRoomIdForRegister(params?.preselectedRoomId);
+      returnToRoomRef.current = params?.returnToRoomId ?? null;
       setShowRegisterModal(true);
       // Clear the param to prevent reopening on subsequent renders
-      navigation.setParams({ openRegisterModal: false, preselectedRoomId: undefined } as any);
+      navigation.setParams({ openRegisterModal: false, preselectedRoomId: undefined, returnToRoomId: undefined } as any);
     }
   }, [params?.openRegisterModal, navigation]);
 
@@ -347,6 +361,8 @@ export default function LostAndFoundScreen() {
     // Always refresh the list when leaving the register flow (even if the user cancelled),
     // so the list reflects any new items created from another device/session.
     void loadItems('focus');
+    // Cancelled from a room's "Add Item": back to that room.
+    goBackToRoom();
   };
 
   const handleRegisterNext = async (data: {
@@ -388,6 +404,8 @@ export default function LostAndFoundScreen() {
           clearTimeout(successTimer);
           setShowSuccessModal(false);
           setSuccessData(null);
+          // Stay here to retry rather than returning to the room with nothing added.
+          returnToRoomRef.current = null;
           toast.show(result.error, { type: 'error', title: 'Item not registered', duration: 6000 });
         }
         // Do not refresh here; we refresh once when the user closes the success modal.
@@ -436,6 +454,8 @@ export default function LostAndFoundScreen() {
     setShowSuccessModal(false);
     setSuccessData(null);
     // No reload here: we already refresh right after insert in `handleRegisterNext`.
+    // Added from a room's "Add Item": back to that room, where it now shows.
+    goBackToRoom();
   };
 
   const handleTabChange = (tab: LostAndFoundTab) => {
@@ -443,8 +463,7 @@ export default function LostAndFoundScreen() {
   };
 
   const handleItemPress = (item: LostAndFoundItem) => {
-    // TODO: Navigate to item detail screen when implemented
-    // TODO: no lost-and-found detail screen yet.
+    router.push({ pathname: '/lost-and-found/[id]', params: { id: item.id } });
   };
 
   const handleStatusPress = (item: LostAndFoundItem, anchor?: LostAndFoundStatusAnchorLayout) => {

@@ -70,6 +70,7 @@ import BadgeLostFound from '@assets/icons/misc/badge-lost-found.svg';
 import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
 import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
 import LocationPin from '@assets/icons/misc/location-pin.svg';
+import LostFoundBasket from '@assets/icons/misc/lost-found-basket.svg';
 // nav
 import NavAi from '@assets/icons/nav/nav-ai.svg';
 import NavChat from '@assets/icons/nav/nav-chat.svg';
@@ -148,6 +149,7 @@ export const icons = {
   'checklist-curtains': ChecklistCurtains,
   'checklist-minibar': ChecklistMinibar,
   'location-pin': LocationPin,
+  'lost-found-basket': LostFoundBasket,
   // nav
   'nav-ai': NavAi,
   'nav-chat': NavChat,
@@ -227,10 +229,11 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'ai-typing-dots': 3.7753,
   'area-public': 0.9615,
   'badge-bell': 1,
-  'badge-lost-found': 0.9286,
+  'badge-lost-found': 0.9018,
   'checklist-curtains': 1.931,
   'checklist-minibar': 0.9987,
   'location-pin': 1,
+  'lost-found-basket': 0.9,
   'nav-ai': 1,
   'nav-chat': 1.0003,
   'nav-home': 1.0744,

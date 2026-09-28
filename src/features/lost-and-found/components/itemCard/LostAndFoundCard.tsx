@@ -12,6 +12,7 @@ import { ItemLocationBlock } from './ItemLocationBlock';
 import { ItemCardFooter } from './ItemCardFooter';
 import { ItemStatusPill, type LostAndFoundStatusAnchorLayout } from './ItemStatusPill';
 import { typography } from '@/theme';
+import { storedLocationLabel } from '../../utils/storedLocations';
 
 export type { LostAndFoundStatusAnchorLayout };
 
@@ -35,24 +36,6 @@ function formatTimestamp(iso?: string): string {
 }
 
 /**
- * Turn a stored-location key into something a person would read.
- *
- * The column holds camelCase keys — `hskOffice`, `frontDesk` — and the card used
- * to print them raw, so the list said "hskOffice" where Figma 3871:3599 says
- * "HSK Office". Step 2 of the register form has always mapped them (its
- * `getLocationLabel`), so the two surfaces disagreed about the same value.
- *
- * Unknown keys fall through unchanged rather than being mangled: a free-text
- * shipped location like "34 bremgarten zug" must survive this untouched.
- */
-const STORED_LOCATION_LABEL: Record<string, string> = {
-  hskOffice: 'HSK Office',
-  frontDesk: 'Front Desk',
-  securityOffice: 'Security Office',
-  lostAndFoundRoom: 'Lost & Found Room',
-};
-
-/**
  * Pull a URL out of whatever shape `registeredBy.avatar` arrives in.
  *
  * The screen builds it as `{ uri }` from `users.avatar_url`, mock data has used
@@ -69,11 +52,8 @@ function avatarUriOf(avatar: unknown): string | undefined {
   return undefined;
 }
 
-function locationLabel(value?: string): string {
-  const raw = (value ?? '').trim();
-  if (!raw) return '—';
-  return STORED_LOCATION_LABEL[raw] ?? raw;
-}
+/** See utils/storedLocations — shared with the item detail and edit screens. */
+const locationLabel = storedLocationLabel;
 
 /**
  * One Lost & Found item — Figma **3128:32**, nodes 3871:3585 and 3871:3619.

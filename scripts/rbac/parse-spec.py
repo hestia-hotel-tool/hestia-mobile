@@ -79,6 +79,10 @@ ADMIN_ONLY_PERMISSIONS = [
 # (full_access) and the Front Office / Concierge / IRD leads (ops_senior).
 EXTRA_GRANTS = {
     "chat.announce": ["full_access", "ops_senior"],
+    # lost_and_found.manage — edit and delete lost & found items. Admin-only
+    # (full_access) above; also the Front Office / Concierge / IRD leads, who
+    # hand items back to guests (migration 20260928000100).
+    "lost_and_found.manage": ["full_access", "ops_senior"],
 }
 
 PERMISSION_DESCRIPTIONS = {

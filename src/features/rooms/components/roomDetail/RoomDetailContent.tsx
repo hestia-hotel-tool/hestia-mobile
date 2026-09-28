@@ -71,6 +71,8 @@ export default function RoomDetailContent({
   onAddTask,
   onSeeMoreTask,
   onAddLostAndFoundItem,
+  onOpenLostAndFound,
+  onOpenLostAndFoundItem,
   onDownloadHistoryReport,
   onResumePause,
   onReturnLaterElapsed,
@@ -124,7 +126,6 @@ export default function RoomDetailContent({
     () => resolveGuestSlots(roomType, guests, { fallbackSeed: roomId }),
     [roomType, guests, roomId]
   );
-  const hasLostAndFoundItems = (lostAndFoundItems?.length ?? 0) > 0;
 
   const showAssignedTaskCard = !!(assignedTo || tasks.length > 0);
   const showAssignedToHeading = showAssignedTaskCard;
@@ -245,13 +246,10 @@ export default function RoomDetailContent({
 
               <View style={{ marginTop: CARD_TO_LOST_FOUND_GAP }}>
                 <LostAndFoundSection
-                  displayType={hasLostAndFoundItems ? 'withItems' : 'empty'}
                   items={lostAndFoundItems}
-                  onAddPhotosPress={onAddLostAndFoundItem}
-                  onTitlePress={() => {
-                  }}
-                  onItemPress={(item) => {
-                  }}
+                  onAddPress={onAddLostAndFoundItem}
+                  onTitlePress={onOpenLostAndFound}
+                  onItemPress={onOpenLostAndFoundItem ? (item) => onOpenLostAndFoundItem(item.id) : undefined}
                 />
               </View>
 

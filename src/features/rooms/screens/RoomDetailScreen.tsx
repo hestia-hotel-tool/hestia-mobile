@@ -6,7 +6,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
-import { useRoute, useNavigation, router , NativeStackNavigationProp } from 'expo-router';
+import { useRoute, useNavigation, useFocusEffect, router, NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
 import StatusChangeModal from '../components/StatusChangeModal';
 import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
@@ -18,7 +18,6 @@ import AddNoteModal from '../components/roomDetail/AddNoteModal';
 import AddTaskModal from '../components/roomDetail/AddTaskModal';
 import ViewTaskModal from '../components/roomDetail/ViewTaskModal';
 import RoomDetailContent from '../components/roomDetail/RoomDetailContent';
-import { getRoomTypeConfig } from '../constants/roomTypeConfigs';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import type { RoomCardData, StatusChangeOption, RoomActivityState } from '../types/allRooms.types';
 import {
@@ -129,6 +128,74 @@ export default function RoomDetailScreen() {
    * it from the Tasks row and the Chat and Rooms tab badges.
    */
   const detailRoomId = roomId ?? initialRoom?.id;
+
+  /**
+   * The room's lost & found items, newest registered first.
+   *
+   * Loaded on its own, however the screen was opened: the full-details fetch
+   * above is skipped when coming from a room card, so items used to appear
+   * only on a deep link — and a made-up "Wrist Watch" stood in otherwise.
+   * Re-run on focus, so an item added via "Add Item" is here on return.
+   */
+  const loadLostAndFound = useCallback(async () => {
+    if (!detailRoomId || !UUID_REGEX.test(detailRoomId)) return;
+    const { data, error } = await supabase
+      .from('lost_and_found_items')
+      .select('id, tracking_number, item_name, description, status, found_at, created_at, found_by_id, registered_by_id, storage_location, image_url')
+      .eq('room_id', detailRoomId)
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.warn('[RoomDetail] lost & found items', error.message);
+      return;
+    }
+    const rows = (data ?? []) as {
+      id: string;
+      tracking_number: string | null;
+      item_name: string;
+      description: string | null;
+      status: string | null;
+      found_at: string;
+      created_at: string | null;
+      found_by_id: string | null;
+      registered_by_id: string | null;
+      storage_location: string | null;
+      image_url: string | null;
+    }[];
+    const staffIds = Array.from(
+      new Set(rows.map((r) => r.registered_by_id ?? r.found_by_id).filter((id): id is string => Boolean(id)))
+    );
+    const userById = new Map<string, { full_name?: string | null; avatar_url?: string | null }>();
+    if (staffIds.length > 0) {
+      const { data: usersData } = await supabase.from('users').select('id, full_name, avatar_url').in('id', staffIds);
+      (usersData ?? []).forEach((user: any) => userById.set(user.id, user));
+    }
+    setFetchedLostAndFound(
+      rows.map((item) => {
+        const user = userById.get((item.registered_by_id ?? item.found_by_id) as string);
+        return {
+          id: item.id,
+          itemName: item.item_name,
+          itemId: item.tracking_number ?? item.id,
+          location: item.description ?? 'Room',
+          image: item.image_url ? { uri: item.image_url } : undefined,
+          storedLocation: item.storage_location ?? '',
+          registeredBy: {
+            name: user?.full_name ?? 'Staff',
+            avatar: user?.avatar_url ? { uri: user.avatar_url } : undefined,
+            timestamp: formatRegisteredTimestamp(item.found_at),
+          },
+          status: (item.status as 'stored' | 'shipped' | 'returned' | 'discarded') ?? 'stored',
+          createdAt: item.created_at ?? item.found_at,
+        };
+      })
+    );
+  }, [detailRoomId]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void loadLostAndFound();
+    }, [loadLostAndFound])
+  );
   useEffect(() => {
     if (!detailRoomId || !UUID_REGEX.test(detailRoomId)) return;
     void markRoomAssignmentNotificationsReadForRoom(detailRoomId).then(invalidateNotificationBadges);
@@ -180,44 +247,6 @@ export default function RoomDetailScreen() {
         } else {
           setFetchedAssignedStaff(null);
         }
-        const staffIds = Array.from(
-          new Set(
-            full.lostAndFoundItems
-              .map((item) => item.registered_by_id ?? item.found_by_id)
-              .filter((id): id is string => Boolean(id))
-          )
-        );
-        const userById = new Map<string, { full_name?: string | null; avatar_url?: string | null }>();
-        if (staffIds.length > 0) {
-          const { data: usersData } = await supabase
-            .from('users')
-            .select('id, full_name, avatar_url')
-            .in('id', staffIds);
-          (usersData ?? []).forEach((user: any) => {
-            userById.set(user.id, user);
-          });
-        }
-
-        setFetchedLostAndFound(
-          full.lostAndFoundItems.map((item) => {
-            const user = userById.get(item.registered_by_id ?? item.found_by_id);
-            return {
-              id: item.id,
-              itemName: item.item_name,
-              itemId: item.tracking_number ?? item.id,
-              location: item.description ?? 'Room',
-              image: item.image_url ? { uri: item.image_url } : undefined,
-              storedLocation: item.storage_location ?? '',
-              registeredBy: {
-                name: user?.full_name ?? 'Staff',
-                avatar: user?.avatar_url ? { uri: user.avatar_url } : undefined,
-                timestamp: formatRegisteredTimestamp(item.found_at),
-              },
-              status: (item.status as 'stored' | 'shipped' | 'returned' | 'discarded') ?? 'stored',
-              createdAt: item.found_at,
-            };
-          })
-        );
         setLoadingDetails(false);
       })
       .catch(() => setLoadingDetails(false));
@@ -283,7 +312,6 @@ export default function RoomDetailScreen() {
 
   const roomGuests = room.guests || [];
   const isUpdating = updatingRoomId === room.id;
-  const config = React.useMemo(() => getRoomTypeConfig(roomType), [roomType]);
   /**
    * The header's measured height in design px, for the status sheets.
    *
@@ -527,7 +555,28 @@ export default function RoomDetailScreen() {
     }
   };
 
+  /**
+   * Cleaning (In Progress, and Pause / Return Later / Refuse Service, which set
+   * it) needs someone assigned — the menu dims those options, and the database
+   * refuses the change (migration 20260928000000). Checked here too so a stale
+   * menu cannot slip one through.
+   */
+  const needsAttendantFirst = (statusOption: StatusChangeOption): boolean => {
+    if (assignedStaff) return false;
+    if (!['InProgress', 'Pause', 'ReturnLater', 'RefuseService'].includes(statusOption)) return false;
+    if (currentStatus === 'InProgress') return false;
+    setShowStatusModal(false);
+    setStatusButtonPosition(null);
+    messageModal.show({
+      title: 'Assign a room attendant first',
+      message: `Room ${room.roomNumber} has nobody assigned. Assign a room attendant before starting to clean it.`,
+      buttons: [{ text: 'OK' }],
+    });
+    return true;
+  };
+
   const handleStatusSelect = (statusOption: StatusChangeOption) => {
+    if (needsAttendantFirst(statusOption)) return;
     // These three open a modal and only take effect on confirm. `pendingActivity`
     // lets the header preview the state meanwhile, without anything downstream
     // having to inspect which modal is open.
@@ -573,6 +622,8 @@ export default function RoomDetailScreen() {
       setStatusButtonPosition(null);
       return;
     }
+    const previousStatus = currentStatus;
+    const previousActivity = activity;
     setCurrentStatus(newStatus);
 
     // Pause enters an activity; every other status clears back to none. Either
@@ -587,7 +638,18 @@ export default function RoomDetailScreen() {
     saveRoom({
       house_keeping_status: newStatus,
       ...activityStateToUpdate(nextActivity),
-    }).catch((e) => console.warn('Failed to update room status in Supabase', e));
+    }).catch((e) => {
+      // Put the header back and say why — a silent failure left the header on
+      // a status the room never took.
+      console.warn('Failed to update room status in Supabase', e);
+      setCurrentStatus(previousStatus);
+      setActivity(previousActivity);
+      messageModal.show({
+        title: 'Status not changed',
+        message: e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.',
+        buttons: [{ text: 'OK' }],
+      });
+    });
 
     setShowStatusModal(false);
     setStatusButtonPosition(null);
@@ -790,11 +852,15 @@ export default function RoomDetailScreen() {
     void refreshHistory();
   };
 
+  // "Add Item": Lost & Found's register sheet, preselected to this room, and
+  // back to this room once the item is added (or the sheet is cancelled).
+  // By path, like the other tab jumps here: this screen sits in the root stack,
+  // where a bare '(tabs)/(lost_and_found)' route name matches no navigator.
   const handleAddPhotos = () => {
-    navigation.navigate('(tabs)/(lost_and_found)' as any, {
-      openRegisterModal: true,
-      preselectedRoomId: room.id,
-    } as any);
+    router.navigate({
+      pathname: '/(tabs)/(lost_and_found)',
+      params: { openRegisterModal: 'true', preselectedRoomId: room.id, returnToRoomId: room.id },
+    });
   };
 
 
@@ -889,28 +955,9 @@ export default function RoomDetailScreen() {
     closeReassign();
   };
 
-  // Lost & found: use fetched items when loaded by roomId, else mock when config says withItems
-  const lostAndFoundItems =
-    fetchedLostAndFound !== null
-      ? fetchedLostAndFound.slice(0, 1)
-      : config.lostAndFoundType === 'withItems'
-        ? [
-            {
-              id: 'lf1',
-              itemName: 'Wrist Watch',
-              itemId: 'FH31390',
-              location: 'Guest bathroom while cleaning',
-              storedLocation: 'Office',
-              registeredBy: {
-                name: 'Stella Kitou',
-                avatar: require('../../../../assets/icons/profile-avatar.png'),
-                timestamp: '15:00, 11 November 2025',
-              },
-              status: 'stored' as const,
-              createdAt: new Date().toISOString(),
-            },
-          ]
-        : undefined;
+  // Lost & found: only the latest item registered in this room. With one, the
+  // section shows it instead of the "Add Item" card.
+  const lostAndFoundItems = fetchedLostAndFound?.slice(0, 1) ?? [];
 
   // Every hook above has run by now, so returning early here is safe.
   if (!hasRoom) {
@@ -979,6 +1026,9 @@ export default function RoomDetailScreen() {
         onAddTask={handleAddTask}
         onSeeMoreTask={handleSeeMoreTask}
         onAddLostAndFoundItem={handleAddPhotos}
+        onOpenLostAndFound={() => router.navigate('/(tabs)/(lost_and_found)')}
+        // Pushed over the room, so Back comes straight back here.
+        onOpenLostAndFoundItem={(itemId) => router.push({ pathname: '/lost-and-found/[id]', params: { id: itemId } })}
         onDownloadHistoryReport={handleDownloadReport}
         onResumePause={handleResumePause}
         onReturnLaterElapsed={handleReturnLaterElapsed}
@@ -1015,6 +1065,7 @@ export default function RoomDetailScreen() {
         // Room attendants: no Priority, no Inspected, no Flag Room — see AllRoomsScreen.
         canSetPriority={can(PERMISSIONS.ROOMS_RUSH_TOGGLE)}
         canInspect={roomsVariant !== 'attendant'}
+        canStartCleaning={!!assignedStaff || currentStatus === 'InProgress'}
         onFlagToggle={!can(PERMISSIONS.ROOMS_FLAG_TOGGLE) ? undefined : async (flagged, reason, mentionIds) => {
           const flagReason = flagged ? reason : null;
           // One write for the flag, its reason and the tags. Awaited: the menu

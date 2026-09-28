@@ -1,66 +1,119 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
-import { typography } from '@/theme';
-import { scaleX, LOST_AND_FOUND } from '../../constants/roomDetailStyles';
-import LostAndFoundItemCard from '@features/lost-and-found/components/LostAndFoundItemCard';
-import type { LostAndFoundItem } from '@features/lost-and-found/types/lostAndFound.types';
+import React from "react";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { Icon } from "@/components/Icon";
+import { typography } from "@/theme";
+import { scaleX, LOST_AND_FOUND as L } from "../../constants/roomDetailStyles";
+import LostAndFoundItemCard from "@features/lost-and-found/components/LostAndFoundItemCard";
+import type { LostAndFoundItem } from "@features/lost-and-found/types/lostAndFound.types";
 
 interface LostAndFoundSectionProps {
-  displayType: 'empty' | 'withItems'; // Type of display based on room type
-  items?: LostAndFoundItem[]; // Items to display (for Stayover/Turndown)
-  onAddPhotosPress?: () => void;
+  /** Items registered as found in this room — the screen passes only the latest. */
+  items?: LostAndFoundItem[];
+  /** "Add Item" — opens Lost & Found's register sheet for this room. */
+  onAddPress?: () => void;
+  onItemPress?: (item: LostAndFoundItem) => void;
+  /** The "Lost & Found" title — opens the Lost & Found screen. */
   onTitlePress?: () => void;
-  onItemPress?: (item: LostAndFoundItem) => void; // Callback when item is pressed
 }
 
+/**
+ * Room detail's Lost & Found section — Figma 2333:312.
+ *
+ * A titled row, then either the "Add Item" card — the lost-and-found box with
+ * a green "+" and a white pill, the whole card the tap target — while the room
+ * has no items, or, once one is registered, that item's card in its place.
+ *
+ * Replaces the old dashed "Add Lost & Found" box (a PNG basket and a text "+").
+ */
 export default function LostAndFoundSection({
-  displayType,
   items = [],
-  onAddPhotosPress,
-  onTitlePress,
+  onAddPress,
   onItemPress,
+  onTitlePress,
 }: LostAndFoundSectionProps) {
-  const showEmptyBox = displayType === 'empty';
-  const showItems = displayType === 'withItems' && items.length > 0;
+  const s = (n: number) => n * scaleX;
 
   return (
     <View style={styles.container}>
-      {/* Section Title - "Lost & Found" */}
-      <TouchableOpacity
+      <Pressable
         onPress={onTitlePress}
-        activeOpacity={0.7}
         disabled={!onTitlePress}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={8}
+        accessibilityRole="link"
+        accessibilityLabel="Open Lost & Found"
+        style={({ pressed }) => [
+          styles.titleRow,
+          { paddingLeft: s(L.title.left), gap: s(L.title.glyphToText) },
+          pressed && styles.pressed,
+        ]}
       >
-        <Text style={styles.title}>Lost & Found</Text>
-      </TouchableOpacity>
-
-      {/* Empty Box - For Arrival/Departure/Arrival+Departure */}
-      {showEmptyBox && (
-        <TouchableOpacity
-          style={styles.box}
-          onPress={onAddPhotosPress}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        <Icon name="lost-found-basket" size={s(L.title.glyphHeight)} />
+        <Text
+          style={[
+            styles.title,
+            {
+              fontSize: s(L.title.fontSize),
+              lineHeight: s(L.title.fontSize) * 1.2,
+            },
+          ]}
         >
-          {/* Left: Icon with plus sign overlay */}
-          <View style={styles.iconContainer}>
-            <Image
-              source={require('../../../../../assets/icons/add-photo-basket.png')}
-              style={styles.icon}
-              resizeMode="contain"
-            />
-            <Text style={styles.plusIcon}>+</Text>
-          </View>
-          
-          {/* Right: Text */}
-          <Text style={styles.addPhotosText}>Add Lost & Found</Text>
-        </TouchableOpacity>
-      )}
+          Lost & Found
+        </Text>
+      </Pressable>
 
-      {/* Items Display - For Stayover/Turndown */}
-      {showItems && (
-        <View style={styles.itemsContainer}>
+      {items.length === 0 ? (
+        <Pressable
+          onPress={onAddPress}
+          disabled={!onAddPress}
+          accessibilityRole="button"
+          accessibilityLabel="Add a lost and found item for this room"
+          style={({ pressed }) => [
+            styles.card,
+            {
+              marginTop: s(L.title.toCard),
+              marginHorizontal: s(L.card.left),
+              height: s(L.card.height),
+              borderRadius: s(L.card.radius),
+              paddingLeft: s(L.card.paddingLeft),
+              paddingRight: s(L.card.paddingRight),
+            },
+            pressed && styles.pressed,
+          ]}
+        >
+          <View style={styles.glyph}>
+            <Icon name="lost-found-basket" size={s(L.glyphHeight)} />
+            <Text
+              style={[
+                styles.plus,
+                {
+                  fontSize: s(L.plus.fontSize),
+                  lineHeight: s(L.plus.lineHeight),
+                  marginTop: s(L.plus.top),
+                },
+              ]}
+              accessible={false}
+            >
+              +
+            </Text>
+          </View>
+
+          <View
+            style={[
+              styles.pill,
+              {
+                width: s(L.pill.width),
+                height: s(L.pill.height),
+                borderRadius: s(L.pill.radius),
+              },
+            ]}
+          >
+            <Text style={[styles.pillText, { fontSize: s(L.pill.fontSize) }]}>
+              Add Item
+            </Text>
+          </View>
+        </Pressable>
+      ) : (
+        <View style={[styles.items, { marginTop: s(L.title.toCard) }]}>
           {items.map((item) => (
             <LostAndFoundItemCard
               key={item.id}
@@ -76,71 +129,49 @@ export default function LostAndFoundSection({
 
 const styles = StyleSheet.create({
   container: {
-    width: '100%',
-    marginTop: 0,
+    width: "100%",
     paddingBottom: 12 * scaleX,
-    overflow: 'visible',
-    paddingHorizontal: 0,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
   },
   title: {
-    paddingHorizontal: 20 * scaleX,
-    marginBottom: 12 * scaleX,
-    fontSize: LOST_AND_FOUND.title.fontSize * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: LOST_AND_FOUND.title.color,
-    lineHeight: LOST_AND_FOUND.title.fontSize * scaleX,
+    fontWeight: typography.fontWeights.bold as never,
+    color: L.title.color,
   },
-  box: {
-    alignSelf: 'center',
-    width: LOST_AND_FOUND.box.width * scaleX,
-    height: LOST_AND_FOUND.box.height * scaleX,
-    borderRadius: LOST_AND_FOUND.box.borderRadius * scaleX,
-    borderWidth: LOST_AND_FOUND.box.borderWidth,
-    borderColor: LOST_AND_FOUND.box.borderColor,
-    borderStyle: LOST_AND_FOUND.box.borderStyle,
-    backgroundColor: LOST_AND_FOUND.box.backgroundColor,
-    // Horizontal flex layout: icon on left, text on right
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-around', // Space around items, not between
-    paddingHorizontal: 16 * scaleX,
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: L.card.background,
+    borderWidth: 1,
+    borderColor: L.card.border,
   },
-  iconContainer: {
-    position: 'relative',
-    width: LOST_AND_FOUND.icon.width * scaleX,
-    height: LOST_AND_FOUND.icon.height * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
+  pressed: {
+    opacity: 0.85,
   },
-  icon: {
-    width: LOST_AND_FOUND.icon.width * scaleX,
-    height: LOST_AND_FOUND.icon.height * scaleX,
+  glyph: {
+    flexDirection: "row",
+    alignItems: "flex-start",
   },
-  plusIcon: {
-    position: 'absolute',
-    // Plus icon positioned at top-right of the icon
-    // From constants: plusIcon left: 213, top: 23 (relative to box)
-    // Icon is at left: 160, so plus offset from icon left: 213 - 160 = 53px
-    // Icon top is at 31.02px, plus top is at 23px, so plus offset: 23 - 31.02 = -8.02px
-    left: (LOST_AND_FOUND.plusIcon.left - LOST_AND_FOUND.icon.left) * scaleX, // 213 - 160 = 53px from icon left
-    top: (LOST_AND_FOUND.plusIcon.top - LOST_AND_FOUND.icon.top) * scaleX, // 23 - 31.02 = -8.02px from icon top
-    fontSize: LOST_AND_FOUND.plusIcon.fontSize * scaleX,
+  plus: {
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.light as any,
-    color: LOST_AND_FOUND.plusIcon.color,
+    fontWeight: typography.fontWeights.light as never,
+    color: L.plus.color,
   },
-  addPhotosText: {
-    fontSize: LOST_AND_FOUND.addPhotosText.fontSize * scaleX,
+  pill: {
+    backgroundColor: L.pill.background,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pillText: {
     fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: LOST_AND_FOUND.addPhotosText.color,
-    // Text on the right side of the flex container
-    textAlign: 'right',
+    fontWeight: typography.fontWeights.regular as never,
+    color: L.pill.color,
   },
-  itemsContainer: {
-    width: '100%',
-    flexDirection: 'column',
+  items: {
+    width: "100%",
   },
 });
-

@@ -17,6 +17,11 @@ interface StatusOptionItemProps {
   glyphColor: string;
   label: string;
   onPress: () => void;
+  /**
+   * Shown dimmed. Still pressable, so the menu can say *why* it is unavailable
+   * rather than leave a tap that does nothing.
+   */
+  disabled?: boolean;
 }
 
 /** Figma 2365:49 — every option is a 51.007px circle, label ~10px beneath it. */
@@ -31,9 +36,16 @@ export default function StatusOptionItem({
   glyphColor,
   label,
   onPress,
+  disabled = false,
 }: StatusOptionItemProps) {
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+    <TouchableOpacity
+      style={[styles.container, disabled && styles.disabled]}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+    >
       <View style={[styles.iconContainer, { backgroundColor: circleColor }]}>
         <Icon name={iconName} size={glyphHeight * scaleX} color={glyphColor} />
       </View>
@@ -45,6 +57,9 @@ export default function StatusOptionItem({
 }
 
 const styles = StyleSheet.create({
+  disabled: {
+    opacity: 0.35,
+  },
   container: {
     alignItems: 'center',
     justifyContent: 'flex-start',

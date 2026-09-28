@@ -100,6 +100,7 @@ const BASE_SELECT = `
   registered_by_id,
   tracking_number,
   image_url,
+  photo_urls,
   rooms (
     room_number,
     reservations (
@@ -350,14 +351,14 @@ export async function createLostAndFoundItem(
       .join(' ') ||
     'Lost item';
 
-  let imageUrl: string | null = null;
-  if (input.imageUri) {
-    try {
-      imageUrl = await uploadLostAndFoundImage(hotelId, input.imageUri);
-    } catch (uploadException) {
-      console.warn('[lostAndFound] Unexpected error uploading image', uploadException);
-    }
-  }
+  // Every picked photo, not just the first (the form always allowed several).
+  const pickedUris: string[] = Array.isArray(itemData.pictures) && itemData.pictures.length > 0
+    ? itemData.pictures.filter((u: unknown): u is string => typeof u === 'string' && !!u)
+    : input.imageUri
+      ? [input.imageUri]
+      : [];
+  const photoUrls = await uploadPhotos(hotelId, pickedUris);
+  const imageUrl: string | null = photoUrls[0] ?? null;
 
   if (!userId) {
     console.warn('[lostAndFound] No authenticated user – item not persisted.');
@@ -377,6 +378,7 @@ export async function createLostAndFoundItem(
       found_location: foundLocation,
       room_id: selectedLocation === 'room' && selectedRoom ? selectedRoom.id ?? null : null,
       image_url: imageUrl,
+      photo_urls: photoUrls,
       hotel_id: hotelId,
     })
     .select('id, tracking_number, image_url')
@@ -449,4 +451,172 @@ export async function setLostAndFoundShipped(
   }
   if (error) throw error;
   return { shippedLocationColumnAvailable: true, roomId: data?.room_id ?? null };
+}
+
+
+/** Upload photos in parallel; the ones that fail are left out, order kept. */
+async function uploadPhotos(hotelId: string, uris: string[]): Promise<string[]> {
+  const results = await Promise.all(
+    uris.map((uri) =>
+      uploadLostAndFoundImage(hotelId, uri).catch((e) => {
+        console.warn('[lostAndFound] Unexpected error uploading image', e);
+        return null;
+      })
+    )
+  );
+  return results.filter((u): u is string => !!u);
+}
+
+/** Upload freshly picked photos (file:// / ph:// URIs) for an existing item. */
+export async function uploadLostAndFoundPhotos(uris: string[]): Promise<string[]> {
+  if (uris.length === 0) return [];
+  const hotelId = await getMyHotelId();
+  if (!hotelId) throw new Error('No hotel assigned to this user.');
+  const urls = await uploadPhotos(hotelId, uris);
+  if (urls.length < uris.length) {
+    throw new Error(
+      urls.length === 0 ? 'The photos could not be uploaded.' : 'Some photos could not be uploaded.'
+    );
+  }
+  return urls;
+}
+
+type PersonRef = { id: string; name: string; avatarUrl?: string };
+
+/** One item, everything the detail screen shows. */
+export type LostAndFoundItemDetail = {
+  id: string;
+  trackingNumber: string | null;
+  itemName: string;
+  description: string | null;
+  status: LostAndFoundStatus;
+  storageLocation: string | null;
+  shippedLocation: string | null;
+  foundAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  /** "Room 201", a public area's name, or "Public Area". */
+  foundLocation: string;
+  room: { id: string; number: string } | null;
+  guest: { name: string; vipCode: string | null; imageUrl?: string; dates?: string } | null;
+  /** Every photo, cover first. */
+  photos: string[];
+  foundBy: PersonRef | null;
+  registeredBy: PersonRef | null;
+};
+
+const DETAIL_SELECT = `
+  id, item_name, description, status, storage_location, shipped_location, found_at,
+  created_at, updated_at, found_location, found_by_id, registered_by_id, tracking_number,
+  image_url, photo_urls,
+  rooms ( id, room_number, reservations ( arrival_date, departure_date, front_office_status,
+    guests ( full_name, vip_code, image_url ) ) )
+`;
+
+/** One lost & found item by id, with its room, guest and people. Null if gone. */
+export async function fetchLostAndFoundItemDetail(id: string): Promise<LostAndFoundItemDetail | null> {
+  const { data, error } = await supabase.from('lost_and_found_items').select(DETAIL_SELECT).eq('id', id).maybeSingle();
+  if (error) throw new Error(error.message || 'Could not load the item.');
+  if (!data) return null;
+  const row = data as any;
+
+  const people = await fetchRegisteredByUsers([row.found_by_id, row.registered_by_id].filter(Boolean));
+  const person = (uid: string | null): PersonRef | null => {
+    if (!uid) return null;
+    const u = people.get(uid);
+    return { id: uid, name: u?.full_name ?? 'Staff', avatarUrl: u?.avatar_url ?? undefined };
+  };
+
+  const room = row.rooms ?? null;
+  const reservation = room?.reservations?.[0];
+  const guestsRaw = reservation?.guests;
+  const guests = Array.isArray(guestsRaw) ? guestsRaw : guestsRaw ? [guestsRaw] : [];
+  const g = guests[0];
+  const ddmm = (iso?: string | null) => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+
+  const photos: string[] = (Array.isArray(row.photo_urls) && row.photo_urls.length > 0
+    ? row.photo_urls
+    : row.image_url
+      ? [row.image_url]
+      : []
+  )
+    .map((u: string) => getLostAndFoundPublicUrl(u))
+    .filter((u: string | undefined): u is string => !!u);
+
+  return {
+    id: row.id,
+    trackingNumber: row.tracking_number ?? null,
+    itemName: row.item_name,
+    description: row.description ?? null,
+    status: (row.status as LostAndFoundStatus) ?? 'stored',
+    storageLocation: row.storage_location ?? null,
+    shippedLocation: row.shipped_location ?? null,
+    foundAt: row.found_at ?? null,
+    createdAt: row.created_at ?? null,
+    updatedAt: row.updated_at ?? null,
+    foundLocation: row.found_location ?? (room?.room_number ? `Room ${room.room_number}` : 'Public Area'),
+    room: room ? { id: room.id, number: String(room.room_number) } : null,
+    guest: g
+      ? {
+          name: g.full_name,
+          vipCode: g.vip_code ?? null,
+          imageUrl: g.image_url ?? undefined,
+          dates: reservation ? `${ddmm(reservation.arrival_date)}-${ddmm(reservation.departure_date)}` : undefined,
+        }
+      : null,
+    photos,
+    foundBy: person(row.found_by_id),
+    registeredBy: person(row.registered_by_id ?? row.found_by_id),
+  };
+}
+
+export type LostAndFoundItemPatch = {
+  itemName?: string;
+  description?: string | null;
+  storageLocation?: string | null;
+  /** The full photo list, in order (cover first). */
+  photoUrls?: string[];
+};
+
+/**
+ * Edit an item. Needs `lost_and_found.manage` — the database refuses the
+ * change otherwise (migration 20260928000100), and that message is thrown.
+ */
+export async function updateLostAndFoundItem(id: string, patch: LostAndFoundItemPatch): Promise<void> {
+  const payload: Record<string, unknown> = {};
+  if (patch.itemName !== undefined) payload.item_name = patch.itemName.trim();
+  if (patch.description !== undefined) payload.description = patch.description?.trim() || null;
+  if (patch.storageLocation !== undefined) payload.storage_location = patch.storageLocation?.trim() || null;
+  if (patch.photoUrls !== undefined) payload.photo_urls = patch.photoUrls;
+  if (Object.keys(payload).length === 0) return;
+  const { error } = await supabase.from('lost_and_found_items').update(payload).eq('id', id);
+  if (error) throw new Error(error.message || 'The item could not be saved.');
+}
+
+/** "…/object/public/lost-and-found/<path>" → "<path>", for Storage removal. */
+function storagePath(url: string): string | null {
+  const marker = `/object/public/${LOST_AND_FOUND_BUCKET}/`;
+  const at = url.indexOf(marker);
+  if (at >= 0) return decodeURIComponent(url.slice(at + marker.length).split('?')[0]);
+  return url.startsWith('http') ? null : url;
+}
+
+/** Remove photos from Storage. Best effort: a stray file is not worth failing a save. */
+export async function removeLostAndFoundPhotos(urls: string[]): Promise<void> {
+  const paths = urls.map(storagePath).filter((p): p is string => !!p);
+  if (paths.length === 0) return;
+  const { error } = await supabase.storage.from(LOST_AND_FOUND_BUCKET).remove(paths);
+  if (error) console.warn('[lostAndFound] Could not remove photos from storage', error.message);
+}
+
+/**
+ * Delete an item and its photos, permanently. Needs `lost_and_found.manage`:
+ * without it the database deletes nothing, which is reported as an error
+ * rather than passed off as success.
+ */
+export async function deleteLostAndFoundItem(id: string, photoUrls: string[]): Promise<void> {
+  const { data, error } = await supabase.from('lost_and_found_items').delete().eq('id', id).select('id');
+  if (error) throw new Error(error.message || 'The item could not be deleted.');
+  if (!data || data.length === 0) throw new Error('Only a manager can delete a lost & found item.');
+  await removeLostAndFoundPhotos(photoUrls);
 }

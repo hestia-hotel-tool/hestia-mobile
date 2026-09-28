@@ -419,46 +419,36 @@ export const NOTES_SECTION = {
   },
 } as const;
 
-// Lost and Found Section - Positioned after Assigned/Task card
+// Lost and Found section — Figma 2333:312 (nodes 2701:189–2701:223), design px
+// on the 440 frame. x offsets are from the screen's left edge.
 export const LOST_AND_FOUND = {
+  /** Title row (2701:211): 25x27 box glyph at x29, then the label at x64. */
   title: {
-    left: 32,
-    top: 906, // From Figma: top: 906px (updated from 856.09px to match Figma exactly)
+    left: 29,
+    glyphHeight: 27,
+    glyphToText: 10,
     fontSize: 15,
-    fontWeight: 'bold' as const,
     color: '#000000',
+    /** Title row top → card top: 918 → 964, less the 27 row. */
+    toCard: 19,
   },
-  box: {
-    left: 20, // From Figma: left: 20px (updated from 25px)
-    top: 940, // From Figma: top: 940px (updated from 895.09px)
-    width: 390,
+  /** The card (Rectangle 113): x22, 390x97, r12, #f9fafc, 1px #5a759d @ 23%. */
+  card: {
+    left: 22,
     height: 97,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: 'rgba(90, 117, 157, 0.23)', // rgba(90, 117, 157, 0.23)
-    borderStyle: 'solid' as const, // Changed from dashed to solid
-    backgroundColor: '#F9FAFC',
+    radius: 12,
+    background: '#f9fafc',
+    border: 'rgba(90, 117, 157, 0.23)',
+    /** Glyph group starts 24 in (x46); the pill ends 15 short of the edge (x397). */
+    paddingLeft: 24,
+    paddingRight: 15,
   },
-  icon: {
-    left: 42, // From Figma absolute position (updated for correct horizontal centering)
-    top: 960, // From Figma: absolute top: 960px (icon starts here)
-    width: 53.176,
-    height: 58.008,
-  },
-  plusIcon: {
-    left: 95, // From Figma: left: 95px (absolute position)
-    top: 952, // From Figma: absolute top position
-    fontSize: 42,
-    fontWeight: 'light' as const,
-    color: '#5a759d',
-  },
-  addPhotosText: {
-    left: 51, // From Figma: calc(50%-51px) centered position for text
-    top: 970, // From Figma: absolute top position
-    fontSize: 19,
-    fontWeight: 'bold' as const,
-    color: '#5a759d',
-  },
+  /** The box glyph (Group 357): 53x58, blue lines, white fill. */
+  glyphHeight: 58,
+  /** The green "+" (2701:206): Helvetica Light 42, #39d47f, its box 8 above the glyph. */
+  plus: { fontSize: 42, lineHeight: 48, color: '#39d47f', top: -8 },
+  /** "Add Item" (Reassigned Button): 122x49 white pill, r41, Helvetica 18 #5a759d. */
+  pill: { width: 122, height: 49, radius: 41, background: '#ffffff', fontSize: 18, color: '#5a759d' },
 } as const;
 
 // Card container for Assigned to and Task sections

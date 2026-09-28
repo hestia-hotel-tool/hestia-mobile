@@ -302,6 +302,7 @@ SELECT r.id, p.id
   ('ops_senior', 'rooms.rush.toggle'),
   ('ops_senior', 'rooms.flag.toggle'),
   ('ops_senior', 'chat.announce'),
+  ('ops_senior', 'lost_and_found.manage'),
   ('fo_agent', 'tab.home.view'),
   ('fo_agent', 'tab.rooms.view'),
   ('fo_agent', 'rooms.read'),
@@ -536,8 +537,8 @@ BEGIN
   IF n_perms  <> 35 THEN
     RAISE EXCEPTION 'expected 35 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 232 THEN
-    RAISE EXCEPTION 'expected 232 role_permissions, found %', n_grants;
+  IF n_grants <> 233 THEN
+    RAISE EXCEPTION 'expected 233 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

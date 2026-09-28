@@ -574,8 +574,27 @@ export default function AllRoomsScreen() {
     const roomToUpdate = roomOverride ?? selectedRoomForStatusChange;
     if (!roomToUpdate) return;
 
-    // Map status option to RoomStatus
-    const newStatus = mapStatusOptionToRoomStatus(statusOption);
+    // Priority is a mark on the room, not a status: it used to map to In
+    // Progress here, so marking a Dirty room priority also started it.
+    const isPriorityToggle = statusOption === 'Priority';
+    const newStatus = isPriorityToggle
+      ? roomToUpdate.houseKeepingStatus
+      : mapStatusOptionToRoomStatus(statusOption);
+
+    // Cleaning needs someone assigned (the menu dims it; the database refuses it).
+    if (
+      newStatus === 'InProgress' &&
+      roomToUpdate.houseKeepingStatus !== 'InProgress' &&
+      !roomToUpdate.roomAttendantAssigned
+    ) {
+      statusPopover.close();
+      messageModal.show({
+        title: 'Assign a room attendant first',
+        message: `Room ${roomToUpdate.roomNumber} has nobody assigned. Assign a room attendant before starting to clean it.`,
+        buttons: [{ text: 'OK' }],
+      });
+      return;
+    }
 
     // An attendant works one room at a time. Checked against every assigned room,
     // not the filtered view, so a search cannot hide the room that is blocking.
@@ -593,7 +612,6 @@ export default function AllRoomsScreen() {
     }
 
     // Priority toggles: if already priority, clicking Priority resets to normal
-    const isPriorityToggle = statusOption === 'Priority';
     const newIsPriority = isPriorityToggle ? !roomToUpdate.isPriority : roomToUpdate.isPriority;
     const priorityPayload = isPriorityToggle ? (newIsPriority ? 'high' : 'normal') : undefined;
 
@@ -1035,6 +1053,10 @@ export default function AllRoomsScreen() {
         blurTop={statusBlurTop}
         canSetPriority={canSetPriority}
         canInspect={canInspect}
+        canStartCleaning={
+          !!selectedRoomForStatusChange?.roomAttendantAssigned ||
+          selectedRoomForStatusChange?.houseKeepingStatus === 'InProgress'
+        }
         onFlagToggle={!canFlag ? undefined : async (flagged, reason, mentionIds) => {
           if (selectedRoomForStatusChange) {
             const flagReason = flagged ? reason : null;

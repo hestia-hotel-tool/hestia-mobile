@@ -293,6 +293,10 @@
     "chat.announce": [
       "full_access",
       "ops_senior"
+    ],
+    "lost_and_found.manage": [
+      "full_access",
+      "ops_senior"
     ]
   },
   "departments": [
