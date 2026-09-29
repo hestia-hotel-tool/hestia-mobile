@@ -173,8 +173,10 @@ export function resolveRoomDetailHeaderTheme(
      * yellow palette that no frame asked for.
      */
     case 'paused':
+    case 'dnd':
     case 'none': {
-      const displayStatus = activity.kind === 'paused' ? 'Paused' : status;
+      const displayStatus =
+        activity.kind === 'paused' ? 'Paused' : activity.kind === 'dnd' ? 'DoNotDisturb' : status;
       const config = STATUS_CONFIGS[displayStatus] ?? STATUS_CONFIGS.Dirty;
       return {
         headerBackground: config.color,
@@ -247,7 +249,8 @@ export function resolveRoomDetailHeader(activity: RoomActivityState, status: Roo
   const theme = resolveRoomDetailHeaderTheme(activity, status);
   // `RoomDisplayStatus`, not `RoomStatus`: Paused is a display state the room's
   // housekeeping column cannot hold, which is exactly why `statusSource` exists.
-  const effectiveStatus: RoomDisplayStatus = chrome.statusSource === 'activity' ? 'Paused' : status;
+  const effectiveStatus: RoomDisplayStatus =
+    chrome.statusSource === 'activity' ? (activity.kind === 'dnd' ? 'DoNotDisturb' : 'Paused') : status;
   const config = STATUS_CONFIGS[effectiveStatus] ?? STATUS_CONFIGS.Dirty;
 
   return {

@@ -14,6 +14,15 @@ export const TASK_NOTIFICATION_TYPES = [
   'room_paused',
   'room_overdue',
   'room_promise',
+  'room_dnd',
+  'room_dnd_check',
+  'room_dnd_cleared',
+  'room_dnd_welfare',
+  'room_refused',
+  'room_service_resumed',
+  'room_return_later',
+  'room_return_due',
+  'room_return_overdue',
   'ticket_assigned',
 ] as const;
 
@@ -27,6 +36,15 @@ export const ROOM_TASK_NOTIFICATION_TYPES = [
   'room_paused',
   'room_overdue',
   'room_promise',
+  'room_dnd',
+  'room_dnd_check',
+  'room_dnd_cleared',
+  'room_dnd_welfare',
+  'room_refused',
+  'room_service_resumed',
+  'room_return_later',
+  'room_return_due',
+  'room_return_overdue',
 ] as const;
 
 const badgeInvalidateListeners = new Set<() => void>();

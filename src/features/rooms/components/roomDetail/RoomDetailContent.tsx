@@ -13,6 +13,7 @@ import { colors } from '@/theme';
 import { scaleX, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import { getRoomTypeConfig } from '../../constants/roomTypeConfigs';
 import { resolveGuestSlots } from '../../utils/guestSlots';
+import { ServiceExceptionPanel } from './ServiceExceptionPanel';
 import RoomDetailHeader from './RoomDetailHeader';
 import GuestInfoCard, { type GuestInfoCardCategory } from './GuestInfoCard';
 import NotesSection from './NotesSection';
@@ -79,6 +80,7 @@ export default function RoomDetailContent({
   cleaning,
   onHeaderHeightChange,
   onClearRefuseService,
+  serviceActions,
   activity = { kind: 'none' },
   showWithLinenBadge = false,
   initialTab,
@@ -191,6 +193,7 @@ export default function RoomDetailContent({
         >
           {activeTab === 'Overview' && (
             <>
+              <ServiceExceptionPanel activity={activity} {...serviceActions} />
               <View style={styles.overviewTop}>
                 {guestBlocks.length > 0 && (
                   <>

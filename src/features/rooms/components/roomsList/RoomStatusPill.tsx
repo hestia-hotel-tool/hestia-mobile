@@ -48,7 +48,7 @@ export function RoomStatusPill({
   if (!config) return null;
 
   const isPriority = tone === 'priority';
-  const glyphColor = isPriority ? colors.status.dirty : colors.text.white;
+  const glyphColor = isPriority ? colors.status.dirty : (config.foreground ?? colors.text.white);
 
   /*
    * The chevron means "this opens the status menu", so it appears only where

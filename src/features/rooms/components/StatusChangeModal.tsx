@@ -24,9 +24,10 @@ const STATUS_OPTION_IDS: StatusChangeOption[] = ['Dirty', 'InProgress', 'Cleaned
 /**
  * Options that mean someone is cleaning the room — each sets it In Progress —
  * so they need a room attendant assigned first (enforced by the database too,
- * migration 20260928000000).
+ * migration 20260928000000). Do Not Disturb, Return Later and Refuse Service
+ * record what the guest wants and do not (20260929000400).
  */
-const NEEDS_ATTENDANT: StatusChangeOption[] = ['InProgress', 'Pause', 'ReturnLater', 'RefuseService'];
+const NEEDS_ATTENDANT: StatusChangeOption[] = ['InProgress', 'Pause'];
 
 /**
  * How tall the status sheet actually renders, in design px.

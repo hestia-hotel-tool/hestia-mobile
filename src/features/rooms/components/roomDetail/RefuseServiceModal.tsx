@@ -8,10 +8,15 @@ import { ASSIGNED_TO } from '../../constants/roomDetailStyles';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const scaleX = SCREEN_WIDTH / 430;
 
+/*
+ * Why the guest said no. "Do Not Disturb sign" is not here: DND is its own
+ * status (re-checked, escalated), not a refusal — the guest has not spoken to
+ * anyone.
+ */
 const REFUSE_REASONS = [
+  'Guest Declined Service Today',
   'Guest Requested Privacy',
   'Guest Already Cleaned/Organized the Room',
-  'Guest Has a Do Not Disturb Sign',
   'Guest Is Resting or Sleeping',
 ];
 

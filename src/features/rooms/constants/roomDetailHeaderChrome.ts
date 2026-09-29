@@ -121,6 +121,19 @@ export const ROOM_DETAIL_HEADER_CHROME: Record<RoomActivityKind, RoomDetailHeade
     verifiedAgainst: '2333-132',
   },
   /**
+   * Do Not Disturb — no frame yet. Drawn as Paused is: the state's own colour
+   * as the ground (`STATUS_CONFIGS.DoNotDisturb`), white foregrounds, its mark,
+   * and a line with how long and how often the door has been checked.
+   */
+  dnd: {
+    statusSource: 'activity',
+    ground: 'status',
+    labelEmphasis: 'strong',
+    subtitle: true,
+    inlineAction: null,
+    verifiedAgainst: null,
+  },
+  /**
    * Return Later — Figma 2333-312, pixel-sampled from the rendered frame.
    *
    * `labelEmphasis: 'strong'` because the frame draws "Return Later" Bold 18,

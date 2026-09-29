@@ -7,21 +7,56 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { getMyHotelId } from '@/lib/tenant';
 
-export type HotelSettings = { id: string; name: string; timezone: string };
+export type HotelSettings = {
+  id: string;
+  name: string;
+  timezone: string;
+  /** Minutes between checks of a Do Not Disturb door. */
+  dndRecheckMinutes: number;
+  /** "14:00" — still DND after this (hotel time) → welfare-check alert. */
+  dndCutoff: string;
+};
 
 export async function fetchHotelSettings(): Promise<HotelSettings | null> {
   if (!isSupabaseConfigured) return null;
   const hotelId = await getMyHotelId();
   if (!hotelId) return null;
-  const { data, error } = await supabase.from('hotels' as never).select('id, name, timezone').eq('id', hotelId).maybeSingle();
+  const { data, error } = await supabase
+    .from('hotels' as never)
+    .select('id, name, timezone, dnd_recheck_minutes, dnd_cutoff_time')
+    .eq('id', hotelId)
+    .maybeSingle();
   if (error) throw new Error(error.message || 'Hotel settings could not be loaded.');
-  const row = data as unknown as { id: string; name: string | null; timezone: string | null } | null;
-  return row ? { id: row.id, name: row.name ?? '', timezone: row.timezone ?? 'UTC' } : null;
+  const row = data as unknown as {
+    id: string;
+    name: string | null;
+    timezone: string | null;
+    dnd_recheck_minutes: number | null;
+    dnd_cutoff_time: string | null;
+  } | null;
+  return row
+    ? {
+        id: row.id,
+        name: row.name ?? '',
+        timezone: row.timezone ?? 'UTC',
+        dndRecheckMinutes: row.dnd_recheck_minutes ?? 60,
+        dndCutoff: (row.dnd_cutoff_time ?? '14:00').slice(0, 5),
+      }
+    : null;
 }
 
 export async function updateHotelSettings(name: string, timezone: string): Promise<void> {
   const { error } = await supabase.rpc('update_hotel_settings' as never, { p_name: name, p_timezone: timezone } as never);
   if (error) throw new Error(error.message || 'Hotel settings could not be saved.');
+}
+
+/** Do Not Disturb rules: how often the door is checked, and the welfare-check time. */
+export async function updateHotelServiceRules(recheckMinutes: number, cutoff: string): Promise<void> {
+  const { error } = await supabase.rpc('update_hotel_service_rules' as never, {
+    p_recheck_minutes: recheckMinutes,
+    p_cutoff: cutoff,
+  } as never);
+  if (error) throw new Error(error.message || 'Do Not Disturb settings could not be saved.');
 }
 
 export type RoomCategory = {

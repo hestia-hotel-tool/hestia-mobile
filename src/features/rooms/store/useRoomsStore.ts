@@ -70,6 +70,26 @@ interface RoomsState {
   setSelectedShift: (shift: ShiftType) => void;
 }
 
+/** A write's read-back, as card fields. */
+export function roomStateFromClock(clock: RoomClock): Partial<RoomCardData> {
+  return {
+    promiseTimeAt: clock.promiseTimeAt,
+    cleaningStartedAt: clock.cleaningStartedAt,
+    cleaningElapsedSeconds: clock.cleaningElapsedSeconds,
+    ...(clock.houseKeepingStatus && {
+      houseKeepingStatus: clock.houseKeepingStatus as RoomCardData['houseKeepingStatus'],
+    }),
+    pausedAt: clock.pausedAt,
+    returnLaterAt: clock.returnLaterAt,
+    returnLaterReason: clock.returnLaterReason,
+    refuseServiceAt: clock.refuseServiceAt,
+    refuseServiceReason: clock.refuseServiceReason,
+    dndAt: clock.dndAt,
+    dndCheckCount: clock.dndCheckCount,
+    dndNextCheckAt: clock.dndNextCheckAt,
+  };
+}
+
 export const useRoomsStore = create<RoomsState>((set, get) => ({
   data: null,
   loading: false,
@@ -215,16 +235,16 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
           ...(updates.flag_reason !== undefined && { flagReason: updates.flag_reason }),
           ...(updates.special_instructions !== undefined && { specialInstructions: updates.special_instructions }),
           ...(updates.return_later_at !== undefined && { returnLaterAt: updates.return_later_at }),
+          ...(updates.return_later_reason !== undefined && { returnLaterReason: updates.return_later_reason }),
           ...(updates.paused_at !== undefined && { pausedAt: updates.paused_at }),
           ...(updates.refuse_service_at !== undefined && { refuseServiceAt: updates.refuse_service_at }),
           ...(updates.refuse_service_reason !== undefined && { refuseServiceReason: updates.refuse_service_reason }),
           ...(updates.promise_time_at !== undefined && { promiseTimeAt: updates.promise_time_at }),
-          // The trigger's word on the clock (and on a promise kept by Cleaned/Inspected).
-          ...(clock && {
-            promiseTimeAt: clock.promiseTimeAt,
-            cleaningStartedAt: clock.cleaningStartedAt,
-            cleaningElapsedSeconds: clock.cleaningElapsedSeconds,
-          }),
+          ...(updates.dnd_at !== undefined && { dndAt: updates.dnd_at }),
+          // The database's word on the room after its triggers ran: the clock,
+          // the status (a DND or refusal drops In Progress to Dirty) and every
+          // service state. What was sent is only what was asked for.
+          ...(clock && roomStateFromClock(clock)),
         };
       };
       set({

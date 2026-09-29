@@ -21,6 +21,7 @@ import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
 import ActionCopy from '@assets/icons/actions/action-copy.svg';
+import ActionDnd from '@assets/icons/actions/action-dnd.svg';
 import ActionEyeOff from '@assets/icons/actions/action-eye-off.svg';
 import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
@@ -100,6 +101,7 @@ export const icons = {
   'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
   'action-copy': ActionCopy,
+  'action-dnd': ActionDnd,
   'action-eye-off': ActionEyeOff,
   'action-eye': ActionEye,
   'action-filter': ActionFilter,
@@ -187,6 +189,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
   'action-copy': 1,
+  'action-dnd': 0.7333,
   'action-eye-off': 1.2,
   'action-eye': 1.5,
   'action-filter': 2,
@@ -264,6 +267,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-checkbox-checked',
   'action-chevron',
   'action-copy',
+  'action-dnd',
   'action-eye-off',
   'action-eye',
   'action-filter',

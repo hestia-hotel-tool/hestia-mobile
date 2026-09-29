@@ -14,6 +14,8 @@ type ClockRoom = Pick<
   | 'refuseServiceReason'
   | 'promiseTimeAt'
   | 'roomAttendantAssigned'
+  | 'dndAt'
+  | 'dndNextCheckAt'
 >;
 
 export type CleaningClock = {
@@ -66,9 +68,21 @@ export type AssigneeStatus = {
  *  - Cleaned / Inspected say how long it took, when the clock knows.
  */
 export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
+  if (room.dndAt) {
+    // When the door is next due a look; red once that time has come.
+    const next = room.dndNextCheckAt ? Date.parse(room.dndNextCheckAt) : NaN;
+    if (Number.isFinite(next) && next <= now) return { text: 'DND · check the door now', tone: 'alert' };
+    return {
+      text: Number.isFinite(next) ? `DND · check at ${formatDueTime(next, new Date(now))}` : 'Do Not Disturb',
+      tone: 'default',
+    };
+  }
   if (room.returnLaterAt) {
     const at = Date.parse(room.returnLaterAt);
-    return { text: Number.isFinite(at) ? `Return at ${formatDueTime(at, new Date(now))}` : 'Return later', tone: 'default' };
+    if (!Number.isFinite(at)) return { text: 'Return later', tone: 'default' };
+    // Past the time the guest asked for: go back now.
+    if (at <= now) return { text: `Go back now · due ${formatDueTime(at, new Date(now))}`, tone: 'alert' };
+    return { text: `Return at ${formatDueTime(at, new Date(now))}`, tone: 'default' };
   }
   if (room.refuseServiceAt || room.refuseServiceReason) return { text: 'Refused service', tone: 'default' };
 

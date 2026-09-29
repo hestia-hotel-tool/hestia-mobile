@@ -137,6 +137,13 @@ export default function AllRoomsFilterModal({
             selected: !!roomStates.paused,
           },
           {
+            id: 'dnd',
+            label: 'Do Not Disturb',
+            indicator: { kind: 'icon', name: 'action-dnd', color: colors.text.primary },
+            count: counts.roomStates?.dnd ?? 0,
+            selected: !!roomStates.dnd,
+          },
+          {
             id: 'refused',
             label: 'Refuse Service',
             indicator: {

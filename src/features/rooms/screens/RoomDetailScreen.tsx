@@ -29,7 +29,8 @@ import type { Note, Task, RoomType, HistoryEvent } from '../types/roomDetail.typ
 import { groupHistoryEvents } from '../utils/groupHistoryEvents';
 import type { LostAndFoundItem } from '@features/lost-and-found/types/lostAndFound.types';
 import type { RootStackParamList } from '@/types/navigation';
-import { useRoomsStore } from '../store/useRoomsStore';
+import { roomStateFromClock, useRoomsStore } from '../store/useRoomsStore';
+import { useToast } from '@/contexts/ToastContext';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { authService } from '@features/auth/services/auth';
 import { colors } from '@/theme';
@@ -78,6 +79,8 @@ function formatRegisteredTimestamp(iso?: string | null): string {
   return `${hh}:${mm}, ${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()}`;
 }
 
+type ServiceBusy = 'dndSet' | 'dndStill' | 'dndCleared' | 'serviceResumed' | 'returnLaterCleared' | null;
+
 export default function RoomDetailScreen() {
   const navigation = useNavigation<RoomDetailScreenNavigationProp>();
   const route = useRoute();
@@ -87,6 +90,8 @@ export default function RoomDetailScreen() {
     roomId?: string;
     initialTab?: 'Overview' | 'Tickets' | 'Checklist' | 'History';
     departmentName?: string;
+    /** Opened from the Rooms list's status menu: open this sheet on arrival. */
+    openActivity?: 'returnLater' | 'refuseService' | 'promisedTime';
   } | undefined;
   const initialRoom = params?.room;
   const initialRoomType = params?.roomType ?? 'ArrivalDeparture';
@@ -517,16 +522,25 @@ export default function RoomDetailScreen() {
    * a trigger starts, stops and resets it on status and pause changes, so the
    * header's countdown follows what was actually stored.
    */
+  // The latest local room, for callbacks that must not re-create on every edit.
+  const localRoomRef = useRef(localRoom);
+  useEffect(() => {
+    localRoomRef.current = localRoom;
+  }, [localRoom]);
+
   const saveRoom = useCallback(
     async (updates: RoomStateUpdate) => {
       const clock = await updateRoom(room.id, updates);
       if (clock) {
-        setLocalRoom((prev) => ({
-          ...prev,
-          promiseTimeAt: clock.promiseTimeAt,
-          cleaningStartedAt: clock.cleaningStartedAt,
-          cleaningElapsedSeconds: clock.cleaningElapsedSeconds,
-        }));
+        /*
+         * The database's word on the room, not what was sent: its triggers
+         * drop In Progress to Dirty on a DND or refusal, end a DND when
+         * cleaning starts, and count DND checks (migration 20260929000400).
+         */
+        const applied = roomStateFromClock(clock);
+        setLocalRoom((prev) => ({ ...prev, ...applied }));
+        if (applied.houseKeepingStatus) setCurrentStatus(applied.houseKeepingStatus);
+        setActivity(deriveRoomActivityState({ ...localRoomRef.current, ...applied }));
       }
       return clock;
     },
@@ -555,6 +569,44 @@ export default function RoomDetailScreen() {
     }
   };
 
+  /*
+   * One service action at a time, with its own spinner, a toast when it saves
+   * and the database's reason when it does not (e.g. "Room 305 is already
+   * cleaned: nothing left to service today.").
+   */
+  const toast = useToast();
+  const [serviceBusy, setServiceBusy] = useState<ServiceBusy>(null);
+  const runServiceAction = async (key: ServiceBusy, updates: RoomStateUpdate, done: string) => {
+    if (serviceBusy) return;
+    setServiceBusy(key);
+    try {
+      await saveRoom(updates);
+      toast.show(done, { type: 'success' });
+      void refreshHistory();
+    } catch (e) {
+      messageModal.show({
+        title: 'Not saved',
+        message: e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.',
+        buttons: [{ text: 'OK' }],
+      });
+    } finally {
+      setServiceBusy(null);
+    }
+  };
+  const clearServiceState = (key: ServiceBusy, done: string) =>
+    runServiceAction(key, activityStateToUpdate({ kind: 'none' }), done);
+
+  const serviceActions = {
+    onDndStill: () =>
+      void runServiceAction('dndStill', { dnd_checked_at: new Date().toISOString() }, 'Still Do Not Disturb — next check scheduled.'),
+    onDndCleared: () =>
+      void clearServiceState('dndCleared', 'Sign removed — the room is ready to clean. Your supervisor has been told.'),
+    onServiceResumed: () =>
+      void clearServiceState('serviceResumed', 'Service is back on — the room is ready to clean.'),
+    onReturnLaterCleared: () => void clearServiceState('returnLaterCleared', 'Return later cleared.'),
+    busy: serviceBusy === 'dndSet' ? null : serviceBusy,
+  };
+
   /**
    * Cleaning (In Progress, and Pause / Return Later / Refuse Service, which set
    * it) needs someone assigned — the menu dims those options, and the database
@@ -563,7 +615,7 @@ export default function RoomDetailScreen() {
    */
   const needsAttendantFirst = (statusOption: StatusChangeOption): boolean => {
     if (assignedStaff) return false;
-    if (!['InProgress', 'Pause', 'ReturnLater', 'RefuseService'].includes(statusOption)) return false;
+    if (!['InProgress', 'Pause'].includes(statusOption)) return false;
     if (currentStatus === 'InProgress') return false;
     setShowStatusModal(false);
     setStatusButtonPosition(null);
@@ -598,6 +650,23 @@ export default function RoomDetailScreen() {
       setShowStatusModal(false);
       setShowRefuseServiceModal(true);
       setPendingActivity('refuseService');
+      return;
+    }
+
+    // Do Not Disturb needs no sheet: found now. Picked again on a DND room it
+    // records another look at the door.
+    if (statusOption === 'DoNotDisturb') {
+      setShowStatusModal(false);
+      setStatusButtonPosition(null);
+      if (activity.kind === 'dnd') {
+        void runServiceAction('dndStill', { dnd_checked_at: new Date().toISOString() }, 'Still Do Not Disturb — next check scheduled.');
+      } else {
+        void runServiceAction(
+          'dndSet',
+          activityStateToUpdate({ kind: 'dnd', since: Date.now(), checks: 1, nextCheckAt: null }),
+          'Do Not Disturb recorded. Your supervisor has been told.'
+        );
+      }
       return;
     }
 
@@ -656,6 +725,23 @@ export default function RoomDetailScreen() {
     void refreshHistory();
   };
 
+  /*
+   * Arriving from the Rooms list with Return Later / Refuse Service / Promised
+   * Time picked: open that sheet, as if it had been picked here. Once, and
+   * after the push has settled — iOS cannot present a sheet mid-transition.
+   */
+  const openedActivity = useRef(false);
+  const openActivity = params?.openActivity;
+  useEffect(() => {
+    if (!openActivity || openedActivity.current || !hasRoom) return;
+    openedActivity.current = true;
+    const option: StatusChangeOption =
+      openActivity === 'returnLater' ? 'ReturnLater' : openActivity === 'refuseService' ? 'RefuseService' : 'PromisedTime';
+    const t = setTimeout(() => handleStatusSelect(option), 450);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openActivity, hasRoom]);
+
   const handleReturnLaterConfirm = (
     returnTime: string,
     period: 'AM' | 'PM',
@@ -663,8 +749,6 @@ export default function RoomDetailScreen() {
     _formattedDateTime?: string,
     returnAtTimestamp?: number
   ) => {
-    if (blockedBySecondInProgress()) return;
-
     /*
      * The reason is part of the activity now, not a task.
      *
@@ -681,26 +765,31 @@ export default function RoomDetailScreen() {
         reason: reason?.trim() || null,
       };
       setActivity(next);
-      // Persist to DB so Return Later survives reloads.
-      saveRoom({
-        house_keeping_status: 'InProgress',
-        ...activityStateToUpdate(next),
-      }).catch((e) => console.warn('Failed to persist return later in Supabase', e));
+      // The status stays (nobody is cleaning: In Progress drops to Dirty in the
+      // database); supervisors are told and the attendant reminded at the time.
+      saveRoom(activityStateToUpdate(next)).catch((e) => {
+        messageModal.show({
+          title: 'Return later not saved',
+          message: e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.',
+          buttons: [{ text: 'OK' }],
+        });
+        setActivity(deriveRoomActivityState(localRoomRef.current));
+      });
     }
     setPendingActivity(null);
     setShowReturnLaterModal(false);
     void refreshHistory();
   };
 
+  /*
+   * The guest's time has come. This used to clear Return Later on the spot, so
+   * the request vanished the moment it mattered. It stays until the room is
+   * started (or cleared); the card and header say "go back now", the attendant
+   * gets a reminder, and supervisors hear if it is missed by 30 minutes.
+   */
   const handleReturnLaterElapsed = useCallback(() => {
-    // Time elapsed: clear Return Later and revert header to normal state.
-    setActivity({ kind: 'none' });
-    setPendingActivity(null);
-    saveRoom(activityStateToUpdate({ kind: 'none' })).catch((e) =>
-      console.warn('Failed to clear return later in Supabase', e)
-    );
     void refreshHistory();
-  }, [saveRoom, refreshHistory]);
+  }, [refreshHistory]);
 
   const handlePromiseTimeConfirm = (
     _promiseTime: string,
@@ -733,15 +822,19 @@ export default function RoomDetailScreen() {
   };
 
   const handleRefuseServiceConfirm = (reason: string) => {
-    if (blockedBySecondInProgress()) return;
     const next: RoomActivityState = { kind: 'refuseService', at: Date.now(), reason };
     setActivity(next);
     setPendingActivity(null);
-    // Persist to DB so Refuse Service survives reloads.
-    saveRoom({
-      house_keeping_status: 'InProgress',
-      ...activityStateToUpdate(next),
-    }).catch((e) => console.warn('Failed to persist refuse service in Supabase', e));
+    // As Return Later: the status stays, supervisors are told, and it ends with
+    // the service day or when the guest wants service after all.
+    saveRoom(activityStateToUpdate(next)).catch((e) => {
+      messageModal.show({
+        title: 'Refused service not saved',
+        message: e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.',
+        buttons: [{ text: 'OK' }],
+      });
+      setActivity(deriveRoomActivityState(localRoomRef.current));
+    });
     void logRoomHistoryEvent({
       roomId: room.id,
       type: 'refuse_service',
@@ -1039,6 +1132,7 @@ export default function RoomDetailScreen() {
         }}
         onHeaderHeightChange={setHeaderDesignHeight}
         onClearRefuseService={handleClearRefuseService}
+        serviceActions={serviceActions}
         initialTab={initialTab}
         departmentName={departmentName}
         activity={effectiveActivity}

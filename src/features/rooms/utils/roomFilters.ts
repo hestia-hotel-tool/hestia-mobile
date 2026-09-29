@@ -60,6 +60,7 @@ export function roomMatchesFilters(room: RoomCardData, filters: FilterState | un
       (s.inspected && room.houseKeepingStatus === 'Inspected') ||
       (s.priority && room.isPriority) ||
       (s.paused && isRoomPaused(room)) ||
+      (s.dnd && !!room.dndAt) ||
       (s.returnLater && !!(room as any)?.returnLaterAt) ||
       (s.refused && (!!(room as any)?.refuseServiceReason || !!(room as any)?.refuseServiceAt));
     if (!matches) return false;
@@ -108,6 +109,7 @@ const ROOM_STATE_LABELS: Record<string, string> = {
   inspected: 'Inspected',
   priority: 'Priority',
   paused: 'Paused',
+  dnd: 'Do Not Disturb',
   refused: 'Refused',
   returnLater: 'Return Later',
 };

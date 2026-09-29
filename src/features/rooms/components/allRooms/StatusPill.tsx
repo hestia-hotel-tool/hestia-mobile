@@ -54,7 +54,7 @@ export default function StatusPill({
     return <ActivityIndicator size="small" color="#FFF" />;
   }
 
-  const icon = <Icon name={config.iconName} size={config.glyphHeight * scaleX} color="#ffffff" />;
+  const icon = <Icon name={config.iconName} size={config.glyphHeight * scaleX} color={config.foreground ?? '#ffffff'} />;
 
   if (!showChevron) return icon;
 
@@ -74,7 +74,7 @@ export default function StatusPill({
       <Icon
         name="action-chevron"
         size={CHEVRON_HEIGHT * scaleX}
-        color="#ffffff"
+        color={config.foreground ?? '#ffffff'}
         style={{ transform: [{ rotate: CHEVRON_ROTATION }] }}
       />
     </View>

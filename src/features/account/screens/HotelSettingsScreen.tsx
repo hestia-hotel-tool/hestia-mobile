@@ -21,7 +21,9 @@ import { useToast } from '@/contexts/ToastContext';
 import { useNow } from '@/hooks/useNow';
 import { typography } from '@/theme';
 import { SettingsRow, SettingsSection, SETTINGS_COLORS as C } from '../components/SettingsList';
-import { fetchHotelSettings, updateHotelSettings, type HotelSettings } from '../services/hotel';
+import { fetchHotelSettings, updateHotelServiceRules, updateHotelSettings, type HotelSettings } from '../services/hotel';
+import { TimeWheelPicker } from '@/components/ui/TimeWheelPicker';
+import { formatMinutesSpan } from '@/utils/formatting';
 import { TIME_ZONES, timeInZone, timeZoneCity } from '../utils/timeZones';
 
 /**
@@ -39,6 +41,9 @@ export default function HotelSettingsScreen() {
   const [original, setOriginal] = useState<HotelSettings | null>(null);
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('UTC');
+  const [recheck, setRecheck] = useState(60);
+  const [cutoff, setCutoff] = useState('14:00');
+  const [editingCutoff, setEditingCutoff] = useState(false);
   const [picking, setPicking] = useState(false);
   const [saving, setSaving] = useState(false);
   const seeded = useRef(false);
@@ -53,6 +58,8 @@ export default function HotelSettingsScreen() {
         seeded.current = true;
         setName(h.name);
         setTimezone(h.timezone);
+        setRecheck(h.dndRecheckMinutes);
+        setCutoff(h.dndCutoff);
       }
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Could not load hotel' });
@@ -65,7 +72,9 @@ export default function HotelSettingsScreen() {
     }, [load])
   );
 
-  const dirty = !!original && (name.trim() !== original.name || timezone !== original.timezone);
+  const hotelDirty = !!original && (name.trim() !== original.name || timezone !== original.timezone);
+  const rulesDirty = !!original && (recheck !== original.dndRecheckMinutes || cutoff !== original.dndCutoff);
+  const dirty = hotelDirty || rulesDirty;
   const nameError = name.trim().length === 0 ? 'The hotel needs a name.' : null;
   const canSave = dirty && !nameError && !saving;
 
@@ -85,8 +94,10 @@ export default function HotelSettingsScreen() {
     if (!canSave) return;
     setSaving(true);
     try {
-      await updateHotelSettings(name.trim(), timezone);
-      setOriginal((o) => (o ? { ...o, name: name.trim(), timezone } : o));
+      if (hotelDirty) await updateHotelSettings(name.trim(), timezone);
+      if (rulesDirty) await updateHotelServiceRules(recheck, cutoff);
+      setOriginal((o) => (o ? { ...o, name: name.trim(), timezone, dndRecheckMinutes: recheck, dndCutoff: cutoff } : o));
+      setEditingCutoff(false);
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast.show('Hotel settings saved.', { type: 'success', title: 'Saved' });
     } catch (e) {
@@ -159,6 +170,35 @@ export default function HotelSettingsScreen() {
             detail={clock ? `${timezone} · ${clock} now` : timezone}
             onPress={() => setPicking(true)}
           />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Do Not Disturb"
+          footer={`Staff are reminded to check a DND door every ${formatMinutesSpan(recheck * 60_000)}. A room still on DND at ${cutoff} (hotel time) sends supervisors a welfare-check alert.`}
+        >
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Check the door every</Text>
+            <View style={styles.chips}>
+              {[30, 45, 60, 90, 120].map((m) => (
+                <Pressable
+                  key={m}
+                  onPress={() => setRecheck(m)}
+                  style={[styles.chip, recheck === m && styles.chipSelected]}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: recheck === m }}
+                >
+                  <Text style={[styles.chipText, recheck === m && styles.chipTextSelected]}>{formatMinutesSpan(m * 60_000)}</Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+          <SettingsRow
+            icon="shield-checkmark-outline"
+            label="Welfare check after"
+            value={cutoff}
+            onPress={() => setEditingCutoff((v) => !v)}
+          />
+          {editingCutoff ? <TimeWheelPicker value={cutoff} onChange={setCutoff} minuteStep={15} /> : null}
         </SettingsSection>
 
         {dirty ? (
@@ -281,6 +321,25 @@ const styles = StyleSheet.create({
     color: C.ink,
   },
   error: { marginTop: 6, fontFamily: typography.fontFamily.primary, fontSize: 12, color: C.danger },
+  fieldLabel: {
+    fontFamily: typography.fontFamily.primary,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: C.muted,
+  },
+  chips: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: 'rgba(90,117,157,0.25)',
+    backgroundColor: '#f9fafc',
+  },
+  chipSelected: { borderColor: C.title, backgroundColor: C.title },
+  chipText: { fontFamily: typography.fontFamily.primary, fontSize: 14, color: C.title },
+  chipTextSelected: { fontWeight: '700', color: '#ffffff' },
   saveButton: { marginTop: 24, height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: C.title },
   saveButtonText: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 16, color: '#ffffff' },
   pickScreen: { flex: 1, backgroundColor: '#ffffff' },

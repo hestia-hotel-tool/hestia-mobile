@@ -56,6 +56,19 @@ export function describeRoomActivity(
         emphasis: clock ? `· ${clockSummary(clock)}` : undefined,
       };
 
+    case 'dnd': {
+      // "Since 09:40 · 3 checks" and the next one: "check at 11:12" / "check due".
+      const since = activity.since == null ? null : formatClock24(new Date(activity.since));
+      const checks = `${activity.checks} ${activity.checks === 1 ? 'check' : 'checks'}`;
+      const next =
+        activity.nextCheckAt == null
+          ? undefined
+          : activity.nextCheckAt <= now
+            ? '· check due now'
+            : `· next check ${formatDueTime(activity.nextCheckAt, new Date(now))}`;
+      return { text: since ? `Since ${since} · ${checks}` : checks, emphasis: next };
+    }
+
     case 'returnLater':
       if (activity.dueAt == null) return { text: '' };
       return {

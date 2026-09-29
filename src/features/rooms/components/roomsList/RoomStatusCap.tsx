@@ -10,11 +10,14 @@ export type RoomStatusCapProps = {
   iconName: IconName;
   /** Glyph height in px — the four status marks are drawn at different sizes. */
   glyphHeight?: number;
+  /** Label colour, and the glyph's on the white disc. White / the band colour by default; pale bands pass their ink. */
+  foreground?: string;
 };
 
 /**
  * The coloured lid on a Paused or In Progress card — Figma 3883:6122 (In
- * Progress) and 3883:5974 (Paused).
+ * Progress) and 3883:5974 (Paused) — and on the other activity states
+ * (Return Later, Refused Service, Promised Time), which are In Progress too.
  *
  * A full-bleed strip in the status colour with a white disc holding the status
  * glyph and the status name beside it. Only these two bands carry it; Priority,
@@ -25,7 +28,7 @@ export type RoomStatusCapProps = {
  * band's coloured cap" — but that node is Rectangle 171, the cap *inside* a
  * single 422x264 card.
  */
-export function RoomStatusCap({ label, color, iconName, glyphHeight = 25.4 }: RoomStatusCapProps) {
+export function RoomStatusCap({ label, color, iconName, glyphHeight = 25.4, foreground }: RoomStatusCapProps) {
   return (
     <View
       className="flex-row items-center gap-lg rounded-t-xl px-3xl"
@@ -35,9 +38,13 @@ export function RoomStatusCap({ label, color, iconName, glyphHeight = 25.4 }: Ro
         className="items-center justify-center rounded-full bg-surface-primary"
         style={{ width: ROOM_CARD.cap.disc, height: ROOM_CARD.cap.disc }}
       >
-        <Icon name={iconName} size={glyphHeight} color={color} />
+        <Icon name={iconName} size={glyphHeight} color={foreground ?? color} />
       </View>
-      <Text className="font-hestia-primary text-hestia-4xl font-bold text-ink-white">
+      <Text
+        className="font-hestia-primary text-hestia-4xl font-bold text-ink-white"
+        style={foreground ? { color: foreground } : undefined}
+        numberOfLines={1}
+      >
         {label}
       </Text>
     </View>

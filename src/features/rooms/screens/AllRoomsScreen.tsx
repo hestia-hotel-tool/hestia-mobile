@@ -9,7 +9,13 @@ import { type RoomStateUpdate } from '../services/dashboard';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
-import { RoomCardData, StatusChangeOption, mapStatusOptionToRoomStatus, isRoomPaused } from '../types/allRooms.types';
+import {
+  RoomCardData,
+  StatusChangeOption,
+  activityStateToUpdate,
+  mapStatusOptionToRoomStatus,
+  isRoomPaused,
+} from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
 import { useUser } from '@features/account/hooks/useUser';
@@ -397,6 +403,7 @@ export default function AllRoomsScreen() {
       inspected: 0,
       priority: 0,
       paused: 0,
+      dnd: 0,
       refused: 0,
       returnLater: 0,
     };
@@ -429,6 +436,7 @@ export default function AllRoomsScreen() {
       if (room.houseKeepingStatus === 'Inspected') roomStates.inspected++;
       if (room.isPriority) roomStates.priority++;
       if (isRoomPaused(room)) roomStates.paused++;
+      if (room.dndAt) roomStates.dnd++;
       if ((room as any)?.returnLaterAt) roomStates.returnLater++;
       if ((room as any)?.refuseServiceReason || (room as any)?.refuseServiceAt) roomStates.refused++;
 
@@ -574,6 +582,60 @@ export default function AllRoomsScreen() {
     const roomToUpdate = roomOverride ?? selectedRoomForStatusChange;
     if (!roomToUpdate) return;
 
+    /*
+     * Return Later, Refuse Service and Promised Time need a time or a reason,
+     * which their sheets on Room Detail ask for. They used to set the room to
+     * In Progress here and nothing else — no time, no reason — so the card and
+     * the detail screen never showed the state that was picked. Open the room
+     * with that sheet up instead; confirming it saves the state properly.
+     */
+    const sheet =
+      statusOption === 'ReturnLater'
+        ? 'returnLater'
+        : statusOption === 'RefuseService'
+          ? 'refuseService'
+          : statusOption === 'PromisedTime'
+            ? 'promisedTime'
+            : null;
+    if (sheet) {
+      await statusPopover.close();
+      const roomType = mapFrontOfficeToRoomType(roomToUpdate.frontOfficeStatus, roomToUpdate.guests?.length ?? 0);
+      navigation.navigate('room/[roomId]', { room: roomToUpdate, roomType, roomId: roomToUpdate.id, openActivity: sheet } as any);
+      return;
+    }
+
+    /*
+     * Do Not Disturb needs no sheet — the sign is on the door now. On a room
+     * already DND it records another look at the door (counted, next check
+     * scheduled). The database keeps the status (In Progress drops to Dirty)
+     * and tells the supervisors.
+     */
+    if (statusOption === 'DoNotDisturb') {
+      await statusPopover.close();
+      setChangingStatusRoomId(roomToUpdate.id);
+      try {
+        await updateRoom(
+          roomToUpdate.id,
+          roomToUpdate.dndAt
+            ? { dnd_checked_at: new Date().toISOString() }
+            : activityStateToUpdate({ kind: 'dnd', since: Date.now(), checks: 1, nextCheckAt: null })
+        );
+        toast.show(
+          roomToUpdate.dndAt
+            ? `Room ${roomToUpdate.roomNumber}: still Do Not Disturb — next check scheduled.`
+            : `Room ${roomToUpdate.roomNumber}: Do Not Disturb recorded. Your supervisor has been told.`,
+          { type: 'success' }
+        );
+      } catch (e) {
+        const message = e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.';
+        toast.show(`Room ${roomToUpdate.roomNumber} was not updated. ${message}`, { type: 'error', duration: 4500 });
+      } finally {
+        setChangingStatusRoomId(null);
+      }
+      await keepRoomVisible(roomToUpdate.id);
+      return;
+    }
+
     // Priority is a mark on the room, not a status: it used to map to In
     // Progress here, so marking a Dirty room priority also started it.
     const isPriorityToggle = statusOption === 'Priority';
@@ -620,6 +682,19 @@ export default function AllRoomsScreen() {
     };
     if (priorityPayload !== undefined) {
       supabaseUpdates.priority = priorityPayload;
+    } else {
+      /*
+       * Pause enters an activity; any other status leaves whatever the room
+       * was doing (Paused, Return Later, Refused, a promise) — the same rule as
+       * Room Detail. Pause used to set In Progress only, so the room never
+       * showed as paused anywhere.
+       */
+      Object.assign(
+        supabaseUpdates,
+        activityStateToUpdate(
+          statusOption === 'Pause' ? { kind: 'paused', since: Date.now(), assignmentPaused: false } : { kind: 'none' }
+        )
+      );
     }
 
     // Show loading indicator

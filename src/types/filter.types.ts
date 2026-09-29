@@ -15,6 +15,7 @@ export interface FilterState {
     inspected: boolean;
     priority: boolean;
     paused?: boolean;
+    dnd?: boolean;
     refused?: boolean;
     returnLater?: boolean;
   };
@@ -47,6 +48,7 @@ export interface FilterCounts {
     inspected: number;
     priority: number;
     paused?: number;
+    dnd?: number;
     refused?: number;
     returnLater?: number;
   };

@@ -19,6 +19,15 @@ const META: Record<string, TaskMeta> = {
   room_paused: { label: 'Cleaning on hold', icon: 'status-paused', iconSize: 20, target: 'room' },
   room_overdue: { label: 'Taking longer than expected', icon: 'action-promised-time', iconSize: 20, target: 'room' },
   room_promise: { label: 'Promise time', icon: 'action-promised-time', iconSize: 20, target: 'room' },
+  room_dnd: { label: 'Do Not Disturb', icon: 'action-dnd', iconSize: 20, target: 'room' },
+  room_dnd_check: { label: 'Check the DND sign', icon: 'action-dnd', iconSize: 20, target: 'room' },
+  room_dnd_cleared: { label: 'Do Not Disturb removed', icon: 'action-dnd', iconSize: 20, target: 'room' },
+  room_dnd_welfare: { label: 'DND welfare check', icon: 'action-dnd', iconSize: 20, target: 'room' },
+  room_refused: { label: 'Service refused', icon: 'action-refuse-service', iconSize: 20, target: 'room' },
+  room_service_resumed: { label: 'Service back on', icon: 'action-refuse-service', iconSize: 20, target: 'room' },
+  room_return_later: { label: 'Return later', icon: 'action-return-later', iconSize: 20, target: 'room' },
+  room_return_due: { label: 'Time to go back', icon: 'action-return-later', iconSize: 20, target: 'room' },
+  room_return_overdue: { label: 'Return later missed', icon: 'action-return-later', iconSize: 20, target: 'room' },
   ticket_assigned: { label: 'Ticket assigned', icon: 'nav-tickets', iconSize: 20, target: 'tickets' },
 };
 

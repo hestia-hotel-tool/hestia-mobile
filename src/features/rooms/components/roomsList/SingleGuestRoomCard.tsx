@@ -2,7 +2,7 @@ import React from 'react';
 import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
-import { STATUS_CONFIGS, getRoomDisplayStatus } from '../../types/allRooms.types';
+import { STATUS_CONFIGS, getRoomDisplayStatus, isCappedStatus } from '../../types/allRooms.types';
 import { guestRowKind, guestTimeLabelForKind } from '../../utils/roomCardProps';
 import { assigneeStatus, promiseLine } from '../../utils/cleaningClock';
 import { useNow } from '@/hooks/useNow';
@@ -64,8 +64,7 @@ export function SingleGuestRoomCard({
   const guest = room.guests[0];
   const staff = room.roomAttendantAssigned;
 
-  // Only these two bands are capped in the design.
-  const capped = displayStatus === 'Paused' || displayStatus === 'InProgress';
+  const capped = isCappedStatus(displayStatus);
 
   return (
     <RoomCardShell
@@ -80,6 +79,7 @@ export function SingleGuestRoomCard({
             color={config.color}
             iconName={config.iconName}
             glyphHeight={config.glyphHeight}
+            foreground={config.foreground}
           />
         ) : undefined
       }

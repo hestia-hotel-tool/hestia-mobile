@@ -185,6 +185,8 @@ export interface RoomDetailScreenProps {
   onHeaderHeightChange?: (designPx: number) => void;
   /** Clear Refuse Service and return to normal UI. */
   onClearRefuseService?: () => void;
+  /** Do Not Disturb / Refused / Return Later actions for the panel at the top of Overview. */
+  serviceActions?: import('../components/roomDetail/ServiceExceptionPanel').ServiceExceptionActions;
   
   /**
    * What the room is doing — paused, returning later, refused, or nothing.

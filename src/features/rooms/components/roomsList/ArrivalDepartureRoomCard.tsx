@@ -2,7 +2,7 @@ import React from 'react';
 import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
-import { STATUS_CONFIGS, getRoomDisplayStatus } from '../../types/allRooms.types';
+import { STATUS_CONFIGS, getRoomDisplayStatus, isCappedStatus } from '../../types/allRooms.types';
 import { guestRowKind, guestTimeLabelForKind } from '../../utils/roomCardProps';
 import { assigneeStatus, promiseLine } from '../../utils/cleaningClock';
 import { useNow } from '@/hooks/useNow';
@@ -61,7 +61,7 @@ export function ArrivalDepartureRoomCard({
   const displayStatus = getRoomDisplayStatus(room);
   const config = STATUS_CONFIGS[displayStatus];
   const staff = room.roomAttendantAssigned;
-  const capped = displayStatus === 'Paused' || displayStatus === 'InProgress';
+  const capped = isCappedStatus(displayStatus);
 
   const renderGuest = (guest: GuestInfo, index: number) => {
     // One derivation, used for both the badge and the time prefix — on this
@@ -96,6 +96,7 @@ export function ArrivalDepartureRoomCard({
             color={config.color}
             iconName={config.iconName}
             glyphHeight={config.glyphHeight}
+            foreground={config.foreground}
           />
         ) : undefined
       }

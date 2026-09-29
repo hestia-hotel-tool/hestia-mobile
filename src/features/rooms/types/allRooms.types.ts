@@ -17,16 +17,33 @@ export type ReservationStatus =
 export type RoomStatus = 'Dirty' | 'InProgress' | 'Cleaned' | 'Inspected';
 
 /**
- * Status as actually displayed to the user: the persisted RoomStatus, or 'Paused'
- * when the room is currently paused. Paused is an overlay on top of houseKeepingStatus,
- * not a replacement for it — see isRoomPaused/getRoomDisplayStatus below.
+ * Status as actually displayed to the user: the persisted RoomStatus, or the
+ * room's activity when it has one — Paused, Return Later, Refused Service or
+ * Promised Time. Each is an overlay on houseKeepingStatus, not a replacement
+ * for it — see deriveRoomActivityState / getRoomDisplayStatus below.
  */
-export type RoomDisplayStatus = RoomStatus | 'Paused';
+export type RoomDisplayStatus =
+  | RoomStatus
+  | 'Paused'
+  | 'DoNotDisturb'
+  | 'ReturnLater'
+  | 'RefusedService'
+  | 'PromisedTime';
 
 /** Promised ready time for the room: 12:00, 13:00, or null */
 export type PromisedTime = '12:00' | '13:00' | null;
 
-export type StatusChangeOption = 'Priority' | 'Dirty' | 'InProgress' | 'Cleaned' | 'Inspected' | 'Pause' | 'ReturnLater' | 'RefuseService' | 'PromisedTime';
+export type StatusChangeOption =
+  | 'Priority'
+  | 'Dirty'
+  | 'InProgress'
+  | 'Cleaned'
+  | 'Inspected'
+  | 'Pause'
+  | 'DoNotDisturb'
+  | 'ReturnLater'
+  | 'RefuseService'
+  | 'PromisedTime';
 
 /** Guest count: adults/kids. For ETA (arrival) = checking in; for EDT (departure) = checking out */
 export interface GuestCount {
@@ -102,6 +119,12 @@ export interface RoomCardData {
   pausedAt?: string | null;
   /** When set, room is in "Refused Service" state (for header + list styling). */
   refuseServiceReason?: string | null;
+  /** Do Not Disturb since (ISO); null when there is no sign. */
+  dndAt?: string | null;
+  /** How many times the door has been checked and found DND (the first sighting counts). */
+  dndCheckCount?: number;
+  /** When the door is due its next check (ISO). */
+  dndNextCheckAt?: string | null;
   /** Promised ready-by time (ISO), from the Promise Time sheet. */
   promiseTimeAt?: string | null;
   /**
@@ -149,11 +172,59 @@ export function isRoomPaused(room: Pick<RoomCardData, 'pausedAt' | 'roomAttendan
   return room.pausedAt != null || room.roomAttendantAssigned?.assignmentWorkStatus === 'paused';
 }
 
-/** The status to show in the UI: 'Paused' overlays houseKeepingStatus when the room is paused. */
+/**
+ * The status to show on a room card: its activity when it has one (the same
+ * precedence the detail header uses — paused, refused, return later, then a
+ * promise), otherwise its housekeeping status.
+ *
+ * The card used to know only Paused, so a room set to Return Later or Refused
+ * Service read as a plain In Progress on the list while its detail header said
+ * otherwise.
+ */
 export function getRoomDisplayStatus(
-  room: Pick<RoomCardData, 'houseKeepingStatus' | 'pausedAt' | 'roomAttendantAssigned'>
+  room: Pick<
+    RoomCardData,
+    | 'houseKeepingStatus'
+    | 'pausedAt'
+    | 'roomAttendantAssigned'
+    | 'returnLaterAt'
+    | 'returnLaterReason'
+    | 'refuseServiceAt'
+    | 'refuseServiceReason'
+    | 'promiseTimeAt'
+    | 'dndAt'
+    | 'dndCheckCount'
+    | 'dndNextCheckAt'
+  >
 ): RoomDisplayStatus {
-  return isRoomPaused(room) ? 'Paused' : room.houseKeepingStatus;
+  const activity = deriveRoomActivityState(room);
+  switch (activity.kind) {
+    case 'paused':
+      return 'Paused';
+    case 'dnd':
+      return 'DoNotDisturb';
+    case 'refuseService':
+      return 'RefusedService';
+    case 'returnLater':
+      return 'ReturnLater';
+    case 'promisedTime':
+      // A promise only overlays a room still to be cleaned; once Cleaned or
+      // Inspected the promise has been kept.
+      return room.houseKeepingStatus === 'Cleaned' || room.houseKeepingStatus === 'Inspected'
+        ? room.houseKeepingStatus
+        : 'PromisedTime';
+    default:
+      return room.houseKeepingStatus;
+  }
+}
+
+/**
+ * Does the card carry a coloured cap for this status? In Progress and every
+ * activity state do (Figma 3883:6122 / 3883:5974 for the first two); Dirty,
+ * Cleaned and Inspected cards start at the room number.
+ */
+export function isCappedStatus(status: RoomDisplayStatus): boolean {
+  return status !== 'Dirty' && status !== 'Cleaned' && status !== 'Inspected';
 }
 
 /**
@@ -171,6 +242,7 @@ export function getRoomDisplayStatus(
 export type RoomActivityState =
   | { kind: 'none' }
   | { kind: 'paused'; since: number | null; assignmentPaused: boolean }
+  | { kind: 'dnd'; since: number | null; checks: number; nextCheckAt: number | null }
   | { kind: 'returnLater'; dueAt: number | null; reason: string | null }
   | { kind: 'refuseService'; at: number | null; reason: string | null }
   | { kind: 'promisedTime'; dueAt: number | null };
@@ -181,6 +253,7 @@ export type RoomActivityKind = RoomActivityState['kind'];
 export const ROOM_ACTIVITY_LABEL: Record<RoomActivityKind, string | null> = {
   none: null,
   paused: 'Paused',
+  dnd: 'Do Not Disturb',
   returnLater: 'Return Later',
   refuseService: 'Refused Service',
   promisedTime: 'Promised Time',
@@ -196,8 +269,9 @@ function toEpochMs(iso: string | null | undefined): number | null {
 /**
  * Which activity a room is in, from its own columns.
  *
- * Precedence is paused > refuseService > returnLater, which is what the header
- * already did. It matters because nothing in the schema enforces that the four
+ * Precedence is paused > dnd > refuseService > returnLater > promise. The
+ * database keeps the service states exclusive (migration 20260929000400), so
+ * the order only matters for rows written before it. It matters because nothing in the schema enforces that the four
  * columns are mutually exclusive — only the convention that every write clears
  * the other three.
  *
@@ -215,6 +289,9 @@ export function deriveRoomActivityState(
     | 'refuseServiceReason'
     | 'roomAttendantAssigned'
     | 'promiseTimeAt'
+    | 'dndAt'
+    | 'dndCheckCount'
+    | 'dndNextCheckAt'
   >
 ): RoomActivityState {
   // Via isRoomPaused so both pause signals count. Reading `pausedAt` alone is
@@ -224,6 +301,15 @@ export function deriveRoomActivityState(
       kind: 'paused',
       since: toEpochMs(room.pausedAt),
       assignmentPaused: room.roomAttendantAssigned?.assignmentWorkStatus === 'paused',
+    };
+  }
+
+  if (room.dndAt) {
+    return {
+      kind: 'dnd',
+      since: toEpochMs(room.dndAt),
+      checks: room.dndCheckCount ?? 1,
+      nextCheckAt: toEpochMs(room.dndNextCheckAt),
     };
   }
 
@@ -266,6 +352,7 @@ export function activityStateToUpdate(state: RoomActivityState): {
   return_later_reason: string | null;
   refuse_service_at: string | null;
   refuse_service_reason: string | null;
+  dnd_at: string | null;
 } {
   const cleared = {
     paused_at: null,
@@ -273,12 +360,16 @@ export function activityStateToUpdate(state: RoomActivityState): {
     return_later_reason: null,
     refuse_service_at: null,
     refuse_service_reason: null,
+    dnd_at: null,
   };
   const iso = (ms: number | null) => (ms == null ? null : new Date(ms).toISOString());
 
   switch (state.kind) {
     case 'paused':
       return { ...cleared, paused_at: iso(state.since) ?? new Date().toISOString() };
+    case 'dnd':
+      // The database keeps the first sighting's time; this only says "DND".
+      return { ...cleared, dnd_at: iso(state.since) ?? new Date().toISOString() };
     case 'returnLater':
       return {
         ...cleared,
@@ -314,12 +405,16 @@ export function mapStatusOptionToRoomStatus(option: StatusChangeOption): RoomSta
       return 'Cleaned';
     case 'Inspected':
       return 'Inspected';
-    case 'Priority':
     case 'Pause':
+      return 'InProgress';
+    // Not cleaning: these leave the status alone (In Progress drops to Dirty in
+    // the database). Callers treat them as service states, not statuses.
+    case 'Priority':
+    case 'DoNotDisturb':
     case 'ReturnLater':
     case 'RefuseService':
     case 'PromisedTime':
-      return 'InProgress';
+      return 'Dirty';
     default:
       return 'InProgress';
   }
@@ -334,6 +429,11 @@ export interface AllRoomsScreenData {
 
 export interface StatusConfig {
   color: string; // Background color of the status button
+  /**
+   * Glyph and label colour on that ground. White unless the ground is pale
+   * (Return Later, Promised Time), where it takes the detail header's ink.
+   */
+  foreground?: string;
   /** Registry key from src/components/Icon — see assets/icons/room-status/. */
   iconName: IconName;
   /** Glyph height in px (design/Figma pixels, before scaleX) — each glyph has a different natural size. */
@@ -379,6 +479,37 @@ export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
     iconName: 'status-paused',
     glyphHeight: 38.8,
     label: 'Paused',
+  },
+  /*
+   * The three activity states take the grounds the detail header already uses
+   * for them (roomDetailHeaderTheme.ts), which are the status menu's circles —
+   * so the card, the header and the menu all agree on each state's colour.
+   */
+  DoNotDisturb: {
+    color: '#5b4b8a',
+    iconName: 'action-dnd',
+    glyphHeight: 28,
+    label: 'Do Not Disturb',
+  },
+  ReturnLater: {
+    color: '#ead7f6',
+    foreground: '#334866',
+    iconName: 'action-return-later',
+    glyphHeight: 26,
+    label: 'Return Later',
+  },
+  RefusedService: {
+    color: '#ff9090',
+    iconName: 'action-refuse-service',
+    glyphHeight: 26,
+    label: 'Refused Service',
+  },
+  PromisedTime: {
+    color: '#fcf1cf',
+    foreground: '#3f4c5f',
+    iconName: 'action-promised-time',
+    glyphHeight: 26,
+    label: 'Promised Time',
   },
 };
 
@@ -461,6 +592,14 @@ export const STATUS_OPTIONS: StatusOptionConfig[] = [
     glyphHeight: 28.4,
     circleColor: 'rgba(176, 192, 198, 0.21)',
     glyphColor: '#3f4c5f',
+  },
+  {
+    id: 'DoNotDisturb',
+    label: 'Do Not Disturb',
+    iconName: 'action-dnd',
+    glyphHeight: 28,
+    circleColor: '#5b4b8a',
+    glyphColor: '#ffffff',
   },
   {
     id: 'ReturnLater',
