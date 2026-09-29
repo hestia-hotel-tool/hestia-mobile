@@ -21,7 +21,7 @@ export type RoomAssigneeBlockProps = {
   onPress?: () => void;
 };
 
-/** The flag red used on the card header, for "over time". */
+/** The flag red used on the card header, for a room running late. */
 const ALERT_COLOR = '#f92424';
 /** The accent pink, for a promise made to the guest. */
 const PROMISE_COLOR = '#ff46a3';
@@ -62,7 +62,7 @@ export function RoomAssigneeBlock({
       }
       style={statusTone === 'alert' ? { color: ALERT_COLOR } : undefined}
       numberOfLines={1}
-      accessibilityLabel={statusTone === 'alert' ? `Over expected time: ${statusLine}` : undefined}
+      accessibilityLabel={statusTone === 'alert' ? `Running late: ${statusLine}` : undefined}
     >
       {statusLine}
     </Text>

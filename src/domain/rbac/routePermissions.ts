@@ -53,6 +53,13 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'lost-and-found': PERMISSIONS.LOST_AND_FOUND_READ,
   'lost-and-found/edit': PERMISSIONS.LOST_AND_FOUND_MANAGE,
 
+  // Settings screens outside the tab: your own account (Change Password) needs
+  // only the Settings tab; Shifts, Hotel and Cleaning credits are for managers.
+  'settings': PERMISSIONS.SETTINGS_VIEW,
+  'settings/shifts': PERMISSIONS.STAFF_MANAGE,
+  'settings/hotel': PERMISSIONS.SETTINGS_MANAGE,
+  'settings/credits': PERMISSIONS.ROOMS_CREDITS_MANAGE,
+
   // Tickets. The detail needs the Tickets tab; the edit sheet tickets.update —
   // the screen and the database narrow it to the ticket's author and managers.
   'ticket': PERMISSIONS.TICKETS_VIEW,

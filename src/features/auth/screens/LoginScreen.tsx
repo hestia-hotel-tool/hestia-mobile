@@ -13,6 +13,7 @@ import { LANGUAGES } from '@/i18n';
 import LogoMark from '@assets/brand/logo-mark.svg';
 import LogoWordmark from '@assets/brand/logo-wordmark.svg';
 import SupportMark from '@assets/brand/support-mark.svg';
+import { consumeSessionExpired } from '@/lib/authSessionExpiry';
 import { useAuth } from '../hooks/useAuth';
 
 /** Figma node 263:40 — 370 of a 440 frame, so 35 either side. */
@@ -35,7 +36,10 @@ export default function LoginScreen() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  // Sent here because the session expired: say so, instead of a bare login.
+  const [notice, setNotice] = useState<string | null>(() =>
+    consumeSessionExpired() ? t('login.sessionExpired') : null
+  );
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {

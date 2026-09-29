@@ -4,26 +4,36 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase, isSupabaseConfigured } from './supabase';
 
-export type PushData =
-  | { type: 'chat_message'; chatId: string; messageId?: string }
-  | { type: 'ticket_tag'; ticketId: string; roomId?: string | null }
-  | { type: 'room_assignment'; roomId: string; shiftId?: string };
+/**
+ * What a push carries (sent by the `notify` Edge Function): the notification
+ * row's own `data` — chatId, messageId, roomId, ticketId… — plus its `type` and
+ * `notificationId`.
+ */
+export type PushData = {
+  type?: string;
+  notificationId?: string;
+  chatId?: string;
+  messageId?: string;
+  roomId?: string | null;
+  shiftId?: string;
+  ticketId?: string;
+};
 
 /**
- * Foreground / presentation behavior for remote notifications.
- * - Android: shouldPlaySound: false suppresses the heads-up banner entirely (Expo maps sound to alert visibility).
- * - iOS: maps to UNNotificationPresentationOptions (banner, list, sound). Prefer banner over legacy alert.
+ * How a push is shown while the app is open.
+ *
+ * Not as a system banner: the same notification arrives over Realtime and is
+ * shown as the in-app toast (`presentIncomingNotificationAlert`), so a banner
+ * on top would say everything twice. With the app in the background or closed,
+ * the system shows the push as normal — banner, sound, lock screen.
  */
 export function configureForegroundNotifications() {
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
+      shouldShowBanner: false,
+      shouldShowList: false,
+      shouldPlaySound: false,
       shouldSetBadge: false,
-      ...(Platform.OS === 'android'
-        ? { priority: Notifications.AndroidNotificationPriority.HIGH }
-        : {}),
     }),
   });
 }
@@ -92,85 +102,57 @@ export async function registerAndSyncPushToken(): Promise<{ token: string | null
   if (!token) return { token: null };
 
   const { data: sessionData } = await supabase.auth.getSession();
-  const userId = sessionData?.session?.user?.id ?? null;
-  if (!userId) return { token: null };
+  if (!sessionData?.session?.user?.id) return { token: null };
 
-  const device_os = Platform.OS;
-  const device_name = Device.deviceName ?? null;
-
-  // Prefer SECURITY DEFINER RPC so the same Expo token can move between accounts without RLS blocking the merge.
-  const rpcResult = await (supabase as any).rpc('register_expo_push_token', {
+  // SECURITY DEFINER so a device can move between accounts (the last one to
+  // sign in on it gets its pushes) without RLS blocking the takeover.
+  const { error } = await supabase.rpc('register_expo_push_token' as never, {
     p_expo_push_token: token,
-    p_device_os: device_os,
-    p_device_name: device_name,
-  });
-
-  if (!rpcResult.error) {
-    return { token };
+    p_device_os: Platform.OS,
+    p_device_name: Device.deviceName ?? null,
+  } as never);
+  if (error) {
+    console.warn('[push] register_expo_push_token', error.message, error.code);
+    return { token: null };
   }
-
-  const rpcMsg = rpcResult.error.message ?? '';
-  const rpcMissing =
-    rpcResult.error.code === 'PGRST202' ||
-    /Could not find the function|does not exist|schema cache/i.test(rpcMsg);
-
-  if (!rpcMissing) {
-    console.warn('[push] register_expo_push_token', rpcResult.error.message, rpcResult.error.code);
-    return { token };
-  }
-
-  // Fallback when migration `20260406140000_register_expo_push_token_rpc.sql` is not applied yet.
-  const upsert = await supabase.from('user_push_tokens').upsert(
-    {
-      user_id: userId,
-      expo_push_token: token,
-      device_os,
-      device_name,
-    },
-    { onConflict: 'expo_push_token' },
-  );
-  if (upsert.error) {
-    console.warn('[push] Failed to persist push token', upsert.error.message, upsert.error.code);
-  }
-
+  registeredToken = token;
   return { token };
 }
 
-export async function notifyServer(payload: { type: 'chat_message'; messageId: string } | { type: 'ticket_tag'; ticketId: string; taggedUserIds: string[] } | { type: 'room_assignment'; roomId: string; shiftId: string; assignedUserId: string }) {
-  if (!isSupabaseConfigured) return;
-  try {
-    // If the function is configured with `verify_jwt = false`, it can accept
-    // requests without a session; still pass the JWT when available.
-    const { data: sessionData } = await supabase.auth.getSession();
-    const accessToken = sessionData?.session?.access_token ?? null;
+/** This device's token, once registered for the signed-in account. */
+let registeredToken: string | null = null;
 
-    const res = await supabase.functions.invoke('notify', {
-      body: payload,
-      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-    });
-    if (res.error) {
-      const ctx = (res.error as any)?.context as any;
-      let responseBody: string | undefined;
-      try {
-        const r = ctx?.response;
-        if (r && typeof r.text === 'function') {
-          responseBody = await r.text();
-        } else if (r && r._bodyInit && typeof r._bodyInit === 'string') {
-          responseBody = r._bodyInit;
-        }
-      } catch {
-        // ignore
-      }
-      console.warn(
-        '[notifyServer] error',
-        res.error.message,
-        res.error.name,
-        ctx?.status ?? (ctx?.response?.status as number | undefined),
-        responseBody
-      );
-    }
-  } catch (e) {
-    console.warn('[notifyServer] failed', e);
-  }
+/**
+ * Stop this device receiving the account's pushes. Call before signing out,
+ * while the session still exists to authorise the delete.
+ */
+export async function unregisterPushToken(): Promise<void> {
+  if (!isSupabaseConfigured || !registeredToken) return;
+  const token = registeredToken;
+  registeredToken = null;
+  const { error } = await supabase.rpc('unregister_expo_push_token' as never, { p_expo_push_token: token } as never);
+  if (error) console.warn('[push] unregister_expo_push_token', error.message);
+  await Notifications.setBadgeCountAsync(0).catch(() => {});
 }
 
+/**
+ * Set the app icon badge to the signed-in user's unread notifications. Each
+ * push sets it on arrival; this brings it back down as they are read.
+ */
+export async function syncAppIconBadge(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  try {
+    const { data } = await supabase.auth.getSession();
+    const userId = data?.session?.user?.id;
+    if (!userId) return;
+    const { count, error } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .is('read_at', null);
+    if (error) return;
+    await Notifications.setBadgeCountAsync(count ?? 0);
+  } catch {
+    // The badge is a convenience; never let it throw.
+  }
+}

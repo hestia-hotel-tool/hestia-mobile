@@ -31,6 +31,7 @@
       "emailRequiredForReset": "Geben Sie zuerst Ihre geschäftliche E-Mail ein und tippen Sie dann auf Passwort zurücksetzen.",
       "resetFailed": "Die E-Mail zum Zurücksetzen konnte nicht gesendet werden."
     },
+    "sessionExpired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
     "resetSent": "Link zum Zurücksetzen an {{email}} gesendet."
   }
 }

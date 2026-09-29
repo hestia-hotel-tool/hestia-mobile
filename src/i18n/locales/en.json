@@ -31,6 +31,7 @@
       "emailRequiredForReset": "Enter your company email first, then tap Recover Password.",
       "resetFailed": "Could not send the reset email."
     },
+    "sessionExpired": "Your session has expired. Please sign in again.",
     "resetSent": "Password reset link sent to {{email}}."
   }
 }

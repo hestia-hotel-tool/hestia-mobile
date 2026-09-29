@@ -31,6 +31,7 @@
       "emailRequiredForReset": "Saisissez d'abord votre e-mail professionnel, puis touchez Mot de passe oublié.",
       "resetFailed": "Impossible d'envoyer l'e-mail de réinitialisation."
     },
+    "sessionExpired": "Votre session a expiré. Veuillez vous reconnecter.",
     "resetSent": "Lien de réinitialisation envoyé à {{email}}."
   }
 }

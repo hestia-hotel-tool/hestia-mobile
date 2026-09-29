@@ -7,7 +7,7 @@ import { create } from 'zustand';
 import type { Session } from '@supabase/supabase-js';
 import { authService } from '../services/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
-import { registerAndSyncPushToken } from '@/lib/notifications';
+import { registerAndSyncPushToken, unregisterPushToken } from '@/lib/notifications';
 import { clearCachedHotelId, getMyHotelId } from '@/lib/tenant';
 import { resetTenantScopedStores } from '@/store/resetTenantScopedStores';
 
@@ -61,6 +61,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signOut: async () => {
     set({ error: null });
     try {
+      // While the session can still authorise it: this phone stops getting
+      // the account's pushes.
+      await unregisterPushToken().catch(() => {});
       const { error } = await authService.signOut();
       if (error) {
         set({ error: error.message });

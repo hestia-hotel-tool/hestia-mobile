@@ -24,6 +24,8 @@ export interface StaffMember {
   maxWorkload?: number;
   onShift?: boolean;
   shift?: string;
+  /** On a break right now: its name and when they are due back. */
+  onBreak?: { name: string; backAt: string };
   progressRatio?: {
     completed: number;
     total: number;

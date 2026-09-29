@@ -3,6 +3,7 @@
  */
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { markSessionExpired } from '@/lib/authSessionExpiry';
 import type { Session, AuthError } from '@supabase/supabase-js';
 
 export interface SignInCredentials {
@@ -106,7 +107,8 @@ export const authService = {
         const isInvalidRefreshToken =
           /refresh token not found|invalid refresh token/i.test(msg);
         if (isInvalidRefreshToken) {
-          await supabase.auth.signOut();
+          markSessionExpired();
+          await supabase.auth.signOut({ scope: 'local' });
         }
         if (!isInvalidRefreshToken) {
           console.error('[Auth] getSession error:', error.message);
@@ -119,8 +121,9 @@ export const authService = {
       const isInvalidRefreshToken =
         /refresh token not found|invalid refresh token/i.test(message);
       if (isInvalidRefreshToken) {
+        markSessionExpired();
         try {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: 'local' });
         } catch (_) {}
       }
       if (!isInvalidRefreshToken) {

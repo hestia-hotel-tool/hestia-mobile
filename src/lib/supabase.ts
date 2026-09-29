@@ -18,6 +18,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 import type { Database } from '../types/supabase';
+import { installExpiredSessionLogFilter } from './authSessionExpiry';
+
+// Before createClient: the client refreshes the stored session as it starts.
+installExpiredSessionLogFilter();
 
 export const ENV_KEYS = {
   SUPABASE_URL: 'EXPO_PUBLIC_SUPABASE_URL',

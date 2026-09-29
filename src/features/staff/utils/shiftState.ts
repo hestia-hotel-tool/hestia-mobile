@@ -81,7 +81,9 @@ export const FINISHED_WORK_IS_SHIFT_END = true;
  *
  * 1. The clock is out → Shift End. It beats everything; the shift is over
  *    whatever the rooms say.
- * 2. Anything paused → On Break.
+ * 2. On a break they started (My Shift › Start break) → On Break.
+ * 2b. Nothing in progress and something paused → On Break (the older
+ *    signal, for staff who pause their room instead of starting a break).
  * 3. Everything assigned is finished → Shift End.
  * 4. Otherwise → On Shift.
  */
@@ -89,10 +91,14 @@ export function deriveStaffShiftState(args: {
   facts: StaffAssignmentFacts;
   window: ShiftWindow | null;
   now: Date;
+  /** Has an open break (`staff_breaks.ended_at` null). */
+  onBreak?: boolean;
 }): StaffShiftState {
-  const { facts, window, now } = args;
+  const { facts, window, now, onBreak = false } = args;
 
   if (isShiftWindowOver(window, now)) return 'shift_end';
+
+  if (onBreak) return 'on_break';
 
   /*
    * On Break means *the person* stopped, not that one of their rooms is parked.

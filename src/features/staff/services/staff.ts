@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import type { StaffMember } from '../types/staff.types';
+import { fetchOpenBreaks } from '@features/account/services/breaks';
 
 async function getShiftIdByName(shiftName: 'AM' | 'PM'): Promise<string | null> {
   if (!isSupabaseConfigured) return null;
@@ -323,8 +324,11 @@ export async function fetchRoomAttendants(): Promise<StaffMember[]> {
     shifts: { name: string } | null;
   };
 
+  const breaks = await fetchOpenBreaks((data as unknown as Row[]).map((r) => r.id));
+
   // Through `unknown`: the generated types predate `users.job_title_id` / `shift_id`.
   return (data as unknown as Row[]).map((row) => {
+    const b = breaks.get(row.id);
     const shiftName = row.shifts?.name?.trim().toUpperCase() ?? '';
     const shift = shiftName.includes('PM') ? 'PM' : shiftName.includes('AM') ? 'AM' : undefined;
     return {
@@ -336,6 +340,9 @@ export async function fetchRoomAttendants(): Promise<StaffMember[]> {
       // Unrostered (no shift) attendants are listed under neither AM nor PM.
       onShift: shift != null,
       shift,
+      onBreak: b
+        ? { name: b.name, backAt: new Date(Date.parse(b.startedAt) + b.plannedMinutes * 60_000).toISOString() }
+        : undefined,
     };
   });
 }

@@ -31,6 +31,7 @@
       "emailRequiredForReset": "Inserisci prima la tua e-mail aziendale, poi tocca Recupera password.",
       "resetFailed": "Impossibile inviare l'e-mail di reimpostazione."
     },
+    "sessionExpired": "La sessione è scaduta. Accedi di nuovo.",
     "resetSent": "Link per reimpostare la password inviato a {{email}}."
   }
 }

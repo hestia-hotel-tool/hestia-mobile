@@ -229,21 +229,29 @@ export const formatDueTime = (at: Date | number, now: Date = new Date()): string
 };
 
 /**
- * A span, rounded to whole minutes: "1 min", "25 min", "1 h", "1 h 5 min".
- * Under half a minute reads "under a minute". No seconds: a ticking seconds
- * counter on a housekeeping card is noise, not information.
+ * A span, as short as it can be and still read at a glance on a card:
+ * "under 1 min", "25 min", "1h 5m", "3h", then whole hours ("21h") and days
+ * ("1d 4h", "3d"). The further away, the coarser: at 20 hours, the 58
+ * minutes are noise, and "20h 58 min" pushed the rest of the line off the card.
  */
 export const formatMinutesSpan = (ms: number): string => {
   const mins = Math.round(Math.abs(ms) / 60_000);
-  if (mins < 1) return 'under a minute';
+  if (mins < 1) return 'under 1 min';
   if (mins < 60) return `${mins} min`;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m === 0 ? `${h} h` : `${h} h ${m} min`;
+  if (mins < 600) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const d = Math.floor(hours / 24);
+  const h = hours % 24;
+  return d < 3 && h > 0 ? `${d}d ${h}h` : `${d}d`;
 };
 
 /**
- * How far off a deadline is: "in 25 min", "in 1 h 5 min", "due now", or
+ * How far off a deadline is: "in 25 min", "in 1h 5m", "due now", or
  * "25 min late" once it has passed.
  */
 export const formatDueIn = (at: number, now: number = Date.now()): string => {

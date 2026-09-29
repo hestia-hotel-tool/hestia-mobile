@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { typography } from '@/theme';
+import { formatClock24 } from '@/utils/formatting';
 import { REASSIGN_MODAL, scaleX } from '../../constants/reassignModalStyles';
 import WorkloadProgressBar from '../WorkloadProgressBar';
 
@@ -15,6 +16,8 @@ interface StaffListItemProps {
     workload?: number;
     maxWorkload?: number;
     onShift?: boolean;
+    /** On a break now (`fetchRoomAttendants`): shown so a room is not handed to someone away. */
+    onBreak?: { name: string; backAt: string };
   };
   isSelected: boolean;
   onPress: () => void;
@@ -70,6 +73,13 @@ export default function StaffListItem({
         <Text style={styles.department}>
           {staff.role ?? ''}
         </Text>
+        {staff.onBreak ? (
+          <View style={styles.breakChip} accessibilityLabel={`On ${staff.onBreak.name}, back at ${formatClock24(new Date(staff.onBreak.backAt))}`}>
+            <Text style={styles.breakChipText}>
+              On break · back {formatClock24(new Date(staff.onBreak.backAt))}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Workload Progress Bar - Always show for all staff */}
@@ -138,6 +148,20 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: typography.fontWeights.light as any,
     color: '#555555',
+  },
+  breakChip: {
+    marginTop: 4 * scaleX,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8 * scaleX,
+    paddingVertical: 2 * scaleX,
+    borderRadius: 999,
+    backgroundColor: '#fff6e5',
+  },
+  breakChipText: {
+    fontSize: 12 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#d98a00',
   },
   progressContainer: {
     alignItems: 'flex-end',

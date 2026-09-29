@@ -33,15 +33,14 @@ export function incomingAlertDedupeKeyFromRow(row: {
   return `na:${row.type}:${Date.now()}`;
 }
 
-export function incomingAlertDedupeKeyFromPushData(
-  data: Partial<PushData> & Record<string, unknown>
-): string | null {
-  if (data.type === 'chat_message' && typeof data.messageId === 'string') return `cm:${data.messageId}`;
-  if (data.type === 'ticket_tag' && typeof data.ticketId === 'string') return `tt:${data.ticketId}`;
-  if (data.type === 'room_assignment' && typeof data.roomId === 'string') {
-    return `ra:${data.roomId}:${typeof data.shiftId === 'string' ? data.shiftId : ''}`;
-  }
-  return null;
+/**
+ * The same key as `incomingAlertDedupeKeyFromRow`, from a push: a push carries
+ * the row's data plus its `type` and `notificationId`, so Realtime and push
+ * agree on one key and the alert shows once.
+ */
+export function incomingAlertDedupeKeyFromPushData(data: PushData & Record<string, unknown>): string | null {
+  if (typeof data.type !== 'string') return null;
+  return incomingAlertDedupeKeyFromRow({ id: data.notificationId, type: data.type, data });
 }
 
 /**

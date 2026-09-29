@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef } from 'react';
-import { StyleSheet } from 'react-native';
+import { AppState, StyleSheet } from 'react-native';
 import { Stack , router } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -13,26 +13,48 @@ import {
   presentIncomingNotificationAlert,
   subscribeToIncomingNotificationRows,
 } from '@/lib/notificationIncoming';
-import { setupNotificationPresentation } from '@/lib/notifications';
+import { registerAndSyncPushToken, setupNotificationPresentation, syncAppIconBadge } from '@/lib/notifications';
 import type { PushData } from '@/lib/notifications';
+import {
+  ROOM_TASK_NOTIFICATION_TYPES,
+  getOpenChatId,
+  invalidateNotificationBadges,
+  markNotificationRead,
+  subscribeNotificationBadgeInvalidate,
+} from '@/lib/inAppNotifications';
 import * as NativeSplash from 'expo-splash-screen';
 
 // Keep the native splash up until the first screen has painted, so there is no
 // white flash between the OS splash and the app's launch screen.
 NativeSplash.preventAutoHideAsync().catch(() => {});
 
-function navigateFromPushData(data: Partial<PushData> & Record<string, unknown>) {
-  if (data.type === 'chat_message' && typeof data.chatId === 'string') {
-    router.push(`/chat/${data.chatId}`);
-    return;
+/**
+ * Tapping a push opens what it is about: the chat, the room, the ticket or
+ * the announcement. Opening it reads it, as opening it from Chat >
+ * Notifications does.
+ */
+function navigateFromPushData(data: PushData & Record<string, unknown>) {
+  const str = (v: unknown) => (typeof v === 'string' && v.length > 0 ? v : null);
+  const type = str(data.type);
+  const notificationId = str(data.notificationId);
+  const chatId = str(data.chatId);
+  const roomId = str(data.roomId);
+  const ticketId = str(data.ticketId);
+
+  if (notificationId) {
+    void markNotificationRead(notificationId).then(invalidateNotificationBadges);
   }
-  if (data.type === 'room_assignment' && typeof data.roomId === 'string') {
-    router.push(`/room/${data.roomId}?initialTab=Overview`);
-    return;
-  }
-  if (data.type === 'ticket_tag') {
-    if (typeof data.ticketId === 'string') router.push({ pathname: '/ticket/[id]', params: { id: data.ticketId } });
-    else router.push('/(tabs)/(tickets)');
+
+  if (type === 'chat_message' && chatId) {
+    router.push(`/chat/${chatId}`);
+  } else if ((type === 'ticket_tag' || type === 'ticket_assigned') && ticketId) {
+    router.push({ pathname: '/ticket/[id]', params: { id: ticketId } });
+  } else if (type && (ROOM_TASK_NOTIFICATION_TYPES as readonly string[]).includes(type) && roomId) {
+    router.push({ pathname: '/room/[roomId]', params: { roomId } });
+  } else if (type === 'general' && notificationId) {
+    router.push({ pathname: '/announcement/[id]', params: { id: notificationId } });
+  } else if (notificationId) {
+    router.push({ pathname: '/task/[id]', params: { id: notificationId } });
   }
 }
 
@@ -46,7 +68,9 @@ function NotificationExperience() {
   useEffect(() => {
     const sub = Notifications.addNotificationReceivedListener((notification) => {
       const c = notification.request.content;
-      const data = (c.data ?? {}) as Partial<PushData> & Record<string, unknown>;
+      const data = (c.data ?? {}) as PushData & Record<string, unknown>;
+      // The conversation is on screen: it is being read, not announced.
+      if (data.type === 'chat_message' && data.chatId && data.chatId === getOpenChatId()) return;
       const key =
         incomingAlertDedupeKeyFromPushData(data) ??
         `push:${String(c.title ?? '')}:${String(c.body ?? '')}:${Date.now()}`;
@@ -61,6 +85,30 @@ function NotificationExperience() {
     return subscribeToIncomingNotificationRows(uid);
   }, [session?.user?.id]);
 
+  // iOS / Android can rotate the device token; register again when they do.
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    const sub = Notifications.addPushTokenListener(() => {
+      void registerAndSyncPushToken().catch(() => {});
+    });
+    return () => sub.remove();
+  }, [session?.user?.id]);
+
+  // The app icon badge follows the unread count: on sign-in, whenever
+  // notifications are read, and on every return to the app.
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    void syncAppIconBadge();
+    const unsubscribe = subscribeNotificationBadgeInvalidate(() => void syncAppIconBadge());
+    const appState = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void syncAppIconBadge();
+    });
+    return () => {
+      unsubscribe();
+      appState.remove();
+    };
+  }, [session?.user?.id]);
+
   return null;
 }
 
@@ -72,7 +120,7 @@ export default function RootLayout() {
     const id = response.notification.request.identifier;
     if (handledPushOpenId.current === id) return;
     handledPushOpenId.current = id;
-    const data = (response.notification.request.content.data ?? {}) as Partial<PushData> & Record<string, unknown>;
+    const data = (response.notification.request.content.data ?? {}) as PushData & Record<string, unknown>;
     navigateFromPushData(data);
   }, []);
 
@@ -144,7 +192,14 @@ export default function RootLayout() {
             {/* Ticket detail and its edit sheet — same arrangement as lost & found. */}
             <Stack.Screen name="ticket/[id]" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
             <Stack.Screen name="ticket/edit/[id]" options={{ presentation: 'modal', headerShown: true }} />
-            <Stack.Screen name="user-profile" />
+            {/* Native headers declared here (see lost-and-found): My Profile pushes,
+                Change Password is a sheet. */}
+            <Stack.Screen name="user-profile" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            <Stack.Screen name="settings/change-password" options={{ presentation: 'modal', headerShown: true }} />
+            <Stack.Screen name="settings/shifts/index" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            <Stack.Screen name="settings/shifts/[id]" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            <Stack.Screen name="settings/hotel" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            <Stack.Screen name="settings/credits" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
             <Stack.Screen name="select-ticket-location" />
             <Stack.Screen name="create-ticket-form" />
           </Stack>

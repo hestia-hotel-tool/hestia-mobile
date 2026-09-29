@@ -16,6 +16,7 @@ import { getUsersByDepartmentId } from '@features/account/services/user';
 import { loadRoomPickerRoomsByIds } from '@features/rooms/services/roomPicker';
 import { fetchStaffTicketStats } from './staff';
 import { deriveStaffShiftState, pickCurrentShift, toShiftWindow } from '../utils/shiftState';
+import { fetchOpenBreaks } from '@features/account/services/breaks';
 import type { RoomStatusKey } from '@/components/ui/StatusCircle';
 import type {
   ShiftWindow,
@@ -299,13 +300,14 @@ export async function loadStaffRoster(
   if (rostered.length === 0) return emptyRoster(shift);
   const userIds = rostered.map((u) => u.id);
 
-  const [assignmentsByShift, ticketStats] = await Promise.all([
+  const [assignmentsByShift, ticketStats, openBreaks] = await Promise.all([
     query.statKind === 'cleaning'
       ? fetchAssignments(userIds, windows.map((w) => w.id))
       : Promise.resolve(new Map<string, Map<string, AssignmentBucket>>()),
     query.statKind === 'tickets'
       ? fetchStaffTicketStats(userIds)
       : Promise.resolve(new Map<string, any>()),
+    fetchOpenBreaks(userIds),
   ]);
 
   const forShift = shift ? (assignmentsByShift.get(shift.id) ?? new Map()) : new Map();
@@ -344,7 +346,7 @@ export async function loadStaffRoster(
       avatarUrl: user.avatar || undefined,
       departmentName: user.department ?? query.departmentName,
       jobTitle: user.jobTitle ?? user.role,
-      state: deriveStaffShiftState({ facts, window: shift, now }),
+      state: deriveStaffShiftState({ facts, window: shift, now, onBreak: openBreaks.has(user.id) }),
       shiftName: shift?.name ?? '',
       statKind: query.statKind,
       work: query.statKind === 'cleaning' ? (bucket?.work ?? {

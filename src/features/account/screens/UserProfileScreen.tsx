@@ -1,366 +1,393 @@
-/**
- * User Profile Screen
- * Shows logged-in user details, allows avatar update and logout
- */
-
-import React, { useState, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet,
+  ActionSheetIOS,
   ActivityIndicator,
+  Alert,
+  Platform,
+  Pressable,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
 } from 'react-native';
-import { useNavigation, useRoute, router } from 'expo-router';
-import { RouteProp } from 'expo-router/react-navigation';
+import { Stack, useFocusEffect, useNavigation } from 'expo-router';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
-import { colors, typography, components } from '@/theme';
-import { getInitialsFromFullName } from '@/utils/formatting';
-import { useAuth } from '@features/auth/hooks/useAuth';
+import * as Haptics from 'expo-haptics';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Avatar } from '@/components/ui/Avatar';
+import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useToast } from '@/contexts/ToastContext';
-import { useMessageModal } from '@/contexts/MessageModalContext';
+import { typography } from '@/theme';
+import { formatMoment } from '@/utils/formatting';
+import { SettingsRow, SettingsSection, SETTINGS_COLORS as C } from '../components/SettingsList';
+import {
+  fetchMyAccount,
+  isValidPhone,
+  removeMyAvatar,
+  updateMyProfile,
+  type MyAccount,
+} from '../services/account';
 import { useUserStore } from '../store/useUserStore';
-import { isSupabaseConfigured } from '@/lib/supabase';
-import type { UserProfile } from '@features/home/types/home.types';
-import { useDesignScale } from '@/hooks/useDesignScale';
 
-type UserProfileRouteParams = {
-  UserProfile: { user: UserProfile };
-};
+type Form = { fullName: string; phone: string };
 
-const DEFAULT_USER: UserProfile = { name: 'User', role: 'Staff', department: undefined, hasFlag: false };
-
+/**
+ * My Profile — the signed-in person's own details.
+ *
+ * Photo (camera, library or remove), name and phone are theirs to change.
+ * Email, job title, department, shift and hotel are shown but managed for
+ * them; the database refuses those edits (migration 20260929000000). Leaving
+ * with unsaved changes asks first.
+ */
 export default function UserProfileScreen() {
-  const { scaleX } = useDesignScale();
-  const styles = useMemo(() => buildUserProfileStyles(scaleX), [scaleX]);
-  const navigation = useNavigation();
-  const route = useRoute<RouteProp<UserProfileRouteParams, 'UserProfile'>>();
-  const { signOut, session } = useAuth();
-  const initialUser = route.params?.user;
-  const { profile, setProfile, updateAvatarUrl } = useUserStore();
-  React.useEffect(() => {
-    if (initialUser) setProfile(initialUser);
-  }, [initialUser, setProfile]);
-  const user = profile ?? initialUser ?? DEFAULT_USER;
-  const [isUpdatingAvatar, setIsUpdatingAvatar] = useState(false);
+  const insets = useSafeAreaInsets();
   const toast = useToast();
-  const messageModal = useMessageModal();
+  const navigation = useNavigation();
+  const profile = useUserStore((s) => s.profile);
+  const setProfile = useUserStore((s) => s.setProfile);
+  const updateAvatarUrl = useUserStore((s) => s.updateAvatarUrl);
 
-  const handleChangeAvatar = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      toast.show('Please allow access to your photo library to change your avatar.', { type: 'error', title: 'Permission required' });
+  const [account, setAccount] = useState<MyAccount | null>(null);
+  const [original, setOriginal] = useState<Form | null>(null);
+  const [form, setForm] = useState<Form | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const phoneRef = useRef<TextInput>(null);
+
+  const load = useCallback(async () => {
+    try {
+      const next = await fetchMyAccount();
+      if (!next) return;
+      setAccount(next);
+      // Keep edits in progress; only seed the form the first time.
+      setOriginal((o) => o ?? { fullName: next.fullName, phone: next.phone ?? '' });
+      setForm((f) => f ?? { fullName: next.fullName, phone: next.phone ?? '' });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Could not load profile' });
+    }
+  }, [toast]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load])
+  );
+
+  const dirty = useMemo(() => !!form && !!original && JSON.stringify(form) !== JSON.stringify(original), [form, original]);
+  const nameError = form && form.fullName.trim().length === 0 ? 'Your name cannot be empty.' : null;
+  const phoneError = form && !isValidPhone(form.phone) ? 'Use digits, spaces and + ( ) - only.' : null;
+  const canSave = dirty && !nameError && !phoneError && !saving;
+
+  // Leaving with unsaved edits asks first.
+  const guardLeave = dirty && !saving;
+  useEffect(() => {
+    if (!guardLeave) return;
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      Alert.alert('Discard changes?', 'Your edits to your profile will be lost.', [
+        { text: 'Keep editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => navigation.dispatch(e.data.action) },
+      ]);
+    });
+    return unsubscribe;
+  }, [navigation, guardLeave]);
+
+  const save = async () => {
+    if (!form || !canSave) return;
+    setSaving(true);
+    try {
+      await updateMyProfile({ fullName: form.fullName, phone: form.phone });
+      const saved = { fullName: form.fullName.trim(), phone: form.phone.trim() };
+      setOriginal(saved);
+      setForm(saved);
+      setAccount((a) => (a ? { ...a, fullName: saved.fullName, phone: saved.phone || null } : a));
+      if (profile) setProfile({ ...profile, name: saved.fullName });
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast.show('Your profile is up to date.', { type: 'success', title: 'Saved' });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Profile not saved' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploadPhoto = async (source: 'camera' | 'library') => {
+    if (!account) return;
+    const perm =
+      source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== 'granted') {
+      toast.show(
+        source === 'camera' ? 'Allow camera access in Settings to take a photo.' : 'Allow photo access in Settings to choose a photo.',
+        { type: 'error', title: 'Permission needed' }
+      );
       return;
     }
-
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: 'images',
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
-    });
-
+      // JPEG, not HEIC: the upload is stored and served as a JPEG.
+      preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+    };
+    const result =
+      source === 'camera' ? await ImagePicker.launchCameraAsync(options) : await ImagePicker.launchImageLibraryAsync(options);
     if (result.canceled || !result.assets?.[0]) return;
 
-    const userId = session?.user?.id;
-    if (!userId || !isSupabaseConfigured) {
-      toast.show('Profile update requires an active session and backend.', { type: 'error', title: 'Update unavailable' });
-      return;
-    }
-
-    setIsUpdatingAvatar(true);
+    setPhotoBusy(true);
     try {
       const uri = result.assets[0].uri;
-      const uriWithoutQuery = uri.split('?')[0];
-      const rawExt = uriWithoutQuery.split('.').pop()?.toLowerCase() || 'jpg';
-      const fileExt = rawExt === 'heic' ? 'jpg' : rawExt;
+      const ext = uri.split('?')[0].split('.').pop()?.toLowerCase() === 'png' ? 'png' : 'jpg';
       const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
-      await updateAvatarUrl(userId, base64, fileExt);
-      toast.show('Profile photo updated successfully.', { type: 'success', title: 'Updated' });
-    } catch (err: unknown) {
-      console.error('[UserProfile] Avatar update failed:', err);
-      toast.show(
-        (err instanceof Error ? err.message : null) || 'Could not update avatar. Ensure the avatars storage bucket exists and has correct policies.',
-        { type: 'error', title: 'Update failed' }
-      );
+      const url = await updateAvatarUrl(account.id, base64, ext);
+      setAccount((a) => (a ? { ...a, avatarUrl: url } : a));
+      toast.show('Your new photo is on your profile.', { type: 'success', title: 'Photo updated' });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Photo not updated' });
     } finally {
-      setIsUpdatingAvatar(false);
+      setPhotoBusy(false);
     }
   };
 
-  const handleLogout = () => {
-    messageModal.show({
-      title: 'Sign Out',
-      message: 'Are you sure you want to sign out?',
-      buttons: [
-        { text: 'Cancel', style: 'cancel' },
+  const removePhoto = async () => {
+    setPhotoBusy(true);
+    try {
+      await removeMyAvatar();
+      setAccount((a) => (a ? { ...a, avatarUrl: null } : a));
+      if (profile) setProfile({ ...profile, avatar: undefined });
+      toast.show('Your initials show instead.', { type: 'success', title: 'Photo removed' });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Photo not removed' });
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const photoActions = () => {
+    const hasPhoto = !!account?.avatarUrl;
+    if (Platform.OS === 'ios') {
+      const options = ['Take Photo', 'Choose from Library', ...(hasPhoto ? ['Remove Photo'] : []), 'Cancel'];
+      ActionSheetIOS.showActionSheetWithOptions(
         {
-          text: 'Sign Out',
-          style: 'destructive',
-          onPress: async () => {
-            await signOut();
-            // Same fix as SettingsScreen: there is no route named 'Login', so
-            // the old `reset` was a no-op that left the user on the signed-in
-            // stack. `replace` so it cannot be swiped back into.
-            router.replace('/(auth)/login');
-          },
+          options,
+          cancelButtonIndex: options.length - 1,
+          destructiveButtonIndex: hasPhoto ? options.length - 2 : undefined,
         },
-      ],
-    });
-  };
-
-  const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
+        (i) => {
+          if (options[i] === 'Take Photo') void uploadPhoto('camera');
+          if (options[i] === 'Choose from Library') void uploadPhoto('library');
+          if (options[i] === 'Remove Photo') void removePhoto();
+        }
+      );
     } else {
-      (navigation as any).navigate?.('Main', { screen: 'Home' });
+      Alert.alert('Profile photo', undefined, [
+        { text: 'Take Photo', onPress: () => void uploadPhoto('camera') },
+        { text: 'Choose from Library', onPress: () => void uploadPhoto('library') },
+        ...(hasPhoto ? [{ text: 'Remove Photo', style: 'destructive' as const, onPress: () => void removePhoto() }] : []),
+        { text: 'Cancel', style: 'cancel' as const },
+      ]);
     }
   };
+
+  const header = (
+    <Stack.Screen
+      options={{
+        headerShown: true,
+        title: 'My Profile',
+        headerBackButtonDisplayMode: 'minimal',
+        headerTintColor: C.title,
+        headerStyle: { backgroundColor: C.header },
+        headerTitleStyle: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 18, color: C.title },
+        headerShadowVisible: false,
+        headerRight: () =>
+          saving ? (
+            <ActivityIndicator color={C.title} />
+          ) : dirty ? (
+            <Pressable onPress={save} disabled={!canSave} hitSlop={10} accessibilityRole="button">
+              <Text style={[styles.headerSave, !canSave && styles.headerSaveDisabled]}>Save</Text>
+            </Pressable>
+          ) : null,
+      }}
+    />
+  );
+
+  if (!account || !form) {
+    return (
+      <View style={styles.center}>
+        {header}
+        <ActivityIndicator color={C.title} />
+      </View>
+    );
+  }
+
+  const shiftText = account.shift
+    ? `${account.shift.name}${account.shift.start && account.shift.end ? ` · ${account.shift.start}–${account.shift.end}` : ''}`
+    : 'Not assigned';
 
   return (
-    <View style={styles.container}>
-      {/* Header strip - project header color */}
-      <View style={styles.headerStrip}>
-        <TouchableOpacity style={styles.backButton} onPress={handleBack} activeOpacity={0.7} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.backButtonText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>My Profile</Text>
-        <View style={styles.headerSpacer} />
-      </View>
-
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Circular avatar with frame */}
-        <View style={styles.avatarSection}>
-          <TouchableOpacity
-            style={styles.avatarFrame}
-            onPress={handleChangeAvatar}
-            disabled={isUpdatingAvatar}
-            activeOpacity={0.85}
+    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {header}
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 32 }]}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+      >
+        <View style={styles.hero}>
+          <Pressable
+            onPress={photoActions}
+            disabled={photoBusy}
+            accessibilityRole="button"
+            accessibilityLabel="Change profile photo"
+            style={({ pressed }) => [pressed && styles.pressed]}
           >
-            {isUpdatingAvatar ? (
-              <View style={[styles.avatarCircle, styles.avatarPlaceholder]}>
-                <ActivityIndicator size="large" color={colors.text.white} />
-              </View>
-            ) : user.avatar ? (
-              <Image source={{ uri: user.avatar }} style={styles.avatarImage} resizeMode="cover" />
-            ) : (
-              <View style={[styles.avatarCircle, styles.avatarPlaceholder]}>
-                <Text style={styles.initialsText}>{getInitialsFromFullName(user.name)}</Text>
-              </View>
-            )}
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.changePhotoLink}
-            onPress={handleChangeAvatar}
-            disabled={isUpdatingAvatar}
-          >
-            <Text style={styles.changePhotoText}>Change photo</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Name & Role */}
-        <View style={styles.nameRoleBlock}>
-          <Text style={styles.userName}>{user.name}</Text>
-          <Text style={styles.userRole}>{user.role}</Text>
-        </View>
-
-        {/* Info card: Department */}
-        {user.department != null && user.department !== '' && (
-          <View style={styles.infoCard}>
-            <View style={[styles.infoRow, styles.infoRowLast]}>
-              <Text style={styles.infoLabel}>Department</Text>
-              <Text style={styles.infoValue}>{user.department}</Text>
+            <Avatar uri={account.avatarUrl ?? undefined} name={account.fullName} size={104} />
+            <View style={styles.cameraBadge}>
+              {photoBusy ? <ActivityIndicator size="small" color="#ffffff" /> : <Ionicons name="camera" size={16} color="#ffffff" />}
             </View>
-          </View>
-        )}
+          </Pressable>
+          <Text style={styles.heroName} numberOfLines={2}>
+            {account.fullName}
+          </Text>
+          {account.jobTitle ? <Text style={styles.heroSub}>{account.jobTitle}</Text> : null}
+          <Pressable onPress={photoActions} disabled={photoBusy} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.heroLink}>{account.avatarUrl ? 'Change photo' : 'Add a photo'}</Text>
+          </Pressable>
+        </View>
 
-        {/* Log out */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout} activeOpacity={0.8}>
-          <Text style={styles.logoutButtonText}>Log out</Text>
-        </TouchableOpacity>
+        <SettingsSection title="Personal details">
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Full name</Text>
+            <TextInput
+              value={form.fullName}
+              onChangeText={(fullName) => setForm({ ...form, fullName })}
+              placeholder="Your name"
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              maxLength={80}
+              autoCapitalize="words"
+              autoComplete="name"
+              textContentType="name"
+              returnKeyType="next"
+              onSubmitEditing={() => phoneRef.current?.focus()}
+            />
+            {nameError ? <Text style={styles.error}>{nameError}</Text> : null}
+          </View>
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Phone</Text>
+            <TextInput
+              ref={phoneRef}
+              value={form.phone}
+              onChangeText={(phone) => setForm({ ...form, phone })}
+              placeholder="+41 79 123 45 67"
+              placeholderTextColor="#9ca3af"
+              style={styles.input}
+              maxLength={32}
+              keyboardType="phone-pad"
+              autoComplete="tel"
+              textContentType="telephoneNumber"
+              returnKeyType="done"
+              onSubmitEditing={save}
+            />
+            {phoneError ? <Text style={styles.error}>{phoneError}</Text> : null}
+          </View>
+          <SettingsRow icon="mail-outline" label="Email" detail={account.email ?? '—'} chevron={false} />
+        </SettingsSection>
+
+        <SettingsSection
+          title="Work"
+          footer="Your job title, department and shift are managed by your manager. Ask them if something here is wrong."
+        >
+          <SettingsRow icon="briefcase-outline" label="Job title" value={account.jobTitle ?? '—'} />
+          <SettingsRow icon="people-outline" label="Department" value={account.department ?? '—'} />
+          <SettingsRow icon="time-outline" label="Shift" value={shiftText} />
+          {account.hotelName ? <SettingsRow icon="business-outline" label="Hotel" value={account.hotelName} /> : null}
+          <SettingsRow
+            icon="calendar-outline"
+            label="Member since"
+            value={account.memberSince ? formatMoment(account.memberSince).split(' · ')[0] : '—'}
+          />
+        </SettingsSection>
+
+        {dirty ? (
+          <Pressable
+            onPress={save}
+            disabled={!canSave}
+            style={({ pressed }) => [styles.saveButton, (!canSave || pressed) && styles.saveButtonDim]}
+            accessibilityRole="button"
+          >
+            {saving ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.saveButtonText}>Save changes</Text>}
+          </Pressable>
+        ) : null}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
-function buildUserProfileStyles(scaleX: number) {
-  return StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.secondary,
-  },
-  headerStrip: {
-    flexDirection: 'row',
+const styles = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.screen },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: C.screen },
+  content: { paddingHorizontal: 16, paddingTop: 8 },
+  pressed: { opacity: 0.75 },
+  headerSave: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 16, color: C.title },
+  headerSaveDisabled: { opacity: 0.35 },
+  hero: { alignItems: 'center', paddingTop: 16 },
+  cameraBadge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20 * scaleX,
-    paddingTop: 56 * scaleX,
-    paddingBottom: 20 * scaleX,
-    backgroundColor: components.header.backgroundColor,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.medium,
-    shadowColor: 'rgba(100, 131, 176, 0.15)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  backButton: {
-    paddingVertical: 8 * scaleX,
-    paddingHorizontal: 4 * scaleX,
-  },
-  backButtonText: {
-    fontSize: 17 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.primary.main,
-  },
-  headerTitle: {
-    fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.text.primary,
-  },
-  headerSpacer: {
-    width: 60,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24 * scaleX,
-    paddingTop: 24 * scaleX,
-    paddingBottom: 48 * scaleX,
-    alignItems: 'center',
-  },
-  avatarSection: {
-    alignItems: 'center',
-    marginBottom: 20 * scaleX,
-  },
-  avatarFrame: {
-    width: 128 * scaleX,
-    height: 128 * scaleX,
-    borderRadius: 64 * scaleX,
-    padding: 4 * scaleX,
-    backgroundColor: colors.background.primary,
-    borderWidth: 3 * scaleX,
-    borderColor: colors.primary.main,
     justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: 'rgba(100, 131, 176, 0.2)',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 10,
-    elevation: 4,
+    backgroundColor: C.title,
+    borderWidth: 3,
+    borderColor: C.screen,
   },
-  avatarCircle: {
-    width: 114 * scaleX,
-    height: 114 * scaleX,
-    borderRadius: 57 * scaleX,
-    overflow: 'hidden',
-  },
-  avatarImage: {
-    width: 114 * scaleX,
-    height: 114 * scaleX,
-    borderRadius: 57 * scaleX,
-  },
-  avatarPlaceholder: {
-    backgroundColor: colors.primary.main,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  initialsText: {
-    fontSize: 38 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.text.white,
-  },
-  changePhotoLink: {
-    marginTop: 12 * scaleX,
-    paddingVertical: 6 * scaleX,
-    paddingHorizontal: 12 * scaleX,
-  },
-  changePhotoText: {
-    fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.primary.main,
-  },
-  nameRoleBlock: {
-    width: '100%',
-    marginBottom: 20 * scaleX,
-  },
-  userName: {
-    fontSize: 24 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.bold as any,
-    color: colors.text.primary,
-    marginBottom: 4 * scaleX,
+  heroName: {
+    marginTop: 12,
     textAlign: 'center',
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    fontSize: 22,
+    color: C.ink,
   },
-  userRole: {
-    fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.secondary,
-    fontStyle: 'normal',
-    fontWeight: typography.fontWeights.light as any,
-    color: '#000',
-    textAlign: 'center',
+  heroSub: { marginTop: 2, fontFamily: typography.fontFamily.primary, fontSize: 15, color: C.muted },
+  heroLink: { marginTop: 8, fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 14, color: C.title },
+  field: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12 },
+  fieldLabel: {
+    fontFamily: typography.fontFamily.primary,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    color: C.muted,
   },
-  infoCard: {
-    width: '100%',
-    marginBottom: 28 * scaleX,
-    backgroundColor: colors.background.primary,
-    borderRadius: 12 * scaleX,
+  input: {
+    marginTop: 6,
+    minHeight: 44,
+    paddingHorizontal: 12,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: colors.border.medium,
-    overflow: 'hidden',
-    shadowColor: 'rgba(100, 131, 176, 0.1)',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 1,
-    shadowRadius: 8,
-    elevation: 2,
+    borderColor: 'rgba(90,117,157,0.25)',
+    backgroundColor: '#f9fafc',
+    fontFamily: typography.fontFamily.primary,
+    fontSize: 16,
+    color: C.ink,
   },
-  infoRow: {
-    flexDirection: 'row',
+  error: { marginTop: 6, fontFamily: typography.fontFamily.primary, fontSize: 12, color: C.danger },
+  saveButton: {
+    marginTop: 24,
+    height: 52,
+    borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16 * scaleX,
-    paddingHorizontal: 20 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.light,
+    justifyContent: 'center',
+    backgroundColor: C.title,
   },
-  infoRowLast: {
-    borderBottomWidth: 0,
-  },
-  infoLabel: {
-    fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.text.secondary,
-  },
-  infoValue: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: colors.text.primary,
-  },
-  logoutButton: {
-    width: '100%',
-    paddingVertical: 16 * scaleX,
-    paddingHorizontal: 32 * scaleX,
-    borderRadius: 10 * scaleX,
-    backgroundColor: colors.background.primary,
-    borderWidth: 1.5,
-    borderColor: '#c53030',
-    alignItems: 'center',
-  },
-  logoutButtonText: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: typography.fontWeights.semibold as any,
-    color: '#c53030',
-  },
+  saveButtonDim: { opacity: 0.6 },
+  saveButtonText: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 16, color: '#ffffff' },
 });
-}
-

@@ -18,10 +18,10 @@ export type DescribeRoomActivityOptions = {
   clock?: CleaningClock | null;
 };
 
-/** "32 min left" / "8 min over" — the credit, as far as the clock has got. */
+/** "32 min left" / "8 min late" — the credit, as far as the clock has got. */
 function clockSummary(clock: CleaningClock): string {
   return clock.overdue
-    ? `${formatMinutesSpan(clock.remainingMs)} over`
+    ? `${formatMinutesSpan(clock.remainingMs)} late`
     : `${formatMinutesSpan(clock.remainingMs)} left`;
 }
 
@@ -30,7 +30,7 @@ function clockSummary(clock: CleaningClock): string {
  * bolder segment. An empty `text` means no line at all.
  *
  * Every time is 24-hour and only as precise as it is useful: "Return at
- * 14:30" / "in 25 min", "Ready by tomorrow 09:00" / "in 18 h 5 min". The old
+ * 14:30" / "in 25 min", "Ready by tomorrow 09:00" / "in 18h". The old
  * line ticked seconds ("30min 2s", "1h 20 min 6s", "0h 0 min 0s"), mixed 12-
  * and 24-hour clocks, and never said the day, so a return time tomorrow read
  * as today's.
@@ -40,7 +40,7 @@ function clockSummary(clock: CleaningClock): string {
  *  - `returnLater` and `promisedTime` with no due time print nothing.
  *  - `refuseService` prints its reason, falling back to the time it happened.
  *  - Otherwise, a room In Progress counts down its credit: "Time left 32 min",
- *    then "Over expected time by 8 min". A finished room says how long it took.
+ *    then "Late by 8 min". A finished room says how long it took.
  */
 export function describeRoomActivity(
   activity: RoomActivityState,
@@ -82,7 +82,7 @@ export function describeRoomActivity(
       if (!clock) return { text: '' };
       if (status === 'InProgress') {
         return clock.overdue
-          ? { text: 'Over expected time by', emphasis: formatMinutesSpan(clock.remainingMs) }
+          ? { text: 'Late by', emphasis: formatMinutesSpan(clock.remainingMs) }
           : { text: 'Time left', emphasis: formatMinutesSpan(clock.remainingMs) };
       }
       if ((status === 'Cleaned' || status === 'Inspected') && clock.elapsedMs >= 60_000) {

@@ -61,8 +61,8 @@ export type AssigneeStatus = {
  * The line under the attendant's name on a room card.
  *
  *  - Return later / refused / paused say so ("Return at 14:30").
- *  - In Progress counts down the credit: "32 min left", then "8 min over time"
- *    in red. Paused time is not counted.
+ *  - In Progress counts down the credit: "32 min left", then "8 min late" in
+ *    red once past it. Paused time is not counted.
  *  - Cleaned / Inspected say how long it took, when the clock knows.
  */
 export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
@@ -75,7 +75,7 @@ export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
   const clock = cleaningClock(room, now);
   if (isRoomPaused(room)) {
     return clock?.overdue
-      ? { text: `Paused · ${formatMinutesSpan(clock.remainingMs)} over`, tone: 'alert' }
+      ? { text: `Paused · ${formatMinutesSpan(clock.remainingMs)} late`, tone: 'alert' }
       : { text: 'Paused', tone: 'default' };
   }
 
@@ -83,7 +83,7 @@ export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
     case 'InProgress':
       if (!clock) return { text: 'Started', tone: 'default' };
       return clock.overdue
-        ? { text: `${formatMinutesSpan(clock.remainingMs)} over time`, tone: 'alert' }
+        ? { text: `${formatMinutesSpan(clock.remainingMs)} late`, tone: 'alert' }
         : { text: `${formatMinutesSpan(clock.remainingMs)} left`, tone: 'default' };
     case 'Cleaned':
     case 'Inspected': {
