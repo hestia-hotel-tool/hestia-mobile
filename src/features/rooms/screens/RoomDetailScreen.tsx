@@ -9,9 +9,9 @@ import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-nat
 import { useRoute, useNavigation, useFocusEffect, router, NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
 import StatusChangeModal from '../components/StatusChangeModal';
-import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import ReturnLaterModal from '../components/roomDetail/ReturnLaterModal';
 import PromiseTimeModal from '../components/roomDetail/PromiseTimeModal';
+import { submitCleaningReport, type CleaningReport } from '../services/cleaningReports';
 import RefuseServiceModal from '../components/roomDetail/RefuseServiceModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
 import AddNoteModal from '../components/roomDetail/AddNoteModal';
@@ -330,8 +330,6 @@ export default function RoomDetailScreen() {
   const [headerDesignHeight, setHeaderDesignHeight] = useState<number | null>(null);
   const modalHeaderHeight = headerDesignHeight ?? 232;
   const [showStatusModal, setShowStatusModal] = useState(false);
-  const [showInspectedModal, setShowInspectedModal] = useState(false);
-  const [buttonPositionForInspection, setButtonPositionForInspection] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [showReturnLaterModal, setShowReturnLaterModal] = useState(false);
   const [showPromiseTimeModal, setShowPromiseTimeModal] = useState(false);
   const [showRefuseServiceModal, setShowRefuseServiceModal] = useState(false);
@@ -904,6 +902,44 @@ export default function RoomDetailScreen() {
     void refreshHistory();
   };
 
+  /*
+   * Cleaned through the Clean Checklist: set the status, then file its report
+   * (ticks, photos, note) in the background. The note joins the room's notes,
+   * so the list and the bell pick it up.
+   */
+  const handleCleanComplete = (report: CleaningReport) => {
+    handleStatusSelect(report.kind === 'inspection' ? 'Inspected' : 'Cleaned');
+    const extras = report.photoUris.length > 0 || !!report.note;
+    submitCleaningReport(room.id, report)
+      .then(async () => {
+        if (report.note) {
+          setNotes(await getRoomNotes(room.id));
+          void useRoomsStore.getState().refreshRoomBadges(room.id);
+        }
+        void refreshHistory();
+        if (extras) {
+          toast.show(`Photos and note saved with the ${report.kind === 'inspection' ? 'inspection' : 'cleaning'}.`, {
+            type: 'success',
+          });
+        }
+      })
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : 'Please try again.';
+        toast.show(`The room is ${report.kind === 'inspection' ? 'Inspected' : 'Cleaned'}, but its photos and note were not saved. ${message}`, {
+          type: 'error',
+          duration: 5000,
+        });
+      });
+  };
+
+  /** Inspected through the Inspection Checklist: the same filing, as an inspection. */
+  const handleInspectComplete = handleCleanComplete;
+
+  /** The inspection failed: back to Dirty. The attendant is told by a database trigger. */
+  const handleInspectReject = () => {
+    handleStatusSelect('Dirty');
+  };
+
   const handleSaveNote = async (noteText: string) => {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (room.id && uuidRegex.test(room.id)) {
@@ -1155,10 +1191,8 @@ export default function RoomDetailScreen() {
           setStatusButtonPosition(null);
         }}
         onStatusSelect={handleStatusSelect}
-        onInspectedSelect={() => {
-          setButtonPositionForInspection(statusButtonPosition);
-          setShowInspectedModal(true);
-        }}
+        onInspectComplete={handleInspectComplete}
+        onInspectReject={handleInspectReject}
         currentStatus={currentStatus}
         room={localRoom}
         onRemovePromise={() => void handleRemovePromise()}
@@ -1169,6 +1203,7 @@ export default function RoomDetailScreen() {
         canSetPriority={can(PERMISSIONS.ROOMS_RUSH_TOGGLE)}
         canInspect={roomsVariant !== 'attendant'}
         canStartCleaning={!!assignedStaff || currentStatus === 'InProgress'}
+        onCleanComplete={handleCleanComplete}
         onFlagToggle={!can(PERMISSIONS.ROOMS_FLAG_TOGGLE) ? undefined : async (flagged, reason, mentionIds) => {
           const flagReason = flagged ? reason : null;
           // One write for the flag, its reason and the tags. Awaited: the menu
@@ -1189,30 +1224,6 @@ export default function RoomDetailScreen() {
           }
           setLocalRoom((prev) => ({ ...prev, flagged, flagReason }));
         }}
-      />
-
-      <InspectedStatusSlideModal
-        visible={showInspectedModal}
-        onClose={() => {
-          setShowInspectedModal(false);
-          setButtonPositionForInspection(null);
-        }}
-        onComplete={() => {
-          handleStatusSelect('Inspected');
-          setShowInspectedModal(false);
-          setButtonPositionForInspection(null);
-        }}
-        onReject={() => {
-          setShowInspectedModal(false);
-          setButtonPositionForInspection(null);
-          saveRoom({ house_keeping_status: 'Dirty' }).catch((e) =>
-            console.warn('[RoomDetailScreen] Failed to reject room', e)
-          );
-          // The attendant is told by a database trigger (room sent back to Dirty).
-        }}
-        buttonPosition={buttonPositionForInspection}
-        headerHeight={modalHeaderHeight}
-        showTriangle={false}
       />
 
       <ReturnLaterModal

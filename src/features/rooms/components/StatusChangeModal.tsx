@@ -20,6 +20,7 @@ import StatusOptionItem from './StatusOptionItem';
 import FlagToggle from './FlagToggle';
 import StatusPopover, { type PopoverAnchor } from './StatusPopover';
 import RoomChecklistPanel, { type ChecklistItem } from './RoomChecklistPanel';
+import type { CleaningReport } from '../services/cleaningReports';
 
 export {
   STATUS_MODAL_WIDTH,
@@ -121,7 +122,18 @@ export function statusSheetHeight(optionCount: number, hasFlagRow: boolean): num
  * The card is clamped to the room actually available and scrolls inside it, so
  * this being a little out costs nothing.
  */
-const CLEAN_CHECKLIST_HEIGHT = 520;
+// Figma 1772-255: the card's body is 553 (566 with the tail).
+const CLEAN_CHECKLIST_HEIGHT = 553;
+// Figma 2702-1025: four checks, the card about 660 tall.
+const INSPECTION_CHECKLIST_HEIGHT = 660;
+
+/** Figma 2702-1025 — what a supervisor confirms before marking a room Inspected. */
+const INSPECTION_CHECKLIST_ITEMS: readonly ChecklistItem[] = [
+  { id: 'dust', iconName: 'checklist-dust', label: 'No visible dust on surfaces, lamps, TV, or frames' },
+  { id: 'bed', iconName: 'checklist-bed', label: 'Bed made to hotel standard' },
+  { id: 'curtains', iconName: 'checklist-curtains', label: 'Curtains/blinds properly arranged' },
+  { id: 'minibar', iconName: 'checklist-minibar', label: 'Items in the mini bar checked and replaced' },
+];
 
 /**
  * A room cannot be marked clean on the attendant's word alone — these have to
@@ -145,8 +157,13 @@ interface StatusChangeModalProps {
   visible: boolean;
   onClose: () => void;
   onStatusSelect: (status: StatusChangeOption) => void;
-  /** When provided and user selects Inspected, this is called instead of onStatusSelect. Use to show Inspection Checklist slide. */
-  onInspectedSelect?: () => void;
+  /**
+   * Inspected, confirmed through the Inspection Checklist, with its report.
+   * Without it, choosing Inspected sets the status directly.
+   */
+  onInspectComplete?: (report: CleaningReport) => void;
+  /** The inspection failed: "Send back to Dirty" under the slider. */
+  onInspectReject?: () => void;
   currentStatus: RoomStatus;
   room?: RoomCardData; // Room data
   buttonPosition?: PopoverAnchor; // Status button position on screen
@@ -163,9 +180,11 @@ interface StatusChangeModalProps {
    * (Figma 406-1783, "Reason/note"); unflagging passes null to clear it.
    */
   onFlagToggle?: (flagged: boolean, reason: string | null, mentionIds: string[]) => void | Promise<void>;
-  /** Optional hooks for the checklist's photo and note rows. */
-  onAddPhoto?: () => void;
-  onAddNotes?: () => void;
+  /**
+   * Cleaned, confirmed through the Clean Checklist, with its report (ticks,
+   * photos, note) to file. Without it, the checklist just sets Cleaned.
+   */
+  onCleanComplete?: (report: CleaningReport) => void;
   /** Hide options this reader may not use (room attendants: no Priority, no Inspected). */
   canSetPriority?: boolean;
   canInspect?: boolean;
@@ -183,13 +202,14 @@ interface StatusChangeModalProps {
 }
 
 /** Which face of the popover is showing. */
-type PopoverFace = 'status' | 'cleanChecklist' | 'flag';
+type PopoverFace = 'status' | 'cleanChecklist' | 'inspectionChecklist' | 'flag';
 
 export default function StatusChangeModal({
   visible,
   onClose,
   onStatusSelect,
-  onInspectedSelect,
+  onInspectComplete,
+  onInspectReject,
   currentStatus,
   room,
   buttonPosition,
@@ -197,8 +217,7 @@ export default function StatusChangeModal({
   headerHeight = 232,
   blurTop,
   onFlagToggle,
-  onAddPhoto,
-  onAddNotes,
+  onCleanComplete,
   canSetPriority = true,
   canInspect = true,
   canStartCleaning = true,
@@ -228,7 +247,8 @@ export default function StatusChangeModal({
 
   if (!room) return null;
 
-  const isChecklist = view === 'cleanChecklist';
+  const isInspection = view === 'inspectionChecklist';
+  const isChecklist = view === 'cleanChecklist' || isInspection;
   const isFlagEditor = view === 'flag' && !!onFlagToggle;
   const options = statusOptionsFor(currentStatus, { canSetPriority, canInspect }, deriveRoomActivityState(room).kind);
   const hasFlagRow = !!onFlagToggle;
@@ -249,7 +269,9 @@ export default function StatusChangeModal({
       showTriangle={showTriangle}
       contentHeight={
         isChecklist
-          ? CLEAN_CHECKLIST_HEIGHT
+          ? isInspection
+            ? INSPECTION_CHECKLIST_HEIGHT
+            : CLEAN_CHECKLIST_HEIGHT
           : isFlagEditor
             ? FLAG_EDITOR_HEIGHT
             : statusSheetHeight(options.length, hasFlagRow) + PROMISE_ROW_HEIGHT
@@ -275,14 +297,26 @@ export default function StatusChangeModal({
             />
           );
         }
-        return isChecklist ? (
+        return isInspection ? (
+          <RoomChecklistPanel
+            variant="inspection"
+            title="Inspection Checklist"
+            accentColor={colors.status.inspected}
+            thumbIcon="status-approved"
+            items={INSPECTION_CHECKLIST_ITEMS}
+            onComplete={(report) =>
+              dismiss(() => onInspectComplete?.({ ...report, kind: 'inspection' }))
+            }
+            onReject={onInspectReject ? () => dismiss(onInspectReject) : undefined}
+          />
+        ) : isChecklist ? (
           <RoomChecklistPanel
             title="Clean Checklist"
             accentColor={colors.status.cleaned}
             items={CLEAN_CHECKLIST_ITEMS}
-            onComplete={() => dismiss(() => onStatusSelect('Cleaned'))}
-            onAddPhoto={onAddPhoto}
-            onAddNotes={onAddNotes}
+            onComplete={(report) =>
+              dismiss(() => (onCleanComplete ? onCleanComplete(report) : onStatusSelect('Cleaned')))
+            }
           />
         ) : (
           <>
@@ -314,8 +348,9 @@ export default function StatusChangeModal({
                       setView('cleanChecklist');
                       return;
                     }
-                    if (option.id === 'Inspected' && onInspectedSelect) {
-                      dismiss(onInspectedSelect);
+                    // Inspected does the same with the inspection list.
+                    if (option.id === 'Inspected' && onInspectComplete) {
+                      setView('inspectionChecklist');
                       return;
                     }
                     dismiss(() => onStatusSelect(option.id));

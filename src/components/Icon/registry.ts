@@ -69,7 +69,9 @@ import AiTypingDots from '@assets/icons/misc/ai-typing-dots.svg';
 import AreaPublic from '@assets/icons/misc/area-public.svg';
 import BadgeBell from '@assets/icons/misc/badge-bell.svg';
 import BadgeLostFound from '@assets/icons/misc/badge-lost-found.svg';
+import ChecklistBed from '@assets/icons/misc/checklist-bed.svg';
 import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
+import ChecklistDust from '@assets/icons/misc/checklist-dust.svg';
 import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
 import LocationPin from '@assets/icons/misc/location-pin.svg';
 import LostFoundBasket from '@assets/icons/misc/lost-found-basket.svg';
@@ -150,7 +152,9 @@ export const icons = {
   'area-public': AreaPublic,
   'badge-bell': BadgeBell,
   'badge-lost-found': BadgeLostFound,
+  'checklist-bed': ChecklistBed,
   'checklist-curtains': ChecklistCurtains,
+  'checklist-dust': ChecklistDust,
   'checklist-minibar': ChecklistMinibar,
   'location-pin': LocationPin,
   'lost-found-basket': LostFoundBasket,
@@ -236,7 +240,9 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'area-public': 0.9615,
   'badge-bell': 1,
   'badge-lost-found': 0.9018,
+  'checklist-bed': 2,
   'checklist-curtains': 1.931,
+  'checklist-dust': 1,
   'checklist-minibar': 0.9987,
   'location-pin': 1,
   'lost-found-basket': 0.9,
@@ -309,7 +315,9 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'area-public',
   'badge-bell',
   'badge-lost-found',
+  'checklist-bed',
   'checklist-curtains',
+  'checklist-dust',
   'checklist-minibar',
   'location-pin',
   'nav-chat',

@@ -7,6 +7,7 @@ import { colors } from '@/theme';
 import type { ShiftType } from '@/types/shift.types';
 import { type RoomStateUpdate } from '../services/dashboard';
 import { logRoomHistoryEvent } from '../services/roomHistory';
+import { submitCleaningReport, type CleaningReport } from '../services/cleaningReports';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
@@ -29,7 +30,6 @@ import StatusChangeModal, {
   statusOptionsFor,
   statusSheetHeight,
 } from '../components/StatusChangeModal';
-import InspectedStatusSlideModal from '../components/allRooms/InspectedStatusSlideModal';
 import type { RootStackParamList, MainTabsParamList } from '@/types/navigation';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import {
@@ -79,6 +79,33 @@ export default function AllRoomsScreen() {
   const { session } = useAuth();
   const messageModal = useMessageModal();
   const toast = useToast();
+
+  /*
+   * The Clean Checklist's report — the ticks, and any photos and note — filed
+   * once the room is Cleaned. In the background: the status has already
+   * changed, so a slow photo upload does not hold the list up.
+   */
+  const fileCleaningReport = (roomId: string, roomNumber: string, report: CleaningReport) => {
+    const extras = report.photoUris.length > 0 || !!report.note;
+    submitCleaningReport(roomId, report)
+      .then(() => {
+        // The note joined the room's notes: its bell shows now.
+        if (report.note) void useRoomsStore.getState().refreshRoomBadges(roomId);
+        if (extras) {
+          toast.show(
+            `Room ${roomNumber}: photos and note saved with the ${report.kind === 'inspection' ? 'inspection' : 'cleaning'}.`,
+            { type: 'success' }
+          );
+        }
+      })
+      .catch((e) => {
+        const message = e instanceof Error ? e.message : 'Please try again.';
+        toast.show(`Room ${roomNumber} is ${report.kind === 'inspection' ? 'Inspected' : 'Cleaned'}, but its photos and note were not saved. ${message}`, {
+          type: 'error',
+          duration: 5000,
+        });
+      });
+  };
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
@@ -104,9 +131,6 @@ export default function AllRoomsScreen() {
   }, [initialShift, fetchRooms]);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [showInspectedModal, setShowInspectedModal] = useState(false);
-  const [roomForInspection, setRoomForInspection] = useState<RoomCardData | null>(null);
-  const [buttonPositionForInspection, setButtonPositionForInspection] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [roomToAssign, setRoomToAssign] = useState<RoomCardData | null>(null);
   const [showAssignStaffModal, setShowAssignStaffModal] = useState(false);
@@ -718,9 +742,13 @@ export default function AllRoomsScreen() {
     // Show loading indicator
     setChangingStatusRoomId(roomToUpdate.id);
 
+    // True once the room took the new status: the Clean Checklist files its
+    // report only then.
+    let saved = true;
     try {
       await updateRoom(roomToUpdate.id, supabaseUpdates);
     } catch (e) {
+      saved = false;
       /*
        * Tell the reader, rather than only the console.
        *
@@ -742,9 +770,6 @@ export default function AllRoomsScreen() {
     }
 
     // Reset state
-    setShowInspectedModal(false);
-    setRoomForInspection(null);
-    setButtonPositionForInspection(null);
 
     /*
      * Dismiss, then make sure the room is still on screen.
@@ -757,6 +782,7 @@ export default function AllRoomsScreen() {
      */
     await statusPopover.close();
     await keepRoomVisible(roomToUpdate.id);
+    return saved;
   };
 
 
@@ -957,7 +983,7 @@ export default function AllRoomsScreen() {
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}
               progress={attendantProgress}
-              titleHidden={statusOverlayActive || showInspectedModal}
+              titleHidden={statusOverlayActive}
             />
           </View>
         )}
@@ -1132,12 +1158,17 @@ export default function AllRoomsScreen() {
         visible={showStatusModal}
         onClose={statusPopover.close}
         onStatusSelect={handleStatusSelect}
-        onInspectedSelect={() => {
-          if (selectedRoomForStatusChange) {
-            setRoomForInspection(selectedRoomForStatusChange);
-            setButtonPositionForInspection(statusButtonPosition);
-            setShowInspectedModal(true);
-          }
+        onInspectComplete={(report) => {
+          const target = selectedRoomForStatusChange;
+          if (!target) return;
+          void (async () => {
+            if (await handleStatusSelect('Inspected', target)) fileCleaningReport(target.id, target.roomNumber, report);
+          })();
+        }}
+        onInspectReject={() => {
+          const target = selectedRoomForStatusChange;
+          // Back to Dirty; the attendant is told by a database trigger.
+          if (target) void handleStatusSelect('Dirty', target);
         }}
         currentStatus={selectedRoomForStatusChange?.houseKeepingStatus || 'InProgress'}
         room={selectedRoomForStatusChange || undefined}
@@ -1153,6 +1184,13 @@ export default function AllRoomsScreen() {
           !!selectedRoomForStatusChange?.roomAttendantAssigned ||
           selectedRoomForStatusChange?.houseKeepingStatus === 'InProgress'
         }
+        onCleanComplete={(report) => {
+          const target = selectedRoomForStatusChange;
+          if (!target) return;
+          void (async () => {
+            if (await handleStatusSelect('Cleaned', target)) fileCleaningReport(target.id, target.roomNumber, report);
+          })();
+        }}
         onFlagToggle={!canFlag ? undefined : async (flagged, reason, mentionIds) => {
           if (selectedRoomForStatusChange) {
             const flagReason = flagged ? reason : null;
@@ -1178,27 +1216,6 @@ export default function AllRoomsScreen() {
       />
 
       {/* Inspection Checklist Modal - shown when changing to Inspected */}
-      <InspectedStatusSlideModal
-        visible={showInspectedModal}
-        onClose={() => {
-          setShowInspectedModal(false);
-          setRoomForInspection(null);
-          setButtonPositionForInspection(null);
-          statusPopover.close();
-        }}
-        onComplete={() => handleStatusSelect('Inspected', roomForInspection)}
-        onReject={() => {
-          if (!roomForInspection) return;
-          updateRoom(roomForInspection.id, { house_keeping_status: 'Dirty' }).catch((e) =>
-            console.warn('[AllRoomsScreen] Failed to reject room', e)
-          );
-          // The attendant is told by a database trigger (room sent back to Dirty).
-        }}
-        buttonPosition={buttonPositionForInspection}
-        headerHeight={modalHeaderHeight}
-        showTriangle={true}
-      />
-
       {/* Assign Staff Modal - staff list when room has no assignee */}
       <ReassignModal
         visible={showAssignStaffModal}
