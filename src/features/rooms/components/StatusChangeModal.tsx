@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View, Text } from 'react-native';
-import { RoomStatus, StatusChangeOption, STATUS_OPTIONS, PROMISE_TIME_ROW, RoomCardData } from '../types/allRooms.types';
+import {
+  RoomStatus,
+  StatusChangeOption,
+  STATUS_OPTIONS,
+  PROMISE_TIME_ROW,
+  RoomCardData,
+  deriveRoomActivityState,
+  type RoomActivityKind,
+} from '../types/allRooms.types';
 import { scaleX } from '../constants/allRoomsStyles';
 import { colors, typography } from '@/theme';
 import { Icon } from '@/components/Icon';
@@ -57,14 +65,33 @@ export type StatusOptionRights = {
   canInspect?: boolean;
 };
 
-/** The options this reader sees for a room currently in `currentStatus`. */
-export function statusOptionsFor(currentStatus: RoomStatus, rights: StatusOptionRights = {}) {
+/** The option that puts a room into each activity state. */
+const ACTIVITY_OPTION: Partial<Record<RoomActivityKind, StatusChangeOption>> = {
+  dnd: 'DoNotDisturb',
+  refuseService: 'RefuseService',
+  returnLater: 'ReturnLater',
+  paused: 'Pause',
+};
+
+/**
+ * The options this reader sees for a room currently in `currentStatus`, and
+ * in `activity` (Do Not Disturb, refused…) when it is in one.
+ */
+export function statusOptionsFor(
+  currentStatus: RoomStatus,
+  rights: StatusOptionRights = {},
+  activity: RoomActivityKind = 'none'
+) {
   const { canSetPriority = true, canInspect = true } = rights;
+  const activeOption = ACTIVITY_OPTION[activity];
   return STATUS_OPTIONS.filter((option) => {
     if (option.id === 'Priority' && !canSetPriority) return false;
     if (option.id === 'Inspected' && !canInspect) return false;
-    // A status option matching where the room already is would be a no-op.
+    // An option matching where the room already is would be a no-op: its
+    // status, or the state it is in (DND on a Do Not Disturb room). Each
+    // state's next step lives in the room's panel ("Still DND", "Sign removed").
     if (STATUS_OPTION_IDS.includes(option.id) && option.id === currentStatus) return false;
+    if (option.id === activeOption) return false;
     return true;
   });
 }
@@ -199,7 +226,7 @@ export default function StatusChangeModal({
 
   const isChecklist = view === 'cleanChecklist';
   const isFlagEditor = view === 'flag' && !!onFlagToggle;
-  const options = statusOptionsFor(currentStatus, { canSetPriority, canInspect });
+  const options = statusOptionsFor(currentStatus, { canSetPriority, canInspect }, deriveRoomActivityState(room).kind);
   const hasFlagRow = !!onFlagToggle;
   // A promise only stands until the room is clean (see promiseLine).
   const promiseAt = room.promiseTimeAt ? Date.parse(room.promiseTimeAt) : NaN;
