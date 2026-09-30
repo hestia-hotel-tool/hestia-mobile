@@ -15,8 +15,12 @@ export type ServiceExceptionActions = {
   onServiceResumed?: () => void;
   /** The guest no longer needs a later time: back to Dirty. */
   onReturnLaterCleared?: () => void;
+  /** Open the promise time picker to move the time. */
+  onPromiseChange?: () => void;
+  /** Take the promise back: the room is no longer promised for a time. */
+  onPromiseRemoved?: () => void;
   /** Which action is saving, to show its spinner. */
-  busy?: 'dndStill' | 'dndCleared' | 'serviceResumed' | 'returnLaterCleared' | null;
+  busy?: 'dndStill' | 'dndCleared' | 'serviceResumed' | 'returnLaterCleared' | 'promiseRemoved' | null;
 };
 
 type Props = ServiceExceptionActions & { activity: RoomActivityState };
@@ -37,6 +41,7 @@ const MUTED = '#6b7a90';
  * - Refused: "Guest wants service now" puts it back to be cleaned; otherwise it
  *   ends with the service day.
  * - Return later: the time the guest asked for; "No longer needed" clears it.
+ * - Promise time: when the room was promised; change the time or remove it.
  *   Starting to clean (the status menu) clears any of the three.
  */
 export function ServiceExceptionPanel({
@@ -45,6 +50,8 @@ export function ServiceExceptionPanel({
   onDndCleared,
   onServiceResumed,
   onReturnLaterCleared,
+  onPromiseChange,
+  onPromiseRemoved,
   busy = null,
 }: Props) {
   const now = useNow();
@@ -108,6 +115,28 @@ export function ServiceExceptionPanel({
         note={passed ? 'The time has come: go back and start cleaning from the status menu.' : undefined}
         actions={[
           { label: 'No longer needed', onPress: onReturnLaterCleared, busy: busy === 'returnLaterCleared', tone: 'secondary' },
+        ]}
+      />
+    );
+  }
+
+  if (activity.kind === 'promisedTime' && activity.dueAt != null) {
+    const passed = activity.dueAt <= now;
+    return (
+      <Panel
+        icon="action-promised-time"
+        color="#c99a06"
+        title="Promise time"
+        lines={[
+          passed
+            ? `Promised for ${formatDueTime(activity.dueAt, new Date(now))} — the time has passed.`
+            : `Ready by ${formatDueTime(activity.dueAt, new Date(now))} (${formatDueIn(activity.dueAt, now)}).`,
+        ]}
+        alert={passed}
+        note="The attendant sees it on the room card. It ends when the room is cleaned."
+        actions={[
+          { label: 'Change time', onPress: onPromiseChange, tone: 'secondary' },
+          { label: 'Remove', onPress: onPromiseRemoved, busy: busy === 'promiseRemoved', tone: 'primary' },
         ]}
       />
     );

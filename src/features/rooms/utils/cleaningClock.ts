@@ -15,6 +15,7 @@ type ClockRoom = Pick<
   | 'promiseTimeAt'
   | 'roomAttendantAssigned'
   | 'dndAt'
+  | 'dndCheckedAt'
   | 'dndNextCheckAt'
 >;
 
@@ -69,12 +70,12 @@ export type AssigneeStatus = {
  */
 export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
   if (room.dndAt) {
-    // When the door is next due a look; red once that time has come.
+    // When the door is next due a check; red once that time has come.
     const next = room.dndNextCheckAt ? Date.parse(room.dndNextCheckAt) : NaN;
-    if (Number.isFinite(next) && next <= now) return { text: 'DND · check the door now', tone: 'alert' };
+    if (!Number.isFinite(next)) return { text: 'Do Not Disturb', tone: 'default' };
     return {
-      text: Number.isFinite(next) ? `DND · check at ${formatDueTime(next, new Date(now))}` : 'Do Not Disturb',
-      tone: 'default',
+      text: `Check at ${formatDueTime(next, new Date(now))}`,
+      tone: next <= now ? 'alert' : 'default',
     };
   }
   if (room.returnLaterAt) {
@@ -112,10 +113,10 @@ export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
   }
 }
 
-/** "Ready by 14:30" while a promise time is set and the room is not yet ready. */
+/** "Promise time: 14:30" while a promise is set and the room is not yet ready. */
 export function promiseLine(room: ClockRoom, now: number): string | null {
   if (!room.promiseTimeAt) return null;
   if (room.houseKeepingStatus === 'Cleaned' || room.houseKeepingStatus === 'Inspected') return null;
   const at = Date.parse(room.promiseTimeAt);
-  return Number.isFinite(at) ? `Ready by ${formatDueTime(at, new Date(now))}` : null;
+  return Number.isFinite(at) ? `Promise time: ${formatDueTime(at, new Date(now))}` : null;
 }

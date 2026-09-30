@@ -39,6 +39,7 @@ type RoomRow = {
   cleaning_started_at?: string | null;
   cleaning_elapsed_seconds?: number | null;
   dnd_at?: string | null;
+  dnd_checked_at?: string | null;
   dnd_check_count?: number | null;
   dnd_next_check_at?: string | null;
 };
@@ -399,6 +400,7 @@ function mapRoomToCard(
     refuseServiceAt: (room.refuse_service_at ?? null) as string | null,
     refuseServiceReason: (room.refuse_service_reason ?? null) as string | null,
     dndAt: room.dnd_at ?? null,
+    dndCheckedAt: room.dnd_checked_at ?? null,
     dndCheckCount: room.dnd_check_count ?? 0,
     dndNextCheckAt: room.dnd_next_check_at ?? null,
     promiseTimeAt: room.promise_time_at ?? null,
@@ -566,7 +568,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, dnd_at, dnd_check_count, dnd_next_check_at'
+        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
       )
       .order('room_number', { ascending: true }));
 
@@ -733,6 +735,7 @@ export type RoomClock = {
   refuseServiceAt: string | null;
   refuseServiceReason: string | null;
   dndAt: string | null;
+  dndCheckedAt: string | null;
   dndCheckCount: number;
   dndNextCheckAt: string | null;
 };
@@ -974,7 +977,7 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
     const { data: row } = await supabase
       .from('rooms')
       .select(
-        'house_keeping_status, paused_at, return_later_at, return_later_reason, refuse_service_at, refuse_service_reason, dnd_at, dnd_check_count, dnd_next_check_at, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds'
+        'house_keeping_status, paused_at, return_later_at, return_later_reason, refuse_service_at, refuse_service_reason, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds'
       )
       .eq('id', roomId)
       .maybeSingle();
@@ -993,6 +996,7 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
         refuseServiceAt: str('refuse_service_at'),
         refuseServiceReason: str('refuse_service_reason'),
         dndAt: str('dnd_at'),
+        dndCheckedAt: str('dnd_checked_at'),
         dndCheckCount: (r.dnd_check_count as number | null) ?? 0,
         dndNextCheckAt: str('dnd_next_check_at'),
       };
@@ -1317,6 +1321,7 @@ export interface FullRoomDetails {
     refuse_service_at?: string | null;
     refuse_service_reason?: string | null;
     dnd_at?: string | null;
+    dnd_checked_at?: string | null;
     dnd_check_count?: number | null;
     dnd_next_check_at?: string | null;
   };
@@ -1457,6 +1462,7 @@ export function fullRoomDetailsToRoomCardData(
     refuseServiceAt: ((room as any).refuse_service_at ?? null) as string | null,
     refuseServiceReason: ((room as any).refuse_service_reason ?? null) as string | null,
     dndAt: ((room as any).dnd_at ?? null) as string | null,
+    dndCheckedAt: ((room as any).dnd_checked_at ?? null) as string | null,
     dndCheckCount: ((room as any).dnd_check_count ?? 0) as number,
     dndNextCheckAt: ((room as any).dnd_next_check_at ?? null) as string | null,
     guests: guestsForCard,
@@ -1503,7 +1509,7 @@ export async function getFullRoomDetails(
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
-      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, dnd_at, dnd_check_count, dnd_next_check_at'
+      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
     )
     .order('room_number', { ascending: true });
   const roomsQueryBase = supabase
@@ -1726,6 +1732,7 @@ export async function getFullRoomDetails(
       refuse_service_at: (room as any).refuse_service_at ?? null,
       refuse_service_reason: (room as any).refuse_service_reason ?? null,
       dnd_at: (room as any).dnd_at ?? null,
+      dnd_checked_at: (room as any).dnd_checked_at ?? null,
       dnd_check_count: (room as any).dnd_check_count ?? 0,
       dnd_next_check_at: (room as any).dnd_next_check_at ?? null,
     },

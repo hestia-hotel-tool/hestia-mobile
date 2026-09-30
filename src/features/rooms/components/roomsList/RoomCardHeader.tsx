@@ -138,8 +138,12 @@ const DIVIDER = 1;
  */
 const RIGHT_COLUMN_MIN = 132;
 
-/** Smallest tile — still holds the 22-high glyphs (RoomBadgeTile) with a little clear. */
-const MIN_TILE = 26;
+/**
+ * Smallest tile. RoomBadgeTile scales its glyph with the tile, so this only
+ * has to stay legible. It was 26, which with a long category and "Arrival/
+ * Departure" did not fit: the tiles spilled left over the flag.
+ */
+const MIN_TILE = 18;
 
 type HeaderLayout = { rightColumn: number; tile: number; gap: number };
 

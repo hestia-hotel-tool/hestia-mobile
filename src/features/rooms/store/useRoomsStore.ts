@@ -85,6 +85,7 @@ export function roomStateFromClock(clock: RoomClock): Partial<RoomCardData> {
     refuseServiceAt: clock.refuseServiceAt,
     refuseServiceReason: clock.refuseServiceReason,
     dndAt: clock.dndAt,
+    dndCheckedAt: clock.dndCheckedAt,
     dndCheckCount: clock.dndCheckCount,
     dndNextCheckAt: clock.dndNextCheckAt,
   };

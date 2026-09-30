@@ -121,6 +121,8 @@ export interface RoomCardData {
   refuseServiceReason?: string | null;
   /** Do Not Disturb since (ISO); null when there is no sign. */
   dndAt?: string | null;
+  /** When the door was last checked and found DND (the first sighting counts). */
+  dndCheckedAt?: string | null;
   /** How many times the door has been checked and found DND (the first sighting counts). */
   dndCheckCount?: number;
   /** When the door is due its next check (ISO). */
@@ -216,6 +218,17 @@ export function getRoomDisplayStatus(
     default:
       return room.houseKeepingStatus;
   }
+}
+
+/**
+ * The status a room *card* shows. The same as `getRoomDisplayStatus`, except a
+ * promise time does not take over: the card's "P-time: 14:30" line carries it,
+ * and a "Promised Time" cap on top hid the room's real status (a Dirty,
+ * priority room read as "Promised Time").
+ */
+export function getRoomCardStatus(room: Parameters<typeof getRoomDisplayStatus>[0]): RoomDisplayStatus {
+  const status = getRoomDisplayStatus(room);
+  return status === 'PromisedTime' ? room.houseKeepingStatus : status;
 }
 
 /**
@@ -486,7 +499,7 @@ export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
    * so the card, the header and the menu all agree on each state's colour.
    */
   DoNotDisturb: {
-    color: '#5b4b8a',
+    color: '#6638e5',
     iconName: 'action-dnd',
     glyphHeight: 28,
     label: 'Do Not Disturb',
@@ -532,8 +545,8 @@ export interface StatusOptionConfig {
   glyphHeight: number;
   /** Fill of the 51px circle behind the glyph. */
   circleColor: string;
-  /** Tint of the glyph itself. */
-  glyphColor: string;
+  /** Tint of the glyph itself; omitted for a two-tone mark, which keeps its own colours. */
+  glyphColor?: string;
 }
 
 /**
@@ -588,18 +601,10 @@ export const STATUS_OPTIONS: StatusOptionConfig[] = [
   {
     id: 'Pause',
     label: 'Pause',
-    iconName: 'status-paused',
-    glyphHeight: 28.4,
-    circleColor: 'rgba(176, 192, 198, 0.21)',
-    glyphColor: '#3f4c5f',
-  },
-  {
-    id: 'DoNotDisturb',
-    label: 'Do Not Disturb',
-    iconName: 'action-dnd',
-    glyphHeight: 28,
-    circleColor: '#5b4b8a',
-    glyphColor: '#ffffff',
+    // Two-tone (its own greys), so no glyph tint — Figma 406-1783, node 4349:2895.
+    iconName: 'action-pause-cleaning',
+    glyphHeight: 30,
+    circleColor: '#eef2f3',
   },
   {
     id: 'ReturnLater',
@@ -614,16 +619,30 @@ export const STATUS_OPTIONS: StatusOptionConfig[] = [
     label: 'Refuse Service',
     iconName: 'action-refuse-service',
     glyphHeight: 28.4,
-    circleColor: '#ff9090',
+    circleColor: '#ff8f8f',
     glyphColor: '#ffffff',
   },
   {
-    id: 'PromisedTime',
-    label: 'Promised Time',
-    iconName: 'action-promised-time',
-    glyphHeight: 30.8,
-    circleColor: 'rgba(240, 190, 27, 0.21)',
-    glyphColor: '#3f4c5f',
+    id: 'DoNotDisturb',
+    label: 'DND',
+    // The door-hanger tag on violet — Figma 406-1783, node 4352:2909.
+    iconName: 'action-dnd',
+    glyphHeight: 29,
+    circleColor: '#6638e5',
+    glyphColor: '#ffffff',
   },
 ];
+
+/**
+ * "Set Promise Time" — Figma 406-1783: a row under the flag, not an option in
+ * the grid. Picking it opens the Promise Time sheet (StatusChangeOption
+ * 'PromisedTime').
+ */
+export const PROMISE_TIME_ROW = {
+  label: 'Set Promise Time',
+  iconName: 'action-promised-time' as IconName,
+  glyphHeight: 29,
+  circleColor: 'rgba(239, 190, 27, 0.21)',
+  glyphColor: '#3f4b5f',
+};
 

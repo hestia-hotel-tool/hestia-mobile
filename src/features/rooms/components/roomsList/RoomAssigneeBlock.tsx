@@ -16,15 +16,11 @@ export type RoomAssigneeBlockProps = {
   statusLine?: string | null;
   /** `alert` draws the status line in red — the room is over its expected time. */
   statusTone?: 'default' | 'alert';
-  /** A second line, e.g. "Ready by 14:30" when a promise time is set. */
-  secondaryLine?: string | null;
   onPress?: () => void;
 };
 
 /** The flag red used on the card header, for a room running late. */
 const ALERT_COLOR = '#f92424';
-/** The accent pink, for a promise made to the guest. */
-const PROMISE_COLOR = '#ff46a3';
 
 /**
  * Who is working the room — Figma 3883:6158.
@@ -40,19 +36,8 @@ export function RoomAssigneeBlock({
   avatarUrl,
   statusLine,
   statusTone = 'default',
-  secondaryLine,
   onPress,
 }: RoomAssigneeBlockProps) {
-  const promise = secondaryLine ? (
-    <Text
-      className="font-hestia-primary text-hestia-sm font-bold"
-      style={{ color: PROMISE_COLOR }}
-      numberOfLines={1}
-    >
-      {secondaryLine}
-    </Text>
-  ) : null;
-
   const status = statusLine ? (
     <Text
       className={
@@ -70,14 +55,13 @@ export function RoomAssigneeBlock({
 
   if (!name) {
     // Figma 2702:7771: an empty circle where the photo will go, and an "Assign room" pill.
-    // A room can be In Progress before anyone is assigned — its countdown and
-    // promise still belong on the card, under the button.
-    if (!status && !promise) return <AssignRoomButton onPress={onPress} />;
+    // A room can be In Progress before anyone is assigned — its countdown
+    // still belongs on the card, under the button.
+    if (!status) return <AssignRoomButton onPress={onPress} />;
     return (
       <View className="gap-xs">
         <AssignRoomButton onPress={onPress} />
         {status}
-        {promise}
       </View>
     );
   }
@@ -97,7 +81,6 @@ export function RoomAssigneeBlock({
           {name}
         </Text>
         {status}
-        {promise}
       </View>
     </Container>
   );

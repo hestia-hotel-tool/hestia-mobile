@@ -14,7 +14,8 @@ interface StatusOptionItemProps {
   /** Fill of the circle behind the glyph. */
   circleColor: string;
   /** Tint of the glyph. */
-  glyphColor: string;
+  /** Omit for a two-tone mark. */
+  glyphColor?: string;
   label: string;
   onPress: () => void;
   /**

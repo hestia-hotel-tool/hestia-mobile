@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { dateAtWheelIndex, dateWheelDates, dateWheelIndex } from '../../utils/dateWheel';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions } from 'react-native';
+import { Pressable, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions } from 'react-native';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { Icon } from '@/components/Icon';
@@ -17,7 +17,10 @@ const scaleX = SCREEN_WIDTH / 430;
 
 function getMinAllowedTime() {
   const now = new Date();
-  const min = new Date(now.getTime() + MIN_MINUTES_FROM_NOW * 60 * 1000);
+  // Rounded up to the next whole minute: the wheels have no seconds, so the
+  // plain minute of now + 5 min is already under 5 minutes away and the
+  // default time was always refused on Confirm.
+  const min = new Date(Math.ceil((now.getTime() + MIN_MINUTES_FROM_NOW * 60 * 1000) / 60000) * 60000);
   const hour24 = min.getHours();
   const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
   return {
@@ -47,6 +50,12 @@ const RETURN_LATER_REASONS = [
 ];
 
 interface ReturnLaterModalProps {
+  /**
+   * Where the room header ends, in screen px: the sheet hangs flush from it.
+   * The header's height changes with what it shows, so it is measured, not
+   * the design's fixed 232.
+   */
+  top?: number;
   visible: boolean;
   onClose: () => void;
   /**
@@ -74,6 +83,7 @@ interface ReturnLaterModalProps {
 }
 
 export default function ReturnLaterModal({
+  top,
   visible,
   onClose,
   onConfirm,
@@ -396,8 +406,19 @@ export default function ReturnLaterModal({
       onRequestClose={onClose}
     >
       <View style={styles.container}>
+        {/*
+          The sheet is a native modal over the whole screen, header included,
+          so the header's back arrow cannot be reached under it. Tapping the
+          header area closes the sheet (as Android's back button does).
+        */}
+        <Pressable
+          style={[styles.dismissArea, { height: top ?? 232 * scaleX }]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        />
         {/* Modal Overlay - White background starting after header */}
-        <View style={styles.modalOverlay}>
+        <View style={[styles.modalOverlay, top != null && { top }]}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -750,6 +771,7 @@ export default function ReturnLaterModal({
 }
 
 const styles = StyleSheet.create({
+  dismissArea: { position: 'absolute', top: 0, left: 0, right: 0 },
   container: {
     flex: 1,
     backgroundColor: 'transparent',

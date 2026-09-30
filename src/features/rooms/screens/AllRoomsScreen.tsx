@@ -6,6 +6,7 @@ import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@/theme';
 import type { ShiftType } from '@/types/shift.types';
 import { type RoomStateUpdate } from '../services/dashboard';
+import { logRoomHistoryEvent } from '../services/roomHistory';
 import { useRoomsStore } from '../store/useRoomsStore';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
@@ -578,6 +579,23 @@ export default function AllRoomsScreen() {
   const statusOverlayActive = statusPopover.overlayActive;
   const handleStatusPress = statusPopover.open;
 
+  /** The status menu's remove button on a room's promise time. */
+  const handleRemovePromise = async (roomToUpdate: RoomCardData) => {
+    await statusPopover.close();
+    setChangingStatusRoomId(roomToUpdate.id);
+    try {
+      await updateRoom(roomToUpdate.id, { promise_time_at: null });
+      toast.show(`Promise time removed from room ${roomToUpdate.roomNumber}.`, { type: 'success' });
+      void logRoomHistoryEvent({ roomId: roomToUpdate.id, type: 'promise_time', description: 'Promise time removed' });
+    } catch (e) {
+      const message = e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.';
+      toast.show(`Room ${roomToUpdate.roomNumber} was not updated. ${message}`, { type: 'error', duration: 4500 });
+    } finally {
+      setChangingStatusRoomId(null);
+    }
+    await keepRoomVisible(roomToUpdate.id);
+  };
+
   const handleStatusSelect = async (statusOption: StatusChangeOption, roomOverride?: RoomCardData | null) => {
     const roomToUpdate = roomOverride ?? selectedRoomForStatusChange;
     if (!roomToUpdate) return;
@@ -1123,6 +1141,9 @@ export default function AllRoomsScreen() {
         }}
         currentStatus={selectedRoomForStatusChange?.houseKeepingStatus || 'InProgress'}
         room={selectedRoomForStatusChange || undefined}
+        onRemovePromise={
+          selectedRoomForStatusChange ? () => void handleRemovePromise(selectedRoomForStatusChange) : undefined
+        }
         buttonPosition={statusButtonPosition}
         headerHeight={modalHeaderHeight}
         blurTop={statusBlurTop}

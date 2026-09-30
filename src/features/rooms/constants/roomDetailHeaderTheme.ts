@@ -194,25 +194,19 @@ export function resolveRoomDetailHeaderTheme(
 /**
  * The bespoke mark each activity state draws, where it has one.
  *
- * Two of the three are bare and one is not, which is the opposite of what the
- * code assumed. It drew a disc behind all three because the 51x51 PNGs it
+ * All three are bare, the opposite of what the code assumed. It drew a disc
+ * behind all three because the 51x51 PNGs it
  * replaced baked one in — reading the frames is what separated "the asset had a
  * disc" from "the design has a disc". Return Later (2333-312) and Refused
  * Service (2333-835) are both bare glyphs on the header's own ground, at 24 x
  * 28, inheriting the header's foreground colour.
  *
- * Promised Time keeps the numbers **measured out of its PNG**: its frame has
- * not been read, so it is the last one still drawing a disc, and
- * `verifiedAgainst` in `roomDetailHeaderChrome.ts` records that. For it the
- * disc is the whole 24.367 the image occupied, since the asset's circle was
- * inscribed in its box, and the glyph keeps its share of it:
- * `viewBox height / 51 x 24.367`.
+ * Promised Time is drawn the same way, bare at 28.
  *
  * The three registry viewBoxes match the PNGs' glyph bounding boxes to the
  * decimal (28.38 vs 28x28, 29.75 vs 25x29, 30.75 vs 22x31), which is how we
  * know they are the same drawings.
  */
-const OVERLAY_DISC = 24.367;
 
 export const MARK_SPECS: Record<HeaderOverlayIcon, StatusMarkSpec> = {
   /** Bare, white, 24 x 28 — Figma 2333-835. No disc, same as Return Later. */
@@ -229,11 +223,16 @@ export const MARK_SPECS: Record<HeaderOverlayIcon, StatusMarkSpec> = {
     disc: null,
     glyph: null,
   },
+  /**
+   * Bare like the other two, 28 tall. It was a 14.7pt glyph inside a 24pt
+   * disc measured out of the old PNG, which read as a dot next to the
+   * 28pt Return Later and Refused Service marks.
+   */
   promisedTime: {
     icon: 'action-promised-time',
-    glyphHeight: (30.75 / 51) * OVERLAY_DISC,
-    disc: { color: 'rgba(236, 189, 28, 0.212)', size: OVERLAY_DISC },
-    glyph: '#3f4c5f',
+    glyphHeight: 28,
+    disc: null,
+    glyph: null,
   },
 };
 

@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { ActivityIndicator, Pressable, StyleSheet, TextInput, View, Text } from 'react-native';
-import { RoomStatus, StatusChangeOption, STATUS_OPTIONS, RoomCardData } from '../types/allRooms.types';
+import { RoomStatus, StatusChangeOption, STATUS_OPTIONS, PROMISE_TIME_ROW, RoomCardData } from '../types/allRooms.types';
 import { scaleX } from '../constants/allRoomsStyles';
 import { colors, typography } from '@/theme';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';
+import { formatDueTime } from '@/utils/formatting';
 import { fetchStaffFromSupabase } from '@features/staff/services/staff';
 import StatusOptionItem from './StatusOptionItem';
 import FlagToggle from './FlagToggle';
@@ -143,6 +144,11 @@ interface StatusChangeModalProps {
    * a room attendant first.
    */
   canStartCleaning?: boolean;
+  /**
+   * Remove the room's promise time. When given and a promise is set, the
+   * Set Promise Time row shows that time and a remove button.
+   */
+  onRemovePromise?: () => void;
 }
 
 /** Which face of the popover is showing. */
@@ -165,6 +171,7 @@ export default function StatusChangeModal({
   canSetPriority = true,
   canInspect = true,
   canStartCleaning = true,
+  onRemovePromise,
 }: StatusChangeModalProps) {
   /*
    * Choosing "Cleaned" turns this card into the clean checklist rather than
@@ -194,6 +201,10 @@ export default function StatusChangeModal({
   const isFlagEditor = view === 'flag' && !!onFlagToggle;
   const options = statusOptionsFor(currentStatus, { canSetPriority, canInspect });
   const hasFlagRow = !!onFlagToggle;
+  // A promise only stands until the room is clean (see promiseLine).
+  const promiseAt = room.promiseTimeAt ? Date.parse(room.promiseTimeAt) : NaN;
+  const hasPromise =
+    Number.isFinite(promiseAt) && currentStatus !== 'Cleaned' && currentStatus !== 'Inspected';
   /** Rough design-px height of the flag editor, for the lift. */
   const FLAG_EDITOR_HEIGHT = 300;
 
@@ -210,7 +221,7 @@ export default function StatusChangeModal({
           ? CLEAN_CHECKLIST_HEIGHT
           : isFlagEditor
             ? FLAG_EDITOR_HEIGHT
-            : statusSheetHeight(options.length, hasFlagRow)
+            : statusSheetHeight(options.length, hasFlagRow) + PROMISE_ROW_HEIGHT
       }
       clampHeight={isChecklist}
       // Always under the status pill, never flipped above it.
@@ -296,13 +307,62 @@ export default function StatusChangeModal({
                   onSubmit={submitFlag}
                 />
               </>
-            ) : null}
+            ) : (
+              <View style={styles.divider} />
+            )}
+
+            {/*
+              Figma 406-1783: Promise Time is a row under the flag, not a circle
+              in the grid. With a promise set it shows the time (tap to change
+              it) and a remove button in place of the chevron.
+            */}
+            <Pressable
+              onPress={() => dismiss(() => onStatusSelect('PromisedTime'))}
+              style={({ pressed }) => [styles.promiseRow, pressed && styles.promiseRowPressed]}
+              accessibilityRole="button"
+              accessibilityLabel={hasPromise ? `Promise time ${formatDueTime(promiseAt)}. Change it` : PROMISE_TIME_ROW.label}
+            >
+              <View style={[styles.promiseDisc, { backgroundColor: PROMISE_TIME_ROW.circleColor }]}>
+                <Icon
+                  name={PROMISE_TIME_ROW.iconName}
+                  size={PROMISE_TIME_ROW.glyphHeight * scaleX}
+                  color={PROMISE_TIME_ROW.glyphColor}
+                />
+              </View>
+              {hasPromise ? (
+                <View style={styles.promiseText}>
+                  <Text style={styles.promiseSetLabel}>Promise time</Text>
+                  <Text style={styles.promiseSetTime} numberOfLines={1}>
+                    Ready by {formatDueTime(promiseAt)} · tap to change
+                  </Text>
+                </View>
+              ) : (
+                <Text style={styles.promiseLabel}>{PROMISE_TIME_ROW.label}</Text>
+              )}
+              {hasPromise && onRemovePromise ? (
+                <Pressable
+                  onPress={() => dismiss(onRemovePromise)}
+                  hitSlop={10}
+                  style={({ pressed }) => [styles.promiseRemove, pressed && { opacity: 0.6 }]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove promise time"
+                >
+                  <Ionicons name="close" size={18 * scaleX} color="#f92424" />
+                  <Text style={styles.promiseRemoveText}>Remove</Text>
+                </Pressable>
+              ) : (
+                <Icon name="action-chevron" size={23 * scaleX} color="#000000" style={styles.promiseChevron} />
+              )}
+            </Pressable>
           </>
         );
       }}
     </StatusPopover>
   );
 }
+
+/** Design px the Set Promise Time row adds to the sheet — 78 tall, 37 above it. */
+const PROMISE_ROW_HEIGHT = 115;
 
 const REASON_MAX = 280;
 /** How many staff the @ list offers at once. */
@@ -709,6 +769,67 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     alignItems: 'flex-start',
   },
+  /** Figma 406-1783, node 4352:2919: 357 x 78 on #f7f9fb, disc at 18, label at 82. */
+  promiseRow: {
+    marginTop: 21 * scaleX,
+    marginLeft: 11 * scaleX,
+    marginRight: 0,
+    height: 78 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 18 * scaleX,
+    paddingRight: 35 * scaleX,
+    backgroundColor: '#f7f9fb',
+  },
+  promiseRowPressed: { backgroundColor: '#eef2f7' },
+  promiseDisc: {
+    width: 51 * scaleX,
+    height: 51 * scaleX,
+    borderRadius: 25.5 * scaleX,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  promiseLabel: {
+    flex: 1,
+    marginLeft: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    fontSize: 13 * scaleX,
+    color: '#222427',
+  },
+  promiseText: { flex: 1, marginLeft: 13 * scaleX },
+  promiseSetLabel: {
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    fontSize: 13 * scaleX,
+    color: '#222427',
+  },
+  promiseSetTime: {
+    marginTop: 3 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    fontSize: 13 * scaleX,
+    color: '#334866',
+  },
+  /** A red pill: the one way out of a promise, easy to hit and hard to mistake. */
+  promiseRemove: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2 * scaleX,
+    marginRight: -19 * scaleX,
+    paddingVertical: 6 * scaleX,
+    paddingHorizontal: 10 * scaleX,
+    borderRadius: 16 * scaleX,
+    backgroundColor: '#ffebeb',
+  },
+  promiseRemoveText: {
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    fontSize: 12 * scaleX,
+    color: '#f92424',
+  },
+  /** The registered chevron points left; the row's points right. */
+  promiseChevron: { transform: [{ rotate: '180deg' }] },
   divider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: 'rgba(90, 117, 157, 0.35)', // Figma draws a 0.2px #5A759D rule

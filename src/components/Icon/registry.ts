@@ -30,6 +30,7 @@ import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionGroup from '@assets/icons/actions/action-group.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionNewChat from '@assets/icons/actions/action-new-chat.svg';
+import ActionPauseCleaning from '@assets/icons/actions/action-pause-cleaning.svg';
 import ActionPhone from '@assets/icons/actions/action-phone.svg';
 import ActionPlus from '@assets/icons/actions/action-plus.svg';
 import ActionPrint from '@assets/icons/actions/action-print.svg';
@@ -110,6 +111,7 @@ export const icons = {
   'action-group': ActionGroup,
   'action-mic': ActionMic,
   'action-new-chat': ActionNewChat,
+  'action-pause-cleaning': ActionPauseCleaning,
   'action-phone': ActionPhone,
   'action-plus': ActionPlus,
   'action-print': ActionPrint,
@@ -189,7 +191,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
   'action-copy': 1,
-  'action-dnd': 0.7333,
+  'action-dnd': 0.7,
   'action-eye-off': 1.2,
   'action-eye': 1.5,
   'action-filter': 2,
@@ -198,6 +200,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-group': 1.1154,
   'action-mic': 0.7727,
   'action-new-chat': 1,
+  'action-pause-cleaning': 0.9677,
   'action-phone': 1,
   'action-plus': 1,
   'action-print': 1,

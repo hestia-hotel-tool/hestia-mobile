@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, Image } from 'react-native';
+import { Pressable, View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Dimensions, Image } from 'react-native';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
@@ -21,6 +21,12 @@ const REFUSE_REASONS = [
 ];
 
 interface RefuseServiceModalProps {
+  /**
+   * Where the room header ends, in screen px: the sheet hangs flush from it.
+   * The header's height changes with what it shows, so it is measured, not
+   * the design's fixed 232.
+   */
+  top?: number;
   visible: boolean;
   onClose: () => void;
   onConfirm: (reason: string) => void;
@@ -37,6 +43,7 @@ interface RefuseServiceModalProps {
 }
 
 export default function RefuseServiceModal({
+  top,
   visible,
   onClose,
   onConfirm,
@@ -77,7 +84,18 @@ export default function RefuseServiceModal({
       onRequestClose={onClose}
     >
       <View style={styles.container}>
-        <View style={styles.modalOverlay}>
+        {/*
+          The sheet is a native modal over the whole screen, header included,
+          so the header's back arrow cannot be reached under it. Tapping the
+          header area closes the sheet (as Android's back button does).
+        */}
+        <Pressable
+          style={[styles.dismissArea, { height: top ?? 232 * scaleX }]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        />
+        <View style={[styles.modalOverlay, top != null && { top }]}>
           <ScrollView
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
@@ -180,6 +198,7 @@ export default function RefuseServiceModal({
 }
 
 const styles = StyleSheet.create({
+  dismissArea: { position: 'absolute', top: 0, left: 0, right: 0 },
   container: { flex: 1, backgroundColor: 'transparent' },
   modalOverlay: {
     position: 'absolute',

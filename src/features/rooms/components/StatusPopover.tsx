@@ -251,7 +251,19 @@ export default function StatusPopover({
   /** Set when `placement === 'below'`: the most the card may take before it scrolls. */
   let belowMaxHeight: number | null = null;
 
-  if (placement === 'below' && buttonPosition) {
+  if (!showTriangle) {
+    /*
+     * No tail: this is a sheet hanging from the header (Room Detail), not a
+     * menu pointing at a pill. Flush against the header's bottom edge, with no
+     * gap — the `placement: 'below'` rule placed it `spacing` under the status
+     * button instead, which on Room Detail left the blurred tabs showing
+     * between header and card.
+     */
+    modalLeft = left * scaleX;
+    modalTopPosition = minTop;
+    triangleLeft = 0;
+    belowMaxHeight = Math.max(160 * scaleX, SCREEN_HEIGHT - insets.bottom - 12 * scaleX - minTop);
+  } else if (placement === 'below' && buttonPosition) {
     const spacing = spacingProp * scaleX;
     modalTopPosition = Math.max(minTop, buttonPosition.y + buttonPosition.height + spacing);
     trianglePlacement = 'top';

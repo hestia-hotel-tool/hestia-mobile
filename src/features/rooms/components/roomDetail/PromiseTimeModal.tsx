@@ -1,532 +1,348 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { dateAtWheelIndex, dateWheelDates, dateWheelIndex } from '../../utils/dateWheel';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Animated,
+  Dimensions,
+  Easing,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from 'react-native';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
+import { useNow } from '@/hooks/useNow';
 import { RETURN_LATER_MODAL } from '../../constants/returnLaterModalStyles';
+import { dateWheelDates, dateWheelIndex } from '../../utils/dateWheel';
 
 const MIN_MINUTES_FROM_NOW = 5;
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const scaleX = SCREEN_WIDTH / 430;
+/** The minute wheel moves in 5s: 12 rows to scroll instead of 60. */
+const MINUTE_STEP = 5;
+const MINUTES = Array.from({ length: 60 / MINUTE_STEP }, (_, i) => i * MINUTE_STEP);
+const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
+const PERIODS = ['AM', 'PM'] as const;
+/** One tap sets the whole picker: the usual promises are "in half an hour", "in an hour". */
+const QUICK_PICKS = [
+  { label: '+15 min', minutes: 15 },
+  { label: '+30 min', minutes: 30 },
+  { label: '+1 hour', minutes: 60 },
+  { label: '+2 hours', minutes: 120 },
+];
 
-function getMinAllowedTime() {
-  const now = new Date();
-  const min = new Date(now.getTime() + MIN_MINUTES_FROM_NOW * 60 * 1000);
-  const hour24 = min.getHours();
-  const hour12 = hour24 === 0 ? 12 : hour24 > 12 ? hour24 - 12 : hour24;
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const scaleX = SCREEN_WIDTH / 430;
+const ITEM_HEIGHT = RETURN_LATER_MODAL.timePicker.itemHeight * scaleX;
+const WHEEL_HEIGHT = RETURN_LATER_MODAL.timePicker.height * scaleX;
+const WHEEL_PAD = (WHEEL_HEIGHT - ITEM_HEIGHT) / 2;
+
+type Period = 'AM' | 'PM';
+type Picked = { date: Date; hour: number; minute: number; period: Period };
+
+function toTimestamp({ date, hour, minute, period }: Picked): number {
+  const d = new Date(date);
+  const hour24 = period === 'PM' ? (hour === 12 ? 12 : hour + 12) : hour === 12 ? 0 : hour;
+  d.setHours(hour24, minute, 0, 0);
+  return d.getTime();
+}
+
+function fromTimestamp(ms: number): Picked {
+  const t = new Date(ms);
+  const hour24 = t.getHours();
   return {
-    date: new Date(min.getFullYear(), min.getMonth(), min.getDate()),
-    hour12,
-    minute: min.getMinutes(),
-    period: (hour24 >= 12 ? 'PM' : 'AM') as 'AM' | 'PM',
+    date: new Date(t.getFullYear(), t.getMonth(), t.getDate()),
+    hour: hour24 % 12 === 0 ? 12 : hour24 % 12,
+    minute: t.getMinutes(),
+    period: hour24 >= 12 ? 'PM' : 'AM',
   };
+}
+
+/** `ms` rounded up onto the minute wheel. */
+function ceilToStep(ms: number): number {
+  const step = MINUTE_STEP * 60_000;
+  return Math.ceil(ms / step) * step;
+}
+
+/** The earliest time the wheels can show that is at least 5 minutes away. */
+function earliestAllowed(now = Date.now()): number {
+  return ceilToStep(now + MIN_MINUTES_FROM_NOW * 60_000);
+}
+
+function dayLabel(date: Date): string {
+  const offset = dateWheelIndex(date);
+  if (offset === 0) return 'Today';
+  if (offset === 1) return 'Tomorrow';
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+}
+
+function readIndex(e: NativeSyntheticEvent<NativeScrollEvent>, count: number): number {
+  return Math.min(Math.max(Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT), 0), count - 1);
 }
 
 interface PromiseTimeModalProps {
+  /**
+   * Where the room header ends, in screen px: the sheet hangs flush from it.
+   * The header's height changes with what it shows, so it is measured, not
+   * the design's fixed 232.
+   */
+  top?: number;
   visible: boolean;
   onClose: () => void;
-  onConfirm: (promiseTime: string, period: 'AM' | 'PM', formattedDateTime?: string, promiseAtTimestamp?: number) => void;
+  onConfirm: (promiseTime: string, period: Period, formattedDateTime?: string, promiseAtTimestamp?: number) => void;
   roomNumber?: string;
 }
 
-export default function PromiseTimeModal({
-  visible,
-  onClose,
-  onConfirm,
-  roomNumber,
-}: PromiseTimeModalProps) {
-  /**
-   * Shown inline, not through the app's message modal: that is a native Modal
-   * mounted at the root, and iOS cannot present it over this one — it stayed
-   * invisible and the sheet appeared to do nothing.
-   */
-  const [timeError, setTimeError] = useState<{ message: string; forTime: string } | null>(null);
-  const [selectedDate, setSelectedDate] = useState(() => new Date());
-  const [selectedHour, setSelectedHour] = useState(() => 12);
-  const [selectedMinute, setSelectedMinute] = useState(() => 0);
-  const [selectedPeriod, setSelectedPeriod] = useState<'AM' | 'PM'>('AM');
+/**
+ * When the room will be ready for the guest (Figma 1121-825).
+ *
+ * The wheels used to be hard to use: 60 minute rows, and every wheel snapped
+ * back on its own rules when it settled on a time it judged past, so turning
+ * the hour could throw the minute and AM/PM somewhere else. Now:
+ * - quick picks set the whole time in one tap;
+ * - minutes move in 5s;
+ * - a wheel settling on a time under 5 minutes away moves the picker to the
+ *   earliest allowed time, one rule for every wheel;
+ * - the chosen time is spelled out above Confirm.
+ */
+export default function PromiseTimeModal({ top, visible, onClose, onConfirm }: PromiseTimeModalProps) {
+  const [picked, setPicked] = useState<Picked>(() => fromTimestamp(earliestAllowed()));
+  const [timeError, setTimeError] = useState<string | null>(null);
 
-  const dateScrollRef = useRef<ScrollView>(null);
-  const hourScrollRef = useRef<ScrollView>(null);
-  const minuteScrollRef = useRef<ScrollView>(null);
-  const periodScrollRef = useRef<ScrollView>(null);
+  // Wheel events can land after a re-render they did not see; read the latest.
+  const pickedRef = useRef(picked);
+  const dateRef = useRef<ScrollView>(null);
+  const hourRef = useRef<ScrollView>(null);
+  const minuteRef = useRef<ScrollView>(null);
+  const periodRef = useRef<ScrollView>(null);
 
-  const ITEM_HEIGHT = RETURN_LATER_MODAL.timePicker.itemHeight * scaleX;
+  // The sheet drops down from under the header, the way the status menu opens.
+  const [drop] = useState(() => new Animated.Value(0));
+
+  const sheetTop = top ?? 232 * scaleX;
+  const now = useNow();
 
   useEffect(() => {
-    if (visible) {
-      const min = getMinAllowedTime();
-      setSelectedDate(min.date);
-      setSelectedHour(min.hour12);
-      setSelectedMinute(min.minute);
-      setSelectedPeriod(min.period);
-    }
-  }, [visible]);
+    if (!visible) return;
+    drop.setValue(0);
+    Animated.timing(drop, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [visible, drop]);
 
-  const getDayName = (date: Date) => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return days[date.getDay()];
+  const scrollWheelsTo = (p: Picked, animated: boolean, from?: Picked) => {
+    const moved = (a: number, b?: number) => b == null || a !== b;
+    const y = (x: Picked) => ({
+      date: dateWheelIndex(x.date),
+      hour: x.hour - 1,
+      minute: Math.floor(x.minute / MINUTE_STEP),
+      period: x.period === 'AM' ? 0 : 1,
+    });
+    const to = y(p);
+    const was = from ? y(from) : undefined;
+    // Only the wheels whose value changed: a programmatic scroll ends with a
+    // momentum event of its own, which must not come back in as a new pick.
+    if (moved(to.date, was?.date)) dateRef.current?.scrollTo({ y: to.date * ITEM_HEIGHT, animated });
+    if (moved(to.hour, was?.hour)) hourRef.current?.scrollTo({ y: to.hour * ITEM_HEIGHT, animated });
+    if (moved(to.minute, was?.minute)) minuteRef.current?.scrollTo({ y: to.minute * ITEM_HEIGHT, animated });
+    if (moved(to.period, was?.period)) periodRef.current?.scrollTo({ y: to.period * ITEM_HEIGHT, animated });
   };
 
-  // Check if we're at the current date
-  const isCurrentDate = () => {
-    const now = new Date();
-    const selected = new Date(selectedDate);
-    return now.toDateString() === selected.toDateString();
+
+  const apply = (next: Picked, settledOn?: Picked) => {
+    const prev = pickedRef.current;
+    setTimeError(null);
+    pickedRef.current = next;
+    setPicked(next);
+    scrollWheelsTo(next, true, settledOn ?? prev);
   };
 
-  const isAtLeast5MinFromNow = (date: Date, hour: number, minute: number, period: 'AM' | 'PM') => {
-    const check = new Date(date);
-    const hour24 = period === 'PM' ? (hour === 12 ? 12 : hour + 12) : (hour === 12 ? 0 : hour);
-    check.setHours(hour24, minute, 0, 0);
-    const minAllowed = Date.now() + MIN_MINUTES_FROM_NOW * 60 * 1000;
-    return check.getTime() >= minAllowed;
+  /** Every wheel change goes through here, so one rule keeps the time valid. */
+  const choose = (patch: Partial<Picked>) => {
+    const prev = pickedRef.current;
+    const next = { ...prev, ...patch };
+    if (toTimestamp(next) === toTimestamp(prev)) return;
+    // The wheel that moved already shows its value, so it counts as settled.
+    apply(toTimestamp(next) < earliestAllowed() ? fromTimestamp(earliestAllowed()) : next, next);
   };
 
-  // Row i is always today + i (see utils/dateWheel), so reading the day off the
-  // scroll offset cannot move the list under the finger.
-  const handleDateScroll = (event: any) => {
-    const date = dateAtWheelIndex(event.nativeEvent.contentOffset.y / ITEM_HEIGHT);
-    if (date.toDateString() !== selectedDate.toDateString()) setSelectedDate(date);
+  /** Each opening starts from the earliest allowed time, wheels lined up on it. */
+  const handleShow = () => {
+    const start = fromTimestamp(earliestAllowed());
+    pickedRef.current = start;
+    setPicked(start);
+    setTimeError(null);
+    scrollWheelsTo(start, false);
   };
 
-  const handleDateScrollEnd = (event: any) => {
-    const index = dateWheelIndex(dateAtWheelIndex(event.nativeEvent.contentOffset.y / ITEM_HEIGHT));
-    setSelectedDate(dateAtWheelIndex(index));
-    dateScrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-  };
+  const chooseIn = (minutes: number) => apply(fromTimestamp(ceilToStep(Date.now() + minutes * 60_000)));
 
-  const handleHourScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    const hour = index + 1;
-    if (hour >= 1 && hour <= 12) {
-      setSelectedHour(hour);
-    }
-  };
+  const pickedAt = toTimestamp(picked);
+  const earliestAt = earliestAllowed(now);
+  const isTooSoon = (p: Partial<Picked>) => toTimestamp({ ...picked, ...p }) < earliestAt;
 
-  const handleHourScrollEnd = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    const hour = index + 1;
-    if (hour >= 1 && hour <= 12) {
-      // Check if this hour is in the past (only when on current date)
-      let isPast = false;
-      if (isCurrentDate()) {
-        const now = new Date();
-        const currentHour24 = now.getHours();
-        const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
-        const currentPeriod = currentHour24 >= 12 ? 'PM' : 'AM';
-        
-        if (selectedPeriod === currentPeriod) {
-          isPast = hour < currentHour12;
-        } else if (selectedPeriod === 'AM' && currentPeriod === 'PM') {
-          isPast = true;
-        }
-      }
-      
-      if (!isPast) {
-        setSelectedHour(hour);
-        hourScrollRef.current?.scrollTo({ y: (hour - 1) * ITEM_HEIGHT, animated: true });
-      } else {
-        // Scroll back to current hour
-        const now = new Date();
-        const currentHour24 = now.getHours();
-        const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
-        setSelectedHour(currentHour12);
-        hourScrollRef.current?.scrollTo({ y: (currentHour12 - 1) * ITEM_HEIGHT, animated: true });
-      }
-    }
-  };
-
-  const handleMinuteScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const minute = Math.round(offsetY / ITEM_HEIGHT);
-    if (minute >= 0 && minute <= 59) {
-      setSelectedMinute(minute);
-    }
-  };
-
-  const handleMinuteScrollEnd = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const minute = Math.round(offsetY / ITEM_HEIGHT);
-    if (minute >= 0 && minute <= 59) {
-      if (!isAtLeast5MinFromNow(selectedDate, selectedHour, minute, selectedPeriod)) {
-        const min = getMinAllowedTime();
-        setSelectedDate(min.date);
-        setSelectedHour(min.hour12);
-        setSelectedMinute(min.minute);
-        setSelectedPeriod(min.period);
-        setTimeout(() => {
-          minuteScrollRef.current?.scrollTo({ y: min.minute * ITEM_HEIGHT, animated: true });
-          hourScrollRef.current?.scrollTo({ y: (min.hour12 - 1) * ITEM_HEIGHT, animated: true });
-          periodScrollRef.current?.scrollTo({ y: (min.period === 'AM' ? 0 : 1) * ITEM_HEIGHT, animated: true });
-        }, 50);
-      } else {
-        setSelectedMinute(minute);
-        minuteScrollRef.current?.scrollTo({ y: minute * ITEM_HEIGHT, animated: true });
-      }
-    }
-  };
-
-  const handlePeriodScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    setSelectedPeriod(index === 0 ? 'AM' : 'PM');
-  };
-
-  const handlePeriodScrollEnd = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const index = Math.round(offsetY / ITEM_HEIGHT);
-    const period = index === 0 ? 'AM' : 'PM';
-    
-    // Check if AM is in the past (only when on current date and we're in PM)
-    let isPast = false;
-    if (isCurrentDate() && period === 'AM') {
-      const now = new Date();
-      const currentPeriod = now.getHours() >= 12 ? 'PM' : 'AM';
-      if (currentPeriod === 'PM') {
-        isPast = true;
-      }
-    }
-    
-    if (!isPast) {
-      setSelectedPeriod(period);
-      periodScrollRef.current?.scrollTo({ y: index * ITEM_HEIGHT, animated: true });
-    } else {
-      // Scroll back to current period
-      const now = new Date();
-      const currentPeriod = now.getHours() >= 12 ? 'PM' : 'AM';
-      setSelectedPeriod(currentPeriod);
-      const periodIndex = currentPeriod === 'AM' ? 0 : 1;
-      periodScrollRef.current?.scrollTo({ y: periodIndex * ITEM_HEIGHT, animated: true });
-    }
-  };
-
-  // The "too soon" message belongs to the time it was about; picking another
-  // time makes it stale, so it only shows while that time is still selected.
-  const pickedTime = `${selectedDate.toDateString()} ${selectedHour}:${selectedMinute} ${selectedPeriod}`;
-  const visibleTimeError = timeError?.forTime === pickedTime ? timeError.message : null;
-
-  /**
-   * Line the wheels up with the defaulted time once the sheet is on screen.
-   * `onShow`, not a timer after `visible`: SafeModal can hold presentation
-   * back while another sheet finishes closing, and the wheels do not exist
-   * until it is shown.
-   */
-  const scrollWheelsToSelection = () => {
-    dateScrollRef.current?.scrollTo({ y: dateWheelIndex(selectedDate) * ITEM_HEIGHT, animated: false });
-    hourScrollRef.current?.scrollTo({ y: (selectedHour - 1) * ITEM_HEIGHT, animated: false });
-    minuteScrollRef.current?.scrollTo({ y: selectedMinute * ITEM_HEIGHT, animated: false });
-    periodScrollRef.current?.scrollTo({ y: (selectedPeriod === 'AM' ? 0 : 1) * ITEM_HEIGHT, animated: false });
-  };
+  const timeString = `${picked.hour.toString().padStart(2, '0')}:${picked.minute.toString().padStart(2, '0')} ${picked.period}`;
+  const readyBy = `${dayLabel(picked.date)} at ${picked.hour}:${picked.minute.toString().padStart(2, '0')} ${picked.period}`;
 
   const handleConfirm = () => {
-    if (!isAtLeast5MinFromNow(selectedDate, selectedHour, selectedMinute, selectedPeriod)) {
-      setTimeError({ message: `Promise time must be at least ${MIN_MINUTES_FROM_NOW} minutes from now.`, forTime: pickedTime });
+    if (pickedAt < Date.now() + MIN_MINUTES_FROM_NOW * 60_000) {
+      setTimeError(`Promise time must be at least ${MIN_MINUTES_FROM_NOW} minutes from now.`);
       return;
     }
-    const timeString = `${selectedHour.toString().padStart(2, '0')}:${selectedMinute.toString().padStart(2, '0')} ${selectedPeriod}`;
-    const formattedDateTime = `${selectedDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${timeString}`;
-    const promiseAt = new Date(selectedDate);
-    const hour24 = selectedPeriod === 'PM' ? (selectedHour === 12 ? 12 : selectedHour + 12) : (selectedHour === 12 ? 0 : selectedHour);
-    promiseAt.setHours(hour24, selectedMinute, 0, 0);
-    onConfirm(timeString, selectedPeriod, formattedDateTime, promiseAt.getTime());
+    const formattedDateTime = `${picked.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} at ${timeString}`;
+    onConfirm(timeString, picked.period, formattedDateTime, pickedAt);
   };
 
+  const translateY = drop.interpolate({ inputRange: [0, 1], outputRange: [-(SCREEN_HEIGHT - sheetTop), 0] });
+
   return (
-    <Modal
-      transparent
-      visible={visible}
-      onShow={scrollWheelsToSelection}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal transparent visible={visible} onShow={handleShow} animationType="none" onRequestClose={onClose}>
       <View style={styles.container}>
-        {/* Modal Overlay - White background */}
-        <View style={styles.modalOverlay}>
-          <ScrollView
-            style={styles.scrollView}
-            contentContainerStyle={styles.scrollContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {/* Title - Figma 1121-825 */}
-            <Text style={styles.title}>Promise time</Text>
-            <Text style={styles.subtitle}>Add time for when the room will be ready</Text>
+        {/*
+          The sheet is a native modal over the whole screen, header included,
+          so the header's back arrow cannot be reached under it. Tapping the
+          header area closes the sheet (as Android's back button does).
+        */}
+        <Pressable
+          style={[styles.dismissArea, { height: sheetTop }]}
+          onPress={onClose}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+        />
+        <View style={[styles.sheetClip, { top: sheetTop }]}>
+          <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+            <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+              <Text style={styles.title}>Promise time</Text>
+              <Text style={styles.subtitle}>Add time for when the room will be ready</Text>
 
-            {/* Divider */}
-            <View style={styles.divider} />
+              <View style={styles.divider} />
 
-            {/*
-              No suggestions row here, deliberately. Figma 1121-825 goes straight
-              from the rule to the picker, while Return Later's own frame
-              (1121-328) does carry Suggestions and its four buttons. Checking
-              both is what makes this a designed difference rather than a frame
-              that forgot: a promise to the guest is a specific time the room
-              will be ready, not a rough interval the way a return slot is.
-            */}
-
-            {/* Date & Time Picker - 4 columns (Figma) */}
-            <View style={styles.dateTimePickerWrapper}>
-              <View style={styles.wheelPickerContainer}>
-                {/* Selection Dividers */}
-                <View style={styles.selectionDividerTop} />
-                <View style={styles.selectionDividerBottom} />
-                
-                {/* Date Column */}
-                <View style={styles.wheelColumn}>
-                  <ScrollView 
-                    ref={dateScrollRef}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.wheelScrollContent}
-                    snapToInterval={ITEM_HEIGHT}
-                    decelerationRate="fast"
-                    onScroll={handleDateScroll}
-                    onMomentumScrollEnd={handleDateScrollEnd}
-                    scrollEventThrottle={16}
-                  >
-                    {dateWheelDates().map((date) => {
-                      const isSelected = date.toDateString() === selectedDate.toDateString();
-                      
-                      // Check if date is in the past
-                      const now = new Date();
-                      now.setHours(0, 0, 0, 0);
-                      const checkDate = new Date(date);
-                      checkDate.setHours(0, 0, 0, 0);
-                      const isPast = checkDate.getTime() < now.getTime();
-                      
-                      const dayName = getDayName(date);
-                      const monthName = date.toLocaleDateString('en-US', { month: 'short' });
-                      const dayNum = date.getDate();
-                      
-                      return (
-                        <TouchableOpacity
-                          key={date.toDateString()}
-                          onPress={() => {
-                            if (!isPast) {
-                              setSelectedDate(date);
-                              dateScrollRef.current?.scrollTo({ y: dateWheelIndex(date) * ITEM_HEIGHT, animated: true });
-                            }
-                          }}
-                          style={styles.wheelItem}
-                          disabled={isPast}
-                        >
-                          <Text 
-                            numberOfLines={1}
-                            ellipsizeMode="clip"
-                            style={[
-                              styles.wheelDateText,
-                              isSelected && styles.wheelSelectedDateText,
-                              isPast && styles.wheelDateTextDisabled
-                            ]}
-                          >
-                            {dayName} {monthName} {dayNum}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* Hour Column */}
-                <View style={styles.wheelColumn}>
-                  <ScrollView 
-                    ref={hourScrollRef}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.wheelScrollContent}
-                    snapToInterval={ITEM_HEIGHT}
-                    decelerationRate="fast"
-                    onScroll={handleHourScroll}
-                    onMomentumScrollEnd={handleHourScrollEnd}
-                    scrollEventThrottle={16}
-                  >
-                    {[...Array(12)].map((_, i) => {
-                      const hour = i + 1;
-                      const isSelected = selectedHour === hour;
-                      
-                      // Check if this hour is in the past (only when on current date)
-                      let isPast = false;
-                      if (isCurrentDate()) {
-                        const now = new Date();
-                        const currentHour24 = now.getHours();
-                        const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
-                        const currentPeriod = currentHour24 >= 12 ? 'PM' : 'AM';
-                        
-                        // Check if this hour is before current hour (same period) or in previous period
-                        if (selectedPeriod === currentPeriod) {
-                          isPast = hour < currentHour12;
-                        } else if (selectedPeriod === 'AM' && currentPeriod === 'PM') {
-                          isPast = true; // All AM hours are in the past if we're in PM
-                        }
-                      }
-                      
-                      return (
-                        <TouchableOpacity
-                          key={`hour-${hour}`}
-                          onPress={() => {
-                            if (!isPast) {
-                              setSelectedHour(hour);
-                            }
-                          }}
-                          style={styles.wheelItem}
-                          disabled={isPast}
-                        >
-                          <Text style={[
-                            styles.wheelNumberText,
-                            isSelected && styles.wheelSelectedNumberText,
-                            isPast && styles.wheelNumberTextDisabled
-                          ]}>
-                            {hour}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* Minute Column */}
-                <View style={styles.wheelColumn}>
-                  <ScrollView 
-                    ref={minuteScrollRef}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.wheelScrollContent}
-                    snapToInterval={ITEM_HEIGHT}
-                    decelerationRate="fast"
-                    onScroll={handleMinuteScroll}
-                    onMomentumScrollEnd={handleMinuteScrollEnd}
-                    scrollEventThrottle={16}
-                  >
-                    {[...Array(60)].map((_, i) => {
-                      const isSelected = selectedMinute === i;
-                      
-                      // Check if this minute is in the past (only when on current date and current hour)
-                      let isPast = false;
-                      if (isCurrentDate()) {
-                        const now = new Date();
-                        const currentHour24 = now.getHours();
-                        const currentHour12 = currentHour24 === 0 ? 12 : currentHour24 > 12 ? currentHour24 - 12 : currentHour24;
-                        const currentPeriod = currentHour24 >= 12 ? 'PM' : 'AM';
-                        const currentMinute = now.getMinutes();
-                        
-                        // Check if we're in the same hour and period
-                        if (selectedHour === currentHour12 && selectedPeriod === currentPeriod) {
-                          isPast = i < currentMinute;
-                        } else if (selectedPeriod === 'AM' && currentPeriod === 'PM') {
-                          isPast = true; // All AM minutes are in the past if we're in PM
-                        } else if (selectedPeriod === currentPeriod && selectedHour < currentHour12) {
-                          isPast = true; // Past hour in same period
-                        }
-                      }
-                      
-                      return (
-                        <TouchableOpacity
-                          key={`minute-${i}`}
-                          onPress={() => {
-                            if (!isPast) {
-                              setSelectedMinute(i);
-                            }
-                          }}
-                          style={styles.wheelItem}
-                          disabled={isPast}
-                        >
-                          <Text style={[
-                            styles.wheelNumberText,
-                            isSelected && styles.wheelSelectedNumberText,
-                            isPast && styles.wheelNumberTextDisabled
-                          ]}>
-                            {i.toString().padStart(2, '0')}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
-
-                {/* AM/PM Column */}
-                <View style={styles.wheelColumn}>
-                  <ScrollView 
-                    ref={periodScrollRef}
-                    showsVerticalScrollIndicator={false}
-                    contentContainerStyle={styles.wheelScrollContent}
-                    snapToInterval={ITEM_HEIGHT}
-                    decelerationRate="fast"
-                    onScroll={handlePeriodScroll}
-                    onMomentumScrollEnd={handlePeriodScrollEnd}
-                    scrollEventThrottle={16}
-                  >
-                    {['AM', 'PM'].map((period) => {
-                      const isSelected = selectedPeriod === period;
-                      
-                      // Check if AM is in the past (only when on current date and we're in PM)
-                      let isPast = false;
-                      if (isCurrentDate() && period === 'AM') {
-                        const now = new Date();
-                        const currentPeriod = now.getHours() >= 12 ? 'PM' : 'AM';
-                        if (currentPeriod === 'PM') {
-                          isPast = true; // AM is in the past if we're in PM
-                        }
-                      }
-                      
-                      return (
-                        <TouchableOpacity
-                          key={period}
-                          onPress={() => {
-                            if (!isPast) {
-                              setSelectedPeriod(period as 'AM' | 'PM');
-                            }
-                          }}
-                          style={styles.wheelItem}
-                          disabled={isPast}
-                        >
-                          <Text style={[
-                            styles.wheelNumberText,
-                            isSelected && styles.wheelSelectedNumberText,
-                            isPast && styles.wheelNumberTextDisabled
-                          ]}>
-                            {period}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
-                </View>
+              <View style={styles.quickPicks}>
+                {QUICK_PICKS.map((q) => (
+                  <TouchableOpacity key={q.label} style={styles.quickPick} onPress={() => chooseIn(q.minutes)} activeOpacity={0.7}>
+                    <Text style={styles.quickPickText}>{q.label}</Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            </View>
 
-            {visibleTimeError ? (
+              <View style={styles.wheels}>
+                <View pointerEvents="none" style={styles.selectionBand} />
+                <Wheel
+                  scrollRef={dateRef}
+                  items={dateWheelDates()}
+                  isSelected={(d) => d.toDateString() === picked.date.toDateString()}
+                  label={dayLabel}
+                  onPick={(d) => choose({ date: d })}
+                  disabled={(d) => isTooSoon({ date: d, hour: 11, minute: 55, period: 'PM' })} flex={1.7} kind="date"
+                />
+                <Wheel
+                  scrollRef={hourRef}
+                  items={HOURS}
+                  isSelected={(h) => h === picked.hour}
+                  label={(h) => String(h)}
+                  onPick={(h) => choose({ hour: h })}
+                  disabled={(h) => isTooSoon({ hour: h, minute: 55 })}
+                />
+                <Wheel
+                  scrollRef={minuteRef}
+                  items={MINUTES}
+                  isSelected={(m) => m === picked.minute}
+                  label={(m) => m.toString().padStart(2, '0')}
+                  onPick={(m) => choose({ minute: m })}
+                  disabled={(m) => isTooSoon({ minute: m })}
+                />
+                <Wheel
+                  scrollRef={periodRef}
+                  items={PERIODS}
+                  isSelected={(p) => p === picked.period}
+                  label={(p) => p}
+                  onPick={(p) => choose({ period: p })}
+                  disabled={(p) => isTooSoon({ period: p, hour: 11, minute: 55 })}
+                />
+              </View>
 
-              <Text style={styles.timeError} accessibilityRole="alert">
-
-                {visibleTimeError}
-
+              <Text style={styles.readyBy}>
+                Ready by <Text style={styles.readyByTime}>{readyBy}</Text>
               </Text>
 
-            ) : null}
+              {timeError ? (
+                <Text style={styles.timeError} accessibilityRole="alert">
+                  {timeError}
+                </Text>
+              ) : null}
 
-            {/* Confirm Button */}
-            <TouchableOpacity
-              style={styles.confirmButton}
-              onPress={handleConfirm}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.confirmButtonText}>Confirm</Text>
-            </TouchableOpacity>
-          </ScrollView>
+              <TouchableOpacity style={styles.confirmButton} onPress={handleConfirm} activeOpacity={0.8}>
+                <Text style={styles.confirmButtonText}>Confirm</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </Animated.View>
         </View>
       </View>
     </Modal>
   );
 }
 
+type WheelProps<T> = {
+  scrollRef: React.RefObject<ScrollView | null>;
+  items: readonly T[];
+  isSelected: (item: T) => boolean;
+  label: (item: T) => string;
+  onPick: (item: T) => void;
+  disabled: (item: T) => boolean;
+  flex?: number;
+  kind?: 'date' | 'number';
+};
+
+function Wheel<T>({ scrollRef, items, isSelected, label, onPick, disabled, flex = 1, kind = 'number' }: WheelProps<T>) {
+  return (
+    <View style={[styles.wheelColumn, { flex }]}>
+      <ScrollView
+        ref={scrollRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingVertical: WHEEL_PAD }}
+        snapToInterval={ITEM_HEIGHT}
+        decelerationRate="fast"
+        onMomentumScrollEnd={(e) => onPick(items[readIndex(e, items.length)])}
+        onScrollEndDrag={(e) => {
+          // A slow drag that stops without momentum never fires the event above.
+          if (Math.abs(e.nativeEvent.velocity?.y ?? 0) < 0.05) onPick(items[readIndex(e, items.length)]);
+        }}
+      >
+        {items.map((item) => {
+          const selected = isSelected(item);
+          return (
+            <TouchableOpacity key={label(item)} style={styles.wheelItem} onPress={() => onPick(item)}>
+              <Text
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+                style={[
+                  kind === 'date' ? styles.dateText : styles.numberText,
+                  selected && (kind === 'date' ? styles.dateTextSelected : styles.numberTextSelected),
+                  !selected && disabled(item) && styles.disabledText,
+                ]}
+              >
+                {label(item)}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const T = RETURN_LATER_MODAL.timePicker;
+
 const styles = StyleSheet.create({
+  dismissArea: { position: 'absolute', top: 0, left: 0, right: 0 },
   container: { flex: 1, backgroundColor: 'transparent' },
-  modalOverlay: {
-    position: 'absolute',
-    top: 232 * scaleX,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#FFFFFF',
-  },
+  /** Clips the sheet at the header's edge while it drops. */
+  sheetClip: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden' },
+  sheet: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollView: { flex: 1 },
   scrollContent: { paddingBottom: 80 * scaleX },
   title: {
@@ -552,99 +368,69 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: RETURN_LATER_MODAL.divider.backgroundColor,
   },
-  dateTimePickerWrapper: {
-    marginTop: 32 * scaleX,
+  quickPicks: {
+    marginTop: 22 * scaleX,
     marginHorizontal: 24 * scaleX,
-  },
-  wheelPickerContainer: {
     flexDirection: 'row',
-    height: RETURN_LATER_MODAL.timePicker.height * scaleX,
-    position: 'relative',
+    gap: 10 * scaleX,
+  },
+  quickPick: {
+    flex: 1,
+    height: 39 * scaleX,
+    borderRadius: 41 * scaleX,
+    borderWidth: 1,
+    borderColor: '#5a759d',
     alignItems: 'center',
-  },
-  selectionDividerTop: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: RETURN_LATER_MODAL.timePicker.height * 0.4 * scaleX,
-    height: 1,
-    backgroundColor: RETURN_LATER_MODAL.divider.backgroundColor,
-    zIndex: 10,
-  },
-  selectionDividerBottom: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    top: RETURN_LATER_MODAL.timePicker.height * 0.6 * scaleX,
-    height: 1,
-    backgroundColor: RETURN_LATER_MODAL.divider.backgroundColor,
-    zIndex: 10,
-  },
-  wheelColumn: { flex: 1, height: '100%' },
-  wheelScrollContent: {
-    paddingTop: (RETURN_LATER_MODAL.timePicker.height - RETURN_LATER_MODAL.timePicker.itemHeight) / 2 * scaleX,
-    paddingBottom: (RETURN_LATER_MODAL.timePicker.height - RETURN_LATER_MODAL.timePicker.itemHeight) / 2 * scaleX,
-  },
-  wheelItem: {
-    height: RETURN_LATER_MODAL.timePicker.itemHeight * scaleX,
     justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4 * scaleX,
   },
-  wheelDateText: {
-    fontSize: RETURN_LATER_MODAL.timePicker.unselectedFontSize * scaleX,
-    color: RETURN_LATER_MODAL.timePicker.unselectedColor,
+  quickPickText: { fontSize: 14 * scaleX, fontFamily: 'Helvetica', fontWeight: '400', color: '#334866' },
+  wheels: {
+    marginTop: 20 * scaleX,
+    marginHorizontal: 24 * scaleX,
+    height: WHEEL_HEIGHT,
+    flexDirection: 'row',
+  },
+  /** The row the wheels settle on. */
+  selectionBand: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: WHEEL_PAD,
+    height: ITEM_HEIGHT,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: RETURN_LATER_MODAL.divider.backgroundColor,
+    backgroundColor: 'rgba(90, 117, 157, 0.06)',
+  },
+  wheelColumn: { height: '100%' },
+  wheelItem: { height: ITEM_HEIGHT, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 4 * scaleX },
+  dateText: { fontSize: 13 * scaleX, fontFamily: 'Helvetica', fontWeight: '400', color: T.unselectedColor },
+  dateTextSelected: { fontSize: 16 * scaleX, fontWeight: '700', color: T.selectedColor },
+  numberText: {
+    fontSize: T.unselectedFontSize * scaleX,
     fontFamily: 'Helvetica',
-    fontWeight: RETURN_LATER_MODAL.timePicker.unselectedFontWeight as any,
-    textAlign: 'center',
+    fontWeight: T.unselectedFontWeight,
+    color: T.unselectedColor,
   },
-  wheelSelectedDateText: {
-    fontSize: RETURN_LATER_MODAL.timePicker.selectedFontSize * scaleX,
-    color: RETURN_LATER_MODAL.timePicker.selectedColor,
+  numberTextSelected: { fontSize: 22 * scaleX, fontWeight: T.selectedFontWeight, color: T.selectedColor },
+  disabledText: { opacity: 0.35 },
+  readyBy: {
+    marginTop: 20 * scaleX,
+    textAlign: 'center',
+    fontSize: 15 * scaleX,
     fontFamily: 'Helvetica',
-    fontWeight: RETURN_LATER_MODAL.timePicker.selectedFontWeight as any,
-    textAlign: 'center',
+    fontWeight: '300',
+    color: '#1e1e1e',
   },
-  wheelDateTextDisabled: {
-    color: RETURN_LATER_MODAL.timePicker.unselectedColor,
-    opacity: 0.5,
-  },
-  wheelNumberText: {
-    fontSize: RETURN_LATER_MODAL.timePicker.unselectedFontSize * scaleX,
-    color: RETURN_LATER_MODAL.timePicker.unselectedColor,
-    fontFamily: 'Helvetica',
-    fontWeight: RETURN_LATER_MODAL.timePicker.unselectedFontWeight as any,
-    textAlign: 'center',
-  },
-  wheelSelectedNumberText: {
-    fontSize: RETURN_LATER_MODAL.timePicker.selectedFontSize * scaleX,
-    color: RETURN_LATER_MODAL.timePicker.selectedColor,
-    fontFamily: 'Helvetica',
-    fontWeight: RETURN_LATER_MODAL.timePicker.selectedFontWeight as any,
-    textAlign: 'center',
-  },
-  wheelNumberTextDisabled: {
-    color: RETURN_LATER_MODAL.timePicker.unselectedColor,
-    opacity: 0.5,
-  },
-  timeError: {
-    marginTop: 12 * scaleX,
-    textAlign: 'center',
-    fontSize: 14 * scaleX,
-    color: '#f92424',
-  },
+  readyByTime: { fontWeight: '700', color: '#334866' },
+  timeError: { marginTop: 12 * scaleX, textAlign: 'center', fontSize: 14 * scaleX, color: '#f92424' },
   confirmButton: {
-    marginTop: 40 * scaleX,
+    marginTop: 24 * scaleX,
     marginHorizontal: 35 * scaleX,
     height: 70 * scaleX,
     backgroundColor: '#5a759d',
     justifyContent: 'center',
     alignItems: 'center',
   },
-  confirmButtonText: {
-    fontSize: 18 * scaleX,
-    fontFamily: 'Helvetica',
-    fontWeight: '400',
-    color: '#FFFFFF',
-  },
+  confirmButtonText: { fontSize: 18 * scaleX, fontFamily: 'Helvetica', fontWeight: '400', color: '#FFFFFF' },
 });

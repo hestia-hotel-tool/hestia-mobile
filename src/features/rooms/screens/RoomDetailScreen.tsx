@@ -79,7 +79,7 @@ function formatRegisteredTimestamp(iso?: string | null): string {
   return `${hh}:${mm}, ${dt.getDate()} ${monthNames[dt.getMonth()]} ${dt.getFullYear()}`;
 }
 
-type ServiceBusy = 'dndSet' | 'dndStill' | 'dndCleared' | 'serviceResumed' | 'returnLaterCleared' | null;
+type ServiceBusy = 'dndSet' | 'dndStill' | 'dndCleared' | 'serviceResumed' | 'returnLaterCleared' | 'promiseRemoved' | null;
 
 export default function RoomDetailScreen() {
   const navigation = useNavigation<RoomDetailScreenNavigationProp>();
@@ -593,6 +593,12 @@ export default function RoomDetailScreen() {
       setServiceBusy(null);
     }
   };
+  /** Take the promise back: from the Overview panel or the status menu's row. */
+  const handleRemovePromise = async () => {
+    if (!localRoomRef.current.promiseTimeAt) return;
+    await runServiceAction('promiseRemoved', { promise_time_at: null }, `Promise time removed from room ${room.roomNumber}.`);
+    void logRoomHistoryEvent({ roomId: room.id, type: 'promise_time', description: 'Promise time removed' });
+  };
   const clearServiceState = (key: ServiceBusy, done: string) =>
     runServiceAction(key, activityStateToUpdate({ kind: 'none' }), done);
 
@@ -604,6 +610,8 @@ export default function RoomDetailScreen() {
     onServiceResumed: () =>
       void clearServiceState('serviceResumed', 'Service is back on — the room is ready to clean.'),
     onReturnLaterCleared: () => void clearServiceState('returnLaterCleared', 'Return later cleared.'),
+    onPromiseChange: () => handleStatusSelect('PromisedTime'),
+    onPromiseRemoved: () => void handleRemovePromise(),
     busy: serviceBusy === 'dndSet' ? null : serviceBusy,
   };
 
@@ -1153,6 +1161,7 @@ export default function RoomDetailScreen() {
         }}
         currentStatus={currentStatus}
         room={localRoom}
+        onRemovePromise={() => void handleRemovePromise()}
         buttonPosition={statusButtonPosition}
         headerHeight={modalHeaderHeight}
         showTriangle={false}
@@ -1207,6 +1216,7 @@ export default function RoomDetailScreen() {
       />
 
       <ReturnLaterModal
+        top={modalHeaderHeight * scaleX}
         visible={showReturnLaterModal}
         onClose={() => {
           setShowReturnLaterModal(false);
@@ -1219,6 +1229,7 @@ export default function RoomDetailScreen() {
       />
 
       <PromiseTimeModal
+        top={modalHeaderHeight * scaleX}
         visible={showPromiseTimeModal}
         onClose={() => {
           setShowPromiseTimeModal(false);
@@ -1229,6 +1240,7 @@ export default function RoomDetailScreen() {
       />
 
       <RefuseServiceModal
+        top={modalHeaderHeight * scaleX}
         visible={showRefuseServiceModal}
         onClose={() => {
           setShowRefuseServiceModal(false);
