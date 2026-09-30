@@ -2,8 +2,8 @@ import React from 'react';
 import { View, Text, Pressable } from '@/tw';
 import { Image } from '@/tw/image';
 import { Icon, type IconName } from '@/components/Icon';
-import { colors } from '@/theme';
-import { ROOM_CARD } from './roomCardLayout';
+import { colors, typography } from '@/theme';
+import { ROOM_CARD, cardPx } from './roomCardLayout';
 
 /**
  * Which mark sits on the guest photo's corner. Derived from the reservation,
@@ -129,7 +129,9 @@ export function GuestRow({
     // card — each claimed a flex share and shrank to fit, so the rows collided:
     // the first guest's "ETA: …" line landed on top of the second guest's name.
     // Content height, always; the container decides the spacing.
-    <View className="flex-row items-center gap-md">
+    // At least the photo's height, and taller when a long name or the dates
+    // wrap — the row grows rather than letting its text run into the next.
+    <View className="flex-row items-center" style={{ gap: ROOM_CARD.guest.textGap, minHeight: ROOM_CARD.guest.photo }}>
       <PhotoContainer
         {...(onImagePress
           ? { onPress: onImagePress, accessibilityRole: 'button' as const, accessibilityLabel: `${name}'s photo` }
@@ -137,19 +139,29 @@ export function GuestRow({
         style={{ width: ROOM_CARD.guest.photo, height: ROOM_CARD.guest.photo }}
       >
         {/* Android does not clip children to borderRadius — hence overflow. */}
-        <View className="h-full w-full overflow-hidden rounded-sm bg-surface-secondary">
+        <View
+          className="h-full w-full overflow-hidden bg-surface-secondary"
+          style={{ borderRadius: ROOM_CARD.guest.photoRadius }}
+        >
           {imageUrl ? (
             <Image source={{ uri: imageUrl }} className="h-full w-full" contentFit="cover" />
           ) : null}
         </View>
         <View
-          className="absolute -bottom-1.5 -right-1.5 items-center justify-center rounded-full"
-          style={{ width: discSize, height: discSize, backgroundColor: badge.background }}
+          className="absolute items-center justify-center rounded-full"
+          // 3883:6144: the disc hangs 6 below the photo and 2 past its right edge.
+          style={{
+            width: discSize,
+            height: discSize,
+            backgroundColor: badge.background,
+            bottom: ROOM_CARD.guest.badgeBottom,
+            right: ROOM_CARD.guest.badgeRight,
+          }}
         >
           <View {...(badge.flip ? { style: { transform: [{ scaleX: -1 }] } } : {})}>
             <Icon
               name={badge.icon}
-              size={badge.glyph ?? discSize * 0.62}
+              size={badge.glyph != null ? cardPx(badge.glyph) : discSize * 0.62}
               color={colors.text.white}
             />
           </View>
@@ -158,11 +170,12 @@ export function GuestRow({
 
       <View className="flex-1">
         <View className="flex-row items-baseline gap-xs">
-          <Text className="font-hestia-primary text-hestia-md font-bold text-ink-primary" numberOfLines={2}>
+          {/* Shrinks so a wrapped name keeps its marker ("11") beside it, in the column. */}
+          <Text style={[LINE, { fontWeight: '700', flexShrink: 1 }]} numberOfLines={2}>
             {name}
           </Text>
           {!!marker && (
-            <Text className="font-hestia-primary text-hestia-sm font-light text-ink-secondary">
+            <Text style={{ fontFamily: typography.fontFamily.primary, fontSize: cardPx(12), fontWeight: '300', color: '#334866' }}>
               {marker}
             </Text>
           )}
@@ -177,29 +190,33 @@ export function GuestRow({
           // "26/04-28/04" plus the count needs ~135px. Clipping lost the count
           // on every card; wrapping keeps both at any width and still sits on
           // one line at 440.
-          <View className="flex-row flex-wrap items-center gap-x-md">
-            {!!dates && (
-              <Text className="font-hestia-primary text-hestia-md font-light text-ink-primary">
-                {dates}
-              </Text>
-            )}
+          // 3883:6000–6008: the dates, 10, the 13x12 occupancy glyph, 6, the count.
+          <View className="flex-row flex-wrap items-center" style={{ columnGap: cardPx(10) }}>
+            {!!dates && <Text style={[LINE, { fontWeight: '300' }]}>{dates}</Text>}
             {!!occupancy && (
-              <View className="flex-row items-center gap-xs">
-                <Icon name="guest-occupancy" size={13} color={colors.text.primary} />
-                <Text className="font-hestia-primary text-hestia-md font-light text-ink-primary">
-                  {occupancy}
-                </Text>
+              <View className="flex-row items-center" style={{ gap: cardPx(6) }}>
+                <Icon name="guest-occupancy" size={cardPx(12)} color="#000000" />
+                <Text style={[LINE, { fontWeight: '300' }]}>{occupancy}</Text>
               </View>
             )}
           </View>
         )}
 
-        {!!timeLabel && (
-          <Text className="font-hestia-primary text-hestia-md text-ink-primary">{timeLabel}</Text>
-        )}
+        {!!timeLabel && <Text style={[LINE, { fontWeight: '400' }]}>{timeLabel}</Text>}
       </View>
     </View>
   );
 }
+
+/**
+ * Helvetica 14 in black, every guest line (3883:6001, 6000, 5900). Lines are
+ * 21 to 22 apart top to top in the frame.
+ */
+const LINE = {
+  fontFamily: typography.fontFamily.primary,
+  fontSize: cardPx(14),
+  lineHeight: cardPx(21),
+  color: '#000000',
+} as const;
 
 export default GuestRow;

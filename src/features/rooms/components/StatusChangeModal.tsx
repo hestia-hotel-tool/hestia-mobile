@@ -90,7 +90,11 @@ export function statusOptionsFor(
     // An option matching where the room already is would be a no-op: its
     // status, or the state it is in (DND on a Do Not Disturb room). Each
     // state's next step lives in the room's panel ("Still DND", "Sign removed").
-    if (STATUS_OPTION_IDS.includes(option.id) && option.id === currentStatus) return false;
+    // A paused room is still In Progress underneath, and In Progress is how it
+    // resumes, so it stays on the menu.
+    if (STATUS_OPTION_IDS.includes(option.id) && option.id === currentStatus && !(option.id === 'InProgress' && activity === 'paused')) {
+      return false;
+    }
     if (option.id === activeOption) return false;
     return true;
   });

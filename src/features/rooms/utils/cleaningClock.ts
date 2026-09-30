@@ -1,4 +1,4 @@
-import { formatDueTime, formatMinutesSpan } from '@/utils/formatting';
+import { formatClock24, formatDueTime } from '@/utils/formatting';
 import type { RoomCardData } from '../types/allRooms.types';
 import { isRoomPaused } from '../types/allRooms.types';
 
@@ -54,62 +54,83 @@ export function cleaningClock(
   return { elapsedMs, creditMs, remainingMs, running, overdue: remainingMs < 0 };
 }
 
-export type AssigneeStatus = {
-  text: string;
-  /** `alert` draws it in red — over the expected time. */
-  tone: 'default' | 'alert';
-};
+/** Red, for a room over its credit or past a time it was due. */
+const ALERT = '#f92424';
+const INK = '#1e1e1e';
 
 /**
- * The line under the attendant's name on a room card.
+ * The line under the attendant's name, and how it is set. Each state has its
+ * own size, weight and colour in Figma 3883:5570.
+ */
+export type AssigneeStatus = {
+  text: string;
+  size: 10 | 12 | 13;
+  weight: 'light' | 'bold';
+  color: string;
+  /** Over the credit or past due, for the screen reader. */
+  alert: boolean;
+};
+
+const line = (text: string, size: AssigneeStatus['size'], weight: AssigneeStatus['weight'], color = INK, alert = false): AssigneeStatus => ({
+  text,
+  size,
+  weight,
+  color,
+  alert,
+});
+
+/** Whole minutes of cleaning so far: the "Credits: N" the design prints. */
+const creditsUsed = (elapsedMs: number) => Math.max(0, Math.round(elapsedMs / 60_000));
+
+/**
+ * The line under the attendant's name on a room card — Figma 3883:5570:
  *
- *  - Return later / refused / paused say so ("Return at 14:30").
- *  - In Progress counts down the credit: "32 min left", then "8 min late" in
- *    red once past it. Paused time is not counted.
- *  - Cleaned / Inspected say how long it took, when the clock knows.
+ *  - Paused: "Paused at 18:00", bold 13.
+ *  - In Progress: "Credits: 33", the minutes spent so far, bold 13; red once
+ *    past the room's credit. Paused time is not counted.
+ *  - Dirty: "Not Started"; Return Later: "Return at 19:00"; Refused: "NA";
+ *    Do Not Disturb: "Check at 15:00" (the next door check). Light 12; red
+ *    once the time has come.
+ *  - Cleaned / Inspected: "Credits: 33", light 10 in the status colour (blue,
+ *    green); bold red when it took longer than the credit.
  */
 export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
   if (room.dndAt) {
-    // When the door is next due a check; red once that time has come.
     const next = room.dndNextCheckAt ? Date.parse(room.dndNextCheckAt) : NaN;
-    if (!Number.isFinite(next)) return { text: 'Do Not Disturb', tone: 'default' };
-    return {
-      text: `Check at ${formatDueTime(next, new Date(now))}`,
-      tone: next <= now ? 'alert' : 'default',
-    };
+    if (!Number.isFinite(next)) return line('Do Not Disturb', 12, 'light');
+    const due = next <= now;
+    return line(`Check at ${formatDueTime(next, new Date(now))}`, 12, 'light', due ? ALERT : INK, due);
   }
   if (room.returnLaterAt) {
     const at = Date.parse(room.returnLaterAt);
-    if (!Number.isFinite(at)) return { text: 'Return later', tone: 'default' };
-    // Past the time the guest asked for: go back now.
-    if (at <= now) return { text: `Go back now · due ${formatDueTime(at, new Date(now))}`, tone: 'alert' };
-    return { text: `Return at ${formatDueTime(at, new Date(now))}`, tone: 'default' };
+    if (!Number.isFinite(at)) return line('Return later', 12, 'light');
+    const due = at <= now;
+    return line(`Return at ${formatDueTime(at, new Date(now))}`, 12, 'light', due ? ALERT : INK, due);
   }
-  if (room.refuseServiceAt || room.refuseServiceReason) return { text: 'Refused service', tone: 'default' };
+  if (room.refuseServiceAt || room.refuseServiceReason) return line('NA', 12, 'light');
 
   const clock = cleaningClock(room, now);
   if (isRoomPaused(room)) {
-    return clock?.overdue
-      ? { text: `Paused · ${formatMinutesSpan(clock.remainingMs)} late`, tone: 'alert' }
-      : { text: 'Paused', tone: 'default' };
+    const since = room.pausedAt ? Date.parse(room.pausedAt) : NaN;
+    return line(Number.isFinite(since) ? `Paused at ${formatClock24(new Date(since))}` : 'Paused', 13, 'bold');
   }
 
   switch (room.houseKeepingStatus) {
-    case 'InProgress':
-      if (!clock) return { text: 'Started', tone: 'default' };
-      return clock.overdue
-        ? { text: `${formatMinutesSpan(clock.remainingMs)} late`, tone: 'alert' }
-        : { text: `${formatMinutesSpan(clock.remainingMs)} left`, tone: 'default' };
+    case 'InProgress': {
+      const over = !!clock?.overdue;
+      return line(`Credits: ${creditsUsed(clock?.elapsedMs ?? 0)}`, 13, 'bold', over ? ALERT : INK, over);
+    }
     case 'Cleaned':
     case 'Inspected': {
-      const word = room.houseKeepingStatus;
-      return clock && clock.elapsedMs >= 60_000
-        ? { text: `${word} in ${formatMinutesSpan(clock.elapsedMs)}`, tone: clock.overdue ? 'alert' : 'default' }
-        : { text: word, tone: 'default' };
+      const colour = room.houseKeepingStatus === 'Cleaned' ? '#4a91fc' : '#41d541';
+      if (!clock) return line(room.houseKeepingStatus, 10, 'light', colour);
+      return clock.overdue
+        ? line(`Credits: ${creditsUsed(clock.elapsedMs)}`, 10, 'bold', ALERT, true)
+        : line(`Credits: ${creditsUsed(clock.elapsedMs)}`, 10, 'light', colour);
     }
     case 'Dirty':
     default:
-      return { text: 'Not started', tone: 'default' };
+      return line('Not Started', 12, 'light');
   }
 }
 

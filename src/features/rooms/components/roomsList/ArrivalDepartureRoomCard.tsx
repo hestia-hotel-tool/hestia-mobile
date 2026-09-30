@@ -2,14 +2,13 @@ import React from 'react';
 import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
-import { STATUS_CONFIGS, getRoomCardStatus, isCappedStatus } from '../../types/allRooms.types';
+import { getRoomCardStatus } from '../../types/allRooms.types';
 import { guestRowKind, guestTimeLabelForKind } from '../../utils/roomCardProps';
 import { assigneeStatus, promiseLine } from '../../utils/cleaningClock';
 import { useNow } from '@/hooks/useNow';
-import { View } from '@/tw';
-import { ROOM_CARD } from './roomCardLayout';
+import { roomCardSpecName, ROOM_CARD_SPECS } from './roomCardLayout';
+import { RoomCardBody } from './RoomCardBody';
 import { RoomCardShell } from './RoomCardShell';
-import { RoomStatusCap } from './RoomStatusCap';
 import { RoomCardHeader } from './RoomCardHeader';
 import { GuestRow } from './GuestRow';
 import { RoomStatusPill } from './RoomStatusPill';
@@ -33,16 +32,13 @@ export type ArrivalDepartureRoomCardProps = {
 };
 
 /**
- * A room turning over on the same day — Figma 3883:5881.
+ * A room turning over on the same day — Figma 3883:5881 / 4349:2226.
  *
- * Its own component rather than a branch inside the single-guest card, because
- * two things genuinely differ and neither is a prop: there are two guest rows
- * with a rule between them, and the arriving guest's disc is green while the
- * departing guest's is red. Everything else — the shell, the cap, the header,
- * the panel, the pill, the assignee — is the same shared piece.
- *
- * The pill is a single control centred across both rows, which falls out of
- * `RoomGuestPanel` centring its action column.
+ * Two guest rows, 73 apart with nothing between them: the arriving guest's
+ * disc green, the departing guest's red. The pill is one control centred
+ * across both. The card takes its state's style like every other
+ * (`roomCardSpecName`): white with a panel for In Progress, Cleaned and
+ * Inspected; white with a rule for Dirty and the service exceptions.
  */
 export function ArrivalDepartureRoomCard({
   room,
@@ -55,14 +51,14 @@ export function ArrivalDepartureRoomCard({
   measureRef,
   statusPillRef,
 }: ArrivalDepartureRoomCardProps) {
-  // Live: the credit countdown and "Return at" / "P-time" move with the clock.
+  // Live: "Credits", "Return at" and the promise move with the clock.
   const now = useNow();
   const status = assigneeStatus(room, now);
   const promise = promiseLine(room, now);
   const displayStatus = getRoomCardStatus(room);
-  const config = STATUS_CONFIGS[displayStatus];
+  const priority = isActivePriority(room);
+  const spec = ROOM_CARD_SPECS[roomCardSpecName(displayStatus, true, priority)];
   const staff = room.roomAttendantAssigned;
-  const capped = isCappedStatus(displayStatus);
 
   const renderGuest = (guest: GuestInfo, index: number) => {
     // One derivation, used for both the badge and the time prefix — on this
@@ -70,52 +66,34 @@ export function ArrivalDepartureRoomCard({
     // guest and index 1 the departing one. See `guestTimeLabelForKind`.
     const kind = guestRowKind(room, index);
     return (
-    <GuestRow
-      key={`${guest.name}-${index}`}
-      name={guest.name}
-      marker={guest.vipCode != null ? String(guest.vipCode) : undefined}
-      dates={formatDatesOfStayCompact(guest.datesOfStay)}
-      occupancy={formatGuestCount(guest.guestCount)}
-      timeLabel={guestTimeLabelForKind(kind, guest)}
-      kind={kind}
-      imageUrl={guest.imageUrl}
-      onImagePress={guest.imageUrl && onGuestImagePress ? () => onGuestImagePress(guest) : undefined}
-    />
+      <GuestRow
+        key={`${guest.name}-${index}`}
+        name={guest.name}
+        marker={guest.vipCode != null ? String(guest.vipCode) : undefined}
+        dates={formatDatesOfStayCompact(guest.datesOfStay)}
+        occupancy={formatGuestCount(guest.guestCount)}
+        timeLabel={guestTimeLabelForKind(kind, guest)}
+        kind={kind}
+        imageUrl={guest.imageUrl}
+        onImagePress={guest.imageUrl && onGuestImagePress ? () => onGuestImagePress(guest) : undefined}
+      />
     );
   };
 
   return (
-    <RoomCardShell
-      onPress={onPress}
-      onLayout={onLayout}
-      measureRef={measureRef}
-      framed={isActivePriority(room)}
-      cap={
-        capped ? (
-          <RoomStatusCap
-            label={config.label ?? displayStatus}
-            color={config.color}
-            iconName={config.iconName}
-            glyphHeight={config.glyphHeight}
-            foreground={config.foreground}
-          />
-        ) : undefined
-      }
-    >
+    <RoomCardShell spec={spec} framed={priority} onPress={onPress} onLayout={onLayout} measureRef={measureRef}>
       <RoomCardHeader
+        spec={spec}
         roomNumber={room.roomNumber}
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel="Arrival/Departure"
-        flagged={room.flagged}
-        flagLabel={room.flagReason ?? undefined}
         badges={roomBadges(room)}
         assignee={
           <RoomAssigneeBlock
             name={staff?.name}
             avatarUrl={staff?.avatar}
-            // Unassigned rooms skip "Not started" — the Assign room button says it.
-            statusLine={staff?.name || status.text !== 'Not started' ? status.text : null}
-            statusTone={status.tone}
+            // Unassigned rooms skip "Not Started" — the Assign room button says it.
+            status={staff?.name || status.text !== 'Not Started' ? status : null}
             onPress={onAssignPress}
           />
         }
@@ -123,34 +101,19 @@ export function ArrivalDepartureRoomCard({
 
       <RoomPromiseRow text={promise} />
 
-      {/* A full-bleed rule under the header, then the guests on the card
-          itself — node 3883:5642 is a 392px line spanning the whole 392px
-          card, not an inset one. */}
-      <View className="h-px bg-border-medium" />
-
-      <View className="flex-row items-center gap-md px-xl py-lg">
-        {/* Stacked and spaced, with nothing between them. The single-guest
-            cards put their one guest inside a tinted rgba(223,230,240,0.4)
-            panel, but the Arrival/Departure card has no such panel and no rule
-            between the two guests — the header rule above is the only divider
-            it draws. */}
-        <View className="flex-1 gap-lg">
-          {room.guests.slice(0, 2).map((guest, index) => (
-            <React.Fragment key={`guest-${index}`}>{renderGuest(guest, index)}</React.Fragment>
-          ))}
-        </View>
-
-        {/* One control for the room, centred across both guests. */}
-        <View className="items-center justify-center" style={{ width: ROOM_CARD.pill.width }}>
+      <RoomCardBody
+        spec={spec}
+        guests={room.guests.slice(0, 2).map(renderGuest)}
+        action={
           <RoomStatusPill
             status={displayStatus}
-            tone={isActivePriority(room) ? 'priority' : 'solid'}
+            tone={priority ? 'priority' : 'solid'}
             onPress={onStatusPress}
             loading={isChangingStatus}
             measureRef={statusPillRef}
           />
-        </View>
-      </View>
+        }
+      />
     </RoomCardShell>
   );
 }

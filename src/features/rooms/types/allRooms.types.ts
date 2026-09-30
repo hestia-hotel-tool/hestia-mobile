@@ -222,22 +222,13 @@ export function getRoomDisplayStatus(
 
 /**
  * The status a room *card* shows. The same as `getRoomDisplayStatus`, except a
- * promise time does not take over: the card's "P-time: 14:30" line carries it,
- * and a "Promised Time" cap on top hid the room's real status (a Dirty,
- * priority room read as "Promised Time").
+ * promise time does not take over: the card's "Promise time: 14:30" row
+ * carries it, and the pill keeps the room's real status (a Dirty, priority
+ * room used to read as "Promised Time").
  */
 export function getRoomCardStatus(room: Parameters<typeof getRoomDisplayStatus>[0]): RoomDisplayStatus {
   const status = getRoomDisplayStatus(room);
   return status === 'PromisedTime' ? room.houseKeepingStatus : status;
-}
-
-/**
- * Does the card carry a coloured cap for this status? In Progress and every
- * activity state do (Figma 3883:6122 / 3883:5974 for the first two); Dirty,
- * Cleaned and Inspected cards start at the room number.
- */
-export function isCappedStatus(status: RoomDisplayStatus): boolean {
-  return status !== 'Dirty' && status !== 'Cleaned' && status !== 'Inspected';
 }
 
 /**
@@ -463,10 +454,11 @@ export interface StatusConfig {
  * before — only the icon glyphs and the new Paused color (#b0c0c6) came from Figma.
  */
 export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
+  /** Figma 3883:5570 (pill 4364:6472): the dust cloud, not the vacuum — the vacuum is In Progress. */
   Dirty: {
     color: '#f92424',
-    iconName: 'status-vacuum',
-    glyphHeight: 25.4,
+    iconName: 'status-dirty',
+    glyphHeight: 27.77,
     label: 'Dirty',
   },
   InProgress: {
@@ -487,10 +479,14 @@ export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
     glyphHeight: 26,
     label: 'Inspected',
   },
+  /**
+   * Figma 3883:5570 (pill 4349:2876): the vacuum with a pause badge, 45x48.
+   * The badge's bars are stroked in this grey, so they read as cut-outs.
+   */
   Paused: {
     color: '#b0c0c6',
-    iconName: 'status-paused',
-    glyphHeight: 38.8,
+    iconName: 'status-paused-vacuum',
+    glyphHeight: 48,
     label: 'Paused',
   },
   /*
@@ -498,23 +494,27 @@ export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
    * for them (roomDetailHeaderTheme.ts), which are the status menu's circles —
    * so the card, the header and the menu all agree on each state's colour.
    */
+  /** Figma 3883:5570 (pill 4349:2656): #7c46ef, the tag 39 tall. The status menu's circle is its own #6638e5. */
   DoNotDisturb: {
-    color: '#6638e5',
+    color: '#7c46ef',
     iconName: 'action-dnd',
-    glyphHeight: 28,
+    glyphHeight: 39,
     label: 'Do Not Disturb',
   },
   ReturnLater: {
     color: '#ead7f6',
-    foreground: '#334866',
+    // 4349:2617 strokes the mark in #5a759d on the lavender pill.
+    foreground: '#5a759d',
     iconName: 'action-return-later',
-    glyphHeight: 26,
+    // 4349:2617: 24 x 28 on the pill.
+    glyphHeight: 28,
     label: 'Return Later',
   },
   RefusedService: {
     color: '#ff9090',
     iconName: 'action-refuse-service',
-    glyphHeight: 26,
+    // 4349:2568: 26.4 on the pill.
+    glyphHeight: 26.4,
     label: 'Refused Service',
   },
   PromisedTime: {

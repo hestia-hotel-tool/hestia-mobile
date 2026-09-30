@@ -132,7 +132,7 @@ export default function AllRoomsFilterModal({
           {
             id: 'paused',
             label: 'Paused',
-            indicator: { kind: 'icon', name: 'status-paused', color: colors.text.primary },
+            indicator: { kind: 'icon', name: 'status-paused-vacuum', color: colors.text.primary },
             count: counts.roomStates?.paused ?? 0,
             selected: !!roomStates.paused,
           },

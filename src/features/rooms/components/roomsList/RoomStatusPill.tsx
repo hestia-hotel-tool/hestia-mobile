@@ -4,7 +4,7 @@ import { ActivityIndicator, View as RNView } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { colors } from '@/theme';
 import { STATUS_CONFIGS, type RoomDisplayStatus } from '../../types/allRooms.types';
-import { ROOM_CARD } from './roomCardLayout';
+import { ROOM_CARD, cardPx } from './roomCardLayout';
 
 export type RoomStatusPillProps = {
   status: RoomDisplayStatus;
@@ -87,17 +87,9 @@ export function RoomStatusPill({
         disabled={loading || !onPress}
         accessibilityRole={showChevron ? 'button' : 'image'}
         accessibilityLabel={isPriority ? 'Priority room' : `Status: ${config.label ?? status}`}
-        // Spread when there are two marks, centred when there is one. Measured
-        // off the priority pill (node 3838:1341, whose red-on-pale glyphs scan
-        // cleanly where white-on-amber does not): the glyph's left edge sits at
-        // x=21 and the chevron's right edge at x=105 of 134, so the two sit
-        // apart with the ground showing between them. Centring them as a pair
-        // bunched both into the middle.
-        className={
-          showChevron
-            ? 'flex-row items-center justify-between rounded-7xl pl-[21px] pr-[28px]'
-            : 'flex-row items-center justify-center rounded-7xl'
-        }
+        // With a chevron, both marks are placed where the frame draws them
+        // (GLYPH_CENTRE, CHEVRON_LEFT); a lone mark is centred.
+        className={showChevron ? 'rounded-7xl' : 'flex-row items-center justify-center rounded-7xl'}
         style={{
           width: ROOM_CARD.pill.width,
           height: ROOM_CARD.pill.height,
@@ -105,39 +97,61 @@ export function RoomStatusPill({
         }}
       >
         {loading ? (
-          <View className="flex-1 items-center">
+          <View className="flex-1 items-center justify-center">
             <ActivityIndicator color={glyphColor} />
           </View>
-        ) : (
+        ) : showChevron ? (
           <>
-            <Icon
-              name={isPriority ? 'action-flag' : config.iconName}
-              // The rush figure is drawn larger than the status marks: 34x28 in
-              // the design against the vacuum's 25.4 tall.
-              size={isPriority ? 28 : (config.glyphHeight ?? 25.4)}
-              color={glyphColor}
-            />
-            {/* Two nested views on purpose. The registered chevron points
-                right, so it is rotated -90deg to aim it down — but a transform
-                does not change layout size: the icon lays out 13 wide and 26
-                tall, then paints 26 wide and 13 tall, overflowing its own box
-                by 6.5px each side. Left to itself `justify-between` then placed
-                the *box* against the padding and let the visible mark spill
-                past it, landing the chevron ~8pt right of the design. The outer
-                view carries the rotated footprint (26x13, against the design's
-                25x12) so layout and paint agree. */}
-            {showChevron && (
-              <View className="items-center justify-center" style={{ width: 26, height: 13 }}>
-                <View style={{ transform: [{ rotate: '-90deg' }] }}>
-                  <Icon name="action-chevron" size={26} color={glyphColor} />
-                </View>
+            {/* Where the frame draws each mark: its centre across the pill. */}
+            <View
+              className="absolute items-center justify-center"
+              style={{ left: cardPx(GLYPH_CENTRE[status] ?? 38) - GLYPH_BOX / 2, width: GLYPH_BOX, top: 0, bottom: 0 }}
+            >
+              <Icon name={config.iconName} size={cardPx(config.glyphHeight ?? 25.4)} color={glyphColor} />
+            </View>
+            {/* 3883:6421: 25x12 at x81, centred down the pill. The registered
+                chevron points right, so it is turned -90deg inside a box
+                that carries the turned footprint. */}
+            <View
+              className="absolute items-center justify-center"
+              style={{ left: CHEVRON_LEFT, width: CHEVRON, height: CHEVRON / 2, top: (ROOM_CARD.pill.height - CHEVRON / 2) / 2 }}
+            >
+              <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                <Icon name="action-chevron" size={CHEVRON} color={glyphColor} />
               </View>
-            )}
+            </View>
           </>
+        ) : (
+          <Icon
+            name={isPriority ? 'action-flag' : config.iconName}
+            // The rush figure: 33.8 x 28.6 in 3883:5795, centred.
+            size={cardPx(isPriority ? 28.6 : (config.glyphHeight ?? 25.4))}
+            color={glyphColor}
+          />
         )}
       </Pressable>
     </RNView>
   );
 }
+
+/**
+ * Each mark's centre across the 134 pill, from the frame's pills
+ * (3883:5570): the marks differ in width, so a shared left edge would set
+ * them off-centre against each other.
+ */
+const GLYPH_CENTRE: Partial<Record<RoomDisplayStatus, number>> = {
+  Dirty: 38.5,
+  InProgress: 35,
+  Cleaned: 38,
+  Inspected: 37,
+  Paused: 41.5,
+  RefusedService: 40,
+  ReturnLater: 41,
+  DoNotDisturb: 40.5,
+};
+/** Wide enough for the widest mark (the paused vacuum, 46). */
+const GLYPH_BOX = cardPx(50);
+const CHEVRON_LEFT = cardPx(81);
+const CHEVRON = cardPx(26);
 
 export default RoomStatusPill;

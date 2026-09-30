@@ -1,101 +1,85 @@
 import React, { useState } from 'react';
 import { View, Text } from '@/tw';
-import { Icon } from '@/components/Icon';
-import { ROOM_CARD } from './roomCardLayout';
+import { typography } from '@/theme';
+import { ROOM_CARD, cardPx, type RoomCardSpec } from './roomCardLayout';
 import { BADGE_TILE, RoomBadgeTile, type RoomBadge } from './RoomBadgeTile';
 
 export type RoomCardHeaderProps = {
+  spec: RoomCardSpec;
   roomNumber: string;
   /** "ST2K - 1.4" — the room category and its cleaning credit. */
   category: string;
   /** "Arrival/Departure", "Departure", "Stayover"… */
   typeLabel: string;
-  /** Draws the red flag straight after the category, on the number's line. */
-  flagged?: boolean;
-  /** Read out with the flag, e.g. the flag reason. */
-  flagLabel?: string;
-  /**
-   * Tiles to the right of the number/type block — Figma 3883:5570: the bell
-   * (the room has notes) and the lost-and-found mark (an item is still held).
-   * See `roomBadges`.
-   */
+  /** Tiles between the number/type block and the rule — see `roomBadges`. */
   badges?: RoomBadge[];
-  /** The assignee column on the right of the divider. */
+  /** The assignee column on the right of the rule. */
   assignee?: React.ReactNode;
 };
 
+const INK = '#334866';
+const NUMBER_LINE = cardPx(31);
+
 /**
- * The card's identity row — Figma 3883:6138 to 3883:6161.
+ * The card's identity row — Figma 3883:5570.
  *
- * Room number, category and front-office status on the left; a hairline; who is
- * working it on the right.
- *
- * The left column is `flex-1` and the right a fixed `rightColumn`, which is the
- * whole of what the replaced card expressed as four hand-tuned `left` values
- * (227, 228, 255, 270) plus a parallel set for priority cards.
+ * Room number (Helvetica bold 27/31), category (light 12) and type label
+ * (bold 16) on the left; the badge tiles; a 50.5 rule in #e3e3e3; who is
+ * working it on the right. Each card kind places these differently, so every
+ * offset comes from its `spec`.
  */
-export function RoomCardHeader({
-  roomNumber,
-  category,
-  typeLabel,
-  flagged = false,
-  flagLabel,
-  badges = [],
-  assignee,
-}: RoomCardHeaderProps) {
+export function RoomCardHeader({ spec, roomNumber, category, typeLabel, badges = [], assignee }: RoomCardHeaderProps) {
   /** The header row's full width and the number/type block's width, once measured. */
   const [rowWidth, setRowWidth] = useState<number | null>(null);
   const [textWidth, setTextWidth] = useState<number | null>(null);
   const layout =
     badges.length > 0 && rowWidth != null && textWidth != null
-      ? headerLayout(rowWidth, textWidth, badges.length)
+      ? headerLayout(spec, rowWidth, textWidth, badges.length)
       : null;
-  const rightColumn = layout?.rightColumn ?? ROOM_CARD.rightColumn;
+  const rightColumn = layout?.rightColumn ?? spec.rightColumn;
 
   return (
     <View
-      className="flex-row items-center px-xl pt-lg"
+      className="flex-row items-start"
+      style={{ paddingTop: spec.ruleTop, paddingLeft: spec.numberLeft }}
       onLayout={badges.length > 0 ? (e) => setRowWidth(e.nativeEvent.layout.width) : undefined}
     >
-      {/*
-        Figma 3883:5570 (e.g. nodes 3883:5579–5584): the category is aligned to
-        the top of the room number, not its baseline — "ST2K - 1.4" starts 8–9px
-        below the number's top (y3639 vs y3630, number line 31) — and the type
-        label sits 30px below the number's top. The badge tiles sit in one row
-        between the text and the divider; see `headerLayout` for how they fit.
-      */}
-      <View className="flex-1 flex-row items-center">
+      <View className="flex-1 flex-row items-center" style={{ height: ROOM_CARD.headerRule }}>
         <View
-          className="shrink-0"
+          className="shrink-0 self-start"
+          // The frame's text boxes start at the top of their line, so each
+          // Text's top is the node's y.
+          style={{ marginTop: spec.numberTop - spec.ruleTop }}
           onLayout={badges.length > 0 ? (e) => setTextWidth(e.nativeEvent.layout.width) : undefined}
         >
-          <View className="flex-row items-start gap-sm">
-            <Text
-              className="font-hestia-primary text-[27px] font-bold text-ink-secondary"
-              style={{ lineHeight: 31 }}
-            >
+          <View className="flex-row items-start" style={{ gap: spec.categoryGap }}>
+            <Text style={{ fontFamily: typography.fontFamily.primary, fontSize: cardPx(27), lineHeight: NUMBER_LINE, fontWeight: '700', color: INK }}>
               {roomNumber}
             </Text>
             <Text
-              className="font-hestia-primary text-hestia-sm font-light text-ink-secondary"
-              style={{ marginTop: 8, lineHeight: 14 }}
+              style={{
+                fontFamily: typography.fontFamily.primary,
+                fontSize: cardPx(12),
+                lineHeight: cardPx(13.8),
+                fontWeight: '300',
+                color: INK,
+                marginTop: spec.categoryDrop,
+              }}
             >
               {category}
             </Text>
-            {/* The flag sits inline after the category, not in a badge tile —
-                the tiles are for the notes bell and lost-and-found marks. */}
-            {flagged ? (
-              <View
-                style={{ marginTop: 5 }}
-                accessibilityLabel={flagLabel ? `Flagged: ${flagLabel}` : 'Flagged room'}
-              >
-                <Icon name="action-flag-outline" size={18} color="#f92424" />
-              </View>
-            ) : null}
           </View>
           <Text
-            className="font-hestia-primary text-hestia-xl font-bold text-ink-secondary"
-            style={{ marginTop: -1, lineHeight: 18 }}
+            style={{
+              fontFamily: typography.fontFamily.primary,
+              fontSize: cardPx(16),
+              lineHeight: cardPx(18.4),
+              fontWeight: '700',
+              color: INK,
+              // `typeDrop` is top to top; the number's line is 31.
+              marginTop: spec.typeDrop - NUMBER_LINE,
+              marginLeft: -1,
+            }}
           >
             {typeLabel}
           </Text>
@@ -104,7 +88,7 @@ export function RoomCardHeader({
         {layout ? (
           <View
             className="flex-1 flex-row items-center justify-center"
-            style={{ marginLeft: TILE_GAP_TEXT, marginRight: TILE_GAP_DIVIDER, gap: layout.gap }}
+            style={{ marginLeft: TILE_GAP_TEXT, marginRight: TILE_GAP_RULE, gap: layout.gap }}
           >
             {badges.map((badge) => (
               <RoomBadgeTile key={badge.key} badge={badge} width={layout.tile} height={layout.tile * TILE_RATIO} />
@@ -113,9 +97,15 @@ export function RoomCardHeader({
         ) : null}
       </View>
 
-      <View className="h-[50px] w-px bg-border-medium" />
+      <View style={{ width: 1, height: ROOM_CARD.headerRule, backgroundColor: '#e3e3e3' }} />
 
-      <View className="pl-lg" style={{ width: rightColumn }}>
+      <View
+        style={{
+          width: rightColumn - 1,
+          paddingLeft: spec.avatarGap,
+          marginTop: spec.avatarTop - spec.ruleTop,
+        }}
+      >
         {assignee}
       </View>
     </View>
@@ -125,52 +115,40 @@ export function RoomCardHeader({
 export default RoomCardHeader;
 
 /** Room between the text block and the first tile. */
-const TILE_GAP_TEXT = 8;
-/** Room between the last tile and the divider, so a tile never touches it. */
-const TILE_GAP_DIVIDER = 6;
+const TILE_GAP_TEXT = cardPx(8);
+/** Room between the last tile and the rule, so a tile never touches it. */
+const TILE_GAP_RULE = cardPx(6);
 const TILE_RATIO = BADGE_TILE.height / BADGE_TILE.width;
-/** Horizontal padding of the header row (px-xl, both sides), the divider, the right column's pl-lg. */
-const ROW_PADDING = 20 * 2;
-const DIVIDER = 1;
 /**
  * Narrowest the right column may become to make room for the tiles: still
  * fits the "Assign room" control in full (35 circle + 5 + a 76 pill + 16 pad).
  */
-const RIGHT_COLUMN_MIN = 132;
-
-/**
- * Smallest tile. RoomBadgeTile scales its glyph with the tile, so this only
- * has to stay legible. It was 26, which with a long category and "Arrival/
- * Departure" did not fit: the tiles spilled left over the flag.
- */
-const MIN_TILE = 18;
+const RIGHT_COLUMN_MIN = cardPx(132);
+/** Smallest tile; the glyphs scale down with it. */
+const MIN_TILE = cardPx(18);
 
 type HeaderLayout = { rightColumn: number; tile: number; gap: number };
 
 /**
  * Fit the badge tiles on one row, beside the text, without overlapping it.
  *
- * At the design width (a 440pt frame) everything is as drawn: a 168 right
- * column and full 42x38 tiles. When the tiles do not fit, the right column
- * gives up exactly the width they need, down to RIGHT_COLUMN_MIN — the
- * narrowest that still shows "Assign room" in full — and whatever shortfall
- * remains is taken by shrinking the tiles, which always stay in one row.
+ * At the design width everything is as drawn: the card's right column and
+ * full 42x38 tiles 4 apart. When the tiles do not fit, the right column gives
+ * up exactly the width they need, down to RIGHT_COLUMN_MIN, and whatever
+ * shortfall remains is taken by shrinking the tiles, which stay in one row.
  */
-function headerLayout(rowWidth: number, textWidth: number, count: number): HeaderLayout {
-  // Tight, so the bell and lost-and-found read as one group.
-  const fullGap = 4;
+function headerLayout(spec: RoomCardSpec, rowWidth: number, textWidth: number, count: number): HeaderLayout {
+  const fullGap = cardPx(4);
   const ideal = count * BADGE_TILE.width + (count - 1) * fullGap;
-  const spaceWith = (right: number) =>
-    rowWidth - ROW_PADDING - DIVIDER - right - textWidth - TILE_GAP_TEXT - TILE_GAP_DIVIDER;
+  const spaceWith = (right: number) => rowWidth - spec.numberLeft - right - textWidth - TILE_GAP_TEXT - TILE_GAP_RULE;
 
-  const atDesign = spaceWith(ROOM_CARD.rightColumn);
+  const atDesign = spaceWith(spec.rightColumn);
   if (atDesign >= ideal) {
-    return { rightColumn: ROOM_CARD.rightColumn, tile: BADGE_TILE.width, gap: fullGap };
+    return { rightColumn: spec.rightColumn, tile: BADGE_TILE.width, gap: fullGap };
   }
-  const rightColumn = Math.max(RIGHT_COLUMN_MIN, ROOM_CARD.rightColumn - (ideal - atDesign));
+  const rightColumn = Math.max(Math.min(RIGHT_COLUMN_MIN, spec.rightColumn), spec.rightColumn - (ideal - atDesign));
   const space = spaceWith(rightColumn);
-  const gap = count > 1 ? 2 : 0;
-  // Not below MIN_TILE: room for the 22-high glyphs with clear space around them.
+  const gap = count > 1 ? cardPx(2) : 0;
   const tile = Math.max(MIN_TILE, Math.min(BADGE_TILE.width, (space - gap * (count - 1)) / count));
   return { rightColumn, tile, gap };
 }

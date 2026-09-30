@@ -2,15 +2,15 @@ import React from 'react';
 import type { View as RNView } from 'react-native';
 import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
-import { STATUS_CONFIGS, getRoomCardStatus, isCappedStatus } from '../../types/allRooms.types';
+import { getRoomCardStatus } from '../../types/allRooms.types';
 import { guestRowKind, guestTimeLabelForKind } from '../../utils/roomCardProps';
 import { assigneeStatus, promiseLine } from '../../utils/cleaningClock';
 import { useNow } from '@/hooks/useNow';
 import { getStayoverDisplayLabel } from '../../utils/stayoverLinen';
 import { RoomCardShell } from './RoomCardShell';
-import { RoomStatusCap } from './RoomStatusCap';
 import { RoomCardHeader } from './RoomCardHeader';
-import { RoomGuestPanel } from './RoomGuestPanel';
+import { RoomCardBody } from './RoomCardBody';
+import { roomCardSpecName, ROOM_CARD_SPECS } from './roomCardLayout';
 import { GuestRow } from './GuestRow';
 import { RoomStatusPill } from './RoomStatusPill';
 import { RoomPromiseRow } from './RoomPromiseRow';
@@ -36,14 +36,11 @@ export type SingleGuestRoomCardProps = {
  * A room with one guest — Paused, In Progress, Departure, Arrival, Stayover and
  * Turndown all render through here.
  *
- * They are one card, not six. The only differences the design draws are the
- * coloured cap (Paused and In Progress carry one, the rest do not), the pill's
- * colour, and the badge on the guest photo — all of which are props. The card
- * this replaces encoded the same variation as four fixed card heights and a
- * per-type table of `top` and `left` values.
- *
- * Arrival/Departure is *not* here: it has two guest rows and a rule between
- * them, so it gets its own component rather than a `guests.length` branch.
+ * Figma 3883:5570 draws this card in the style of its state (see
+ * `roomCardSpecName`): the grey 422 card for Paused and In Progress, the
+ * off-white card for Dirty, the white card with a panel for Cleaned and
+ * Inspected, and the white card with a rule for Refused, Return Later and
+ * Do Not Disturb. Everything below takes its measures from that spec.
  */
 export function SingleGuestRoomCard({
   room,
@@ -56,49 +53,31 @@ export function SingleGuestRoomCard({
   measureRef,
   statusPillRef,
 }: SingleGuestRoomCardProps) {
-  // Live: the credit countdown and "Return at" / "P-time" move with the clock.
+  // Live: "Credits", "Return at" and the promise move with the clock.
   const now = useNow();
   const status = assigneeStatus(room, now);
   const promise = promiseLine(room, now);
   const displayStatus = getRoomCardStatus(room);
-  const config = STATUS_CONFIGS[displayStatus];
+  const priority = isActivePriority(room);
+  const spec = ROOM_CARD_SPECS[roomCardSpecName(displayStatus, false, priority)];
   const guest = room.guests[0];
   const staff = room.roomAttendantAssigned;
-
-  const capped = isCappedStatus(displayStatus);
+  const kind = guestRowKind(room, 0);
 
   return (
-    <RoomCardShell
-      onPress={onPress}
-      onLayout={onLayout}
-      measureRef={measureRef}
-      framed={isActivePriority(room)}
-      cap={
-        capped ? (
-          <RoomStatusCap
-            label={config.label ?? displayStatus}
-            color={config.color}
-            iconName={config.iconName}
-            glyphHeight={config.glyphHeight}
-            foreground={config.foreground}
-          />
-        ) : undefined
-      }
-    >
+    <RoomCardShell spec={spec} framed={priority} onPress={onPress} onLayout={onLayout} measureRef={measureRef}>
       <RoomCardHeader
+        spec={spec}
         roomNumber={room.roomNumber}
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel={getStayoverDisplayLabel(room)}
-        flagged={room.flagged}
-        flagLabel={room.flagReason ?? undefined}
         badges={roomBadges(room)}
         assignee={
           <RoomAssigneeBlock
             name={staff?.name}
             avatarUrl={staff?.avatar}
-            // Unassigned rooms skip "Not started" — the Assign room button says it.
-            statusLine={staff?.name || status.text !== 'Not started' ? status.text : null}
-            statusTone={status.tone}
+            // Unassigned rooms skip "Not Started" — the Assign room button says it.
+            status={staff?.name || status.text !== 'Not Started' ? status : null}
             onPress={onAssignPress}
           />
         }
@@ -106,31 +85,35 @@ export function SingleGuestRoomCard({
 
       <RoomPromiseRow text={promise} />
 
-      <RoomGuestPanel
+      <RoomCardBody
+        spec={spec}
+        guests={
+          guest
+            ? [
+                <GuestRow
+                  key="guest-0"
+                  name={guest.name}
+                  marker={guest.vipCode != null ? String(guest.vipCode) : undefined}
+                  dates={formatDatesOfStayCompact(guest.datesOfStay)}
+                  occupancy={formatGuestCount(guest.guestCount)}
+                  timeLabel={guestTimeLabelForKind(kind, guest)}
+                  kind={kind}
+                  imageUrl={guest.imageUrl}
+                  onImagePress={guest.imageUrl && onGuestImagePress ? () => onGuestImagePress(guest) : undefined}
+                />,
+              ]
+            : []
+        }
         action={
           <RoomStatusPill
             status={displayStatus}
-            tone={isActivePriority(room) ? 'priority' : 'solid'}
+            tone={priority ? 'priority' : 'solid'}
             onPress={onStatusPress}
             loading={isChangingStatus}
             measureRef={statusPillRef}
           />
         }
-      >
-        {guest && (
-          <GuestRow
-            name={guest.name}
-            dates={formatDatesOfStayCompact(guest.datesOfStay)}
-            occupancy={formatGuestCount(guest.guestCount)}
-            timeLabel={guestTimeLabelForKind(guestRowKind(room, 0), guest)}
-            kind={guestRowKind(room, 0)}
-            imageUrl={guest.imageUrl}
-            onImagePress={
-              guest.imageUrl && onGuestImagePress ? () => onGuestImagePress(guest) : undefined
-            }
-          />
-        )}
-      </RoomGuestPanel>
+      />
     </RoomCardShell>
   );
 }

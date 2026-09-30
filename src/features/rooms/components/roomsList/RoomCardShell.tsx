@@ -1,18 +1,15 @@
 import React from 'react';
 import { View as RNView } from 'react-native';
 import { View, Pressable } from '@/tw';
-import { colors } from '@/theme';
+import { PRIORITY_FRAME, type RoomCardSpec } from './roomCardLayout';
 
 export type RoomCardShellProps = {
   children: React.ReactNode;
-  /** The coloured lid, on Paused and In Progress cards only. */
-  cap?: React.ReactNode;
+  /** The card's ground, border and radius, and how far it sits in from the list. */
+  spec: RoomCardSpec;
   /**
-   * Priority rooms get a red frame — Figma 3883:5766, an outer 422 card with a
-   * #f92424 border wrapping the inner 392 panel.
-   *
-   * The card this replaces declared `styles.priorityBorder` and then never
-   * applied it to any element, so priority rooms rendered with no frame at all.
+   * Priority rooms sit in a red frame — Figma 3883:5765: a 422 #f9fafc card
+   * with a #f92424 hairline at radius 12, holding the card 15 in, 22 down.
    */
   framed?: boolean;
   onPress?: () => void;
@@ -31,27 +28,28 @@ export type RoomCardShellProps = {
 };
 
 /**
- * The frame every room card sits in — Figma 3883:6123.
+ * The frame every room card sits in — Figma 3883:5570.
  *
- * `#f9fafc` on a `rgba(90,117,157,0.23)` hairline at radius 12, content-height.
+ * Its ground, hairline and radius come from the card's spec: #f9fafc with a
+ * blue-grey hairline at 12 for the 422 cards, white or #f9fafc with #e3e3e3
+ * at 9 for the 392 ones, which also sit 15 further in from the list's edge.
+ * No coloured cap: every state shows by its status pill alone.
  *
- * `overflow-hidden` is load-bearing on Android, which does not clip children to
- * `borderRadius`: without it the cap's square top corners punch through the
- * card's rounded ones.
+ * `overflow-hidden` keeps children inside the rounded corners on Android.
  */
-export function RoomCardShell({
-  children,
-  cap,
-  framed,
-  onPress,
-  onLayout,
-  measureRef,
-}: RoomCardShellProps) {
+export function RoomCardShell({ children, spec, framed, onPress, onLayout, measureRef }: RoomCardShellProps) {
   const Container = onPress ? Pressable : View;
 
   const card = (
-    <View className="w-full overflow-hidden rounded-xl border border-border-card bg-surface-card">
-      {cap}
+    <View
+      className="w-full overflow-hidden"
+      style={{
+        backgroundColor: spec.background,
+        borderRadius: spec.radius,
+        borderWidth: spec.border ? 1 : 0,
+        borderColor: spec.border ?? undefined,
+      }}
+    >
       {children}
     </View>
   );
@@ -60,8 +58,19 @@ export function RoomCardShell({
     <RNView ref={measureRef} collapsable={false} onLayout={onLayout}>
       <Container
         {...(onPress ? { onPress, accessibilityRole: 'button' as const } : {})}
-        className={framed ? 'rounded-xl border p-md' : undefined}
-        style={framed ? { borderColor: colors.status.dirty } : undefined}
+        style={
+          framed
+            ? {
+                backgroundColor: PRIORITY_FRAME.background,
+                borderWidth: 1,
+                borderColor: PRIORITY_FRAME.border,
+                borderRadius: PRIORITY_FRAME.radius,
+                paddingHorizontal: PRIORITY_FRAME.paddingX,
+                paddingTop: PRIORITY_FRAME.paddingTop,
+                paddingBottom: PRIORITY_FRAME.paddingBottom,
+              }
+            : { marginHorizontal: spec.inset }
+        }
       >
         {card}
       </Container>

@@ -1,67 +1,62 @@
 import React from 'react';
 import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
-import { ROOM_CARD } from './roomCardLayout';
+import { typography } from '@/theme';
+import { ROOM_CARD, cardPx } from './roomCardLayout';
 import { AssignRoomButton } from '../allRooms/AssignRoomButton';
+import type { AssigneeStatus } from '../../utils/cleaningClock';
 
 export type RoomAssigneeBlockProps = {
   /** Null when nobody is on this room yet. */
   name?: string | null;
   avatarUrl?: string | null;
-  /**
-   * The line under the name — "Started: 40 mins", "Paused at 18:00",
-   * "Not started", "Time: 60 mins". Derived by the caller, because it depends
-   * on assignment state the view has no business reading.
-   */
-  statusLine?: string | null;
-  /** `alert` draws the status line in red — the room is over its expected time. */
-  statusTone?: 'default' | 'alert';
+  /** The line under the name, already styled for its state — see `assigneeStatus`. */
+  status?: AssigneeStatus | null;
   onPress?: () => void;
 };
 
-/** The flag red used on the card header, for a room running late. */
-const ALERT_COLOR = '#f92424';
+/** Figma's line heights: Helvetica at 115%. */
+const STATUS_LINE_HEIGHT = { 10: cardPx(11.5), 12: cardPx(13.8), 13: cardPx(14.9) } as const;
+/** Status top 17.5 under the name's (3883:6009 → 3883:6012). */
+const STATUS_GAP = cardPx(17.5 - 14.9);
 
 /**
  * Who is working the room — Figma 3883:6158.
  *
- * A 35px photo, the name, and one line of assignment state. When nobody is
- * assigned it becomes the "Assign room" button (Figma 2702:7771).
+ * A 35px photo, 8 to the name (Helvetica bold 13, #1e1e1e), and one line of
+ * assignment state under it. When nobody is assigned it becomes the "Assign
+ * room" button (Figma 2702:7771).
  *
  * Deliberately no chevron: the design has none, and the whole card is already
  * a tap target for the room.
  */
-export function RoomAssigneeBlock({
-  name,
-  avatarUrl,
-  statusLine,
-  statusTone = 'default',
-  onPress,
-}: RoomAssigneeBlockProps) {
-  const status = statusLine ? (
+export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssigneeBlockProps) {
+  const statusText = status ? (
     <Text
-      className={
-        statusTone === 'alert'
-          ? 'font-hestia-primary text-hestia-sm font-bold'
-          : 'font-hestia-primary text-hestia-sm text-ink-primary'
-      }
-      style={statusTone === 'alert' ? { color: ALERT_COLOR } : undefined}
+      style={{
+        fontFamily: typography.fontFamily.primary,
+        fontSize: cardPx(status.size),
+        lineHeight: STATUS_LINE_HEIGHT[status.size],
+        marginTop: STATUS_GAP,
+        fontWeight: status.weight === 'bold' ? '700' : '300',
+        color: status.color,
+      }}
       numberOfLines={1}
-      accessibilityLabel={statusTone === 'alert' ? `Running late: ${statusLine}` : undefined}
+      accessibilityLabel={status.alert ? `Running late: ${status.text}` : undefined}
     >
-      {statusLine}
+      {status.text}
     </Text>
   ) : null;
 
   if (!name) {
     // Figma 2702:7771: an empty circle where the photo will go, and an "Assign room" pill.
-    // A room can be In Progress before anyone is assigned — its countdown
-    // still belongs on the card, under the button.
-    if (!status) return <AssignRoomButton onPress={onPress} />;
+    // A room can be In Progress before anyone is assigned — its line still
+    // belongs on the card, under the button.
+    if (!statusText) return <AssignRoomButton onPress={onPress} />;
     return (
       <View className="gap-xs">
         <AssignRoomButton onPress={onPress} />
-        {status}
+        {statusText}
       </View>
     );
   }
@@ -73,14 +68,24 @@ export function RoomAssigneeBlock({
       {...(onPress
         ? { onPress, accessibilityRole: 'button' as const, accessibilityLabel: `Assigned to ${name}` }
         : {})}
-      className="flex-row items-center gap-md"
+      className="flex-row items-center"
+      style={{ gap: ROOM_CARD.assigneeGap }}
     >
       <Avatar uri={avatarUrl} name={name} size={ROOM_CARD.assigneeAvatar} />
       <View className="flex-1">
-        <Text className="font-hestia-primary text-hestia-base font-bold text-ink-primary" numberOfLines={1}>
+        <Text
+          style={{
+            fontFamily: typography.fontFamily.primary,
+            fontSize: cardPx(13),
+            lineHeight: cardPx(14.9),
+            fontWeight: '700',
+            color: '#1e1e1e',
+          }}
+          numberOfLines={1}
+        >
           {name}
         </Text>
-        {status}
+        {statusText}
       </View>
     </Container>
   );

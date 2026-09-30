@@ -89,7 +89,7 @@ import StatusCleaned from '@assets/icons/room-status/status-cleaned.svg';
 import StatusDirty from '@assets/icons/room-status/status-dirty.svg';
 import StatusInProgress from '@assets/icons/room-status/status-in-progress.svg';
 import StatusInspected from '@assets/icons/room-status/status-inspected.svg';
-import StatusPaused from '@assets/icons/room-status/status-paused.svg';
+import StatusPausedVacuum from '@assets/icons/room-status/status-paused-vacuum.svg';
 import StatusVacuum from '@assets/icons/room-status/status-vacuum.svg';
 
 export const icons = {
@@ -170,7 +170,7 @@ export const icons = {
   'status-dirty': StatusDirty,
   'status-in-progress': StatusInProgress,
   'status-inspected': StatusInspected,
-  'status-paused': StatusPaused,
+  'status-paused-vacuum': StatusPausedVacuum,
   'status-vacuum': StatusVacuum,
 } as const;
 
@@ -254,7 +254,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'status-dirty': 1.1075,
   'status-in-progress': 0.958,
   'status-inspected': 1.1265,
-  'status-paused': 1,
+  'status-paused-vacuum': 0.9388,
   'status-vacuum': 0.958,
 };
 
@@ -323,6 +323,6 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'status-dirty',
   'status-in-progress',
   'status-inspected',
-  'status-paused',
+  'status-paused-vacuum',
   'status-vacuum',
 ]);

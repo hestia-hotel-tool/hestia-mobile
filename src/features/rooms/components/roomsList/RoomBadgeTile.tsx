@@ -1,65 +1,70 @@
 import React from 'react';
 import { View } from '@/tw';
 import { Icon, type IconName } from '@/components/Icon';
+import { cardPx } from './roomCardLayout';
 
 /**
  * The card header's badge tile — Figma 3883:5570 (Rectangle 168, e.g. node
- * 3883:5584): radius 10, #f8f8f8, holding one red glyph.
- *
- * 30 wide rather than the frame's 42. The fill is all but the card's own
- * (#f9fafc), so the tile itself does not show — what shows is the space inside
- * it, and at 42 that left ~25px between the bell and the lost-and-found box.
- * 30 hugs the 22-high glyphs and halves it.
+ * 4349:2157): 42 x 38, radius 10, #f8f8f8, holding one red glyph. On a white
+ * card the tile shows; on the off-white ones it all but disappears, as drawn.
  */
-export const BADGE_TILE = { width: 30, height: 38, radius: 10, fill: '#f8f8f8' } as const;
+export const BADGE_TILE = { width: cardPx(42), height: cardPx(38), radius: cardPx(10), fill: '#f8f8f8' } as const;
 const RED = '#f92424';
-/**
- * One glyph height for every badge, so the bell and the lost-and-found box read
- * as a matched pair. The frame drew them 18 and 27 — side by side the bell
- * looked half the size of its neighbour. 22 sits between the two, centred in
- * the 38-high tile with 8 clear above and below.
- */
-const BADGE_GLYPH = 22;
 
 export type RoomBadge = {
   key: string;
   icon: IconName;
   label: string;
+  /** Glyph height in the full-size tile, as drawn. */
+  glyph: number;
 };
 
-/** The two header badges, per room — see RoomCardHeader for how they are laid out. */
-export function roomBadges(room: { notes?: { count: number } | null; lostAndFoundCount?: number }): RoomBadge[] {
+/**
+ * The header badges, per room, in the design's order (4349:2631): the flag,
+ * the bell (the room has notes), the lost-and-found box (an item is held).
+ */
+export function roomBadges(room: {
+  flagged?: boolean;
+  flagReason?: string | null;
+  notes?: { count: number } | null;
+  lostAndFoundCount?: number;
+}): RoomBadge[] {
   const badges: RoomBadge[] = [];
+  if (room.flagged) {
+    // 4349:2674 — the flag outline, 12 x 17.
+    badges.push({
+      key: 'flag',
+      icon: 'action-flag-outline',
+      label: room.flagReason ? `Flagged: ${room.flagReason}` : 'Flagged room',
+      glyph: 17,
+    });
+  }
   const notes = room.notes?.count ?? 0;
   if (notes > 0) {
-    // Figma node 3883:5698 — the bell marks a room with notes.
+    // 4349:2667 — the bell, 16.7 x 16.1 in an 18 frame.
     badges.push({
       key: 'notes',
       icon: 'badge-bell',
       label: notes === 1 ? '1 note' : `${notes} notes`,
+      glyph: 16.1,
     });
   }
   const lostAndFound = room.lostAndFoundCount ?? 0;
   if (lostAndFound > 0) {
-    // Figma node 3883:5631 — an item found in this room is still being held.
+    // 4349:2680 — the box, 19 x 21.
     badges.push({
       key: 'lostAndFound',
       icon: 'badge-lost-found',
       label: lostAndFound === 1 ? '1 lost & found item' : `${lostAndFound} lost & found items`,
+      glyph: 21,
     });
   }
   return badges;
 }
 
-/**
- * One badge tile. Every tile in a row is the same size and every glyph the same
- * height (`BADGE_GLYPH`), centred both ways; each icon's viewBox is trimmed to
- * its ink so centring the box centres the drawing.
- */
+/** One badge tile. The glyph scales with the tile when the row has to shrink. */
 export function RoomBadgeTile({ badge, width, height }: { badge: RoomBadge; width: number; height: number }) {
   const scale = height / BADGE_TILE.height;
-  // Never larger than the tile allows (at least 4px clear top and bottom).
-  const glyph = Math.min(BADGE_GLYPH, height - 8);
   return (
     <View
       className="items-center justify-center"
@@ -71,7 +76,7 @@ export function RoomBadgeTile({ badge, width, height }: { badge: RoomBadge; widt
       }}
       accessibilityLabel={badge.label}
     >
-      <Icon name={badge.icon} size={glyph} color={RED} />
+      <Icon name={badge.icon} size={cardPx(badge.glyph) * scale} color={RED} />
     </View>
   );
 }

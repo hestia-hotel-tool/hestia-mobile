@@ -105,18 +105,20 @@ export const ROOM_DETAIL_HEADER_LAYOUT = {
   /**
    * Status glyph heights the header overrides, per display status.
    *
-   * `STATUS_CONFIGS[s].glyphHeight` is shared with the room card's cap and the
-   * status pill, where those sizes are right. The header's frame asks for
+   * `STATUS_CONFIGS[s].glyphHeight` is the room card's status pill's, where
+   * those sizes are right. The header's frame asks for
    * something different: 2333-132 draws the Paused mark at **26.38**, against
-   * `STATUS_CONFIGS.Paused.glyphHeight`'s 38.8 — a 47% overdraw if reused.
+   * `STATUS_CONFIGS.Paused.glyphHeight`'s 48 — an 82% overdraw if reused.
    *
-   * Two entries. Dirty, Cleaned and Inspected fall through to `STATUS_CONFIGS`
+   * Three entries. Dirty, Cleaned and Inspected fall through to `STATUS_CONFIGS`
    * (unchanged behaviour) and each earns one when its own frame is read — In
    * Progress being 21% off is a reason to expect the others are too.
    */
   statusGlyphHeight: {
-    /** Figma 2333-132, against `STATUS_CONFIGS.Paused.glyphHeight`'s 38.8. */
+    /** Figma 2333-132, against `STATUS_CONFIGS.Paused.glyphHeight`'s 48 (the card pill's). */
     Paused: 26.38,
+    /** The card pill draws the tag 39 tall; the header row is 30.769, so it keeps 28. */
+    DoNotDisturb: 28,
     /**
      * Figma 408-2669, against `STATUS_CONFIGS.InProgress.glyphHeight`'s 25.4 —
      * the header draws the vacuum ~21% larger than the card does. The registry
