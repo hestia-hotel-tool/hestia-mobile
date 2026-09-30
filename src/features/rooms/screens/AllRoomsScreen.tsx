@@ -406,6 +406,10 @@ export default function AllRoomsScreen() {
       if (staffInfo) setRoomAttendant(roomToAssign.id, staffInfo);
     } catch (e) {
       console.warn('Assign room failed', e);
+      toast.show(
+        `Room ${roomToAssign.roomNumber} was not assigned. ${e instanceof Error ? e.message : 'Please try again.'}`,
+        { type: 'error', duration: 4500 }
+      );
     } finally {
       // Hide loading indicator
       setAssigningStaffRoomId(null);
@@ -1215,7 +1219,6 @@ export default function AllRoomsScreen() {
         }}
       />
 
-      {/* Inspection Checklist Modal - shown when changing to Inspected */}
       {/* Assign Staff Modal - staff list when room has no assignee */}
       <ReassignModal
         visible={showAssignStaffModal}
@@ -1227,6 +1230,7 @@ export default function AllRoomsScreen() {
         onAutoAssign={() => {}}
         roomNumber={roomToAssign?.roomNumber}
         showAutoAssign={false}
+        shift={uiShift === 'PM' ? 'PM' : 'AM'}
       />
 
       {/* Filter Modal */}

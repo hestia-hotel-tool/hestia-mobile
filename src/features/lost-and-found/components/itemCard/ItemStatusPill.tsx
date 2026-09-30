@@ -1,8 +1,7 @@
 import React, { useRef } from 'react';
 import { ActivityIndicator, View as RNView } from 'react-native';
-import { Pressable, Text, View } from '@/tw';
+import { Pressable, View } from '@/tw';
 import { Icon } from '@/components/Icon';
-import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
 import { LOST_AND_FOUND_CARD_LAYOUT as L } from './lostAndFoundCardLayout';
 import type { LostAndFoundCardChrome } from '../../constants/lostAndFoundCardChrome';
@@ -24,10 +23,9 @@ export type ItemStatusPillProps = {
 };
 
 /**
- * The status pill — Figma nodes 3871:3587 and 3871:3621.
- *
- * **Content-hugging.** The frame's 118 and 126 are the two labels' widths plus
- * one padding, not two settings; see `lostAndFoundCardLayout.statusPill`.
+ * The status pill — Figma 3128:32 (nodes 4319:1510, 4319:1549, 4319:1598):
+ * the status's icon and a chevron on its colour, 56 x 38. The status in words
+ * is its accessibility label.
  *
  * **Not a touchable when `onStatusPress` is absent.** Room Detail renders this
  * card without a status handler, and a `Pressable` that does nothing still
@@ -88,20 +86,14 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false }: Item
   };
 
   const body = updating ? (
-    <ActivityIndicator size="small" color={tone.label} />
+    <View className="flex-1 items-center justify-center">
+      <ActivityIndicator size="small" color={tone.label} />
+    </View>
   ) : (
     <>
-      <Text
-        className="font-hestia-primary font-bold"
-        numberOfLines={1}
-        style={{
-          fontSize: L.statusPill.fontSize * scaleX,
-          fontFamily: typography.fontFamily.primary,
-          color: tone.label,
-        }}
-      >
-        {chrome.pillLabel}
-      </Text>
+      <View className="items-center justify-center" style={{ width: L.statusPill.iconSlot * scaleX }}>
+        <Icon name={chrome.pillIcon} size={L.statusPill.iconSize * scaleX} color={tone.glyph} />
+      </View>
       {chrome.pillGlyph === 'tick' ? (
         <Icon
           name="action-check"
@@ -112,8 +104,8 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false }: Item
       ) : (
         /*
           A chevron turned down. The transform does not change layout size, so
-          the outer box carries the designed 17x8 footprint while the inner View
-          rotates a glyph laid out 8 wide by 16 tall into it.
+          the outer box carries the designed footprint while the inner View
+          rotates a glyph laid out tall and narrow into it.
         */
         <View
           className="items-center justify-center"
@@ -125,7 +117,7 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false }: Item
           <View style={{ transform: [{ rotate: '-90deg' }] }}>
             <Icon
               name="action-chevron"
-              size={L.statusPill.chevron.height * 2 * scaleX}
+              size={L.statusPill.chevron.width * scaleX}
               color={tone.glyph}
             />
           </View>
@@ -135,17 +127,17 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false }: Item
   );
 
   const shape = {
+    width: L.statusPill.width * scaleX,
     height: L.statusPill.height * scaleX,
     borderRadius: L.statusPill.radius * scaleX,
     backgroundColor: tone.pill,
     paddingLeft: L.statusPill.paddingLeft * scaleX,
-    paddingRight: L.statusPill.paddingRight * scaleX,
     gap: L.statusPill.gap * scaleX,
   };
 
   if (!onStatusPress) {
     return (
-      <View className="flex-row items-center" style={shape}>
+      <View className="flex-row items-center" style={shape} accessibilityLabel={chrome.pillLabel}>
         {body}
       </View>
     );

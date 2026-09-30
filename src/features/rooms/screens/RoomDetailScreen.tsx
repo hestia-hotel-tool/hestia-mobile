@@ -11,6 +11,7 @@ import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
 import StatusChangeModal from '../components/StatusChangeModal';
 import ReturnLaterModal from '../components/roomDetail/ReturnLaterModal';
 import PromiseTimeModal from '../components/roomDetail/PromiseTimeModal';
+import type { StaffMember } from '@features/staff/types/staff.types';
 import { submitCleaningReport, type CleaningReport } from '../services/cleaningReports';
 import RefuseServiceModal from '../components/roomDetail/RefuseServiceModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
@@ -1029,41 +1030,35 @@ export default function RoomDetailScreen() {
     else if (back === 'refuseService') setShowRefuseServiceModal(true);
   };
 
-  const handleStaffSelect = (staffId: string) => {
-
-    // Important: never reference variables that don't exist in this scope.
-    // iOS was crashing because `selectedStaff` was undefined here.
+  const handleStaffSelect = (staffId: string, member?: StaffMember) => {
     if (!staffId) {
       closeReassign();
       return;
     }
 
-    const safeName = 'Staff Member';
+    const name = member?.name?.trim() || 'Staff member';
     const initials =
-      safeName
+      name
         .split(/\s+/)
         .filter(Boolean)
-        .map((s) => s[0])
+        .map((part) => part[0])
         .join('')
         .slice(0, 2)
         .toUpperCase() || '?';
+    const previous = assignedStaff;
 
-    const colors = ['#ff4dd8', '#5a759d', '#607aa1', '#f0be1b'];
-    const index = safeName.charCodeAt(0) % colors.length;
-    const avatarColor = colors[index];
-
-    // Set immediately with safe placeholder so the UI doesn't crash.
+    // The picked attendant straight away — their name and photo come with the
+    // row they were chosen from, not from the save's round trip.
     setAssignedStaff({
       id: staffId,
-      name: safeName,
-      avatar: require('../../../../assets/icons/profile-avatar.png'),
+      name,
+      avatar: member?.avatar ? { uri: member.avatar } : undefined,
       initials,
-      department: undefined,
-      avatarColor,
+      department: member?.department,
+      avatarColor: member?.avatarColor,
     });
     closeReassign();
 
-    // Persist assignment + refresh history (best-effort).
     (async () => {
       try {
         setIsAssigningStaff(true);
@@ -1072,14 +1067,21 @@ export default function RoomDetailScreen() {
           setAssignedStaff({
             id: staffId,
             name: info.name,
-            avatar: info.avatar ? { uri: info.avatar } : require('../../../../assets/icons/profile-avatar.png'),
+            avatar: info.avatar ? { uri: info.avatar } : undefined,
             initials: info.initials,
-            department: undefined,
+            department: member?.department,
           });
+          // The Rooms list shows the new attendant too, without a refetch.
+          useRoomsStore.getState().setRoomAttendant(room.id, info);
         }
       } catch (e) {
-        // Keep placeholder assignment; do not crash the flow.
         console.warn('[RoomDetailScreen] Failed to persist assignment', e);
+        setAssignedStaff(previous);
+        messageModal.show({
+          title: 'Not reassigned',
+          message: e instanceof Error ? e.message : 'The room could not be reassigned. Please try again.',
+          buttons: [{ text: 'OK' }],
+        });
       } finally {
         setIsAssigningStaff(false);
         void refreshHistory();
@@ -1273,6 +1275,7 @@ export default function RoomDetailScreen() {
         onAutoAssign={handleAutoAssign}
         currentAssignedStaffId={assignedStaff?.id}
         roomNumber={room.roomNumber}
+        shift={shift === 'PM' ? 'PM' : 'AM'}
       />
 
       <AddNoteModal

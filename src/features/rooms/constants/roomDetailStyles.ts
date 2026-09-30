@@ -457,7 +457,7 @@ export const ASSIGNED_TASK_CARD = {
   top: 674, // From Figma: top: 674px (updated from 650px to match Figma exactly)
   width: 390, // Card width from Figma
   height: 206.09, // From Figma: height: 206.09px (reverted to original Figma value)
-  borderRadius: 9,
+  borderRadius: 12, // 1772:107
   backgroundColor: '#f9fafc',
   borderWidth: 1,
   borderColor: '#e3e3e3',

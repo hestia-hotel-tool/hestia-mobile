@@ -1,26 +1,25 @@
 import React from 'react';
 import { ActivityIndicator, TextInput } from 'react-native';
 import { Pressable, ScrollView, Text, View } from '@/tw';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import StatusPopover from '@features/rooms/components/StatusPopover';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
 import type { LostAndFoundStatus } from '../types/lostAndFound.types';
 
 /**
- * Card geometry, in design px.
+ * Card geometry, in design px — Figma 4352:3112: 396 wide at x16.
  *
- * `StatusPopover` defaults to the room flow's 416 at x=11; the Lost & Found
- * popover in 3128:310 is narrower and sits further in, so it records its own
- * pair here exactly as `TICKET_STATUS_POPOVER` does for Tickets.
+ * `StatusPopover` defaults to the room flow's 416 at x=11, so this records its
+ * own pair, as `TICKET_STATUS_POPOVER` does for Tickets.
  */
-export const LOST_AND_FOUND_STATUS_POPOVER = { width: 394, left: 23 } as const;
+export const LOST_AND_FOUND_STATUS_POPOVER = { width: 396, left: 16 } as const;
 
 /**
  * Placement heights, design px. These only decide whether the card opens below
  * the pill or flips above it, so an estimate is fine.
  */
-const HEIGHT_STATUS_GRID = 236;
+const HEIGHT_STATUS_GRID = 287;
 const HEIGHT_SHIPPING = 330;
 
 export type LostAndFoundStatusPopoverProps = {
@@ -41,15 +40,33 @@ export type LostAndFoundStatusPopoverProps = {
   onSubmitShippingLocation: (value: string, dismiss: (after?: () => void) => void) => void;
 };
 
-const STATUS_TONE: Record<'stored' | 'shipped' | 'discarded', string> = {
-  stored: '#f0be1b',
-  shipped: '#39d47f',
-  discarded: '#9ca3af',
-};
+type OptionKey = 'stored' | 'shipped' | 'discarded';
 
 /**
- * Change an item's status — Figma **3128:310**, and **3107:70** for the
- * shipping sub-mode.
+ * Figma 4352-2983: each option is its status pill (the card's, larger), a name
+ * and what it means. Colours and marks are the card pill's own.
+ */
+const OPTIONS: { key: OptionKey; label: string; hint: string; icon: IconName; tone: string; glyph: number }[] = [
+  { key: 'stored', label: 'Stored', hint: 'HSK Office, Front Office, Warehouse', icon: 'lf-stored', tone: '#f0be1b', glyph: 16.8 },
+  { key: 'shipped', label: 'Shipped', hint: 'Sent to guest Address', icon: 'lf-shipped', tone: '#39d47f', glyph: 15 },
+  { key: 'discarded', label: 'Discarded', hint: 'Thrown away or Destroyed', icon: 'lf-discarded', tone: '#57595d', glyph: 16 },
+];
+
+/** Design px — nodes 4352:3160 (pill), 4352:3150 (name), 4352:3188 (hint), 4352:3189 (tick). */
+const ROW = {
+  pill: { width: 67, height: 45.5, iconSlot: 26, iconLeft: 8, chevron: 14.2 },
+  /** Pills 69 to 78 apart; 73.5 splits them. */
+  gap: 28,
+  /** The name 17 after the pill. */
+  textGap: 17,
+  /** The tick ends 40 from the card's right; the popover pads 24. */
+  tickInset: 16,
+} as const;
+
+/**
+ * Change an item's status — Figma **4352-2983** (a list: each status's pill,
+ * its name and what it means, a tick on the current one), and **3107:70** for
+ * the shipping sub-mode.
  *
  * Wraps the shared `StatusPopover` rather than re-implementing it. What this
  * replaces was an inline `<Modal>` in the screen with its own hand-rolled
@@ -88,12 +105,6 @@ export default function LostAndFoundStatusPopover({
   shippingSuggestions,
   onSubmitShippingLocation,
 }: LostAndFoundStatusPopoverProps) {
-  const options: { key: 'stored' | 'shipped' | 'discarded'; label: string }[] = [
-    { key: 'stored', label: 'Stored' },
-    { key: 'shipped', label: 'Shipped' },
-    { key: 'discarded', label: 'Discarded' },
-  ];
-
   const isCurrent = (key: string) =>
     key === currentStatus || (key === 'shipped' && currentStatus === 'returned');
 
@@ -203,69 +214,101 @@ export default function LostAndFoundStatusPopover({
           </View>
         ) : (
           <View>
+            {/* 4352:3116 — Helvetica bold 18, #5b769e. */}
             <Text
-              className="font-hestia-primary font-bold text-ink-secondary"
+              className="font-hestia-primary font-bold"
               style={{
-                fontSize: 17 * scaleX,
+                fontSize: 18 * scaleX,
+                lineHeight: 20.7 * scaleX,
                 fontFamily: typography.fontFamily.primary,
-                marginBottom: 18 * scaleX,
+                color: '#5b769e',
+                marginTop: -5 * scaleX,
+                marginLeft: 4 * scaleX,
+                marginBottom: 24 * scaleX,
               }}
             >
-              Change status
+              Change Status
             </Text>
 
-            <View className="flex-row items-start justify-around">
-              {options.map((option) => (
-                <Pressable
-                  key={option.key}
-                  className="items-center"
-                  disabled={busy}
-                  onPress={() => onSelect(option.key, dismiss)}
-                  style={{ opacity: busy ? 0.4 : 1, paddingHorizontal: 8 * scaleX }}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isCurrent(option.key) }}
-                  accessibilityLabel={`Set status to ${option.label}`}
-                >
-                  <View
-                    className="items-center justify-center"
-                    style={{
-                      width: 44 * scaleX,
-                      height: 44 * scaleX,
-                      borderRadius: 22 * scaleX,
-                      backgroundColor: STATUS_TONE[option.key],
-                      borderWidth: isCurrent(option.key) ? 3 : 0,
-                      borderColor: '#334866',
-                    }}
+            <View style={{ gap: ROW.gap * scaleX, marginBottom: 6 * scaleX }}>
+              {OPTIONS.map((option) => {
+                const current = isCurrent(option.key);
+                return (
+                  <Pressable
+                    key={option.key}
+                    className="flex-row items-center"
+                    disabled={busy}
+                    onPress={() => onSelect(option.key, dismiss)}
+                    style={{ opacity: busy && !current ? 0.4 : 1, paddingRight: ROW.tickInset * scaleX }}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: current }}
+                    accessibilityLabel={`Set status to ${option.label}. ${option.hint}`}
                   >
-                    {busy && isCurrent(option.key) ? (
-                      <ActivityIndicator size="small" color="#ffffff" />
-                    ) : option.key === 'shipped' ? (
-                      <Icon name="action-check" size={9.75 * scaleX} color="#ffffff" />
-                    ) : option.key === 'stored' ? (
-                      <View style={{ transform: [{ rotate: '-90deg' }] }}>
-                        <Icon name="action-chevron" size={12 * scaleX} color="#ffffff" />
-                      </View>
-                    ) : (
+                    <View
+                      className="flex-row items-center"
+                      style={{
+                        width: ROW.pill.width * scaleX,
+                        height: ROW.pill.height * scaleX,
+                        borderRadius: (ROW.pill.height / 2) * scaleX,
+                        backgroundColor: option.tone,
+                        paddingLeft: ROW.pill.iconLeft * scaleX,
+                      }}
+                    >
+                      {busy && current ? (
+                        <View className="flex-1 items-center justify-center">
+                          <ActivityIndicator size="small" color="#ffffff" />
+                        </View>
+                      ) : (
+                        <>
+                          <View className="items-center justify-center" style={{ width: ROW.pill.iconSlot * scaleX }}>
+                            <Icon name={option.icon} size={option.glyph * scaleX} color="#ffffff" />
+                          </View>
+                          {/* 4352:3162 — 14.2 x 6.7, a chevron turned down. */}
+                          <View
+                            className="items-center justify-center"
+                            style={{ width: ROW.pill.chevron * scaleX, height: (ROW.pill.chevron / 2) * scaleX, marginLeft: 4 * scaleX }}
+                          >
+                            <View style={{ transform: [{ rotate: '-90deg' }] }}>
+                              <Icon name="action-chevron" size={ROW.pill.chevron * scaleX} color="#ffffff" />
+                            </View>
+                          </View>
+                        </>
+                      )}
+                    </View>
+
+                    <View className="flex-1" style={{ marginLeft: ROW.textGap * scaleX }}>
+                      {/* 4352:3150 — Helvetica medium 14. */}
                       <Text
-                        className="font-hestia-primary text-ink-white"
-                        style={{ fontSize: 22 * scaleX, lineHeight: 24 * scaleX }}
+                        style={{
+                          fontSize: 14 * scaleX,
+                          lineHeight: 16.9 * scaleX,
+                          fontFamily: typography.fontFamily.primary,
+                          fontWeight: '500',
+                          color: '#000000',
+                        }}
                       >
-                        ×
+                        {option.label}
                       </Text>
-                    )}
-                  </View>
-                  <Text
-                    className="font-hestia-primary text-ink-primary"
-                    style={{
-                      fontSize: 13 * scaleX,
-                      fontFamily: typography.fontFamily.primary,
-                      marginTop: 8 * scaleX,
-                    }}
-                  >
-                    {option.label}
-                  </Text>
-                </Pressable>
-              ))}
+                      {/* 4352:3188 — light 11, 19 under the name. */}
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          marginTop: 2 * scaleX,
+                          fontSize: 11 * scaleX,
+                          lineHeight: 12.6 * scaleX,
+                          fontFamily: typography.fontFamily.primary,
+                          fontWeight: '300',
+                          color: '#000000',
+                        }}
+                      >
+                        {option.hint}
+                      </Text>
+                    </View>
+
+                    {current ? <Icon name="action-check" size={11 * scaleX} color="#5a759d" /> : null}
+                  </Pressable>
+                );
+              })}
             </View>
           </View>
         )

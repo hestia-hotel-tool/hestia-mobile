@@ -121,30 +121,22 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
   footerLabelTop: 194,
 
   /**
-   * Node 3871:3587 / 3871:3621 — the status pill.
-   *
-   * **Content-hugging, not two fixed widths.** The frame draws 118 under
-   * "Stored" and 126 under "Shipped", which looks like two values but is one
-   * pill and one label length: both end at x=412 and both put the chevron at
-   * x=375.6. Solving for the padding gives 50 from card 1 and 45 from card 2 —
-   * the frame disagrees with itself by 5px — so these are the mean. They render
-   * 115.4 and 128.4 against the frame's 118 and 126, inside its own spread.
-   *
-   * Do not "fix" this back to two constants. That would make a mock label's
-   * length into an API.
+   * Nodes 4319:1510 / 4319:1549 / 4319:1598 — the status pill: 56 x 38, fully
+   * rounded, a 15 icon and the chevron, no label. Each icon's centre sits
+   * about 18 in (a 21 slot from x8); the chevron starts at x32.5.
    */
   statusPill: {
-    height: 54,
+    width: 56,
+    height: 38,
     radius: 75,
     top: 205,
     rightInset: 13,
-    paddingLeft: 21,
-    gap: 7,
-    paddingRight: 19.4,
-    fontSize: 16,
-    /** Node 3871:3596 — 17x8, a chevron turned down. */
-    chevron: { width: 17, height: 8 },
-    /** Unused by any current frame (3871:3630 is a chevron); kept for the `tick` glyph option. */
+    paddingLeft: 8,
+    iconSlot: 21,
+    gap: 3.5,
+    iconSize: 14,
+    /** Node 4319:1513 — 11.9 x 5.6, a chevron turned down. */
+    chevron: { width: 11.9, height: 5.6 },
     tick: { width: 14, height: 10 },
   },
 } as const;

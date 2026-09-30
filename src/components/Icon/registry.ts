@@ -73,6 +73,9 @@ import ChecklistBed from '@assets/icons/misc/checklist-bed.svg';
 import ChecklistCurtains from '@assets/icons/misc/checklist-curtains.svg';
 import ChecklistDust from '@assets/icons/misc/checklist-dust.svg';
 import ChecklistMinibar from '@assets/icons/misc/checklist-minibar.svg';
+import LfDiscarded from '@assets/icons/misc/lf-discarded.svg';
+import LfShipped from '@assets/icons/misc/lf-shipped.svg';
+import LfStored from '@assets/icons/misc/lf-stored.svg';
 import LocationPin from '@assets/icons/misc/location-pin.svg';
 import LostFoundBasket from '@assets/icons/misc/lost-found-basket.svg';
 // nav
@@ -156,6 +159,9 @@ export const icons = {
   'checklist-curtains': ChecklistCurtains,
   'checklist-dust': ChecklistDust,
   'checklist-minibar': ChecklistMinibar,
+  'lf-discarded': LfDiscarded,
+  'lf-shipped': LfShipped,
+  'lf-stored': LfStored,
   'location-pin': LocationPin,
   'lost-found-basket': LostFoundBasket,
   // nav
@@ -244,6 +250,9 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'checklist-curtains': 1.931,
   'checklist-dust': 1,
   'checklist-minibar': 0.9987,
+  'lf-discarded': 0.9286,
+  'lf-shipped': 1.4615,
+  'lf-stored': 1.0714,
   'location-pin': 1,
   'lost-found-basket': 0.9,
   'nav-ai': 1,
@@ -319,6 +328,9 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'checklist-curtains',
   'checklist-dust',
   'checklist-minibar',
+  'lf-discarded',
+  'lf-shipped',
+  'lf-stored',
   'location-pin',
   'nav-chat',
   'nav-rooms',

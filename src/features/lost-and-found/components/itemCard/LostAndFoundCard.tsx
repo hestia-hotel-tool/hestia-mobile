@@ -164,7 +164,9 @@ export function LostAndFoundCard({
             />
           )}
 
-          <ItemLocationBlock label={chrome.locationLabel} value={locationValue} />
+          {chrome.locationSource !== 'none' ? (
+            <ItemLocationBlock label={chrome.locationLabel} value={locationValue} />
+          ) : null}
         </View>
       </View>
 

@@ -1,3 +1,4 @@
+import type { IconName } from '@/components/Icon';
 import type { LostAndFoundStatus } from '../types/lostAndFound.types';
 
 /**
@@ -10,8 +11,10 @@ import type { LostAndFoundStatus } from '../types/lostAndFound.types';
 export type FoundInKind = 'room' | 'publicArea';
 
 export type LostAndFoundCardChrome = {
-  /** The word on the pill. */
+  /** The status in words: read out with the pill, which shows only its icon. */
   pillLabel: string;
+  /** The pill's mark — Figma 3128:32: a box (stored), a handshake (shipped), a bin (discarded). */
+  pillIcon: IconName;
   /** Which glyph the pill carries: a tick reads as settled, a chevron as changeable. */
   pillGlyph: 'tick' | 'chevron';
   /** Keys `LOST_AND_FOUND_CARD_THEME`; a tone, not a colour. */
@@ -20,8 +23,8 @@ export type LostAndFoundCardChrome = {
   footerLabel: string;
   /** The location block's label. Node 3871:3600 vs 3871:3719. */
   locationLabel: string;
-  /** Which field of the item the location block reads. */
-  locationSource: 'stored' | 'shipped';
+  /** Which field of the item the location block reads; `none` draws no block. */
+  locationSource: 'stored' | 'shipped' | 'none';
   /**
    * The Figma node this row was checked against, or `null` for "inherited from
    * the previous implementation and never verified".
@@ -54,6 +57,7 @@ export const LOST_AND_FOUND_CARD_CHROME: Record<
 > = {
   stored: {
     pillLabel: 'Stored',
+    pillIcon: 'lf-stored',
     pillGlyph: 'chevron',
     pillTone: 'stored',
     footerLabel: 'Stored by',
@@ -63,6 +67,7 @@ export const LOST_AND_FOUND_CARD_CHROME: Record<
   },
   shipped: {
     pillLabel: 'Shipped',
+    pillIcon: 'lf-shipped',
     // Node 3871:3630 is the same 17x8 down-chevron the Stored pill carries.
     pillGlyph: 'chevron',
     pillTone: 'shipped',
@@ -81,6 +86,7 @@ export const LOST_AND_FOUND_CARD_CHROME: Record<
    */
   returned: {
     pillLabel: 'Shipped',
+    pillIcon: 'lf-shipped',
     pillGlyph: 'chevron',
     pillTone: 'shipped',
     footerLabel: 'Shipped By',
@@ -94,14 +100,16 @@ export const LOST_AND_FOUND_CARD_CHROME: Record<
    * design token (see the theme). `verifiedAgainst: null` is the honest record
    * of that; inventing a node id here would read as provenance.
    */
+  /** 3128:32's third card: "Discarded by", and no location. */
   discarded: {
     pillLabel: 'Discarded',
+    pillIcon: 'lf-discarded',
     pillGlyph: 'chevron',
     pillTone: 'discarded',
-    footerLabel: 'Stored by',
-    locationLabel: 'Stored Location',
-    locationSource: 'stored',
-    verifiedAgainst: null,
+    footerLabel: 'Discarded by',
+    locationLabel: '',
+    locationSource: 'none',
+    verifiedAgainst: '4319:1598',
   },
 };
 

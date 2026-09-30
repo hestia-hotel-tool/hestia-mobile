@@ -129,7 +129,9 @@ export default function RoomDetailContent({
     [roomType, guests, roomId]
   );
 
-  const showAssignedTaskCard = !!(assignedTo || tasks.length > 0);
+  // Always: the room's notes live in this card now (Figma 1772-104), and it
+  // shows the Assign button when nobody is on the room.
+  const showAssignedTaskCard = true;
   const showAssignedToHeading = showAssignedTaskCard;
 
 
@@ -234,6 +236,10 @@ export default function RoomDetailContent({
                       isLoading={isAssigningStaff}
                     />
 
+                    {/* Figma 1772-104: the notes, straight under the assignee. */}
+                    <View style={styles.cardDivider} />
+                    <NotesSection notes={notes} onAddPress={onAddNote} />
+
                     {tasks.length > 0 ? <View style={styles.cardDivider} /> : null}
 
                     {tasks.length > 0 ? (
@@ -256,7 +262,6 @@ export default function RoomDetailContent({
                 />
               </View>
 
-              <NotesSection notes={notes} onAddPress={onAddNote} />
             </>
           )}
 
@@ -337,10 +342,11 @@ const styles = StyleSheet.create({
     paddingVertical: ASSIGNED_TASK_CARD.paddingVertical * scaleX,
     overflow: 'hidden',
   },
+  /** 1772:108 — nearly the card's full width, 2.8 in from each side. */
   cardDivider: {
     height: 1,
     backgroundColor: ASSIGNED_TASK_CARD.divider.backgroundColor,
-    width: '100%',
+    marginHorizontal: -(ASSIGNED_TASK_CARD.paddingHorizontal - 2.8) * scaleX,
     marginTop: 12 * scaleX,
     marginBottom: 12 * scaleX,
   },

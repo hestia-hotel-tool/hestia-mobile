@@ -12,12 +12,19 @@ import { typography } from '@/theme';
 interface ReassignModalProps {
   visible: boolean;
   onClose: () => void;
-  onStaffSelect: (staffId: string) => void;
+  /** The chosen attendant's id, and their row (name, photo) so callers can show them at once. */
+  onStaffSelect: (staffId: string, member?: StaffMember) => void;
   onAutoAssign: () => void;
   currentAssignedStaffId?: string;
   roomNumber?: string;
   /** When false, hides the Auto Assign button (e.g. for "Assign Staff" flow). Default true. */
   showAutoAssign?: boolean;
+  /**
+   * The shift the room is being worked on. The sheet opens on the attendants
+   * rostered on it (Settings › Shifts), not on everyone; the other tabs are
+   * still one tap away.
+   */
+  shift?: 'AM' | 'PM';
 }
 
 export default function ReassignModal({
@@ -28,8 +35,9 @@ export default function ReassignModal({
   currentAssignedStaffId,
   roomNumber,
   showAutoAssign = true,
+  shift,
 }: ReassignModalProps) {
-  const [activeTab, setActiveTab] = useState<ReassignTab>('OnShift');
+  const [activeTab, setActiveTab] = useState<ReassignTab>(shift ?? 'OnShift');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
     currentAssignedStaffId || null
@@ -69,17 +77,18 @@ export default function ReassignModal({
     };
   }, [visible]);
 
-  // Reset search state when modal is closed
+  // Reset search state when modal is closed; reopen on the room's shift.
   React.useEffect(() => {
     if (!visible) {
       setShowSearch(false);
       setSearchQuery('');
+      setActiveTab(shift ?? 'OnShift');
     }
-  }, [visible]);
+  }, [visible, shift]);
 
   const handleStaffSelect = (staffId: string) => {
     setSelectedStaffId(staffId);
-    onStaffSelect(staffId);
+    onStaffSelect(staffId, staff.find((s) => s.id === staffId));
     onClose();
   };
 
