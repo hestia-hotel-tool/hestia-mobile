@@ -58,7 +58,10 @@ export function SingleGuestRoomCard({
   const status = assigneeStatus(room, now);
   const promise = promiseLine(room, now);
   const displayStatus = getRoomCardStatus(room);
-  const priority = isActivePriority(room);
+  // The red frame and rush pill are for a priority room still to be started
+  // (Figma 3883:5765, "Not Started"). Once it is In Progress, paused, DND or
+  // anything else, the card shows that state and its pill, like any room.
+  const priority = isActivePriority(room) && displayStatus === 'Dirty';
   const spec = ROOM_CARD_SPECS[roomCardSpecName(displayStatus, false, priority)];
   const guest = room.guests[0];
   const staff = room.roomAttendantAssigned;

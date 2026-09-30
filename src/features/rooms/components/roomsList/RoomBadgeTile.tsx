@@ -4,11 +4,12 @@ import { Icon, type IconName } from '@/components/Icon';
 import { cardPx } from './roomCardLayout';
 
 /**
- * The card header's badge tile — Figma 3883:5570 (Rectangle 168, e.g. node
- * 4349:2157): 42 x 38, radius 10, #f8f8f8, holding one red glyph. On a white
+ * The card header's badge tile — Figma 4349:2631 (Rectangle 169): 38 x 34.4,
+ * radius 10, #f8f8f8, holding one red glyph. The same size whether a room
+ * shows one, two or all three. On a white
  * card the tile shows; on the off-white ones it all but disappears, as drawn.
  */
-export const BADGE_TILE = { width: cardPx(42), height: cardPx(38), radius: cardPx(10), fill: '#f8f8f8' } as const;
+export const BADGE_TILE = { width: cardPx(38), height: cardPx(34.4), radius: cardPx(10), fill: '#f8f8f8' } as const;
 const RED = '#f92424';
 
 export type RoomBadge = {
@@ -62,7 +63,7 @@ export function roomBadges(room: {
   return badges;
 }
 
-/** One badge tile. The glyph scales with the tile when the row has to shrink. */
+/** One badge tile. The glyph keeps its share of the tile if the row ever has to shrink. */
 export function RoomBadgeTile({ badge, width, height }: { badge: RoomBadge; width: number; height: number }) {
   const scale = height / BADGE_TILE.height;
   return (

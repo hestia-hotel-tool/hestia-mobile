@@ -13,7 +13,7 @@ export type RoomCardHeaderProps = {
   typeLabel: string;
   /** Tiles between the number/type block and the rule — see `roomBadges`. */
   badges?: RoomBadge[];
-  /** The assignee column on the right of the rule. */
+  /** The assignee column, right of the number/type block. */
   assignee?: React.ReactNode;
 };
 
@@ -24,19 +24,28 @@ const NUMBER_LINE = cardPx(31);
  * The card's identity row — Figma 3883:5570.
  *
  * Room number (Helvetica bold 27/31), category (light 12) and type label
- * (bold 16) on the left; the badge tiles; a 50.5 rule in #e3e3e3; who is
- * working it on the right. Each card kind places these differently, so every
+ * (bold 16) on the left; the badge tiles; who is working it on the right. Each card kind places these differently, so every
  * offset comes from its `spec`.
  */
-export function RoomCardHeader({ spec, roomNumber, category, typeLabel, badges = [], assignee }: RoomCardHeaderProps) {
+export function RoomCardHeader({
+  spec,
+  roomNumber,
+  category,
+  typeLabel,
+  badges = [],
+  assignee,
+}: RoomCardHeaderProps) {
   /** The header row's full width and the number/type block's width, once measured. */
   const [rowWidth, setRowWidth] = useState<number | null>(null);
   const [textWidth, setTextWidth] = useState<number | null>(null);
+  /** The assignee block's own width, unconstrained — how narrow its column may go. */
+  const [assigneeWidth, setAssigneeWidth] = useState<number | null>(null);
   const layout =
-    badges.length > 0 && rowWidth != null && textWidth != null
-      ? headerLayout(spec, rowWidth, textWidth, badges.length)
+    badges.length > 0 && rowWidth != null && textWidth != null && assigneeWidth != null
+      ? headerLayout(spec, rowWidth, textWidth, badges.length, assigneeWidth)
       : null;
   const rightColumn = layout?.rightColumn ?? spec.rightColumn;
+  const avatarGap = layout?.avatarGap ?? spec.avatarGap;
 
   return (
     <View
@@ -87,7 +96,8 @@ export function RoomCardHeader({ spec, roomNumber, category, typeLabel, badges =
         {/* Drawn once measured, so the first frame never overlaps the text. */}
         {layout ? (
           <View
-            className="flex-1 flex-row items-center justify-center"
+            // Against the assignee, as 4349:2631 draws them, however many there are.
+            className="flex-1 flex-row items-center justify-end"
             style={{ marginLeft: TILE_GAP_TEXT, marginRight: TILE_GAP_RULE, gap: layout.gap }}
           >
             {badges.map((badge) => (
@@ -97,17 +107,34 @@ export function RoomCardHeader({ spec, roomNumber, category, typeLabel, badges =
         ) : null}
       </View>
 
-      <View style={{ width: 1, height: ROOM_CARD.headerRule, backgroundColor: '#e3e3e3' }} />
+      {/* No vertical rule before the assignee: removed from the design. A
+          1-wide spacer keeps the column where the rule placed it. */}
+      <View style={{ width: 1, height: ROOM_CARD.headerRule }} />
 
       <View
         style={{
           width: rightColumn - 1,
-          paddingLeft: spec.avatarGap,
+          paddingLeft: avatarGap,
           marginTop: spec.avatarTop - spec.ruleTop,
         }}
       >
         {assignee}
       </View>
+
+      {/* An invisible, unconstrained copy of the assignee, measured so its
+          column never narrows past the name and status (only with badges,
+          which are what ask it to narrow). */}
+      {badges.length > 0 ? (
+        <View
+          pointerEvents="none"
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={{ position: 'absolute', opacity: 0, left: 0, top: 0 }}
+          onLayout={(e) => setAssigneeWidth(e.nativeEvent.layout.width)}
+        >
+          {assignee}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -116,39 +143,48 @@ export default RoomCardHeader;
 
 /** Room between the text block and the first tile. */
 const TILE_GAP_TEXT = cardPx(8);
-/** Room between the last tile and the rule, so a tile never touches it. */
-const TILE_GAP_RULE = cardPx(6);
+/** The last tile ends 6 before the assignee's photo (4349:2678 → 4349:2704), less the column's own inset. */
+const TILE_GAP_RULE = 0;
+/** 4349:2665 / 2672 / 2678: 38 x 34.4 tiles, 3.4 to 4.6 apart. */
+const TILE_GAP = cardPx(4);
 const TILE_RATIO = BADGE_TILE.height / BADGE_TILE.width;
-/**
- * Narrowest the right column may become to make room for the tiles: still
- * fits the "Assign room" control in full (35 circle + 5 + a 76 pill + 16 pad).
- */
-const RIGHT_COLUMN_MIN = cardPx(132);
-/** Smallest tile; the glyphs scale down with it. */
-const MIN_TILE = cardPx(18);
+/** The gap before the photo when the column has to narrow (against 9-16 as drawn). */
+const TIGHT_AVATAR_GAP = cardPx(8);
+/** Clear space after the name, so it never touches the card's edge. */
+const TRAILING = cardPx(4);
 
-type HeaderLayout = { rightColumn: number; tile: number; gap: number };
+type HeaderLayout = { rightColumn: number; tile: number; gap: number; avatarGap: number };
 
 /**
- * Fit the badge tiles on one row, beside the text, without overlapping it.
+ * Place the badge tiles beside the text, without overlapping it and without
+ * cutting the attendant's name short.
  *
- * At the design width everything is as drawn: the card's right column and
- * full 42x38 tiles 4 apart. When the tiles do not fit, the right column gives
- * up exactly the width they need, down to RIGHT_COLUMN_MIN, and whatever
- * shortfall remains is taken by shrinking the tiles, which stay in one row.
+ * Tiles are the design's 38 x 34.4, 4 apart — one, two or three look the
+ * same. When they do not fit at the card's right column, the column gives up
+ * the width they need, but never below the assignee's own width (photo, name,
+ * status), with the gap before the photo tightened to 8. Only if even that is
+ * not enough — a long type label and three badges on a small phone — do the
+ * tiles shrink, all together, to fit.
  */
-function headerLayout(spec: RoomCardSpec, rowWidth: number, textWidth: number, count: number): HeaderLayout {
-  const fullGap = cardPx(4);
-  const ideal = count * BADGE_TILE.width + (count - 1) * fullGap;
+function headerLayout(
+  spec: RoomCardSpec,
+  rowWidth: number,
+  textWidth: number,
+  count: number,
+  assigneeWidth: number
+): HeaderLayout {
+  const ideal = count * BADGE_TILE.width + (count - 1) * TILE_GAP;
   const spaceWith = (right: number) => rowWidth - spec.numberLeft - right - textWidth - TILE_GAP_TEXT - TILE_GAP_RULE;
 
   const atDesign = spaceWith(spec.rightColumn);
   if (atDesign >= ideal) {
-    return { rightColumn: spec.rightColumn, tile: BADGE_TILE.width, gap: fullGap };
+    return { rightColumn: spec.rightColumn, tile: BADGE_TILE.width, gap: TILE_GAP, avatarGap: spec.avatarGap };
   }
-  const rightColumn = Math.max(Math.min(RIGHT_COLUMN_MIN, spec.rightColumn), spec.rightColumn - (ideal - atDesign));
+  const avatarGap = Math.min(spec.avatarGap, TIGHT_AVATAR_GAP);
+  // 1 for the spacer where the rule was.
+  const floor = Math.min(spec.rightColumn, 1 + avatarGap + assigneeWidth + TRAILING);
+  const rightColumn = Math.max(floor, spec.rightColumn - (ideal - atDesign));
   const space = spaceWith(rightColumn);
-  const gap = count > 1 ? cardPx(2) : 0;
-  const tile = Math.max(MIN_TILE, Math.min(BADGE_TILE.width, (space - gap * (count - 1)) / count));
-  return { rightColumn, tile, gap };
+  const tile = Math.min(BADGE_TILE.width, (space - TILE_GAP * (count - 1)) / count);
+  return { rightColumn, tile, gap: TILE_GAP, avatarGap };
 }

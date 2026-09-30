@@ -72,7 +72,8 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
       style={{ gap: ROOM_CARD.assigneeGap }}
     >
       <Avatar uri={avatarUrl} name={name} size={ROOM_CARD.assigneeAvatar} />
-      <View className="flex-1">
+      {/* Shrinks rather than grows, so the block has a natural width the header can measure. */}
+      <View style={{ flexShrink: 1 }}>
         <Text
           style={{
             fontFamily: typography.fontFamily.primary,
