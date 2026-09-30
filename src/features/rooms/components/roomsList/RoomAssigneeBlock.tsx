@@ -52,9 +52,9 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
     // Figma 2702:7771: an empty circle where the photo will go, and an "Assign room" pill.
     // A room can be In Progress before anyone is assigned — its line still
     // belongs on the card, under the button.
-    if (!statusText) return <AssignRoomButton onPress={onPress} />;
+    // Right-aligned in the column, against the card's edge; any line under it follows.
     return (
-      <View className="gap-xs">
+      <View className="items-end gap-xs" style={{ marginRight: cardPx(12) }}>
         <AssignRoomButton onPress={onPress} />
         {statusText}
       </View>
