@@ -156,9 +156,15 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
             {kind === 'general' ? (
               <Avatar uri={item.senderAvatar} name={item.senderName} size={N.avatar * scaleX} />
             ) : (
-              <View style={[styles.taskIcon, { backgroundColor: config.colour }]}>
-                <Icon name={taskMeta(item.type).icon} size={taskMeta(item.type).iconSize * scaleX} color="#ffffff" />
-              </View>
+              (() => {
+                // Each kind on its state's colour (taskMeta).
+                const meta = taskMeta(item.type);
+                return (
+                  <View style={[styles.taskIcon, { backgroundColor: meta.colour }]}>
+                    <Icon name={meta.icon} size={meta.iconSize * scaleX} color={meta.glyph ?? '#ffffff'} />
+                  </View>
+                );
+              })()
             )}
             <View style={styles.text}>
               <Text style={styles.subject} numberOfLines={1}>

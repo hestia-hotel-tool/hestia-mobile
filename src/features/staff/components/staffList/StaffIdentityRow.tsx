@@ -18,6 +18,8 @@ interface StaffIdentityRowProps {
    * (4211:617) — the one thing the revised frame changed here.
    */
   avatarSize?: number;
+  /** The presence dot; 13 on a row, 17 on the open card (4319:123). */
+  dotSize?: number;
   /** Replaces the chevron: the card puts its disclosure control here. */
   trailing?: React.ReactNode;
   /**
@@ -42,6 +44,7 @@ export default function StaffIdentityRow({
   person,
   showChevron = true,
   avatarSize = L.identity.avatar,
+  dotSize = L.identity.dot,
   trailing,
   subLines = 1,
 }: StaffIdentityRowProps) {
@@ -62,8 +65,8 @@ export default function StaffIdentityRow({
           style={{
             right: s(L.identity.dotOffset.right),
             bottom: s(L.identity.dotOffset.bottom),
-            width: s(L.identity.dot),
-            height: s(L.identity.dot),
+            width: s(dotSize),
+            height: s(dotSize),
             backgroundColor: chrome.color,
           }}
           // The dot repeats the group heading, so it is decoration to a screen
@@ -97,9 +100,10 @@ export default function StaffIdentityRow({
           `job_title_id`; an empty line under a name reads as a loading failure.
         */}
         <Text
-          className="font-hestia-primary text-ink-tertiary"
+          className="font-hestia-primary text-black"
           numberOfLines={subLines}
-          style={{ fontSize: s(L.identity.subFontSize), fontFamily: typography.fontFamily.primary }}
+          // 4211:614 — light 14 in black.
+          style={{ fontSize: s(L.identity.subFontSize), fontFamily: typography.fontFamily.primary, fontWeight: '300' }}
         >
           {person.jobTitle ?? person.departmentName ?? ''}
         </Text>

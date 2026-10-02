@@ -46,7 +46,7 @@ export const STAFF_LIST_LAYOUT = {
 
   /** Node 3883:6783 — "Departments", 26 tall at x=27,y=153. */
   departments: {
-    headingFontSize: 20,
+    headingFontSize: 23,
     headingMarginTop: 20,
     /** Node 3883:6744 — the disc. Fully round, so radius is size/2. */
     disc: 55.482,
@@ -98,7 +98,7 @@ export const STAFF_LIST_LAYOUT = {
      */
     ruleGap: 6,
     /** AM ends x=68, PM starts x=111. */
-    labelGap: 43,
+    labelGap: 83,
     fontSize: 16,
     /**
      * The row is inset past the gutter.
@@ -108,7 +108,7 @@ export const STAFF_LIST_LAYOUT = {
      * within it. The search field's right edge is 427 of 440, a 13 inset,
      * tighter than the gutter on the other side.
      */
-    paddingLeft: 43,
+    paddingLeft: 149,
     paddingRight: 13,
     /**
      * Node 4211:623 — a field now, not the bare glyph it replaced, and it
@@ -135,7 +135,8 @@ export const STAFF_LIST_LAYOUT = {
    * where it used to sit below it at y=427.
    */
   sectionHeader: {
-    fontSize: 16,
+    fontSize: 17,
+    countFontSize: 16,
     /**
      * Measured, not taken from the frame's 332 − 289 = 43.
      *
@@ -164,7 +165,7 @@ export const STAFF_LIST_LAYOUT = {
 
   /** Node 3809:147 — (25,532) 401 wide. Height is an outcome. */
   card: {
-    radius: 12,
+    radius: 9,
     /**
      * 22, and it was right the first time.
      *
@@ -173,10 +174,10 @@ export const STAFF_LIST_LAYOUT = {
      * The frame puts the card at y=531.3 and the avatar at 554.5 — 23.2 apart,
      * which 22 plus the disc's antialiasing reproduces.
      */
-    paddingTop: 22,
-    paddingBottom: 18,
+    paddingTop: 18,
+    paddingBottom: 15,
     /** Avatar at x=44 against a card at x=25. */
-    paddingHorizontal: 19,
+    paddingHorizontal: 16,
     /** A hairline, not a border: node 3952:52 is 401x1 across the full width. */
     dividerHeight: 1,
   },
@@ -194,11 +195,12 @@ export const STAFF_LIST_LAYOUT = {
      * The revised frame grew only the open card's avatar; the collapsed entry
      * and the On Break / Shift End rows stayed at 32.
      */
-    cardAvatar: 35,
+    cardAvatar: 47,
+    cardDot: 17,
     avatarToText: 14,
-    nameFontSize: 15,
+    nameFontSize: 16,
     /** Node 3240:637 — "HSK" under the name. */
-    subFontSize: 13,
+    subFontSize: 14,
     nameToSub: 2,
     /** Node 3240:708 — 11x21. */
     chevron: 21,
@@ -206,8 +208,8 @@ export const STAFF_LIST_LAYOUT = {
 
   /** Node 3809:148 — (42,608) 335x9, three segments; "3/7" at x=385. */
   workload: {
-    height: 9,
-    radius: 5,
+    height: 11,
+    radius: 0,
     /** Sampled from node 3809:148 — brand blue on a grey track. */
     fillColor: '#5a759d',
     /** Not a token; the same track `rooms/WorkloadProgressBar` uses. */
@@ -215,21 +217,28 @@ export const STAFF_LIST_LAYOUT = {
     marginTop: 20,
     /** Gap from the bar to the "3/7" that follows it on the same row. */
     countGap: 10,
-    countFontSize: 15,
+    countFontSize: 16,
   },
 
-  /** Nodes 3809:152-154 — y=628, 12px. Spread by flex, not `left: 42/168/291`. */
+  /** Nodes 4319:111–113 — light 16, the numbers bold, 27 apart, 8 under the bar. */
   taskStats: {
-    fontSize: 12,
-    marginTop: 12,
-    /**
-     * The row stops short of the content edge.
-     *
-     * The frame runs the three labels 40..343 inside a content box of 44..407,
-     * so "Dirty. 3" keeps a clear right margin rather than sitting against the
-     * card edge. Spread across the full width they read as a different row.
-     */
-    paddingRight: 60,
+    fontSize: 16,
+    marginTop: 8,
+    gap: 27,
+  },
+
+  /** 4319:105–115 — "Activity", its panel and "View Details". */
+  activity: {
+    headingMarginTop: 20,
+    headingFontSize: 14,
+    panelMarginTop: 8,
+    panelRadius: 9,
+    panelFill: 'rgba(205, 211, 221, 0.26)',
+    panelPaddingTop: 19,
+    panelPaddingHorizontal: 13,
+    panelPaddingBottom: 14,
+    linkMarginTop: 14,
+    linkFontSize: 12,
   },
 
   /** The "Current" block. */

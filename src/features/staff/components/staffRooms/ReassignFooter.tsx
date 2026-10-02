@@ -9,6 +9,8 @@ import { STAFF_ROOMS_LAYOUT as L, STAFF_ROOMS_CHROME as C } from './staffRoomsLa
 
 interface ReassignFooterProps {
   count: number;
+  /** The action's word: "Reassign", "Assign", "Unassign" (Figma 4361:5629 / 4364:6112). */
+  verb?: string;
   busy: boolean;
   onAssign: () => void;
   onCancel: () => void;
@@ -34,6 +36,7 @@ interface ReassignFooterProps {
  */
 export default function ReassignFooter({
   count,
+  verb = 'Assign',
   busy,
   onAssign,
   onCancel,
@@ -56,9 +59,7 @@ export default function ReassignFooter({
         disabled={disabled}
         accessibilityRole="button"
         accessibilityState={{ disabled }}
-        accessibilityLabel={
-          count === 1 ? 'Assign 1 room' : `Assign ${count} rooms`
-        }
+        accessibilityLabel={count === 1 ? `${verb} 1 room` : `${verb} ${count} rooms`}
         className="items-center justify-center"
         style={{
           width: s(F.buttonWidth),
@@ -81,7 +82,7 @@ export default function ReassignFooter({
               color: C.assignLabel,
             }}
           >
-            {`Assign ${count} ${count === 1 ? 'Room' : 'Rooms'}`}
+            {count > 0 ? `${verb} ${count} ${count === 1 ? 'Room' : 'Rooms'}` : verb}
           </Text>
         )}
       </Pressable>
@@ -91,7 +92,7 @@ export default function ReassignFooter({
         disabled={busy}
         hitSlop={{ top: 10, bottom: 10, left: 24, right: 24 }}
         accessibilityRole="button"
-        accessibilityLabel="Cancel reassigning"
+        accessibilityLabel="Cancel"
         style={{ marginTop: s(F.cancelMarginTop) }}
       >
         <Text

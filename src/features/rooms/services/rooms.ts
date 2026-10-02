@@ -1131,6 +1131,27 @@ export async function getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreate
 }
 
 /**
+ * Take rooms off a person for a shift: their `room_assignments` rows go. Only
+ * rows that are still theirs, so a room reassigned in the meantime is left
+ * with whoever has it now. Returns how many were removed.
+ */
+export async function unassignRoomsFromStaff(roomIds: string[], userId: string, shift: 'AM' | 'PM'): Promise<number> {
+  const ids = roomIds.filter(isValidUUID);
+  if (ids.length === 0 || !isValidUUID(userId)) return 0;
+  const shiftId = await getShiftIdByName(shift);
+  if (!shiftId) throw new Error(`No ${shift} shift is set up for this hotel.`);
+  const { data, error } = await supabase
+    .from('room_assignments')
+    .delete()
+    .in('room_id', ids)
+    .eq('shift_id', shiftId)
+    .eq('user_id', userId)
+    .select('id');
+  if (error) throw new Error(error.message || 'The rooms could not be unassigned.');
+  return (data ?? []).length;
+}
+
+/**
  * Assign a room to a staff member for the given shift.
  * Uses room_assignments table: upserts by (room_id, shift_id) so one assignee per room per shift.
  * Always returns StaffInfo for the user when both IDs are valid UUIDs (so the room card can update);

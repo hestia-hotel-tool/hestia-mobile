@@ -139,12 +139,14 @@ export default function StaffDepartmentStrip({
               )}
             </View>
             <Text
-              className="text-center font-hestia-primary text-ink-primary"
+              className="text-center font-hestia-primary"
               numberOfLines={L.departments.labelLines}
+              // 3883:6750 — the selected one bold in #5a759d; the rest light, black.
               style={{
                 fontSize: s(L.departments.labelFontSize),
                 fontFamily: typography.fontFamily.primary,
                 fontWeight: isActive ? '700' : '300',
+                color: isActive ? '#5a759d' : '#000000',
               }}
             >
               {department.name}

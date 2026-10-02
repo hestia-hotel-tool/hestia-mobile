@@ -12,20 +12,14 @@ import { STAFF_ROOMS_LAYOUT as L, STAFF_ROOMS_CHROME as C } from './staffRoomsLa
 interface StaffRoomsHeaderProps {
   person: StaffRosterPerson;
   onBackPress: () => void;
-  /** Enters reassign mode (Figma 3831:99). */
-  onReassignPress?: () => void;
-  /**
-   * False in reassign mode — node 3831:99 does not draw the pill.
-   *
-   * The pill is what *enters* the mode, so it has nothing left to say once you
-   * are in it; Cancel in the footer is the way out. Hidden rather than
-   * disabled, because a greyed control implies it might come back.
-   */
-  showReassign?: boolean;
+  /** Opens the Action menu (Figma 3810:173 / 4360:4196). */
+  onActionPress?: () => void;
+  /** The pill's word: "Action", or the mode in progress ("Reassign"…). */
+  actionLabel?: string;
 }
 
 /**
- * The band — Figma 3810:664: a back chevron, the person, and "Reassign Room".
+ * The band — Figma 3810:173: a back chevron, the person, and "Action ⌄".
  *
  * The middle of it is `StaffIdentityRow`, unchanged. The frame's group 5046
  * here and group 492 on the roster (4211:609) are **the same component**: the
@@ -42,8 +36,8 @@ interface StaffRoomsHeaderProps {
 export default function StaffRoomsHeader({
   person,
   onBackPress,
-  onReassignPress,
-  showReassign = true,
+  onActionPress,
+  actionLabel = 'Action',
 }: StaffRoomsHeaderProps) {
   const insets = useSafeAreaInsets();
   const s = (n: number) => n * scaleX;
@@ -89,35 +83,35 @@ export default function StaffRoomsHeader({
         <StaffIdentityRow person={person} showChevron={false} subLines={2} />
       </View>
 
-      {/* Node 3810:691 — absent from the reassign frame; see `showReassign`. */}
-      {showReassign ? (
+      {/* 3810:173 — "Action ⌄", a #5a759d pill; it names the mode once one is chosen. */}
+      {onActionPress ? (
         <Pressable
-          onPress={onReassignPress}
-          disabled={!onReassignPress}
+          onPress={onActionPress}
           accessibilityRole="button"
-          accessibilityLabel="Reassign rooms"
-          accessibilityState={{ disabled: !onReassignPress }}
-          className="items-center justify-center"
+          accessibilityLabel={`${actionLabel}, open actions`}
+          className="flex-row items-center justify-center"
           style={{
-            width: s(L.header.reassign.width),
             height: s(L.header.reassign.height),
+            paddingHorizontal: s(20),
+            gap: s(12),
             // Never give up width to a long name; the name truncates instead.
             flexShrink: 0,
             borderRadius: s(L.header.reassign.radius),
-            backgroundColor: C.reassignBackground,
+            backgroundColor: '#5a759d',
           }}
         >
           <Text
             numberOfLines={1}
-            className="font-hestia-primary"
-            style={{
-              fontSize: s(L.header.reassign.fontSize),
-              fontFamily: typography.fontFamily.primary,
-              color: C.reassignLabel,
-            }}
+            className="font-hestia-primary font-bold"
+            style={{ fontSize: s(17), fontFamily: typography.fontFamily.primary, color: '#ffffff' }}
           >
-            Reassign Room
+            {actionLabel}
           </Text>
+          <View style={{ width: s(16), height: s(8), alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ transform: [{ rotate: '-90deg' }] }}>
+              <Icon name="action-chevron" size={s(16)} color="#ffffff" />
+            </View>
+          </View>
         </Pressable>
       ) : null}
     </View>

@@ -8,19 +8,22 @@ import { scaleX, DESIGN_WIDTH } from '@/utils/responsive';
 import { typography } from '@/theme';
 import { RoomListCard } from '@features/rooms/components/roomsList';
 import { GroupedRoomsList } from '@features/rooms/components/allRooms/GroupedRoomsList';
-import { groupRoomsByStatus } from '@features/rooms/utils/roomGroups';
+import { groupRoomsByStatus, isActivePriority } from '@features/rooms/utils/roomGroups';
 import { mapFrontOfficeToRoomType } from '@features/rooms/utils/roomType';
-import { assignRoomToStaff } from '@features/rooms/services/rooms';
+import { assignRoomToStaff, fetchAllRooms, unassignRoomsFromStaff } from '@features/rooms/services/rooms';
 import ReassignModal from '@features/rooms/components/roomDetail/ReassignModal';
 import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 
 import StaffRoomsHeader from '../components/staffRooms/StaffRoomsHeader';
 import RoomSelectCheckbox from '../components/staffRooms/RoomSelectCheckbox';
 import ReassignFooter from '../components/staffRooms/ReassignFooter';
+import StaffActionMenu, { type StaffRoomsAction } from '../components/staffRooms/StaffActionMenu';
+import StaffRoomsFilterSheet, { ALL_ROOM_FILTERS, type RoomFilterKey } from '../components/staffRooms/StaffRoomsFilterSheet';
+import { Icon } from '@/components/Icon';
 import EmptyStaffState from '../components/EmptyStaffState';
 import { useStaffAssignedRooms } from '../hooks/useStaffAssignedRooms';
 import type { StaffRosterPerson, StaffShiftState } from '../types/staffRoster.types';
-import { STAFF_ROOMS_LAYOUT as L, STAFF_ROOMS_CHROME as C } from '../components/staffRooms/staffRoomsLayout';
+import { STAFF_ROOMS_LAYOUT as L } from '../components/staffRooms/staffRoomsLayout';
 
 /**
  * What the roster hands over when you tap "See rooms".
@@ -112,7 +115,6 @@ export default function StaffRoomsScreen() {
 
   const { rooms, loading, error, refresh } = useStaffAssignedRooms(staffId || null, shift);
 
-  const groups = useMemo(() => groupRoomsByStatus(rooms ?? []), [rooms]);
 
   /*
    * Reassign is a **mode on this screen**, not another screen.
@@ -122,18 +124,39 @@ export default function StaffRoomsScreen() {
    * route for that would rebuild and re-fetch everything to alter three things,
    * and would put a back stack between the selection and the list it came from.
    */
-  const [reassigning, setReassigning] = useState(false);
+  /** The Action in progress, or null for the plain list. */
+  const [mode, setMode] = useState<StaffRoomsAction | null>(null);
+  const reassigning = mode != null;
   const [selectedIds, setSelectedIds] = useState<ReadonlySet<string>>(() => new Set());
   const [pickerOpen, setPickerOpen] = useState(false);
   const [assigning, setAssigning] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [headerBottom, setHeaderBottom] = useState(0);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filters, setFilters] = useState<ReadonlySet<RoomFilterKey>>(ALL_ROOM_FILTERS);
+  /** Assign Rooms lists the hotel's rooms for the shift that are not already this person's. */
+  const [hotelRooms, setHotelRooms] = useState<RoomCardData[] | null>(null);
 
-  const enterReassign = useCallback(() => {
-    setSelectedIds(new Set());
-    setReassigning(true);
-  }, []);
+  const enterMode = useCallback(
+    (action: StaffRoomsAction) => {
+      setMenuOpen(false);
+      setSelectedIds(new Set());
+      setMode(action);
+      if (action === 'assign') {
+        setHotelRooms(null);
+        fetchAllRooms(shift)
+          .then((data) => setHotelRooms(shift === 'PM' ? (data.roomsPM ?? data.rooms) : data.rooms))
+          .catch((e) => {
+            if (__DEV__) console.warn('[StaffRoomsScreen] Could not load rooms', e);
+            setHotelRooms([]);
+          });
+      }
+    },
+    [shift]
+  );
 
   const exitReassign = useCallback(() => {
-    setReassigning(false);
+    setMode(null);
     setSelectedIds(new Set());
   }, []);
 
@@ -183,6 +206,73 @@ export default function StaffRoomsScreen() {
     },
     [selectedIds, shift, exitReassign, refresh]
   );
+
+  /** Unassign: the chosen rooms come off this person for the shift. */
+  const handleUnassign = useCallback(async () => {
+    const ids = [...selectedIds];
+    setAssigning(true);
+    try {
+      await unassignRoomsFromStaff(ids, staffId, shift);
+    } catch (e) {
+      Alert.alert('Rooms not unassigned', e instanceof Error ? e.message : 'Please try again.');
+    } finally {
+      setAssigning(false);
+      exitReassign();
+      refresh();
+    }
+  }, [selectedIds, staffId, shift, exitReassign, refresh]);
+
+  /** Assign Rooms: the chosen rooms go to this person. */
+  const handleAssignHere = useCallback(async () => {
+    const ids = [...selectedIds];
+    setAssigning(true);
+    let failed = 0;
+    for (const roomId of ids) {
+      try {
+        if (!(await assignRoomToStaff(roomId, staffId, shift))) failed += 1;
+      } catch (e) {
+        failed += 1;
+        if (__DEV__) console.warn('[StaffRoomsScreen] Could not assign', roomId, e);
+      }
+    }
+    setAssigning(false);
+    exitReassign();
+    refresh();
+    if (failed > 0) {
+      Alert.alert('Some rooms were not assigned', `${ids.length - failed} of ${ids.length} were assigned. Try the rest again.`);
+    }
+  }, [selectedIds, staffId, shift, exitReassign, refresh]);
+
+  const handleFooterAction = useCallback(() => {
+    if (mode === 'reassign') setPickerOpen(true);
+    else if (mode === 'assign') void handleAssignHere();
+    else if (mode === 'unassign') {
+      const n = selectedIds.size;
+      Alert.alert(
+        `Unassign ${n} ${n === 1 ? 'room' : 'rooms'}?`,
+        `${n === 1 ? 'It' : 'They'} will no longer be ${person.name}'s this shift.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Unassign', style: 'destructive', onPress: () => void handleUnassign() },
+        ]
+      );
+    }
+  }, [mode, selectedIds, person.name, handleAssignHere, handleUnassign]);
+
+  // The list on screen: this person's rooms, or the hotel's for Assign, with the filter applied.
+  const source = useMemo(() => {
+    const base = mode === 'assign' ? (hotelRooms ?? []).filter((r) => r.roomAttendantAssigned?.userId !== staffId) : (rooms ?? []);
+    if (filters.size === ALL_ROOM_FILTERS.size) return base;
+    return base.filter((r) => (filters.has('Priority') && isActivePriority(r)) || filters.has(r.houseKeepingStatus as RoomFilterKey));
+  }, [mode, hotelRooms, rooms, staffId, filters]);
+  const groups = useMemo(() => groupRoomsByStatus(source), [source]);
+  const filterCounts = useMemo(() => {
+    const base = mode === 'assign' ? (hotelRooms ?? []).filter((r) => r.roomAttendantAssigned?.userId !== staffId) : (rooms ?? []);
+    const count = (k: RoomFilterKey) =>
+      base.filter((r) => (k === 'Priority' ? isActivePriority(r) : r.houseKeepingStatus === k)).length;
+    return { Dirty: count('Dirty'), InProgress: count('InProgress'), Cleaned: count('Cleaned'), Inspected: count('Inspected'), Priority: count('Priority') };
+  }, [mode, hotelRooms, rooms, staffId]);
+  const listLoading = mode === 'assign' ? hotelRooms == null : loading && rooms == null;
 
   const handleBack = useCallback(() => {
     // In reassign mode, back leaves the mode rather than the screen — the
@@ -309,47 +399,53 @@ export default function StaffRoomsScreen() {
 
   return (
     <View className="flex-1 bg-surface-primary">
-      <StaffRoomsHeader
-        person={person}
-        onBackPress={handleBack}
-        onReassignPress={enterReassign}
-        showReassign={!reassigning}
-      />
-
-      <View
-        style={{
-          marginTop: s(L.title.marginTop),
-          marginBottom: s(L.title.marginBottom),
-          marginHorizontal: s(L.gutter),
-        }}
-      >
-        <Text
-          className="font-hestia-primary font-bold"
-          style={{
-            fontSize: s(reassigning ? L.title.reassignFontSize : L.title.fontSize),
-            fontFamily: typography.fontFamily.primary,
-            color: C.title,
-          }}
-        >
-          {reassigning ? 'Reassign Rooms' : 'Rooms'}
-        </Text>
-        {reassigning ? (
-          /* Node 3831:1054 — the instruction, and the only one the mode gives. */
-          <Text
-            className="font-hestia-primary"
-            style={{
-              marginTop: s(L.title.subtitleMarginTop),
-              fontSize: s(L.title.subtitleFontSize),
-              fontFamily: typography.fontFamily.primary,
-              color: C.title,
-            }}
-          >
-            Touch to select rooms
-          </Text>
-        ) : null}
+      <View onLayout={(e) => setHeaderBottom(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}>
+        <StaffRoomsHeader
+          person={person}
+          onBackPress={handleBack}
+          onActionPress={() => setMenuOpen(true)}
+          actionLabel={mode === 'reassign' ? 'Reassign' : mode === 'assign' ? 'Assign' : mode === 'unassign' ? 'Unassign' : 'Action'}
+        />
       </View>
 
-      {loading && rooms == null ? (
+      {/* 3810:173 — "‹Name› Rooms" (or "All Rooms" when assigning), the count selected, and Filter. */}
+      <View
+        className="flex-row items-start"
+        style={{ marginTop: s(L.title.marginTop), marginBottom: s(L.title.marginBottom), marginHorizontal: s(L.gutter) }}
+      >
+        <View className="flex-1">
+          <Text
+            className="font-hestia-primary font-bold"
+            numberOfLines={1}
+            style={{ fontSize: s(20), fontFamily: typography.fontFamily.primary, color: '#1e1e1e' }}
+          >
+            {mode === 'assign' ? 'All Rooms' : `${person.name} Rooms`}
+          </Text>
+          {reassigning ? (
+            <Text
+              className="font-hestia-primary"
+              style={{ marginTop: s(4), fontSize: s(14), fontFamily: typography.fontFamily.primary, color: '#1e1e1e' }}
+            >
+              {selectedIds.size} {selectedIds.size === 1 ? 'Room' : 'Rooms'} Selected
+            </Text>
+          ) : null}
+        </View>
+        <Pressable
+          onPress={() => setFilterOpen(true)}
+          hitSlop={10}
+          className="flex-row items-center"
+          style={{ gap: s(12), marginTop: s(2) }}
+          accessibilityRole="button"
+          accessibilityLabel={filters.size === ALL_ROOM_FILTERS.size ? 'Filter rooms' : 'Filter rooms, filtered'}
+        >
+          <Text style={{ fontSize: s(16), fontFamily: typography.fontFamily.primary, color: filters.size === ALL_ROOM_FILTERS.size ? '#9aa7bd' : '#5a759d' }}>
+            Filter
+          </Text>
+          <Icon name="action-filter" size={s(13)} color="#5a759d" />
+        </Pressable>
+      </View>
+
+      {listLoading ? (
         <View style={{ paddingVertical: s(48) }}>
           <ActivityIndicator size="large" color="#5a759d" />
         </View>
@@ -376,8 +472,9 @@ export default function StaffRoomsScreen() {
       {reassigning ? (
         <ReassignFooter
           count={selectedIds.size}
+          verb={mode === 'reassign' ? 'Reassign' : mode === 'assign' ? 'Assign' : 'Unassign'}
           busy={assigning}
-          onAssign={() => setPickerOpen(true)}
+          onAssign={handleFooterAction}
           onCancel={exitReassign}
         />
       ) : null}
@@ -400,6 +497,23 @@ export default function StaffRoomsScreen() {
         onAutoAssign={() => setPickerOpen(false)}
         showAutoAssign={false}
         currentAssignedStaffId={staffId}
+      />
+
+      <StaffActionMenu
+        visible={menuOpen}
+        top={headerBottom}
+        onClose={() => setMenuOpen(false)}
+        onSelect={enterMode}
+      />
+      <StaffRoomsFilterSheet
+        visible={filterOpen}
+        selected={filters}
+        counts={filterCounts}
+        onClose={() => setFilterOpen(false)}
+        onApply={(next) => {
+          setFilters(next);
+          setFilterOpen(false);
+        }}
       />
     </View>
   );

@@ -98,8 +98,8 @@ export default function TaskDetailScreen() {
             </View>
 
             <View style={styles.kindRow}>
-              <View style={styles.kindIcon}>
-                <Icon name={meta.icon} size={meta.iconSize * scaleX} color="#ffffff" />
+              <View style={[styles.kindIcon, { backgroundColor: meta.colour }]}>
+                <Icon name={meta.icon} size={meta.iconSize * scaleX} color={meta.glyph ?? '#ffffff'} />
               </View>
               <View style={styles.kindText}>
                 <Text style={styles.kind}>{meta.label}</Text>

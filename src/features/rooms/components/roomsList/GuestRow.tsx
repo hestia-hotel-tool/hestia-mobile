@@ -82,6 +82,25 @@ const BADGE: Record<GuestRowKind, BadgeSpec> = {
   vacant: { icon: 'guest-vacant', background: colors.text.muted },
 };
 
+/**
+ * The guest-type disc on its own — the arrow, bed or moon on its colour —
+ * for places that list a room without its guest row (Staff › Activity).
+ */
+export function GuestKindDisc({ kind, size = ROOM_CARD.guest.badge }: { kind: GuestRowKind; size?: number }) {
+  const badge = BADGE[kind];
+  const glyph = badge.glyph != null ? (badge.glyph * size) / ROOM_CARD.guest.badge : size * 0.62;
+  return (
+    <View
+      className="items-center justify-center rounded-full"
+      style={{ width: size, height: size, backgroundColor: badge.background }}
+    >
+      <View {...(badge.flip ? { style: { transform: [{ scaleX: -1 }] } } : {})}>
+        <Icon name={badge.icon} size={glyph} color={colors.text.white} />
+      </View>
+    </View>
+  );
+}
+
 export type GuestRowProps = {
   name: string;
   /** Formatted stay, e.g. "07/10-15/10". */

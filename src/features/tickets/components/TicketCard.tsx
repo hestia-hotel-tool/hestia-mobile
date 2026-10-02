@@ -86,13 +86,8 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
             >
               {ticket.title}
             </Text>
-            {!!ticket.roomNumber && (
-              <View style={[styles.roomPill, isDone ? styles.roomPillDone : isOfo ? styles.roomPillOfo : styles.roomPillOpen]}>
-                <Text style={styles.roomPillText} numberOfLines={1}>
-                  {ticket.roomNumber}
-                </Text>
-              </View>
-            )}
+            {/* With no guest row to sit in, the room chip follows the title. */}
+            {!!ticket.roomNumber && !ticket.guest?.name && <RoomChip room={ticket.roomNumber} />}
           </View>
 
           {!!dueAtLine && (
@@ -111,9 +106,13 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
                 </View>
               )}
               <View style={styles.guestTextCol}>
-                <Text style={styles.guestName} numberOfLines={1} ellipsizeMode="tail">
-                  {ticket.guest.name}
-                </Text>
+                {/* Figma 4352:2979–2981: the name, then the room as a small blue chip. */}
+                <View style={styles.guestNameRow}>
+                  <Text style={styles.guestName} numberOfLines={1} ellipsizeMode="tail">
+                    {ticket.guest.name}
+                  </Text>
+                  {!!ticket.roomNumber && <RoomChip room={ticket.roomNumber} />}
+                </View>
                 {!!ticket.guest.stayRange && (
                   <Text style={styles.guestDates} numberOfLines={1} ellipsizeMode="tail">
                     {ticket.guest.stayRange}
@@ -250,6 +249,17 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
   );
 }
 
+/** The ticket's room, as Figma 667-3068 draws it beside the guest's name. */
+function RoomChip({ room }: { room: string }) {
+  return (
+    <View style={styles.roomChip} accessibilityLabel={`Room ${room}`}>
+      <Text style={styles.roomChipText} numberOfLines={1}>
+        {room}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   card: {
     // Not `width: 409`: with marginHorizontal 16 that totals 441 in a 440
@@ -303,12 +313,13 @@ const styles = StyleSheet.create({
     flexWrap: 'nowrap',
     gap: 10 * scaleX,
   },
+  /** 866:561 — "Due in: 10 mins", light 11 in black. */
   dueAtLine: {
     marginTop: 6 * scaleX,
-    fontSize: 14 * scaleX,
+    fontSize: 11 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '400',
-    color: '#334866',
+    fontWeight: '300',
+    color: '#000000',
     includeFontPadding: false,
   },
   title: {
@@ -329,34 +340,35 @@ const styles = StyleSheet.create({
   titleOfo: {
     color: '#c6c5c5',
   },
-  roomPill: {
+  /** 4352:2980 — 36 x 18, #3bc1f6 at 25%, radius 7; the number light 9 in black. */
+  roomChip: {
+    minWidth: 36 * scaleX,
+    height: 18 * scaleX,
+    paddingHorizontal: 8 * scaleX,
     borderRadius: 7 * scaleX,
-    paddingHorizontal: 14 * scaleX,
-    paddingVertical: 8 * scaleX,
+    backgroundColor: 'rgba(59, 193, 246, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
     flexShrink: 0,
   },
-  roomPillOpen: {
-    backgroundColor: '#f92424',
-  },
-  roomPillDone: {
-    backgroundColor: '#41d541',
-  },
-  /** Figma 3147:127 — room badge when OFO */
-  roomPillOfo: {
-    backgroundColor: '#c6c5c5',
-  },
-  roomPillText: {
-    fontSize: 24 * scaleX,
+  roomChipText: {
+    fontSize: 9 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#fff',
+    fontWeight: '300',
+    color: '#000000',
     includeFontPadding: false,
   },
-  guestRow: {
-    marginTop: 10 * scaleX,
+  guestNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10 * scaleX,
+    gap: 4 * scaleX,
+  },
+  /** The guest 22 under the title (866:555 → 4352:2977). */
+  guestRow: {
+    marginTop: 22 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12 * scaleX,
   },
   guestThumb: {
     width: 34.6 * scaleX,
@@ -381,18 +393,23 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
   },
+  /** 4352:2979 — bold 14, black. */
   guestName: {
+    flexShrink: 1,
     fontSize: 14 * scaleX,
+    lineHeight: 18 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#1e1e1e',
+    color: '#000000',
   },
+  /** 4352:2978 — light 14, black, 20 under the name's top. */
   guestDates: {
     marginTop: 2 * scaleX,
     fontSize: 14 * scaleX,
+    lineHeight: 18 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
-    color: '#1e1e1e',
+    color: '#000000',
   },
   statusPill: {
     width: 67 * scaleX,

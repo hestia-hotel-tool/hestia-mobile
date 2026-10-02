@@ -9,6 +9,11 @@ import { STAFF_LIST_LAYOUT as L } from './staffList/staffListLayout';
 
 interface StaffHeaderProps {
   onBackPress: () => void;
+  /** "Staff" on the roster, "Activity" on a person's day. */
+  title?: string;
+  /** The round search button (Figma 4360:4153); highlighted while search is open. */
+  onSearchPress?: () => void;
+  searchOpen?: boolean;
 }
 
 /**
@@ -27,7 +32,7 @@ interface StaffHeaderProps {
  * Dynamic Island on a device whose inset differs. Same idiom as
  * `RoomDetailHeader`.
  */
-export default function StaffHeader({ onBackPress }: StaffHeaderProps) {
+export default function StaffHeader({ onBackPress, title = 'Staff', onSearchPress, searchOpen = false }: StaffHeaderProps) {
   const insets = useSafeAreaInsets();
   const s = (n: number) => n * scaleX;
 
@@ -64,8 +69,28 @@ export default function StaffHeader({ onBackPress }: StaffHeaderProps) {
           color: '#607aa1',
         }}
       >
-        Staff
+        {title}
       </Text>
+
+      {onSearchPress ? (
+        /* 4360:4153 — a 60 x 55 white pill with the search glyph. */
+        <Pressable
+          onPress={onSearchPress}
+          hitSlop={6}
+          className="items-center justify-center"
+          style={{
+            width: s(60),
+            height: s(55),
+            borderRadius: s(58),
+            backgroundColor: searchOpen ? '#5a759d' : '#ffffff',
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={searchOpen ? 'Close search' : 'Search staff'}
+          accessibilityState={{ expanded: searchOpen }}
+        >
+          <Icon name="action-search" size={s(24)} color={searchOpen ? '#ffffff' : '#5a759d'} />
+        </Pressable>
+      ) : null}
     </View>
   );
 }

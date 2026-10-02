@@ -38,6 +38,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   // could reach the tap. Opening a card from here goes to `room`, which is
   // separately gated on `rooms.read`.
   'staff-rooms': PERMISSIONS.STAFF_VIEW,
+  'staff-activity': PERMISSIONS.STAFF_VIEW,
 
   // Chat
   'chat': PERMISSIONS.CHAT_VIEW,

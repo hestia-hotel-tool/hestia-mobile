@@ -1,15 +1,18 @@
 import React from 'react';
 
-import { View } from '@/tw';
+import { View, Text, Pressable } from '@/tw';
+import { typography } from '@/theme';
+import { Icon } from '@/components/Icon';
 import { scaleX } from '@/utils/responsive';
-import type { StaffRosterPerson } from '../../types/staffRoster.types';
+import type { StaffRosterPerson, StaffWorkload } from '../../types/staffRoster.types';
 import StaffIdentityRow from './StaffIdentityRow';
 import StaffWorkloadBar from './StaffWorkloadBar';
 import StaffTaskStats from './StaffTaskStats';
-import StaffCurrentRoom from './StaffCurrentRoom';
 import StaffCardDisclosure from './StaffCardDisclosure';
-import StaffAssignedRooms from './StaffAssignedRooms';
 import { STAFF_LIST_LAYOUT as L } from './staffListLayout';
+
+/** The Activity of someone with nothing assigned: every count 0. */
+const NO_WORK: StaffWorkload = { total: 0, completed: 0, inProgress: 0, cleaned: 0, dirty: 0 };
 
 interface StaffShiftCardProps {
   person: StaffRosterPerson;
@@ -24,7 +27,8 @@ interface StaffShiftCardProps {
    * would have to guess which the tap meant.
    */
   onSeeRooms: () => void;
-  onStatusPress?: () => void;
+  /** "View Details": the person's Activity screen (Figma 4319-648). */
+  onViewDetails: () => void;
 }
 
 /**
@@ -45,114 +49,126 @@ interface StaffShiftCardProps {
  * focus and on every department switch, and a card holding its own state would
  * silently collapse each time.
  *
- * Someone with nothing assigned gets the row with **no disclosure at all** and
- * can never reach the open branch — see `hasDisclosure`.
+ * Everyone opens, from anywhere on the row; someone with nothing assigned
+ * shows the Activity at zero.
  */
 export default function StaffShiftCard({
   person,
   isOpen,
   onToggle,
   onSeeRooms,
-  onStatusPress,
+  onViewDetails,
 }: StaffShiftCardProps) {
   const s = (n: number) => n * scaleX;
   const label = person.statKind === 'cleaning' ? 'See rooms' : 'See tickets';
 
   /*
-   * No control for someone with nothing to show.
-   *
-   * "See rooms" on a person holding no rooms opens onto "No rooms assigned
-   * this shift" — a tap that promises something and delivers an apology. The
-   * roster entry still lists them, which is the answer to "who is on this
-   * morning?"; it just does not offer to expand.
-   *
-   * Keyed on the list, not on `work.total`: the list is what the disclosure
-   * actually reveals, so the two can never disagree.
+   * Closed: the identity row, tapped anywhere to open. Everyone opens — with
+   * nothing assigned the card shows its Activity at zero, which answers
+   * "what is this person doing?" as well as a full one does.
    */
-  const hasDisclosure =
-    person.statKind === 'cleaning' ? person.rooms.length > 0 : person.ticketList.length > 0;
-
-  if (!isOpen || !hasDisclosure) {
+  if (!isOpen) {
     return (
-      <View
+      <Pressable
+        onPress={onToggle}
+        accessibilityRole="button"
+        accessibilityLabel={`${person.name}, show activity`}
+        accessibilityState={{ expanded: false }}
         style={{
           paddingVertical: s(L.collapsedRow.paddingVertical),
           paddingHorizontal: s(L.collapsedRow.paddingHorizontal),
         }}
       >
-        <StaffIdentityRow
-          person={person}
-          showChevron={false}
-          trailing={
-            hasDisclosure ? (
-              <StaffCardDisclosure
-                isOpen={false}
-                onPress={onToggle}
-                label={label}
-                showLabel={false}
-              />
-            ) : undefined
-          }
-        />
-      </View>
+        <StaffIdentityRow person={person} showChevron />
+      </Pressable>
     );
   }
 
+  const work = person.work ?? NO_WORK;
+
   return (
-    <View
-      className="bg-surface-primary"
+    // The whole card closes it; the controls inside (See rooms, View Details,
+    // a room's status) take their own taps first.
+    <Pressable
+      onPress={onToggle}
+      accessibilityRole="button"
+      accessibilityLabel={`${person.name}, hide activity`}
+      accessibilityState={{ expanded: true }}
       style={{
         borderRadius: s(L.card.radius),
+        borderWidth: 1,
+        borderColor: '#e3e3e3',
+        backgroundColor: '#f9fafc',
         paddingTop: s(L.card.paddingTop),
         paddingBottom: s(L.card.paddingBottom),
         paddingHorizontal: s(L.card.paddingHorizontal),
-        // A clipped view casts no shadow, and a white card on a white page has
-        // no edge without one.
-        shadowColor: '#6483b0',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.18,
-        shadowRadius: 8,
-        elevation: 3,
       }}
     >
       <StaffIdentityRow
         person={person}
         showChevron={false}
         avatarSize={L.identity.cardAvatar}
+        dotSize={L.identity.cardDot}
         trailing={<StaffCardDisclosure isOpen onPress={onSeeRooms} label={label} showLabel />}
       />
 
-      {person.work ? (
+      {/* Always: zeros for someone with nothing assigned. */}
+      {work ? (
         <>
-          <StaffWorkloadBar work={person.work} />
-          <StaffTaskStats work={person.work} />
+          {/* 4319:105 — "Activity", bold 14. */}
+          <Text
+            className="font-hestia-primary font-bold text-black"
+            style={{
+              marginTop: s(L.activity.headingMarginTop),
+              fontSize: s(L.activity.headingFontSize),
+              fontFamily: typography.fontFamily.primary,
+            }}
+          >
+            Activity
+          </Text>
+
+          {/* 4319:106 — the grey panel: bar, counts, and View Details. */}
+          <View
+            style={{
+              marginTop: s(L.activity.panelMarginTop),
+              borderRadius: s(L.activity.panelRadius),
+              backgroundColor: L.activity.panelFill,
+              paddingTop: s(L.activity.panelPaddingTop),
+              paddingHorizontal: s(L.activity.panelPaddingHorizontal),
+              paddingBottom: s(L.activity.panelPaddingBottom),
+            }}
+          >
+            <StaffWorkloadBar work={work} />
+            <StaffTaskStats work={work} />
+            <Pressable
+              onPress={onViewDetails}
+              hitSlop={8}
+              style={{ marginTop: s(L.activity.linkMarginTop), alignSelf: 'flex-start' }}
+              accessibilityRole="button"
+              accessibilityHint="Opens their activity for today"
+            >
+              <Text
+                className="font-hestia-primary"
+                style={{
+                  fontSize: s(L.activity.linkFontSize),
+                  fontFamily: typography.fontFamily.primary,
+                  fontWeight: '300',
+                  color: '#5a759d',
+                }}
+              >
+                View Details
+              </Text>
+            </Pressable>
+          </View>
         </>
       ) : null}
 
-      {/*
-        Node 3952:52 runs the full 401, so it cancels the card's horizontal
-        padding with negative margins rather than sitting inside it.
-      */}
-      <View
-        className="bg-border-medium"
-        style={{
-          height: s(L.card.dividerHeight),
-          marginTop: s(L.current.dividerMarginTop),
-          marginHorizontal: -s(L.card.paddingHorizontal),
-        }}
-      />
-
-      <StaffCurrentRoom
-        current={person.current}
-        assignedCount={person.work?.total ?? 0}
-        onStatusPress={onStatusPress}
-      />
-
-      <StaffAssignedRooms
-        rooms={person.rooms}
-        tickets={person.ticketList}
-        statKind={person.statKind}
-      />
-    </View>
+      {/* The way back: an up-chevron, centred, that closes the card. */}
+      <View className="items-center" style={{ marginTop: s(10) }} pointerEvents="none">
+        <View style={{ transform: [{ rotate: '90deg' }] }}>
+          <Icon name="action-chevron" size={s(16)} color="#9aa7bd" />
+        </View>
+      </View>
+    </Pressable>
   );
 }

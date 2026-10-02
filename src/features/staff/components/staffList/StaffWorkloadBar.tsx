@@ -27,7 +27,7 @@ export default function StaffWorkloadBar({ work }: { work: StaffWorkload }) {
   return (
     <View
       className="flex-row items-center"
-      style={{ gap: s(L.workload.countGap), marginTop: s(L.workload.marginTop) }}
+      style={{ gap: s(L.workload.countGap) }}
       accessibilityLabel={`${work.completed} of ${total} rooms done`}
     >
       {/*
@@ -51,7 +51,7 @@ export default function StaffWorkloadBar({ work }: { work: StaffWorkload }) {
         <View style={{ flex: Math.max(1 - ratio(work.completed), 0) }} />
       </View>
       <Text
-        className="font-hestia-primary font-bold text-ink-secondary"
+        className="font-hestia-primary font-bold text-black"
         style={{ fontSize: s(L.workload.countFontSize), fontFamily: typography.fontFamily.primary }}
       >
         {work.completed}/{total}

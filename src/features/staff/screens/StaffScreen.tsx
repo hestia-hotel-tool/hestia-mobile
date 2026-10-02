@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView } from 'react-native';
+import { ActivityIndicator, ScrollView, TextInput } from 'react-native';
+import { Icon } from '@/components/Icon';
 import { useNavigation, useRoute, useRouter } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 
@@ -15,7 +16,6 @@ import StaffTabs from '../components/StaffTabs';
 import StaffDepartmentStrip from '../components/StaffDepartmentStrip';
 import EmptyStaffState, { type StaffEmptyReason } from '../components/EmptyStaffState';
 import StaffShiftCard from '../components/staffList/StaffShiftCard';
-import StaffCompactRow from '../components/staffList/StaffCompactRow';
 import ShiftGroupHeading from '../components/staffList/ShiftGroupHeading';
 import { STAFF_LIST_LAYOUT as L } from '../components/staffList/staffListLayout';
 import { useStaffRoster } from '../hooks/useStaffRoster';
@@ -84,6 +84,7 @@ export default function StaffScreen() {
   const [departments, setDepartments] = useState<DepartmentRow[] | null>(null);
   const [activeDepartmentId, setActiveDepartmentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
   /*
    * Which cards are open, by person id.
    *
@@ -197,6 +198,25 @@ export default function StaffScreen() {
     [router, selectedTab, toggleOpen],
   );
 
+  /** "View Details" on a card: that person's day (Figma 4319-648). */
+  const handleViewDetails = useCallback(
+    (person: StaffRosterPerson) => {
+      router.push({
+        pathname: '/staff-activity',
+        params: {
+          staffId: person.id,
+          name: person.name,
+          avatarUrl: person.avatarUrl ?? '',
+          jobTitle: person.jobTitle ?? '',
+          departmentName: person.departmentName ?? '',
+          state: person.state,
+          shift: selectedTab === 'am' ? 'AM' : 'PM',
+        },
+      });
+    },
+    [router, selectedTab],
+  );
+
   const matchesSearch = useCallback(
     (person: StaffRosterPerson) => {
       const needle = searchQuery.trim().toLowerCase();
@@ -235,7 +255,39 @@ export default function StaffScreen() {
 
   return (
     <View className="flex-1 bg-surface-primary">
-      <StaffHeader onBackPress={handleBack} />
+      <StaffHeader
+        onBackPress={handleBack}
+        searchOpen={searchOpen}
+        onSearchPress={() => {
+          setSearchOpen((open) => !open);
+          // Closing search clears it, so no filter is left hiding people.
+          if (searchOpen) setSearchQuery('');
+        }}
+      />
+
+      {searchOpen ? (
+        <View
+          className="flex-row items-center bg-surface-header"
+          style={{ paddingHorizontal: s(L.gutter), paddingBottom: s(14), gap: s(10) }}
+        >
+          <View
+            className="flex-1 flex-row items-center bg-surface-primary"
+            style={{ height: s(42), borderRadius: s(21), paddingHorizontal: s(16), gap: s(10) }}
+          >
+            <Icon name="action-search" size={s(16)} color="#5a759d" />
+            <TextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder="Search staff"
+              placeholderTextColor="#9aa7bd"
+              autoFocus
+              returnKeyType="search"
+              style={{ flex: 1, fontSize: s(16), fontFamily: typography.fontFamily.primary, color: '#334866', paddingVertical: 0 }}
+              accessibilityLabel="Search staff"
+            />
+          </View>
+        </View>
+      ) : null}
 
       <ScrollView
         style={{ flex: 1 }}
@@ -273,20 +325,26 @@ export default function StaffScreen() {
             marginBottom: s(L.sectionHeader.marginBottom),
           }}
         >
+          {/* 3240:705 — semibold 17, #607aa1. */}
           <Text
-            className="font-hestia-primary text-ink-accent"
+            className="font-hestia-primary"
             style={{
               fontSize: s(L.sectionHeader.fontSize),
               fontFamily: typography.fontFamily.primary,
+              fontWeight: '600',
+              color: '#607aa1',
             }}
           >
             {activeDepartment?.name ?? 'Staff'} Staff and Shifts
           </Text>
+          {/* 3240:706 — semibold 16, #5a759d. */}
           <Text
-            className="font-hestia-primary text-ink-accent"
+            className="font-hestia-primary"
             style={{
-              fontSize: s(L.sectionHeader.fontSize),
+              fontSize: s(L.sectionHeader.countFontSize),
               fontFamily: typography.fontFamily.primary,
+              fontWeight: '600',
+              color: '#5a759d',
             }}
           >
             {roster?.totalCount ?? 0}
@@ -303,12 +361,7 @@ export default function StaffScreen() {
               paddingTop: s(L.tabRow.paddingTop),
             }}
           >
-            <StaffTabs
-              selectedTab={selectedTab}
-              onTabPress={setSelectedTab}
-              searchQuery={searchQuery}
-              onSearchQueryChange={setSearchQuery}
-            />
+            <StaffTabs selectedTab={selectedTab} onTabPress={setSelectedTab} />
           </View>
           <View className="h-px bg-border-medium" />
         </View>
@@ -338,24 +391,21 @@ export default function StaffScreen() {
                 <View key={section.state}>
                   <ShiftGroupHeading state={section.state} />
                   <View style={{ gap: s(L.compactRow.gap) }}>
-                    {section.people.map((person) =>
+                    {section.people.map((person) => (
                       /*
-                        Only On Shift gets the expandable card. Someone on a
-                        break or finished has no live workload to open, which
-                        is why the frame draws them as plain rows.
+                        Every person opens, whichever group they are in: a
+                        break or a finished shift still has the rooms they
+                        worked, and someone with none shows zeros.
                       */
-                      section.state === 'on_shift' ? (
-                        <StaffShiftCard
-                          key={person.id}
-                          person={person}
-                          isOpen={openIds.has(person.id)}
-                          onToggle={() => toggleOpen(person.id)}
-                          onSeeRooms={() => handleSeeRooms(person)}
-                        />
-                      ) : (
-                        <StaffCompactRow key={person.id} person={person} />
-                      ),
-                    )}
+                      <StaffShiftCard
+                        key={person.id}
+                        person={person}
+                        isOpen={openIds.has(person.id)}
+                        onToggle={() => toggleOpen(person.id)}
+                        onSeeRooms={() => handleSeeRooms(person)}
+                        onViewDetails={() => handleViewDetails(person)}
+                      />
+                    ))}
                   </View>
                 </View>
               ),
