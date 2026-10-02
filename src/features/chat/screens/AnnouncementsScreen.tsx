@@ -8,8 +8,8 @@ import { subscribeNotificationBadgeInvalidate } from '@/lib/inAppNotifications';
 import { typography } from '@/theme';
 import ChatHeader from '../components/ChatHeader';
 import { ChatFilterMenu, type FilterOption } from '../components/ChatFilterMenu';
-import { fetchAnnouncements, type Announcement } from '../services/chat';
-import { taskMeta } from '../utils/taskMeta';
+import { fetchAnnouncements, fetchTaskReportExtras, type Announcement } from '../services/chat';
+import { taskHeadline, taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 
 type AnnouncementFilter = 'all' | 'unread';
@@ -84,9 +84,14 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
   const [filter, setFilter] = useState<AnnouncementFilter>('all');
   const [showFilter, setShowFilter] = useState(false);
 
+  /** Tasks: the Photo / Notes a cleaning came with, by notification id. */
+  const [extras, setExtras] = useState<Record<string, { photos: number; note: boolean }>>({});
+
   const load = useCallback(async () => {
-    setItems(await fetchAnnouncements(config.type));
+    const next = await fetchAnnouncements(config.type);
+    setItems(next);
     setLoading(false);
+    if (config.type === 'tasks') setExtras(await fetchTaskReportExtras(next));
   }, [config.type]);
 
   // On focus: coming back from a detail screen, that one is now read.
@@ -134,16 +139,29 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
           />
         }
         ListHeaderComponent={
-          <View style={[styles.pill, { backgroundColor: config.colour }]}>
-            <Text style={styles.pillText}>{config.pill}</Text>
-          </View>
+          kind === 'tasks' ? (
+            // Figma 4378:191 — "Tasks", bold 30 in #4a91fc.
+            <Text style={styles.tasksHeading}>Tasks</Text>
+          ) : (
+            <View style={[styles.pill, { backgroundColor: config.colour }]}>
+              <Text style={styles.pillText}>{config.pill}</Text>
+            </View>
+          )
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
             {loading ? 'Loading…' : items.length === 0 ? config.empty : 'Nothing matches your search'}
           </Text>
         }
-        renderItem={({ item, index }) => (
+        renderItem={({ item, index }) =>
+          kind === 'tasks' ? (
+            <TaskRow
+              item={item}
+              first={index === 0}
+              extras={extras[item.id]}
+              onPress={() => router.push(`/task/${item.id}` as never)}
+            />
+          ) : (
           <Pressable
             style={[styles.row, { marginTop: (index === 0 ? N.firstRowTop : N.rowGap) * scaleX }]}
             onPress={() => {
@@ -177,7 +195,8 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
             </View>
             {item.unread ? <View style={styles.unreadDot} /> : null}
           </Pressable>
-        )}
+          )
+        }
       />
 
       <ChatHeader
@@ -201,7 +220,145 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
   );
 }
 
+/** "now" under a minute, then the time (and date if not today), as the list's other rows. */
+function taskTime(iso: string): string {
+  const at = Date.parse(iso);
+  return Number.isFinite(at) && Date.now() - at < 60_000 ? 'now' : formatTime(iso);
+}
+
+/**
+ * One task — Figma 4378:174: the state's disc, a short headline ("Amara
+ * Cleaned 408"), Photo / Notes when the cleaning came with them, "See
+ * details", and the time; a full-width rule under each.
+ */
+function TaskRow({
+  item,
+  first,
+  extras,
+  onPress,
+}: {
+  item: Announcement;
+  first: boolean;
+  extras?: { photos: number; note: boolean };
+  onPress: () => void;
+}) {
+  const meta = taskMeta(item.type);
+  const headline = taskHeadline(item.type, item.subject, item.body);
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.taskRow, first && styles.taskRowFirst, pressed && { backgroundColor: '#f4f6fa' }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.unread ? 'New. ' : ''}${headline}. ${item.body}`}
+      accessibilityHint="See details"
+    >
+      <View style={[styles.taskDisc, { backgroundColor: meta.colour }]}>
+        <Icon name={meta.icon} size={meta.iconSize * scaleX} color={meta.glyph ?? '#ffffff'} />
+      </View>
+      <View style={styles.text}>
+        <Text style={styles.taskHeadline} numberOfLines={2}>
+          {headline}
+        </Text>
+        {extras && (extras.photos > 0 || extras.note) ? (
+          <View style={styles.extrasRow}>
+            {extras.photos > 0 ? (
+              <View style={styles.extra}>
+                <Icon name="action-add-photo" size={14 * scaleX} />
+                <Text style={styles.extraText}>{extras.photos > 1 ? `${extras.photos} Photos` : 'Photo'}</Text>
+              </View>
+            ) : null}
+            {extras.note ? (
+              <View style={styles.extra}>
+                <Icon name="action-add-note" size={13 * scaleX} color="#5a759d" />
+                <Text style={styles.extraText}>Notes</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+        <Text style={styles.seeDetails}>See details</Text>
+      </View>
+      <View style={styles.taskSide}>
+        <Text style={styles.taskTime}>{taskTime(item.createdAt)}</Text>
+        {item.unread ? <View style={[styles.unreadDot, { marginTop: 8 * scaleX }]} /> : null}
+      </View>
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  tasksHeading: {
+    marginTop: 18 * scaleX,
+    marginLeft: 26 * scaleX,
+    marginBottom: 14 * scaleX,
+    fontSize: 30 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#4a91fc',
+  },
+  /** Rows sit between full-width rules of black at 11% (4378:260–262). */
+  taskRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingLeft: 27 * scaleX,
+    paddingRight: 24 * scaleX,
+    paddingVertical: 20 * scaleX,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.11)',
+  },
+  taskRowFirst: {
+    paddingTop: 14 * scaleX,
+  },
+  /** 4378:331 — 42.3 discs. */
+  taskDisc: {
+    width: 42.3 * scaleX,
+    height: 42.3 * scaleX,
+    borderRadius: 21.15 * scaleX,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  /** 4378:207 — bold 18, #1e1e1e. */
+  taskHeadline: {
+    fontSize: 18 * scaleX,
+    lineHeight: 21 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#1e1e1e',
+  },
+  extrasRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 18 * scaleX,
+    marginTop: 6 * scaleX,
+  },
+  extra: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6 * scaleX,
+  },
+  /** 4378:386 — 13, #5a759d. */
+  extraText: {
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    color: '#5a759d',
+  },
+  /** 4378:364 — 13 regular. */
+  seeDetails: {
+    marginTop: 6 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    color: '#1e1e1e',
+  },
+  taskSide: {
+    alignItems: 'flex-end',
+    paddingTop: 4 * scaleX,
+  },
+  /** 4378:193 — light 13. */
+  taskTime: {
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#1e1e1e',
+  },
   container: {
     flex: 1,
     backgroundColor: CHAT_COLORS.background,

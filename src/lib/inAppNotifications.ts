@@ -8,6 +8,8 @@ import { supabase, isSupabaseConfigured } from './supabase';
 export const TASK_NOTIFICATION_TYPES = [
   'room_assignment',
   'room_flagged',
+  'room_flag_updated',
+  'room_unflagged',
   'room_priority',
   'room_cleaned',
   'room_rejected',
@@ -24,12 +26,15 @@ export const TASK_NOTIFICATION_TYPES = [
   'room_return_due',
   'room_return_overdue',
   'ticket_assigned',
+  'ticket_tag',
 ] as const;
 
 /** The task types that are about a room — read by opening that room. */
 export const ROOM_TASK_NOTIFICATION_TYPES = [
   'room_assignment',
   'room_flagged',
+  'room_flag_updated',
+  'room_unflagged',
   'room_priority',
   'room_cleaned',
   'room_rejected',

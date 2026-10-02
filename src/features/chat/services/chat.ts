@@ -843,6 +843,8 @@ export type Announcement = {
   roomId?: string;
   /** Ticket tasks only: the ticket it is about. */
   ticketId?: string;
+  /** The attendant it is about, when the notification records one (cleaned, overdue…). */
+  attendantId?: string;
   /** The notification type — which kind of task this is. */
   type: string;
 };
@@ -856,7 +858,7 @@ type AnnouncementRow = {
   title: string;
   body: string;
   type: string;
-  data: { senderId?: string; roomId?: string; ticketId?: string } | null;
+  data: { senderId?: string; roomId?: string; ticketId?: string; attendantId?: string } | null;
   created_at: string;
   read_at: string | null;
 };
@@ -879,6 +881,7 @@ async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]>
       senderAvatar: sender?.avatar_url ?? null,
       roomId: r.data?.roomId ?? undefined,
       ticketId: r.data?.ticketId ?? undefined,
+      attendantId: r.data?.attendantId ?? undefined,
       type: r.type,
     };
   });
@@ -918,4 +921,111 @@ export async function fetchAnnouncement(id: string, kind: InboxType = 'general')
   if (!data) return null;
   const [item] = await toAnnouncements([data as AnnouncementRow]);
   return item ?? null;
+}
+
+/**
+ * For "Room cleaned" / "Room inspected" tasks: whether the report filed with
+ * that clean carried photos or a note — Figma 4378:174's "Photo" and "Notes"
+ * under the headline.
+ *
+ * Matched by room and time: the notification is written when the status
+ * changes and the report a moment later, so a report for the same room within
+ * half an hour after it is that clean's. Keyed by notification id.
+ */
+export async function fetchTaskReportExtras(
+  items: Announcement[]
+): Promise<Record<string, { photos: number; note: boolean }>> {
+  const cleaned = items.filter((i) => i.type === 'room_cleaned' && i.roomId);
+  if (!isSupabaseConfigured || cleaned.length === 0) return {};
+  const roomIds = [...new Set(cleaned.map((i) => i.roomId as string))];
+  const since = new Date(Math.min(...cleaned.map((i) => Date.parse(i.createdAt))) - 5 * 60_000).toISOString();
+  const { data, error } = await supabase
+    .from('room_cleaning_reports' as never)
+    .select('room_id, note, photo_urls, created_at')
+    .in('room_id', roomIds)
+    .eq('kind', 'clean')
+    .gte('created_at', since);
+  if (error) {
+    console.warn('[Chat] fetch report extras', error.message);
+    return {};
+  }
+  const reports = (data ?? []) as unknown as { room_id: string; note: string | null; photo_urls: string[] | null; created_at: string }[];
+  const out: Record<string, { photos: number; note: boolean }> = {};
+  for (const item of cleaned) {
+    const at = Date.parse(item.createdAt);
+    const match = reports.find((r) => {
+      const t = Date.parse(r.created_at);
+      return r.room_id === item.roomId && t >= at - 2 * 60_000 && t <= at + 30 * 60_000;
+    });
+    if (match) out[item.id] = { photos: match.photo_urls?.length ?? 0, note: !!match.note?.trim() };
+  }
+  return out;
+}
+
+export type TaskReport = {
+  photos: string[];
+  note: string | null;
+  checklist: { id: string; label: string; checked: boolean }[];
+  kind: 'clean' | 'inspection';
+};
+
+export type TaskContext = {
+  /** The room as it is now, so the reader can tell whether the task still stands. */
+  room?: { number: string; status: string };
+  /** The attendant the task is about, when it records one. */
+  attendant?: { name: string; avatarUrl: string | null };
+  /** For a cleaning: what was filed with it — photos, note, ticks. */
+  report?: TaskReport;
+};
+
+/**
+ * Everything the Task screen shows beyond the notification itself (Figma
+ * 4378-472): the room now, the attendant, and — for a cleaning — its report.
+ * Each part is fetched in parallel and is simply absent when it cannot be
+ * found, so a partial answer still renders.
+ */
+export async function fetchTaskContext(item: Announcement): Promise<TaskContext> {
+  if (!isSupabaseConfigured) return {};
+  const at = Date.parse(item.createdAt);
+  const [room, attendant, report] = await Promise.all([
+    item.roomId
+      ? supabase.from('rooms').select('room_number, house_keeping_status').eq('id', item.roomId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    item.attendantId
+      ? supabase.from('users').select('full_name, avatar_url').eq('id', item.attendantId).maybeSingle()
+      : Promise.resolve({ data: null }),
+    item.type === 'room_cleaned' && item.roomId && Number.isFinite(at)
+      ? supabase
+          .from('room_cleaning_reports' as never)
+          .select('note, photo_urls, checklist, kind, created_at')
+          .eq('room_id', item.roomId)
+          // The attendant's own report, not a supervisor's inspection soon after.
+          .eq('kind', 'clean')
+          .gte('created_at', new Date(at - 2 * 60_000).toISOString())
+          .lte('created_at', new Date(at + 30 * 60_000).toISOString())
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
+  const r = room.data as { room_number?: string; house_keeping_status?: string } | null;
+  const u = attendant.data as { full_name?: string; avatar_url?: string | null } | null;
+  const rep = report.data as unknown as {
+    note: string | null;
+    photo_urls: string[] | null;
+    checklist: { id: string; label: string; checked: boolean }[] | null;
+    kind: 'clean' | 'inspection' | null;
+  } | null;
+  return {
+    room: r?.room_number ? { number: r.room_number, status: r.house_keeping_status ?? '' } : undefined,
+    attendant: u?.full_name ? { name: u.full_name, avatarUrl: u.avatar_url ?? null } : undefined,
+    report: rep
+      ? {
+          photos: rep.photo_urls ?? [],
+          note: rep.note?.trim() || null,
+          checklist: Array.isArray(rep.checklist) ? rep.checklist : [],
+          kind: rep.kind ?? 'clean',
+        }
+      : undefined,
+  };
 }

@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { invalidateNotificationBadges, markNotificationRead } from '@/lib/inAppNotifications';
 import { typography } from '@/theme';
-import { fetchAnnouncement, type Announcement } from '../services/chat';
+import { Avatar } from '@/components/ui/Avatar';
+import { PhotoViewer } from '@/components/media/PhotoViewer';
+import { STATUS_CONFIGS } from '@features/rooms/types/allRooms.types';
+import { fetchAnnouncement, fetchTaskContext, type Announcement, type TaskContext } from '../services/chat';
 import { taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 
@@ -30,12 +33,30 @@ function formatFull(iso: string): string {
  * than where the row lands. Going straight to Room Detail skipped the task
  * itself: nothing said why you were there.
  */
+/** "Cleaned by" on a cleaning, "Attendant" otherwise. */
+function attendantLabel(type: string): string {
+  return type === 'room_cleaned' ? 'Cleaned by' : 'Attendant';
+}
+
+const STATUS_WORD: Record<string, string> = {
+  Dirty: 'Dirty',
+  InProgress: 'In Progress',
+  Cleaned: 'Cleaned',
+  Inspected: 'Inspected',
+};
+const statusLabel = (status: string) => STATUS_WORD[status] ?? (status || '—');
+const statusColour = (status: string) =>
+  (STATUS_CONFIGS as Record<string, { color: string } | undefined>)[status]?.color ?? '#9aa7bd';
+
 export default function TaskDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [item, setItem] = useState<Announcement | null>(null);
   const [loading, setLoading] = useState(true);
+  /** The room now, the attendant, and a cleaning's report — loaded after the task itself. */
+  const [context, setContext] = useState<TaskContext | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,6 +65,10 @@ export default function TaskDetailScreen() {
       if (cancelled) return;
       setItem(found);
       setLoading(false);
+      if (found) {
+        const ctx = await fetchTaskContext(found).catch(() => ({}) as TaskContext);
+        if (!cancelled) setContext(ctx);
+      }
       if (found?.unread) {
         await markNotificationRead(found.id);
         invalidateNotificationBadges();
@@ -112,7 +137,97 @@ export default function TaskDetailScreen() {
             <Text style={styles.body} selectable>
               {item.body}
             </Text>
+
+            {/* Who it is about, and the room as it stands now. */}
+            {context?.attendant || context?.room ? (
+              <View style={styles.facts}>
+                {context.attendant ? (
+                  <View style={styles.fact}>
+                    <Avatar uri={context.attendant.avatarUrl ?? undefined} name={context.attendant.name} size={32 * scaleX} />
+                    <View>
+                      <Text style={styles.factLabel}>{attendantLabel(item.type)}</Text>
+                      <Text style={styles.factValue}>{context.attendant.name}</Text>
+                    </View>
+                  </View>
+                ) : null}
+                {context.room ? (
+                  <View style={styles.fact}>
+                    <View style={[styles.statusDot, { backgroundColor: statusColour(context.room.status) }]} />
+                    <View>
+                      <Text style={styles.factLabel}>Room {context.room.number}</Text>
+                      <Text style={styles.factValue}>Now {statusLabel(context.room.status)}</Text>
+                    </View>
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {/* A cleaning: what the attendant filed with it (Figma 4378:472). */}
+            {item.type === 'room_cleaned' ? (
+              context == null ? (
+                <ActivityIndicator style={styles.sectionLoading} color={CHAT_COLORS.glyph} />
+              ) : context.report ? (
+                <>
+                  <View style={styles.rule} />
+                  {context.report.photos.length > 0 ? (
+                    <>
+                      <Text style={styles.sectionTitle}>Photos</Text>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
+                        {context.report.photos.map((uri, index) => (
+                          <Pressable
+                            key={uri}
+                            onPress={() => setViewerIndex(index)}
+                            accessibilityRole="imagebutton"
+                            accessibilityLabel={`Photo ${index + 1} of ${context.report!.photos.length}`}
+                          >
+                            <Image source={{ uri }} style={styles.photo} resizeMode="cover" />
+                          </Pressable>
+                        ))}
+                      </ScrollView>
+                    </>
+                  ) : null}
+
+                  {context.report.note ? (
+                    <>
+                      <Text style={styles.sectionTitle}>Notes</Text>
+                      <Text style={styles.note} selectable>
+                        {context.report.note}
+                      </Text>
+                    </>
+                  ) : null}
+
+                  {context.report.checklist.length > 0 ? (
+                    <>
+                      <Text style={styles.sectionTitle}>
+                        Checklist · {context.report.checklist.filter((c) => c.checked).length}/{context.report.checklist.length}
+                      </Text>
+                      {context.report.checklist.map((c) => (
+                        <View key={c.id} style={styles.checkRow}>
+                          <Icon name="action-check" size={11 * scaleX} color={c.checked ? '#41d541' : '#c6c5c5'} />
+                          <Text style={[styles.checkText, !c.checked && styles.checkTextOff]}>{c.label}</Text>
+                        </View>
+                      ))}
+                    </>
+                  ) : null}
+
+                  {context.report.photos.length === 0 && !context.report.note ? (
+                    <Text style={styles.quiet}>No photos or notes were added with this cleaning.</Text>
+                  ) : null}
+                </>
+              ) : (
+                <Text style={styles.quiet}>No photos or notes were added with this cleaning.</Text>
+              )
+            ) : null}
           </ScrollView>
+
+          {context?.report && context.report.photos.length > 0 ? (
+            <PhotoViewer
+              photos={context.report.photos}
+              startIndex={viewerIndex ?? 0}
+              visible={viewerIndex != null}
+              onClose={() => setViewerIndex(null)}
+            />
+          ) : null}
 
           {action ? (
             <View style={[styles.footer, { paddingBottom: insets.bottom + 12 * scaleX }]}>
@@ -132,6 +247,84 @@ export default function TaskDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  facts: {
+    marginTop: 18 * scaleX,
+    gap: 14 * scaleX,
+  },
+  fact: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12 * scaleX,
+  },
+  factLabel: {
+    fontSize: 12 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: CHAT_COLORS.textPrimary,
+  },
+  factValue: {
+    fontSize: 15 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: CHAT_COLORS.textPrimary,
+  },
+  /** The room's state colour, the size of the avatar beside it. */
+  statusDot: {
+    width: 32 * scaleX,
+    height: 32 * scaleX,
+    borderRadius: 16 * scaleX,
+  },
+  sectionLoading: {
+    marginTop: 24 * scaleX,
+  },
+  /** 4378:472 — "Photos" / "Notes", bold 17. */
+  sectionTitle: {
+    marginTop: 22 * scaleX,
+    marginBottom: 12 * scaleX,
+    fontSize: 17 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: CHAT_COLORS.textPrimary,
+  },
+  photos: {
+    gap: 14 * scaleX,
+  },
+  /** The frame's first photo, 222 x 126, square corners. */
+  photo: {
+    width: 222 * scaleX,
+    height: 126 * scaleX,
+    backgroundColor: '#eef1f5',
+  },
+  /** Light 14, as the frame's note. */
+  note: {
+    fontSize: 14 * scaleX,
+    lineHeight: 19 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: CHAT_COLORS.textPrimary,
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10 * scaleX,
+    paddingVertical: 4 * scaleX,
+  },
+  checkText: {
+    flex: 1,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    color: CHAT_COLORS.textPrimary,
+  },
+  checkTextOff: {
+    color: '#9aa4b2',
+  },
+  quiet: {
+    marginTop: 18 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#6b7a90',
+  },
   screen: {
     flex: 1,
     backgroundColor: CHAT_COLORS.background,

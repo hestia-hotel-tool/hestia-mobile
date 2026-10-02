@@ -23,8 +23,9 @@ export type TaskMeta = {
 const BRAND = '#5a759d';
 const META: Record<string, TaskMeta> = {
   room_assignment: { label: 'Room assignment', icon: 'nav-rooms', iconSize: 16, target: 'room', colour: BRAND },
-  room_flagged: { label: 'Room flagged', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#f92424' },
-  room_flag_updated: { label: 'Flag updated', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#f92424' },
+  // Figma 4378:174: a flag is the pale red disc with a red flag.
+  room_flagged: { label: 'Room flagged', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
+  room_flag_updated: { label: 'Flag updated', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
   room_unflagged: { label: 'Flag removed', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#9aa7bd' },
   room_priority: { label: 'Priority room', icon: 'action-priority', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
   room_cleaned: { label: 'Room cleaned', icon: 'status-clean', iconSize: 20, target: 'room', colour: '#4a91fc' },
@@ -41,10 +42,42 @@ const META: Record<string, TaskMeta> = {
   room_return_later: { label: 'Return later', icon: 'action-return-later', iconSize: 20, target: 'room', colour: '#ead7f6', glyph: BRAND },
   room_return_due: { label: 'Time to go back', icon: 'action-return-later', iconSize: 20, target: 'room', colour: '#ead7f6', glyph: BRAND },
   room_return_overdue: { label: 'Return later missed', icon: 'action-return-later', iconSize: 20, target: 'room', colour: '#f92424' },
-  ticket_assigned: { label: 'Ticket assigned', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#334866' },
+  // Figma 4378:174: a ticket is red.
+  ticket_assigned: { label: 'Ticket assigned', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
+  ticket_tag: { label: 'Tagged on a ticket', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
 };
 
 /** Label, icon and destination for a task notification type (see TASK_NOTIFICATION_TYPES). */
 export function taskMeta(type: string): TaskMeta {
   return META[type] ?? { label: 'Task', icon: 'nav-rooms', iconSize: 16, target: 'room', colour: BRAND };
+}
+
+const firstName = (full: string) => full.trim().split(/\s+/)[0] ?? full;
+
+/**
+ * The row's headline — Figma 4378:174: who did what to which room, short.
+ * "Amara Okafor cleaned Room 408." reads "Amara Cleaned 408"; a flag reads
+ * "Room 305 Flagged"; an assigned ticket "Ticket Assigned to you". Built from
+ * the notification's own sentence, so it falls back to the title for any
+ * kind it does not recognise.
+ */
+export function taskHeadline(type: string, title: string, body: string): string {
+  const room = body.match(/Room\s+([\w-]+)/i)?.[1];
+  const actor = body.match(/^(.+?)\s+(cleaned|paused|inspected|started cleaning)\s+Room/i);
+  if (actor) {
+    const verb = actor[2].toLowerCase() === 'cleaned' ? 'Cleaned' : actor[2].toLowerCase() === 'inspected' ? 'Inspected' : actor[2].toLowerCase();
+    return `${firstName(actor[1])} ${verb} ${room ?? ''}`.trim();
+  }
+  switch (type) {
+    case 'room_flagged':
+      return room ? `Room ${room} Flagged` : title;
+    case 'room_unflagged':
+      return room ? `Room ${room} Unflagged` : title;
+    case 'ticket_assigned':
+      return 'Ticket Assigned to you';
+    case 'ticket_tag':
+      return 'Tagged on a ticket';
+    default:
+      return room && !title.includes(room) ? `${title} · ${room}` : title;
+  }
 }
