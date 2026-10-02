@@ -5,9 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { invalidateNotificationBadges, markNotificationRead } from '@/lib/inAppNotifications';
 import { typography } from '@/theme';
-import { Avatar } from '@/components/ui/Avatar';
 import { PhotoViewer } from '@/components/media/PhotoViewer';
-import { STATUS_CONFIGS } from '@features/rooms/types/allRooms.types';
 import { fetchAnnouncement, fetchTaskContext, type Announcement, type TaskContext } from '../services/chat';
 import { taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
@@ -33,21 +31,6 @@ function formatFull(iso: string): string {
  * than where the row lands. Going straight to Room Detail skipped the task
  * itself: nothing said why you were there.
  */
-/** "Cleaned by" on a cleaning, "Attendant" otherwise. */
-function attendantLabel(type: string): string {
-  return type === 'room_cleaned' ? 'Cleaned by' : 'Attendant';
-}
-
-const STATUS_WORD: Record<string, string> = {
-  Dirty: 'Dirty',
-  InProgress: 'In Progress',
-  Cleaned: 'Cleaned',
-  Inspected: 'Inspected',
-};
-const statusLabel = (status: string) => STATUS_WORD[status] ?? (status || '—');
-const statusColour = (status: string) =>
-  (STATUS_CONFIGS as Record<string, { color: string } | undefined>)[status]?.color ?? '#9aa7bd';
-
 export default function TaskDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -138,30 +121,6 @@ export default function TaskDetailScreen() {
               {item.body}
             </Text>
 
-            {/* Who it is about, and the room as it stands now. */}
-            {context?.attendant || context?.room ? (
-              <View style={styles.facts}>
-                {context.attendant ? (
-                  <View style={styles.fact}>
-                    <Avatar uri={context.attendant.avatarUrl ?? undefined} name={context.attendant.name} size={32 * scaleX} />
-                    <View>
-                      <Text style={styles.factLabel}>{attendantLabel(item.type)}</Text>
-                      <Text style={styles.factValue}>{context.attendant.name}</Text>
-                    </View>
-                  </View>
-                ) : null}
-                {context.room ? (
-                  <View style={styles.fact}>
-                    <View style={[styles.statusDot, { backgroundColor: statusColour(context.room.status) }]} />
-                    <View>
-                      <Text style={styles.factLabel}>Room {context.room.number}</Text>
-                      <Text style={styles.factValue}>Now {statusLabel(context.room.status)}</Text>
-                    </View>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
             {/* A cleaning: what the attendant filed with it (Figma 4378:472). */}
             {item.type === 'room_cleaned' ? (
               context == null ? (
@@ -196,27 +155,8 @@ export default function TaskDetailScreen() {
                     </>
                   ) : null}
 
-                  {context.report.checklist.length > 0 ? (
-                    <>
-                      <Text style={styles.sectionTitle}>
-                        Checklist · {context.report.checklist.filter((c) => c.checked).length}/{context.report.checklist.length}
-                      </Text>
-                      {context.report.checklist.map((c) => (
-                        <View key={c.id} style={styles.checkRow}>
-                          <Icon name="action-check" size={11 * scaleX} color={c.checked ? '#41d541' : '#c6c5c5'} />
-                          <Text style={[styles.checkText, !c.checked && styles.checkTextOff]}>{c.label}</Text>
-                        </View>
-                      ))}
-                    </>
-                  ) : null}
-
-                  {context.report.photos.length === 0 && !context.report.note ? (
-                    <Text style={styles.quiet}>No photos or notes were added with this cleaning.</Text>
-                  ) : null}
                 </>
-              ) : (
-                <Text style={styles.quiet}>No photos or notes were added with this cleaning.</Text>
-              )
+              ) : null
             ) : null}
           </ScrollView>
 
@@ -247,33 +187,6 @@ export default function TaskDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  facts: {
-    marginTop: 18 * scaleX,
-    gap: 14 * scaleX,
-  },
-  fact: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12 * scaleX,
-  },
-  factLabel: {
-    fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: CHAT_COLORS.textPrimary,
-  },
-  factValue: {
-    fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: CHAT_COLORS.textPrimary,
-  },
-  /** The room's state colour, the size of the avatar beside it. */
-  statusDot: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
-    borderRadius: 16 * scaleX,
-  },
   sectionLoading: {
     marginTop: 24 * scaleX,
   },
@@ -302,28 +215,6 @@ const styles = StyleSheet.create({
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: CHAT_COLORS.textPrimary,
-  },
-  checkRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10 * scaleX,
-    paddingVertical: 4 * scaleX,
-  },
-  checkText: {
-    flex: 1,
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    color: CHAT_COLORS.textPrimary,
-  },
-  checkTextOff: {
-    color: '#9aa4b2',
-  },
-  quiet: {
-    marginTop: 18 * scaleX,
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#6b7a90',
   },
   screen: {
     flex: 1,

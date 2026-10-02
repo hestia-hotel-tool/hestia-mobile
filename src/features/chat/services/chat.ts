@@ -970,30 +970,18 @@ export type TaskReport = {
 };
 
 export type TaskContext = {
-  /** The room as it is now, so the reader can tell whether the task still stands. */
-  room?: { number: string; status: string };
-  /** The attendant the task is about, when it records one. */
-  attendant?: { name: string; avatarUrl: string | null };
   /** For a cleaning: what was filed with it — photos, note, ticks. */
   report?: TaskReport;
 };
 
 /**
- * Everything the Task screen shows beyond the notification itself (Figma
- * 4378-472): the room now, the attendant, and — for a cleaning — its report.
- * Each part is fetched in parallel and is simply absent when it cannot be
- * found, so a partial answer still renders.
+ * What the Task screen shows beyond the notification itself (Figma
+ * 4378-472): for a cleaning, its report. Absent when none is found.
  */
 export async function fetchTaskContext(item: Announcement): Promise<TaskContext> {
   if (!isSupabaseConfigured) return {};
   const at = Date.parse(item.createdAt);
-  const [room, attendant, report] = await Promise.all([
-    item.roomId
-      ? supabase.from('rooms').select('room_number, house_keeping_status').eq('id', item.roomId).maybeSingle()
-      : Promise.resolve({ data: null }),
-    item.attendantId
-      ? supabase.from('users').select('full_name, avatar_url').eq('id', item.attendantId).maybeSingle()
-      : Promise.resolve({ data: null }),
+  const [report] = await Promise.all([
     item.type === 'room_cleaned' && item.roomId && Number.isFinite(at)
       ? supabase
           .from('room_cleaning_reports' as never)
@@ -1008,8 +996,6 @@ export async function fetchTaskContext(item: Announcement): Promise<TaskContext>
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
-  const r = room.data as { room_number?: string; house_keeping_status?: string } | null;
-  const u = attendant.data as { full_name?: string; avatar_url?: string | null } | null;
   const rep = report.data as unknown as {
     note: string | null;
     photo_urls: string[] | null;
@@ -1017,8 +1003,6 @@ export async function fetchTaskContext(item: Announcement): Promise<TaskContext>
     kind: 'clean' | 'inspection' | null;
   } | null;
   return {
-    room: r?.room_number ? { number: r.room_number, status: r.house_keeping_status ?? '' } : undefined,
-    attendant: u?.full_name ? { name: u.full_name, avatarUrl: u.avatar_url ?? null } : undefined,
     report: rep
       ? {
           photos: rep.photo_urls ?? [],
