@@ -8,7 +8,6 @@ import { View, Text } from '@/tw';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { scaleX } from '@/utils/responsive';
 import { typography } from '@/theme';
-import { useRefreshWhileFocused } from '@/hooks/useRefreshWhileFocused';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { getDepartments, sortDepartmentsByDisplayOrder, type DepartmentRow } from '@/lib/departments';
 import type { ReturnToTab } from '@/types/navigation';
@@ -181,9 +180,8 @@ export default function StaffScreen() {
         }
       : null,
   );
-  // Counts and rooms change as attendants work; `room_assignments` is not
-  // realtime, so reload on return and every 30s while this tab is open.
-  useRefreshWhileFocused(refreshRoster);
+  // Counts and rooms change as attendants work: reload on a change while this
+  // screen is showing, or once on return if one happened while it was hidden.
   useLiveRoomChanges(refreshRoster);
 
   const handleBack = useCallback(() => {

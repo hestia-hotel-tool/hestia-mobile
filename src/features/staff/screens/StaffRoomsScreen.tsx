@@ -6,8 +6,8 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { View, Text, Pressable } from '@/tw';
 import { scaleX, DESIGN_WIDTH } from '@/utils/responsive';
 import { typography } from '@/theme';
-import { useRefreshWhileFocused } from '@/hooks/useRefreshWhileFocused';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
+import { isTheirs } from '../utils/isTheirs';
 import { RoomListCard } from '@features/rooms/components/roomsList';
 import { GroupedRoomsList } from '@features/rooms/components/allRooms/GroupedRoomsList';
 import { groupRoomsByStatus, isActivePriority } from '@features/rooms/utils/roomGroups';
@@ -116,10 +116,12 @@ export default function StaffRoomsScreen() {
   );
 
   const { rooms, loading, error, refresh } = useStaffAssignedRooms(staffId || null, shift);
-  // Not realtime tables: reload on return, every 30s while open (see the hook).
+  // Live: reloads quietly when one of their rooms or assignments changes.
   const silentRefresh = useCallback(() => refresh({ silent: true }), [refresh]);
-  useRefreshWhileFocused(silentRefresh);
-  useLiveRoomChanges(silentRefresh, !!staffId);
+  useLiveRoomChanges(silentRefresh, {
+    enabled: !!staffId,
+    isRelevant: (change) => isTheirs(change, staffId || null, rooms),
+  });
 
 
   /*

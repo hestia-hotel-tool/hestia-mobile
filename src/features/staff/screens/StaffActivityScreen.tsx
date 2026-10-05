@@ -6,8 +6,8 @@ import { View, Text } from '@/tw';
 import { Avatar } from '@/components';
 import { Icon } from '@/components/Icon';
 import { useNow } from '@/hooks/useNow';
-import { useRefreshWhileFocused } from '@/hooks/useRefreshWhileFocused';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
+import { isTheirs } from '../utils/isTheirs';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
 import { STATUS_CONFIGS, getRoomCardStatus, type RoomCardData } from '@features/rooms/types/allRooms.types';
@@ -85,13 +85,14 @@ export default function StaffActivityScreen() {
   const { rooms, loading, error, refresh } = useStaffAssignedRooms(staffId, shift);
   /*
    * A room assigned to them, or one they start, after this screen opened must
-   * still show: `rooms` and `room_assignments` are not realtime, so reload on
-   * return, every 30s while open, and on pull.
+   * still show: reload quietly when one of *their* rooms or assignments
+   * changes (only while this screen is showing), and on pull.
    */
   const silentRefresh = useCallback(() => refresh({ silent: true }), [refresh]);
-  useRefreshWhileFocused(silentRefresh);
-  // And at once when a room or assignment changes anywhere in the hotel.
-  useLiveRoomChanges(silentRefresh, !!staffId);
+  useLiveRoomChanges(silentRefresh, {
+    enabled: !!staffId,
+    isRelevant: (change) => isTheirs(change, staffId, rooms),
+  });
   const [filter, setFilter] = useState<Filter>('all');
 
   const lines: RoomLine[] = useMemo(
