@@ -117,7 +117,10 @@ export function LostAndFoundCard({
         gap: 14 * scaleX,
       }}
     >
-      <ItemCardHeader itemName={item.itemName} itemId={item.itemId} />
+      {/* Clear of the status pill, which is pinned over the top-right corner. */}
+      <View style={{ paddingRight: (L.statusPill.width + L.statusPill.rightInset - L.paddingLeft + 8) * scaleX }}>
+        <ItemCardHeader itemName={item.itemName} itemId={item.itemId} />
+      </View>
 
       {/* The right column starts at `rightColumn` whatever the photo's width,
           so the gap is what is left between them (178 - 18 - 121 = 39). */}
@@ -163,10 +166,6 @@ export function LostAndFoundCard({
               timestamp={formatTimestamp(item.storedAt ?? item.createdAt) || item.guestDates}
             />
           )}
-
-          {chrome.locationSource !== 'none' ? (
-            <ItemLocationBlock label={chrome.locationLabel} value={locationValue} />
-          ) : null}
         </View>
       </View>
 
@@ -176,8 +175,21 @@ export function LostAndFoundCard({
         timestamp={item.registeredBy.timestamp}
         avatarUri={avatarUriOf(item.registeredBy.avatar)}
       >
-        <ItemStatusPill chrome={chrome} onStatusPress={onStatusPress} updating={statusUpdating} />
+        {/* Figma 3128:32: where it is now sits opposite who handled it. */}
+        {chrome.locationSource !== 'none' ? (
+          <View style={{ width: L.footerLocationWidth * scaleX }}>
+            <ItemLocationBlock label={chrome.locationLabel} value={locationValue} />
+          </View>
+        ) : null}
       </ItemCardFooter>
+
+      {/* Nodes 4319:1510 / 1549 / 1598 — top right, level with the item name. */}
+      <View
+        className="absolute"
+        style={{ top: L.statusPill.top * scaleX, right: L.statusPill.rightInset * scaleX }}
+      >
+        <ItemStatusPill chrome={chrome} onStatusPress={onStatusPress} updating={statusUpdating} />
+      </View>
     </Pressable>
   );
 }

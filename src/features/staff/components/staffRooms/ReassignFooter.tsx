@@ -78,11 +78,13 @@ export default function ReassignFooter({
             className="font-hestia-primary"
             style={{
               fontSize: s(F.buttonFontSize),
+              fontWeight: '600',
               fontFamily: typography.fontFamily.primary,
               color: C.assignLabel,
             }}
           >
-            {count > 0 ? `${verb} ${count} ${count === 1 ? 'Room' : 'Rooms'}` : verb}
+            {/* 4361:6108 — just the verb; the count is in "2 Rooms Selected" above. */}
+            {verb}
           </Text>
         )}
       </Pressable>
@@ -99,6 +101,7 @@ export default function ReassignFooter({
           className="font-hestia-primary"
           style={{
             fontSize: s(F.cancelFontSize),
+            fontWeight: '300',
             fontFamily: typography.fontFamily.primary,
             color: C.cancelLabel,
           }}

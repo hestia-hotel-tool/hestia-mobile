@@ -1,5 +1,6 @@
 import { useChatStore } from '@features/chat/store/useChatStore';
 import { clearShiftIdCache } from '@features/rooms/services/rooms';
+import { clearStaffRosterCache } from '@features/staff/services/staffRoster';
 import { useRoomsStore, clearRoomsFetchCache } from '@features/rooms/store/useRoomsStore';
 import { useUserStore } from '@features/account/store/useUserStore';
 import { clearCachedHotelId } from '@/lib/tenant';
@@ -24,6 +25,8 @@ import { clearBottomTabBadgeCounts } from '@/store/bottomTabBadgeCounts';
 export function resetTenantScopedStores() {
   clearCachedHotelId();
   clearShiftIdCache();
+  // The Staff roster's shift windows are the same hotel-owned rows.
+  clearStaffRosterCache();
   clearRoomsFetchCache();
   clearBottomTabBadgeCounts();
 

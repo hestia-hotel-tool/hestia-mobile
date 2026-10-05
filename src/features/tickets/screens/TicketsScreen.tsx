@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
-  ScrollView,
+  FlatList,
   StyleSheet,
   RefreshControl,
   TouchableOpacity,
@@ -458,34 +458,32 @@ export default function TicketsScreen() {
     <View style={styles.container}>
       {(loading || refreshing) && <LoadingOverlay fullScreen message={loading ? 'Loading tickets…' : 'Refreshing…'} />}
       <View style={styles.scrollContainer}>
-        <ScrollView
+        {/* Virtualised: only the cards near the screen are mounted. */}
+        <FlatList
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: TICKETS_SPACING.contentPaddingTop * scaleX + topShift },
           ]}
+          data={filteredTickets}
+          keyExtractor={(ticket) => ticket.id}
+          renderItem={({ item: ticket }) => (
+            <TicketCard
+              ticket={ticket}
+              onPress={() => handleTicketPress(ticket)}
+              onStatusPress={(anchor) => handleStatusPress(ticket, anchor)}
+              onAssigneePress={() => handleAssigneePress(ticket)}
+            />
+          )}
+          ListEmptyComponent={<EmptyTicketsState selectedTab={selectedTab} />}
+          initialNumToRender={8}
+          maxToRenderPerBatch={8}
+          windowSize={7}
           showsVerticalScrollIndicator={false}
-          scrollEnabled={true}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
-        >
-          {/* Ticket Cards or Empty State */}
-          {filteredTickets.length === 0 ? (
-            <EmptyTicketsState selectedTab={selectedTab} />
-          ) : (
-            filteredTickets.map((ticket, index) => (
-              <React.Fragment key={ticket.id}>
-                <TicketCard
-                  ticket={ticket}
-                  onPress={() => handleTicketPress(ticket)}
-                  onStatusPress={(anchor) => handleStatusPress(ticket, anchor)}
-                  onAssigneePress={() => handleAssigneePress(ticket)}
-                />
-              </React.Fragment>
-            ))
-          )}
-        </ScrollView>
+        />
 
         {/* Blur Overlay for content only */}
       </View>

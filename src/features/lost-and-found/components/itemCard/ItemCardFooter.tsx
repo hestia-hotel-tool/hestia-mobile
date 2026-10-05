@@ -11,12 +11,13 @@ export type ItemCardFooterProps = {
   name: string;
   timestamp: string;
   avatarUri?: string;
-  /** The status pill, which the footer positions but does not own. */
+  /** The right-hand block — where the item is now (Stored / Shipped Location). */
   children?: React.ReactNode;
 };
 
 /**
- * Who handled the item, and the status pill — Figma nodes 3871:3593 onward.
+ * Who handled the item, and where it is now — Figma 3128:32, nodes 4319:1508
+ * onward.
  *
  * The divider (3871:3593) is 408 wide inside a 409 card, so it runs the full
  * width and cancels the card's horizontal padding with a negative margin. That

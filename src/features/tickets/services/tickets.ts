@@ -106,6 +106,8 @@ async function fetchGuestsByRoomId(roomIdsIn: string[]): Promise<Map<string, Tic
       .from('reservations')
       .select('id, room_id, arrival_date, departure_date')
       .in('room_id', roomIds)
+      // The room's current or recent stay, not every reservation it ever had.
+      .gte('departure_date', daysAgo(TICKET_WINDOW_DAYS).slice(0, 10))
       .order('arrival_date', { ascending: false });
 
     if (!resError && resData) {
@@ -228,17 +230,70 @@ function mapStatus(raw: string | null | undefined): TicketStatus {
   return 'unsolved';
 }
 
+/** Closed tickets the list keeps showing; open ones always show. */
+const TICKET_WINDOW_DAYS = 30;
+/** A ceiling on the list, so a hotel with a long backlog still loads quickly. */
+const TICKET_LIST_LIMIT = 500;
+
+function daysAgo(days: number): string {
+  return new Date(Date.now() - days * 86_400_000).toISOString();
+}
+
+export type TicketCounts = { total: number; priority: number; unsolved: number; solved: number; outOfOrder: number };
+
+/**
+ * Home's ticket dashboard: the signed-in user's tickets in their department,
+ * counted by state. Reads only those rows — it used to download every ticket
+ * in the hotel (with photos, people and guests) to count five numbers.
+ */
+export async function getTicketCountsForAssignee(userId: string, departmentName: string): Promise<TicketCounts> {
+  const zero = { total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 };
+  if (!isSupabaseConfigured || !userId) return zero;
+  const { data, error } = await supabase
+    .from('tickets')
+    .select('status, priority, departments!inner(name)')
+    .eq('assigned_to_id', userId)
+    .ilike('departments.name', departmentName);
+  if (error || !data) {
+    console.warn('[tickets.getTicketCountsForAssignee]', error?.message);
+    return zero;
+  }
+  const rows = data as unknown as { status: string | null; priority: string | null }[];
+  const counts = { ...zero, total: rows.length };
+  for (const r of rows) {
+    const status = mapStatus(r.status);
+    if ((r.priority ?? '').toLowerCase() === 'urgent') counts.priority += 1;
+    if (status === 'unsolved') counts.unsolved += 1;
+    else if (status === 'done') counts.solved += 1;
+    else if (status === 'ofo') counts.outOfOrder += 1;
+  }
+  return counts;
+}
+
 export async function getTicketsData(): Promise<TicketsScreenData> {
   if (!isSupabaseConfigured) {
     return { selectedTab: 'myTickets', tickets: [] };
   }
 
-  const { data, error } = await supabase
-    .from('tickets')
-    .select(
-      TICKET_SELECT
-    )
-    .order('created_at', { ascending: false });
+  /*
+   * Every open ticket, and the closed ones from the last TICKET_WINDOW_DAYS —
+   * not every ticket ever raised, which grew without end. The viewer's tags are
+   * read alongside, not after.
+   */
+  const { data: sessionData } = await supabase.auth.getSession();
+  const viewerId = sessionData?.session?.user?.id ?? null;
+  const [ticketsRes, tagsRes] = await Promise.all([
+    supabase
+      .from('tickets')
+      .select(TICKET_SELECT)
+      .or(`status.not.in.(done,closed,resolved),created_at.gte.${daysAgo(TICKET_WINDOW_DAYS)}`)
+      .order('created_at', { ascending: false })
+      .limit(TICKET_LIST_LIMIT),
+    viewerId
+      ? supabase.from('ticket_tags').select('ticket_id').eq('tagged_user_id', viewerId)
+      : Promise.resolve({ data: [] as { ticket_id?: string }[], error: null }),
+  ]);
+  const { data, error } = ticketsRes;
 
   if (error || !data) {
     // On failure, surface an empty, non-crashing state
@@ -249,18 +304,10 @@ export async function getTicketsData(): Promise<TicketsScreenData> {
   const rows = data as unknown as TicketsRow[];
   const nowMs = Date.now();
 
-  const { data: sessionData } = await supabase.auth.getSession();
-  const viewerId = sessionData?.session?.user?.id ?? null;
   const taggedTicketIds = new Set<string>();
-  if (viewerId) {
-    const { data: tagRows, error: tagErr } = await supabase
-      .from('ticket_tags')
-      .select('ticket_id')
-      .eq('tagged_user_id', viewerId);
-    if (!tagErr && tagRows) {
-      for (const tr of tagRows as { ticket_id?: string }[]) {
-        if (tr.ticket_id) taggedTicketIds.add(tr.ticket_id);
-      }
+  if (!tagsRes.error && tagsRes.data) {
+    for (const tr of tagsRes.data as { ticket_id?: string }[]) {
+      if (tr.ticket_id) taggedTicketIds.add(tr.ticket_id);
     }
   }
 

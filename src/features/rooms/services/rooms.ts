@@ -1357,6 +1357,9 @@ export interface FullRoomDetails {
     dnd_checked_at?: string | null;
     dnd_check_count?: number | null;
     dnd_next_check_at?: string | null;
+    promise_time_at?: string | null;
+    cleaning_started_at?: string | null;
+    cleaning_elapsed_seconds?: number | null;
   };
   reservations: ReservationDetail[];
   notes: RoomNoteDetail[];
@@ -1761,6 +1764,18 @@ export async function getFullRoomDetails(
       flagged: room.flagged,
       special_instructions: room.special_instructions,
       house_keeping_status: room.house_keeping_status,
+      /*
+       * Every column the query selects is carried over. These five were
+       * selected and then dropped here, so each consumer of this function saw
+       * them as absent: the Staff Activity times read "0 mins" for rooms
+       * cleaned in 29, and Staff Rooms cards lost their promise time, flag
+       * reason and return-later reason.
+       */
+      flag_reason: (room as any).flag_reason ?? null,
+      return_later_reason: (room as any).return_later_reason ?? null,
+      promise_time_at: (room as any).promise_time_at ?? null,
+      cleaning_started_at: (room as any).cleaning_started_at ?? null,
+      cleaning_elapsed_seconds: (room as any).cleaning_elapsed_seconds ?? 0,
       return_later_at: (room as any).return_later_at ?? null,
       paused_at: (room as any).paused_at ?? null,
       refuse_service_at: (room as any).refuse_service_at ?? null,

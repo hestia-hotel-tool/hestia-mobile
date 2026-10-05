@@ -1,7 +1,6 @@
 import React from 'react';
 import * as Clipboard from 'expo-clipboard';
 import { Pressable, Text, View } from '@/tw';
-import { Icon } from '@/components/Icon';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
@@ -14,8 +13,8 @@ export type ItemCardHeaderProps = {
 };
 
 /**
- * Item name, tracking chip and copy button — Figma nodes 3871:3601 / 3602 and
- * 3128:343.
+ * Item name and tracking chip — Figma nodes 3871:3601 / 3602. Tapping the
+ * chip copies the number.
  *
  * **A flex row, not three absolute boxes.** The frame puts the chip at x=163
  * after a 121-wide title and at x=211 after a 165-wide one — it follows the
@@ -51,24 +50,17 @@ export function ItemCardHeader({ itemName, itemId }: ItemCardHeaderProps) {
         {itemName}
       </Text>
 
-      <MetaChip label={itemId} variant="tracking" />
-
+      {/*
+        Figma 3128:32 draws no copy icon after the chip (the 13x13 glyph of
+        3128:343 is gone), so the chip itself copies.
+      */}
       <Pressable
         onPress={handleCopy}
-        hitSlop={10}
+        hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={`Copy tracking number ${itemId}`}
       >
-        {/*
-          Node 3128:343 — 13x13. `action-copy` has a 14x14 viewBox, aspect 1, so
-          a height of 13 paints 13x13.
-        */}
-        <Icon
-          name="action-copy"
-          size={13 * scaleX}
-          color="#1e1e1e"
-          style={{ opacity: 0.6 }}
-        />
+        <MetaChip label={itemId} variant="tracking" />
       </Pressable>
     </View>
   );

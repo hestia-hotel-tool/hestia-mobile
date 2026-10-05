@@ -6,6 +6,8 @@ import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { View, Text, Pressable } from '@/tw';
 import { scaleX, DESIGN_WIDTH } from '@/utils/responsive';
 import { typography } from '@/theme';
+import { useRefreshWhileFocused } from '@/hooks/useRefreshWhileFocused';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { RoomListCard } from '@features/rooms/components/roomsList';
 import { GroupedRoomsList } from '@features/rooms/components/allRooms/GroupedRoomsList';
 import { groupRoomsByStatus, isActivePriority } from '@features/rooms/utils/roomGroups';
@@ -114,6 +116,10 @@ export default function StaffRoomsScreen() {
   );
 
   const { rooms, loading, error, refresh } = useStaffAssignedRooms(staffId || null, shift);
+  // Not realtime tables: reload on return, every 30s while open (see the hook).
+  const silentRefresh = useCallback(() => refresh({ silent: true }), [refresh]);
+  useRefreshWhileFocused(silentRefresh);
+  useLiveRoomChanges(silentRefresh, !!staffId);
 
 
   /*
@@ -315,7 +321,7 @@ export default function StaffRoomsScreen() {
    * untouched — it does not know the mode exists, which is why the two states
    * cannot drift apart.
    *
-   * The whole row is the target, not the 37pt circle: that is under the 44pt
+   * The whole row is the target, not the 29pt box: that is under the 44pt
    * minimum, and the frame's own instruction is "Touch to select rooms".
    */
   const renderRoom = useCallback(
@@ -336,14 +342,17 @@ export default function StaffRoomsScreen() {
           accessibilityRole="checkbox"
           accessibilityState={{ checked }}
           accessibilityLabel={`Room ${room.roomNumber}`}
-          className="flex-row items-center"
+          // Top-aligned: the box sits 12 below the card's top (4361:6099).
+          className="flex-row items-start"
           style={{
             paddingLeft: s(B.left),
             paddingRight: L.list.cardSlot.paddingHorizontal,
             paddingBottom: L.list.cardSlot.paddingBottom,
           }}
         >
-          <RoomSelectCheckbox checked={checked} />
+          <View style={{ marginTop: s(B.topOffset) }}>
+            <RoomSelectCheckbox checked={checked} />
+          </View>
           <View style={{ width: s(B.gapToCard) }} />
           {/*
             The card keeps its **full width and runs off the right edge**, which
@@ -380,7 +389,7 @@ export default function StaffRoomsScreen() {
         paddingBottom:
           insets.bottom + s(L.list.paddingBottom) + (reassigning ? footerHeight : 0),
       },
-      refreshControl: <RefreshControl refreshing={loading && rooms != null} onRefresh={refresh} />,
+      refreshControl: <RefreshControl refreshing={loading && rooms != null} onRefresh={() => refresh()} />,
     }),
     [insets.bottom, loading, rooms, refresh, reassigning, footerHeight]
   );
@@ -405,14 +414,16 @@ export default function StaffRoomsScreen() {
           <Text
             className="font-hestia-primary font-bold"
             numberOfLines={1}
-            style={{ fontSize: s(20), fontFamily: typography.fontFamily.primary, color: '#1e1e1e' }}
+            // 4361:6074 — bold 19, black.
+            style={{ fontSize: s(19), fontFamily: typography.fontFamily.primary, color: '#000000' }}
           >
             {mode === 'assign' ? 'All Rooms' : `${person.name} Rooms`}
           </Text>
           {reassigning ? (
             <Text
               className="font-hestia-primary"
-              style={{ marginTop: s(4), fontSize: s(14), fontFamily: typography.fontFamily.primary, color: '#1e1e1e' }}
+              // 4364:6111 — "2 Rooms Selected", regular 16.
+              style={{ marginTop: s(6), fontSize: s(16), fontWeight: '400', fontFamily: typography.fontFamily.primary, color: '#000000' }}
             >
               {selectedIds.size} {selectedIds.size === 1 ? 'Room' : 'Rooms'} Selected
             </Text>
@@ -422,14 +433,15 @@ export default function StaffRoomsScreen() {
           onPress={() => setFilterOpen(true)}
           hitSlop={10}
           className="flex-row items-center"
-          style={{ gap: s(12), marginTop: s(2) }}
+          style={{ gap: s(15), marginTop: s(2) }}
           accessibilityRole="button"
           accessibilityLabel={filters.size === ALL_ROOM_FILTERS.size ? 'Filter rooms' : 'Filter rooms, filtered'}
         >
-          <Text style={{ fontSize: s(16), fontFamily: typography.fontFamily.primary, color: filters.size === ALL_ROOM_FILTERS.size ? '#9aa7bd' : '#5a759d' }}>
+          {/* 4361:6079 / 6075 — "Filter" light 17 in #5a759d, then the 26x12 glyph. */}
+          <Text style={{ fontSize: s(17), fontWeight: '300', fontFamily: typography.fontFamily.primary, color: '#5a759d' }}>
             Filter
           </Text>
-          <Icon name="action-filter" size={s(13)} color="#5a759d" />
+          <Icon name="action-filter" size={s(12)} color="#5a759d" />
         </Pressable>
       </View>
 

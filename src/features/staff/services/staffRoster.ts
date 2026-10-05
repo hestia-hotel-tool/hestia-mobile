@@ -66,6 +66,20 @@ async function listShiftWindows(): Promise<ShiftWindow[]> {
   return shiftCache;
 }
 
+/**
+ * The tab the Staff screen should open on: the shift running now, by the
+ * hotel's own shift times (AM 06–14, PM 14–22 here) rather than a fixed
+ * clock rule. A Night shift has no tab of its own; before noon the AM tab
+ * (the shift about to start) is the useful one, after it the PM tab (the one
+ * just finished).
+ */
+export async function currentShiftTab(now: Date = new Date()): Promise<'am' | 'pm'> {
+  const current = pickCurrentShift(await listShiftWindows(), now);
+  const name = current?.name.toLowerCase();
+  if (name === 'am' || name === 'pm') return name;
+  return now.getHours() < 12 ? 'am' : 'pm';
+}
+
 /* ------------------------------------------------------------------ roster */
 
 /**

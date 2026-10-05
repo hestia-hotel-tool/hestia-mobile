@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ScrollView } from 'react-native';
+import type { ScrollTarget } from '../utils/scrollTarget';
 import type { RoomCardData } from '../types/allRooms.types';
 
 /** A measured window rect. */
@@ -10,7 +10,7 @@ type Measurable = { measureInWindow?: (cb: (...args: number[]) => void) => void 
 
 export type UseStatusPopoverAnchorOptions = {
   /** The list the cards live in, scrolled to make room for the sheet. */
-  scrollRef: React.RefObject<ScrollView | null>;
+  scrollRef: React.RefObject<ScrollTarget | null>;
   /** Card wrappers by room id. The blur seam is the selected card's bottom. */
   cardRefs: React.MutableRefObject<Record<string, Measurable>>;
   /** Status pill wrappers by room id. The sheet's tail points at this. */

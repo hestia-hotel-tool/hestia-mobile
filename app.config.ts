@@ -75,6 +75,14 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     runtimeVersion: {
       policy: "appVersion",
     },
+    // React Compiler: memoises components and hooks at build time, so a parent
+    // re-render no longer re-renders every child with unchanged props. It
+    // skips, rather than miscompiles, any component that breaks the rules of
+    // React (the react-hooks lint warnings), so those keep working as before.
+    experiments: {
+      ...config.experiments,
+      reactCompiler: true,
+    },
     plugins: [
       "expo-font",
       "expo-asset",

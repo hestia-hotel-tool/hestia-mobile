@@ -1,11 +1,11 @@
-import type { ScrollView } from 'react-native';
+import type { ScrollTarget } from '../utils/scrollTarget';
 
 /** Anything with `measureInWindow` — a native view handle. */
 type Measurable = { measureInWindow?: (cb: (...args: number[]) => void) => void } | null | undefined;
 
 export type UseKeepRoomVisibleOptions = {
   /** The list the cards live in. */
-  scrollRef: React.RefObject<ScrollView | null>;
+  scrollRef: React.RefObject<ScrollTarget | null>;
   /** Card wrappers by room id, registered by the screen. */
   cardRefs: React.MutableRefObject<Record<string, Measurable>>;
   /** Live scroll offset, so a correction can be applied relative to it. */

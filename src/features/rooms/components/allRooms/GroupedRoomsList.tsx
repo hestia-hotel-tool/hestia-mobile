@@ -1,15 +1,16 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ScrollView,
+  SectionList,
   useWindowDimensions,
   type LayoutChangeEvent,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
+  type ViewToken,
 } from 'react-native';
 import { View } from '@/tw';
 import type { RoomCardData } from '../../types/allRooms.types';
 import { RoomGroupHeader } from './RoomGroupHeader';
-import type { RoomGroup } from '../../utils/roomGroups';
+import { GROUP_ORDER, type RoomGroup } from '../../utils/roomGroups';
+import { scrollTargetOf, type ScrollTarget } from '../../utils/scrollTarget';
 
 /**
  * How much of the *list* the floating band may take before it scrolls inside
@@ -42,10 +43,16 @@ export type GroupedRoomsListProps = {
    * see `ROOMS_LIST_CHROME`.
    */
   stickyInProgress?: boolean;
-  /** Forwarded to the ScrollView so the screen keeps its scroll wiring. */
+  /** Forwarded to the list so the screen keeps its scroll wiring. */
   scrollProps?: React.ComponentProps<typeof ScrollView>;
-  scrollRef?: React.Ref<ScrollView>;
+  /** Filled with the list's `scrollTo`, for the screen's scroll hooks. */
+  scrollRef?: React.RefObject<ScrollTarget | null>;
 };
+
+type RoomSection = RoomGroup & { data: RoomCardData[] };
+
+/** Viewability with no minimum: a header one pixel on screen still counts. */
+const VIEWABILITY = { itemVisiblePercentThreshold: 0, minimumViewTime: 0 };
 
 /**
  * The Rooms list housekeeping leadership and supervisors see — Figma 3883:5570
@@ -61,6 +68,11 @@ export type GroupedRoomsListProps = {
  * means by marking the card `sticky top-0` (node 3838:1572), and it is why the
  * list itself is left alone — the only difference from the leadership screen
  * should be the floating, not the layout.
+ *
+ * The list is a SectionList, so only the cards near the screen are mounted.
+ * Whether the band has left the top is read from viewability rather than a
+ * measured offset: a section header reports as a token with a `null` index,
+ * so the band is floating once the first thing on screen is past its header.
  *
  * Two approaches were tried and abandoned, both worth not repeating:
  *
@@ -90,12 +102,6 @@ export function GroupedRoomsList({
     : -1;
   const pinnedGroup = pinnedIndex >= 0 ? groups[pinnedIndex] : undefined;
 
-  /*
-   * Where the band sits in the scroll content, so we know when it has left the
-   * top. A ref rather than state: the scroll handler reads it every frame and
-   * should not re-subscribe when it changes.
-   */
-  const bandTop = useRef<number | null>(null);
   const floatingRef = useRef(false);
   const [floating, setFloating] = useState(false);
 
@@ -122,44 +128,56 @@ export function GroupedRoomsList({
   const cap = Math.round((listHeight || windowHeight) * PINNED_MAX_FRACTION);
   const floatHeight = contentHeight > 0 ? Math.min(cap, contentHeight) : cap;
 
-  const handleScroll = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      scrollProps?.onScroll?.(event);
-      const top = bandTop.current;
-      if (top == null) return;
-      // Engages the moment the band's own top passes the viewport's, which is
-      // where `position: sticky` would take hold.
-      const next = event.nativeEvent.contentOffset.y > top;
+  /*
+   * Floating once the first token on screen sits past the band's heading:
+   * one of its cards, or anything in a later band. Tokens arrive in list
+   * order, so the first is the topmost.
+   *
+   * No dependencies on purpose: VirtualizedList keeps the callback it was
+   * mounted with. Band order is the fixed `GROUP_ORDER`, so nothing here goes
+   * stale when the groups change; the render below still requires the band
+   * to exist before it floats anything.
+   */
+  const handleViewable = useCallback(
+    ({ viewableItems }: { viewableItems: ViewToken<RoomCardData>[] }) => {
+      const first = viewableItems[0];
+      const key = (first?.section as RoomSection | undefined)?.key;
+      const at = key ? GROUP_ORDER.indexOf(key) : -1;
+      const pinnedAt = GROUP_ORDER.indexOf('inProgress');
+      const next = at > pinnedAt || (at === pinnedAt && first?.index != null);
       if (next !== floatingRef.current) {
         floatingRef.current = next;
         setFloating(next);
       }
     },
-    [scrollProps]
+    []
   );
 
-  const rememberBandTop = useCallback((event: LayoutChangeEvent) => {
-    bandTop.current = event.nativeEvent.layout.y;
-  }, []);
+  const sections: RoomSection[] = groups.map((group) => ({ ...group, data: group.rooms }));
 
   const renderCards = (group: RoomGroup) =>
     group.rooms.map((room) => <React.Fragment key={room.id}>{renderRoom(room)}</React.Fragment>);
 
   return (
     <View className="flex-1" onLayout={measureList}>
-      <ScrollView
-        ref={scrollRef}
-        {...scrollProps}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {groups.map((group, index) => (
-          <View key={group.key} onLayout={index === pinnedIndex ? rememberBandTop : undefined}>
-            <RoomGroupHeader label={group.label} color={group.color} />
-            {renderCards(group)}
-          </View>
-        ))}
-      </ScrollView>
+      <SectionList<RoomCardData, RoomSection>
+        ref={(list) => {
+          if (scrollRef) scrollRef.current = scrollTargetOf(list);
+        }}
+        {...(scrollProps as object)}
+        sections={sections}
+        keyExtractor={(room) => room.id}
+        renderSectionHeader={({ section }) => <RoomGroupHeader label={section.label} color={section.color} />}
+        renderItem={({ item }) => <>{renderRoom(item)}</>}
+        stickySectionHeadersEnabled={false}
+        initialNumToRender={6}
+        maxToRenderPerBatch={6}
+        windowSize={11}
+        // Read once at mount, so a key remounts the list if sticky toggles.
+        key={stickyInProgress ? 'sticky' : 'plain'}
+        onViewableItemsChanged={stickyInProgress ? handleViewable : undefined}
+        viewabilityConfig={VIEWABILITY}
+      />
 
       {floating && pinnedGroup && (
         // Opaque: it is painted over the list, so rows passing beneath it must

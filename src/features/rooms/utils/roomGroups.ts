@@ -29,7 +29,7 @@ export interface RoomGroup {
  * priority regardless of how clean it is — so without a fixed order the same
  * room would appear twice.
  */
-const GROUP_ORDER: readonly RoomGroupKey[] = [
+export const GROUP_ORDER: readonly RoomGroupKey[] = [
   'paused',
   'inProgress',
   'priority',

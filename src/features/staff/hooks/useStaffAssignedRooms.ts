@@ -9,7 +9,11 @@ export interface UseStaffAssignedRoomsResult {
   rooms: RoomCardData[] | null;
   loading: boolean;
   error: string | null;
-  refresh: () => void;
+  /**
+   * Load again. `silent` keeps `loading` false while it runs, for the
+   * background refreshes — the rows on screen stay put and no spinner shows.
+   */
+  refresh: (options?: { silent?: boolean }) => void;
 }
 
 /** Identity for a query, so a change of person or shift starts a new load. */
@@ -31,7 +35,9 @@ export function useStaffAssignedRooms(
   userId: string | null,
   shift: 'AM' | 'PM'
 ): UseStaffAssignedRoomsResult {
-  const [generation, setGeneration] = useState(0);
+  /** Which load this is, and whether it was asked for silently. */
+  const [run, setRun] = useState({ generation: 0, silent: false });
+  const generation = run.generation;
   const [loaded, setLoaded] = useState<{
     key: string;
     rooms?: RoomCardData[];
@@ -60,11 +66,13 @@ export function useStaffAssignedRooms(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
-  const refresh = useCallback(() => setGeneration((n) => n + 1), []);
+  const refresh = useCallback((options?: { silent?: boolean }) => {
+    setRun((prev) => ({ generation: prev.generation + 1, silent: !!options?.silent }));
+  }, []);
 
   return {
     rooms: loaded?.rooms ?? null,
-    loading: !!userId && isSupabaseConfigured && loaded?.key !== key,
+    loading: !!userId && isSupabaseConfigured && loaded?.key !== key && !run.silent,
     error: loaded?.error ?? null,
     refresh,
   };

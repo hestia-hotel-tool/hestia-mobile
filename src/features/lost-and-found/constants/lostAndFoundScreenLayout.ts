@@ -40,12 +40,16 @@ export const LOST_AND_FOUND_SCREEN_LAYOUT = {
     titleGap: 42,
     titleFontSize: 24,
     /**
-     * Node 4244:634 — a filled pill, 117x42, radius 61, 10px padding, holding
-     * "Register" in Helvetica Regular 19 (node 3128:120). It ends at x=406, so
-     * 34 from the frame's right edge.
+     * Node 4372:51 — a filled pill, 134x62, radius 45, #5a759d, holding
+     * "Register" in Helvetica Bold 19, #eef2f7 (node 4372:55). It ends at
+     * x=414, so 26 from the frame's right edge.
+     *
+     * Taller than the title row and not centred on it: its top is y=47, 22
+     * above the row's y=69, so it hangs from the band rather than sitting in
+     * the row. `liftAboveTitle` is that 22.
      */
-    registerRight: 34,
-    register: { height: 42, paddingX: 21, radius: 61, fontSize: 19 },
+    registerRight: 26,
+    register: { width: 134, height: 62, radius: 45, fontSize: 19, liftAboveTitle: 22, color: '#eef2f7' },
     /**
      * Space below the title row inside the band: the band ends at 133 and the
      * row ends at 97.

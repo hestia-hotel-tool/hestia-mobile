@@ -23,14 +23,17 @@ export type TaskMeta = {
 const BRAND = '#5a759d';
 const META: Record<string, TaskMeta> = {
   room_assignment: { label: 'Room assignment', icon: 'nav-rooms', iconSize: 16, target: 'room', colour: BRAND },
-  // Figma 4378:174: a flag is the pale red disc with a red flag.
-  room_flagged: { label: 'Room flagged', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
-  room_flag_updated: { label: 'Flag updated', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
-  room_unflagged: { label: 'Flag removed', icon: 'action-flag', iconSize: 20, target: 'room', colour: '#9aa7bd' },
+  // Figma 4378:174: a flag is the pale red disc (#fb5b5b at 15%) with a red flag.
+  // `action-flag` is the priority runner, not a flag — the flag is `-outline`.
+  room_flagged: { label: 'Room flagged', icon: 'action-flag-outline', iconSize: 20, target: 'room', colour: '#fee6e6', glyph: '#f92424' },
+  room_flag_updated: { label: 'Flag updated', icon: 'action-flag-outline', iconSize: 20, target: 'room', colour: '#fee6e6', glyph: '#f92424' },
+  room_unflagged: { label: 'Flag removed', icon: 'action-flag-outline', iconSize: 20, target: 'room', colour: '#9aa7bd' },
   room_priority: { label: 'Priority room', icon: 'action-priority', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
   room_cleaned: { label: 'Room cleaned', icon: 'status-clean', iconSize: 20, target: 'room', colour: '#4a91fc' },
   room_rejected: { label: 'Room sent back', icon: 'status-dirty', iconSize: 18, target: 'room', colour: '#ff7a45' },
-  room_paused: { label: 'Cleaning on hold', icon: 'status-paused-vacuum', iconSize: 22, target: 'room', colour: '#b0c0c6' },
+  // Figma 4378:174: started is the In Progress yellow with the vacuum, paused the same vacuum on grey.
+  room_started: { label: 'Cleaning started', icon: 'status-in-progress', iconSize: 22, target: 'room', colour: '#f0be1b' },
+  room_paused: { label: 'Room Paused', icon: 'status-paused-vacuum', iconSize: 22, target: 'room', colour: '#b0c0c6' },
   room_overdue: { label: 'Taking longer than expected', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#f59e0b' },
   room_promise: { label: 'Promise time', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#fcf1cf', glyph: '#3f4c5f' },
   room_dnd: { label: 'Do Not Disturb', icon: 'action-dnd', iconSize: 20, target: 'room', colour: '#7c46ef' },
@@ -65,7 +68,10 @@ export function taskHeadline(type: string, title: string, body: string): string 
   const room = body.match(/Room\s+([\w-]+)/i)?.[1];
   const actor = body.match(/^(.+?)\s+(cleaned|paused|inspected|started cleaning)\s+Room/i);
   if (actor) {
-    const verb = actor[2].toLowerCase() === 'cleaned' ? 'Cleaned' : actor[2].toLowerCase() === 'inspected' ? 'Inspected' : actor[2].toLowerCase();
+    // As the frame writes them: "Etleva Cleaned 408", "Maria paused 401",
+    // "Maria started cleaning 202".
+    const said = actor[2].toLowerCase();
+    const verb = said === 'cleaned' ? 'Cleaned' : said === 'inspected' ? 'Inspected' : said;
     return `${firstName(actor[1])} ${verb} ${room ?? ''}`.trim();
   }
   switch (type) {

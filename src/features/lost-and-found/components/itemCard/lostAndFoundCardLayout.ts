@@ -119,6 +119,9 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
    */
   footerAvatar: 28,
   footerLabelTop: 194,
+  /** Nodes 4319:1521 / 4326:1652 — "Stored Location" sits in the footer, its
+   *  left edge 257–269 into the card; 140 wide holds "34 bremgarten zug". */
+  footerLocationWidth: 140,
 
   /**
    * Nodes 4319:1510 / 4319:1549 / 4319:1598 — the status pill: 56 x 38, fully
@@ -129,8 +132,11 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
     width: 56,
     height: 38,
     radius: 75,
-    top: 205,
-    rightInset: 13,
+    /** Card-relative: the pill's top is 13 below the card's (228 - 215), its
+     *  right edge 23 in from the card's (425 - 402). Top right, level with the
+     *  item name — not in the footer. */
+    top: 13,
+    rightInset: 23,
     paddingLeft: 8,
     iconSlot: 21,
     gap: 3.5,

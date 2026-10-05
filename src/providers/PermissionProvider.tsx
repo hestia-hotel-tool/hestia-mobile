@@ -24,10 +24,15 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { AppState } from 'react-native';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import type { Permission } from '@/domain/rbac/permissions';
 import type { HomeVariant, RoomsVariant } from '@/domain/rbac/matrix';
+
+/** The error a network or server failure leaves; only this one is retried. */
+const LOAD_FAILED = 'Could not load your permissions.';
+const RETRY_DELAYS_MS = [2_000, 5_000, 15_000, 30_000];
 
 interface PermissionContextValue {
   permissions: ReadonlySet<Permission>;
@@ -133,6 +138,8 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
    * setState.
    */
   const [resolvedFor, setResolvedFor] = useState<string | null | undefined>(undefined);
+  /** Consecutive failed loads; each one schedules the next retry. */
+  const [failures, setFailures] = useState(0);
 
   // Signed out, or Supabase unconfigured: nothing to resolve, so there is
   // nothing to wait for either. Deriving this instead of setting it in an effect
@@ -171,6 +178,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       setPermissions(new Set(keys));
       setHomeVariant(asHomeVariant(variantResult.data));
       setRoomsVariant(asRoomsVariant(roomsVariantResult.data));
+      setFailures(0);
       setError(
         keys.length === 0
           ? 'This account has no job title assigned, so it has no access yet.'
@@ -183,7 +191,8 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       setPermissions(EMPTY); // fail closed
       setHomeVariant('default');
       setRoomsVariant('default');
-      setError('Could not load your permissions.');
+      setError(LOAD_FAILED);
+      setFailures((n) => n + 1);
     } finally {
       if (requestFor.current === forUser) setResolvedFor(forUser);
     }
@@ -196,6 +205,27 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void resolve();
   }, [resolve]);
+
+  /*
+   * A failed load is retried, not left standing. Failing closed is right for
+   * the moment it happens, but a launch on a flaky connection ("The request
+   * timed out") used to leave the user with an empty app until they restarted
+   * it. Back off 2s, 5s, 15s, then every 30s while it keeps failing, and try
+   * again at once when the app comes back to the foreground.
+   */
+  const loadFailed = canResolve && failures > 0;
+  useEffect(() => {
+    if (!loadFailed) return;
+    const delay = RETRY_DELAYS_MS[Math.min(failures - 1, RETRY_DELAYS_MS.length - 1)];
+    const timer = setTimeout(() => void resolve(), delay);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void resolve();
+    });
+    return () => {
+      clearTimeout(timer);
+      sub.remove();
+    };
+  }, [loadFailed, failures, resolve]);
 
   const value = useMemo<PermissionContextValue>(
     () => ({

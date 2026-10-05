@@ -49,7 +49,9 @@ export default function StaffRoomsHeader({
         backgroundColor: C.headerBackground,
         paddingTop: insets.top + s(L.header.safeAreaGap),
         paddingBottom: s(L.header.paddingBottom),
-        paddingHorizontal: s(L.gutter),
+        paddingLeft: s(L.gutter),
+        // Clear of the pill, which is positioned over the band's right side.
+        paddingRight: onActionPress ? s(L.header.actionPill.right + L.header.actionPill.width + 12) : s(L.gutter),
         gap: s(L.header.chevronToIdentity),
         // The pill sets the band's height, and keeps setting it once hidden;
         // see `header.contentMinHeight`.
@@ -89,27 +91,32 @@ export default function StaffRoomsHeader({
           onPress={onActionPress}
           accessibilityRole="button"
           accessibilityLabel={`${actionLabel}, open actions`}
-          className="flex-row items-center justify-center"
+          className="absolute flex-row items-center justify-center"
           style={{
-            height: s(L.header.reassign.height),
-            paddingHorizontal: s(20),
+            // 4361:6082 — hangs from the band, its top 27 above the row.
+            top: Math.max(4, insets.top + s(L.header.safeAreaGap - L.header.actionPill.liftAboveRow)),
+            right: s(L.header.actionPill.right),
+            width: s(L.header.actionPill.width),
+            height: s(L.header.actionPill.height),
             gap: s(12),
-            // Never give up width to a long name; the name truncates instead.
-            flexShrink: 0,
-            borderRadius: s(L.header.reassign.radius),
+            borderRadius: s(L.header.actionPill.radius),
             backgroundColor: '#5a759d',
           }}
         >
           <Text
             numberOfLines={1}
             className="font-hestia-primary font-bold"
-            style={{ fontSize: s(17), fontFamily: typography.fontFamily.primary, color: '#ffffff' }}
+            style={{
+              fontSize: s(L.header.actionPill.fontSize),
+              fontFamily: typography.fontFamily.primary,
+              color: L.header.actionPill.color,
+            }}
           >
             {actionLabel}
           </Text>
           <View style={{ width: s(16), height: s(8), alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ transform: [{ rotate: '-90deg' }] }}>
-              <Icon name="action-chevron" size={s(16)} color="#ffffff" />
+              <Icon name="action-chevron" size={s(16)} color={L.header.actionPill.color} />
             </View>
           </View>
         </Pressable>

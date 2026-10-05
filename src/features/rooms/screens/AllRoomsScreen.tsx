@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, Platform } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -50,6 +50,7 @@ import { getShiftFromTime } from '@/utils/shiftUtils';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
+import { scrollTargetOf, trackRef, type ScrollTarget } from '../utils/scrollTarget';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
 import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
@@ -155,13 +156,23 @@ export default function AllRoomsScreen() {
 
   // Stable, so a card's `ref` callback keeps its identity across renders and
   // React stops detaching and re-attaching it on every commit. See `RoomRow`.
-  const registerCardRef = useCallback((roomId: string, ref: unknown) => {
-    cardRefs.current[roomId] = ref;
-  }, []);
-  const registerPillRef = useCallback((roomId: string, ref: unknown) => {
-    statusButtonRefs.current[roomId] = ref;
-  }, []);
-  const scrollViewRef = useRef<ScrollView>(null);
+  //
+  // Each returns its unregister. The list is virtualised, so cards unmount as
+  // they leave the render window; a detached handle may never answer
+  // `measureInWindow`, and the hooks awaiting it would wait forever. A room can
+  // be mounted twice (the floating In Progress band), so every live handle is
+  // kept and the newest is the one the maps expose.
+  const registerCardRef = useCallback(
+    (roomId: string, ref: unknown) => trackRef(cardRefs.current, cardRefStacks.current, roomId, ref),
+    [],
+  );
+  const registerPillRef = useCallback(
+    (roomId: string, ref: unknown) => trackRef(statusButtonRefs.current, pillRefStacks.current, roomId, ref),
+    [],
+  );
+  const cardRefStacks = useRef(new Map<string, unknown[]>());
+  const pillRefStacks = useRef(new Map<string, unknown[]>());
+  const scrollViewRef = useRef<ScrollTarget>(null);
   const { width: windowWidth, height: SCREEN_HEIGHT } = useWindowDimensions();
   const scaleX = windowWidth / DESIGN_WIDTH;
   const styles = useMemo(() => buildAllRoomsStyles(scaleX), [scaleX]);
@@ -1126,21 +1137,32 @@ export default function AllRoomsScreen() {
             }
 
             return (
-              <ScrollView ref={scrollViewRef} {...scrollProps}>
-                {!useProfileHeader && activeFilterParts.length > 0 ? (
-                  <View style={{ marginBottom: 12 * scaleX }}>
-                    <ActiveFiltersBar
-                      parts={activeFilterParts}
-                      resultCount={filteredRooms.length}
-                      onClear={clearAllFilters}
-                      scaleX={scaleX}
-                    />
-                  </View>
-                ) : null}
-                {showNoMatchingRoomsEmptyState
-                  ? emptyState
-                  : filteredRooms.map(renderRoomCard)}
-              </ScrollView>
+              // Virtualised: only the cards near the screen are mounted.
+              <FlatList
+                ref={(list) => {
+                  scrollViewRef.current = scrollTargetOf(list);
+                }}
+                {...scrollProps}
+                data={showNoMatchingRoomsEmptyState ? [] : filteredRooms}
+                keyExtractor={(room) => room.id}
+                renderItem={({ item }) => renderRoomCard(item)}
+                initialNumToRender={6}
+                maxToRenderPerBatch={6}
+                windowSize={11}
+                ListHeaderComponent={
+                  !useProfileHeader && activeFilterParts.length > 0 ? (
+                    <View style={{ marginBottom: 12 * scaleX }}>
+                      <ActiveFiltersBar
+                        parts={activeFilterParts}
+                        resultCount={filteredRooms.length}
+                        onClear={clearAllFilters}
+                        scaleX={scaleX}
+                      />
+                    </View>
+                  ) : null
+                }
+                ListEmptyComponent={showNoMatchingRoomsEmptyState ? emptyState : null}
+              />
             );
           })()}
         {/* The status modal's blur is drawn by StatusPopover, anchored at

@@ -1,5 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ScrollView, TextInput } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, SectionList, TextInput } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { useNavigation, useRoute, useRouter } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -8,10 +8,13 @@ import { View, Text } from '@/tw';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { scaleX } from '@/utils/responsive';
 import { typography } from '@/theme';
+import { useRefreshWhileFocused } from '@/hooks/useRefreshWhileFocused';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { getDepartments, sortDepartmentsByDisplayOrder, type DepartmentRow } from '@/lib/departments';
 import type { ReturnToTab } from '@/types/navigation';
 
 import StaffHeader from '../components/StaffHeader';
+import { currentShiftTab } from '../services/staffRoster';
 import StaffTabs from '../components/StaffTabs';
 import StaffDepartmentStrip from '../components/StaffDepartmentStrip';
 import EmptyStaffState, { type StaffEmptyReason } from '../components/EmptyStaffState';
@@ -80,7 +83,34 @@ export default function StaffScreen() {
   const route = useRoute();
   const router = useRouter();
 
-  const [selectedTab, setSelectedTab] = useState<StaffTab>('am');
+  /*
+   * Opens on the shift running now, not always AM. The first frame guesses
+   * from the clock with the usual 06–14 / 14–22 split, so the roster's first
+   * load is usually already the right one; the hotel's own shift times then
+   * settle it — unless the user has already picked a tab.
+   */
+  const [selectedTab, setSelectedTab] = useState<StaffTab>(() => {
+    const hour = new Date().getHours();
+    if (hour >= 6 && hour < 14) return 'am';
+    if (hour >= 14 && hour < 22) return 'pm';
+    return hour < 12 ? 'am' : 'pm';
+  });
+  const pickedTab = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    currentShiftTab()
+      .then((tab) => {
+        if (!cancelled && !pickedTab.current) setSelectedTab(tab);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const selectTab = useCallback((tab: StaffTab) => {
+    pickedTab.current = true;
+    setSelectedTab(tab);
+  }, []);
   const [departments, setDepartments] = useState<DepartmentRow[] | null>(null);
   const [activeDepartmentId, setActiveDepartmentId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -141,7 +171,7 @@ export default function StaffScreen() {
     ? 'cleaning'
     : 'tickets';
 
-  const { roster, loading, error } = useStaffRoster(
+  const { roster, loading, error, refresh: refreshRoster } = useStaffRoster(
     activeDepartment
       ? {
           departmentId: activeDepartment.id,
@@ -151,6 +181,10 @@ export default function StaffScreen() {
         }
       : null,
   );
+  // Counts and rooms change as attendants work; `room_assignments` is not
+  // realtime, so reload on return and every 30s while this tab is open.
+  useRefreshWhileFocused(refreshRoster);
+  useLiveRoomChanges(refreshRoster);
 
   const handleBack = useCallback(() => {
     if (navigation.canGoBack()) {
@@ -253,6 +287,21 @@ export default function StaffScreen() {
 
   const s = (n: number) => n * scaleX;
 
+  /*
+    An empty group hides its heading entirely. Printing "On Break" over
+    nothing three times reads as a broken screen, and on a small department
+    two of the three are routinely empty.
+  */
+  const listSections = useMemo(
+    () =>
+      loading && !roster
+        ? []
+        : error || emptyReason
+          ? []
+          : sections.filter((section) => section.people.length > 0).map((section) => ({ ...section, data: section.people })),
+    [loading, roster, error, emptyReason, sections],
+  );
+
   return (
     <View className="flex-1 bg-surface-primary">
       <StaffHeader
@@ -289,12 +338,58 @@ export default function StaffScreen() {
         </View>
       ) : null}
 
-      <ScrollView
+      {/* Virtualised: only the cards near the screen are mounted. */}
+      <SectionList
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingBottom: s(L.list.paddingBottom), flexGrow: 1 }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-      >
+        stickySectionHeadersEnabled={false}
+        sections={listSections}
+        keyExtractor={(person) => person.id}
+        renderSectionHeader={({ section }) => (
+          <View style={{ paddingHorizontal: s(L.gutter) }}>
+            <ShiftGroupHeading state={section.state} />
+          </View>
+        )}
+        /*
+          Every person opens, whichever group they are in: a break or a
+          finished shift still has the rooms they worked, and someone with
+          none shows zeros.
+        */
+        renderItem={({ item: person }) => (
+          <View style={{ paddingHorizontal: s(L.gutter) }}>
+            <StaffShiftCard
+              person={person}
+              isOpen={openIds.has(person.id)}
+              onToggle={() => toggleOpen(person.id)}
+              onSeeRooms={() => handleSeeRooms(person)}
+              onViewDetails={() => handleViewDetails(person)}
+            />
+          </View>
+        )}
+        ItemSeparatorComponent={() => <View style={{ height: s(L.compactRow.gap) }} />}
+        extraData={openIds}
+        initialNumToRender={10}
+        windowSize={7}
+        ListEmptyComponent={
+          loading && !roster ? (
+            <View style={{ paddingVertical: s(48) }}>
+              <ActivityIndicator size="large" color="#5a759d" />
+            </View>
+          ) : error ? (
+            <Text
+              className="text-center font-hestia-primary text-ink-tertiary"
+              style={{ paddingVertical: s(40), fontSize: s(14) }}
+            >
+              {error}
+            </Text>
+          ) : emptyReason ? (
+            <EmptyStaffState reason={emptyReason} />
+          ) : null
+        }
+        ListHeaderComponent={
+        <>
         <Text
           className="font-hestia-primary font-bold text-ink-primary"
           style={{
@@ -361,58 +456,14 @@ export default function StaffScreen() {
               paddingTop: s(L.tabRow.paddingTop),
             }}
           >
-            <StaffTabs selectedTab={selectedTab} onTabPress={setSelectedTab} />
+            <StaffTabs selectedTab={selectedTab} onTabPress={selectTab} />
           </View>
           <View className="h-px bg-border-medium" />
         </View>
 
-        {loading && !roster ? (
-          <View style={{ paddingVertical: s(48) }}>
-            <ActivityIndicator size="large" color="#5a759d" />
-          </View>
-        ) : error ? (
-          <Text
-            className="text-center font-hestia-primary text-ink-tertiary"
-            style={{ paddingVertical: s(40), fontSize: s(14) }}
-          >
-            {error}
-          </Text>
-        ) : emptyReason ? (
-          <EmptyStaffState reason={emptyReason} />
-        ) : (
-          <View style={{ paddingHorizontal: s(L.gutter) }}>
-            {sections.map((section) =>
-              /*
-                An empty group hides its heading entirely. Printing "On Break"
-                over nothing three times reads as a broken screen, and on a
-                small department two of the three are routinely empty.
-              */
-              section.people.length === 0 ? null : (
-                <View key={section.state}>
-                  <ShiftGroupHeading state={section.state} />
-                  <View style={{ gap: s(L.compactRow.gap) }}>
-                    {section.people.map((person) => (
-                      /*
-                        Every person opens, whichever group they are in: a
-                        break or a finished shift still has the rooms they
-                        worked, and someone with none shows zeros.
-                      */
-                      <StaffShiftCard
-                        key={person.id}
-                        person={person}
-                        isOpen={openIds.has(person.id)}
-                        onToggle={() => toggleOpen(person.id)}
-                        onSeeRooms={() => handleSeeRooms(person)}
-                        onViewDetails={() => handleViewDetails(person)}
-                      />
-                    ))}
-                  </View>
-                </View>
-              ),
-            )}
-          </View>
-        )}
-      </ScrollView>
+        </>
+        }
+      />
 
       <BottomTabBar />
     </View>

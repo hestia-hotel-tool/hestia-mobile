@@ -1,11 +1,13 @@
-import React, { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import { View, Text } from '@/tw';
 import { Avatar } from '@/components';
 import { Icon } from '@/components/Icon';
 import { useNow } from '@/hooks/useNow';
+import { useRefreshWhileFocused } from '@/hooks/useRefreshWhileFocused';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
 import { STATUS_CONFIGS, getRoomCardStatus, type RoomCardData } from '@features/rooms/types/allRooms.types';
@@ -80,7 +82,16 @@ export default function StaffActivityScreen() {
   const shift = one(params.shift) === 'PM' ? 'PM' : 'AM';
 
   const now = useNow();
-  const { rooms, loading, error } = useStaffAssignedRooms(staffId, shift);
+  const { rooms, loading, error, refresh } = useStaffAssignedRooms(staffId, shift);
+  /*
+   * A room assigned to them, or one they start, after this screen opened must
+   * still show: `rooms` and `room_assignments` are not realtime, so reload on
+   * return, every 30s while open, and on pull.
+   */
+  const silentRefresh = useCallback(() => refresh({ silent: true }), [refresh]);
+  useRefreshWhileFocused(silentRefresh);
+  // And at once when a room or assignment changes anywhere in the hotel.
+  useLiveRoomChanges(silentRefresh, !!staffId);
   const [filter, setFilter] = useState<Filter>('all');
 
   const lines: RoomLine[] = useMemo(
@@ -111,7 +122,11 @@ export default function StaffActivityScreen() {
   const started = lines.filter((l) => l.used > 0);
   const averageUsed = started.length ? Math.round(started.reduce((n, l) => n + l.used, 0) / started.length) : 0;
   const averageCredit = started.length ? started.reduce((n, l) => n + l.credit, 0) / started.length : 0;
-  const againstCredit = totalUsed - totalCredit;
+  /*
+   * Credits left over: negative is overtime. 20 credits cleaned in 24 minutes
+   * is -4 — the frame's red "-50 minutes".
+   */
+  const againstCredit = totalCredit - totalUsed;
 
   const chooseFilter = () =>
     Alert.alert('Show rooms', undefined, [
@@ -126,7 +141,11 @@ export default function StaffActivityScreen() {
     <View className="flex-1 bg-surface-primary">
       <StaffHeader title="Activity" onBackPress={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={{ paddingTop: s(13), paddingBottom: s(60) }} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={{ paddingTop: s(13), paddingBottom: s(60) }}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={loading && rooms != null} onRefresh={() => refresh()} />}
+      >
         {/* 4319:718 — the card, 401 wide at x19. */}
         <View
           style={{
@@ -179,8 +198,10 @@ export default function StaffActivityScreen() {
                   {filter !== 'all' ? ` · ${FILTER_LABEL[filter]}` : ''}
                 </Text>
               </View>
+              {/* 4319:830 — ends at x373, 28 inside the content edge. */}
               <Pressable
                 onPress={chooseFilter}
+                style={{ marginRight: s(28) }}
                 hitSlop={10}
                 accessibilityRole="button"
                 accessibilityLabel={`Filter rooms, showing ${FILTER_LABEL[filter]}`}
@@ -235,7 +256,9 @@ export default function StaffActivityScreen() {
           {/* 4319:820–827 — Credits Used. */}
           <View style={{ paddingHorizontal: s(21), marginTop: s(20) }}>
             <Text style={{ fontSize: s(19), fontWeight: '700', fontFamily: FONT, color: '#000000' }}>Credits Used</Text>
-            <View style={{ marginTop: s(24), paddingRight: s(52) }}>
+            {/* 4319:822 — x43–347. A row: in a column the bar's flex:1 sets its
+                basis to 0 and it drew nothing at all. */}
+            <View className="flex-row" style={{ marginTop: s(24), marginLeft: s(3), paddingRight: s(52) }}>
               <Bar ratio={totalCredit > 0 ? totalUsed / totalCredit : 0} fill="#fb9292" />
             </View>
             <Text style={{ marginTop: s(12), fontSize: s(11), fontWeight: '700', fontFamily: FONT, color: '#000000' }}>
@@ -252,20 +275,19 @@ export default function StaffActivityScreen() {
           <Text style={{ marginTop: s(14), fontSize: s(17), fontWeight: '500', fontFamily: FONT, color: '#000000' }}>
             {totalUsed} Minutes
           </Text>
+          {/* 4343:1919 — "-50 minutes": credits minus minutes used. Negative is
+              overtime, in red; within credit is green. */}
           {totalCredit > 0 && totalUsed > 0 ? (
             <Text
               style={{
                 marginTop: s(4),
                 fontSize: s(12),
                 fontFamily: FONT,
-                color: againstCredit > 0 ? RED : '#39d47f',
+                color: againstCredit < 0 ? RED : '#39d47f',
               }}
             >
-              {againstCredit > 0
-                ? `+${againstCredit} minutes over credit`
-                : againstCredit < 0
-                  ? `${-againstCredit} minutes under credit`
-                  : 'On credit'}
+              {againstCredit > 0 ? '+' : againstCredit < 0 ? '-' : ''}
+              {Math.abs(againstCredit)} minutes
             </Text>
           ) : null}
 
@@ -315,10 +337,10 @@ function RoomRow({ line }: { line: RoomLine }) {
   const colour = line.over ? RED : '#000000';
   return (
     <View className="flex-row items-center" style={{ minHeight: s(56), paddingLeft: s(28), paddingRight: s(12) }}>
-      <Text style={{ width: s(36), fontSize: s(18), fontWeight: '700', fontFamily: FONT, color: '#000000' }} numberOfLines={1}>
+      <Text style={{ minWidth: s(31), fontSize: s(18), fontWeight: '700', fontFamily: FONT, color: '#000000' }} numberOfLines={1}>
         {line.room.roomNumber}
       </Text>
-      <View style={{ marginLeft: s(8) }}>
+      <View style={{ marginLeft: s(5) }}>
         <GuestKindDisc kind={guestRowKind(line.room, 0)} size={s(29)} />
       </View>
       <View className="flex-row items-center" style={{ marginLeft: s(42), flex: 1, gap: s(6) }}>
@@ -327,7 +349,8 @@ function RoomRow({ line }: { line: RoomLine }) {
           {line.statusLabel}
         </Text>
       </View>
-      <View style={{ width: s(110) }}>
+      {/* 4338:1898 — the time starts at x290, 119 from the card's right edge. */}
+      <View style={{ width: s(118) }}>
         <Text style={{ fontSize: s(16), fontWeight: '500', fontFamily: FONT, color: colour }}>{formatSpan(line.used)}</Text>
         <Text style={{ marginTop: s(2), fontSize: s(9), fontWeight: '300', fontFamily: FONT, color: line.over ? RED : '#1e1e1e' }}>
           {line.used}/{line.credit} Credits

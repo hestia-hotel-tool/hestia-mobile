@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { getTicketCountsForAssignee } from '@features/tickets/services/tickets';
 import { useShallow } from 'zustand/react/shallow';
 import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
@@ -13,7 +14,6 @@ import type { ShiftType , CategorySection } from '../types/home.types';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { userProfileFromSession } from '@features/account/services/user';
 import { useUserStore } from '@features/account/store/useUserStore';
-import { dashboardService } from '@features/rooms/services/dashboard';
 import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt, getRoomNumbersByIds } from '@features/rooms/services/rooms';
 import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
@@ -229,25 +229,9 @@ export default function HomeScreen() {
     if (!isTicketDashboard) return;
 
     try {
-      const ticketsData = await dashboardService.getTicketsData();
+      // Only this user's tickets in this department, counted (not the hotel's whole list).
       const uid = session?.user?.id;
-      const department = (ticketDepartment ?? '').toLowerCase();
-      const departmentTickets = (ticketsData?.tickets ?? [])
-        // A ticket's `category` is its department's display name — see
-        // `HomeChrome.ticketDepartment`. Compared lowercased at both ends.
-        .filter((t: any) => (t?.category ?? '').toLowerCase() === department)
-        // This dashboard counts only tickets assigned to the signed-in user.
-        .filter((t: any) => (!!uid ? String(t?.assignedToId ?? '') === String(uid) : false));
-
-      const total = departmentTickets.length;
-      const priority = departmentTickets.reduce(
-        (sum: number, t: any) => sum + ((t?.priority ?? '').toLowerCase() === 'urgent' ? 1 : 0),
-        0
-      );
-      const unsolved = departmentTickets.reduce((sum: number, t: any) => sum + (t?.status === 'unsolved' ? 1 : 0), 0);
-      const solved = departmentTickets.reduce((sum: number, t: any) => sum + (t?.status === 'done' ? 1 : 0), 0);
-      const outOfOrder = departmentTickets.reduce((sum: number, t: any) => sum + (t?.status === 'ofo' ? 1 : 0), 0);
-      setTicketCounts({ total, priority, unsolved, solved, outOfOrder });
+      setTicketCounts(uid ? await getTicketCountsForAssignee(uid, ticketDepartment ?? '') : { total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 });
     } catch (e) {
       console.warn('[HomeScreen] Failed to load ticket dashboard counts', e);
     }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, Platform } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Platform } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -273,7 +273,8 @@ export default function ChatScreen() {
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         <View style={styles.scrollContainer}>
-          <ScrollView
+          {/* Virtualised: only the chats near the screen are mounted. */}
+          <FlatList
             style={styles.scrollView}
             contentContainerStyle={styles.scrollContent}
             showsVerticalScrollIndicator={false}
@@ -282,7 +283,21 @@ export default function ChatScreen() {
               <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
             }
             keyboardShouldPersistTaps="handled"
-          >
+            data={filteredChats}
+            keyExtractor={(chat) => chat.id}
+            renderItem={({ item: chat }) => <ChatItem chat={chat} onPress={() => handleChatPress(chat)} />}
+            initialNumToRender={12}
+            maxToRenderPerBatch={10}
+            windowSize={7}
+            ListEmptyComponent={
+              !isLoading ? (
+                <Text style={styles.emptyText}>
+                  {chats.length === 0 ? 'No chats yet' : 'No chats match'}
+                </Text>
+              ) : null
+            }
+            ListHeaderComponent={
+            <>
             {hasNotifications ? (
               <>
                 <Text style={[styles.sectionTitle, styles.notificationsTitle]}>Notifications</Text>
@@ -305,15 +320,9 @@ export default function ChatScreen() {
             <Text style={[styles.sectionTitle, hasNotifications ? styles.chatsTitle : styles.notificationsTitle]}>
               Chats
             </Text>
-            {filteredChats.map((chat) => (
-              <ChatItem key={chat.id} chat={chat} onPress={() => handleChatPress(chat)} />
-            ))}
-            {!isLoading && filteredChats.length === 0 ? (
-              <Text style={styles.emptyText}>
-                {chats.length === 0 ? 'No chats yet' : 'No chats match'}
-              </Text>
-            ) : null}
-          </ScrollView>
+            </>
+            }
+          />
 
         </View>
       </KeyboardAvoidingView>

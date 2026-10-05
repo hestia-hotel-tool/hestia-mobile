@@ -39,9 +39,13 @@ export type RoomRowProps = {
   onStatusPress: (room: RoomCardData) => void;
   /** Absent without rooms.reassign — the card's assign control is then read-only. */
   onAssignPress?: (room: RoomCardData) => void;
-  /** The screen keeps the ref maps, for the status popover's anchoring. */
-  registerCardRef: (roomId: string, ref: unknown) => void;
-  registerPillRef: (roomId: string, ref: View | null) => void;
+  /**
+   * The screen keeps the ref maps, for the status popover's anchoring. Each
+   * returns the matching unregister: the list is virtualised, so a card that
+   * scrolls out of the window unmounts and its handle must not be measured.
+   */
+  registerCardRef: (roomId: string, ref: unknown) => () => void;
+  registerPillRef: (roomId: string, ref: View) => () => void;
   /** Injected so this file does not import the screen's card components. */
   RebuiltCard: React.ComponentType<any>;
   LegacyCard: React.ComponentType<any>;
@@ -71,13 +75,13 @@ function RoomRowInner({
 
   const measureRef = useCallback(
     (ref: unknown) => {
-      if (ref) registerCardRef(room.id, ref);
+      if (ref) return registerCardRef(room.id, ref);
     },
     [registerCardRef, room.id]
   );
   const pillRef = useCallback(
     (ref: View | null) => {
-      if (ref) registerPillRef(room.id, ref);
+      if (ref) return registerPillRef(room.id, ref);
     },
     [registerPillRef, room.id]
   );
