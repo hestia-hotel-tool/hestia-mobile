@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Image, TouchableOpacity, Linking } from 'react-native';
+import { View, Text, StyleSheet, Platform, TouchableOpacity, Linking } from 'react-native';
+// expo-image: cached in memory and on disk, unlike react-native's Image.
+import { Image } from 'expo-image';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { ChatMessage } from '@/types';
 import { scaleX } from '../constants/chatStyles';
@@ -18,7 +20,7 @@ interface MessageBubbleProps {
   onSwipeReply?: (message: ChatMessage) => void;
 }
 
-export default function MessageBubble({ message, isCurrentUser, isGroup, onLongPress, onSwipeReply }: MessageBubbleProps) {
+function MessageBubble({ message, isCurrentUser, isGroup, onLongPress, onSwipeReply }: MessageBubbleProps) {
   const handleLongPress = () => {
     onLongPress?.(message);
   };
@@ -88,7 +90,7 @@ export default function MessageBubble({ message, isCurrentUser, isGroup, onLongP
           <Image
             source={{ uri: message.imageUri }}
             style={[styles.messageImage, message.replyTo ? styles.messageImageAfterReply : null]}
-            resizeMode="cover"
+            contentFit="cover" cachePolicy="memory-disk"
           />
         )}
 
@@ -582,3 +584,5 @@ const styles = StyleSheet.create({
   },
 });
 
+/** Memoised: typing in the composer re-renders the screen, not every message. */
+export default React.memo(MessageBubble);

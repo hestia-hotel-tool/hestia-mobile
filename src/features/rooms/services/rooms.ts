@@ -4,7 +4,6 @@
  */
 
 import { supabase } from '@/lib/supabase';
-import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
 import { getMyHotelId } from '@/lib/tenant';
 import { formatClockTime } from '@/utils/formatting';
 import type {
@@ -311,7 +310,7 @@ function mapToGuestInfo(
     vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
     arrivalDate: res.arrival_date,
     // Ensure every guest has an image on cards (fallback to deterministic placeholder).
-    imageUrl: guest?.image_url ?? `https://i.pravatar.cc/96?u=${guest?.id ?? `${roomId}-${index}`}`,
+    imageUrl: guest?.image_url ?? undefined, // no stock photo: the row draws its own placeholder
     isVacant: isVacant || undefined,
   };
 }
@@ -361,7 +360,7 @@ function mapRoomToCard(
       time: 'N/A',
       timeLabel: 'N/A',
       guestCount: { adults: 0, kids: 0 },
-      imageUrl: `https://i.pravatar.cc/96?u=${room.id}-0`,
+      imageUrl: undefined,
     });
   }
 
@@ -540,6 +539,18 @@ export async function getRoomNumbersByIds(ids: string[]): Promise<Map<string, st
 /**
  * Fetch all rooms with reservations and guests (Supabase).
  */
+/**
+ * Reservations the room lists read: current and future stays, and the last
+ * month of past ones (a room's most recent guest). It used to read every
+ * reservation the hotel ever had — the largest payload in the app, re-read on
+ * every Rooms and Home open, and growing every day.
+ */
+const RESERVATION_WINDOW_DAYS = 30;
+function reservationWindowStart(): string {
+  const d = new Date(Date.now() - RESERVATION_WINDOW_DAYS * 86_400_000);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenData> {
   /*
    * Three waves, not six sequential round-trips.
@@ -601,6 +612,8 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
         .from('reservations')
         .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
         .in('room_id', roomIds)
+        // Stays still relevant (see RESERVATION_WINDOW_DAYS), not every booking ever.
+        .gte('departure_date', reservationWindowStart())
         .order('arrival_date', { ascending: false });
       if (resError) throw resError;
       return (resData ?? []) as ReservationRow[];
@@ -1256,7 +1269,6 @@ export async function assignRoomToStaff(
   // (20260925000100_task_notifications.sql), with the hotel and who assigned it.
 
   // Defer so tab bar listeners run after Supabase write is visible to the next read.
-  queueMicrotask(() => invalidateNotificationBadges());
 
   return staffInfo;
 }
@@ -1389,7 +1401,7 @@ function mapReservationDetailToGuestInfo(
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
     vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
     arrivalDate: res.arrival_date,
-    imageUrl: guest?.image_url ?? `https://i.pravatar.cc/96?u=${guest?.id ?? `${roomId}-${index}`}`,
+    imageUrl: guest?.image_url ?? undefined, // no stock photo: the row draws its own placeholder
     isVacant: isVacant || undefined,
   };
 }
@@ -1425,7 +1437,7 @@ export function fullRoomDetailsToRoomCardData(
       time: 'N/A',
       timeLabel: 'N/A',
       guestCount: { adults: 0, kids: 0 },
-      imageUrl: `https://i.pravatar.cc/96?u=${room.id}-0`,
+      imageUrl: undefined,
     });
   }
 
@@ -1576,6 +1588,7 @@ export async function getFullRoomDetails(
       .from('reservations')
       .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
       .in('room_id', roomIds)
+      .gte('departure_date', reservationWindowStart())
       .order('arrival_date', { ascending: false }),
     supabase
       .from('room_notes')

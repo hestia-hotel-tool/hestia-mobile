@@ -242,47 +242,43 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
 
   const chatIds = participantRows.map((p) => p.chat_id);
 
-  const { data: chats, error: chatsError } = await supabase
-    .from('chats')
-    .select('id, type, name, created_by_id')
-    .in('id', chatIds);
+  // Independent once the chat ids are known: one parallel wave, not four in a row.
+  const [chatsRes, unreadByChatId, latestRes, participantsRes] = await Promise.all([
+    supabase.from('chats').select('id, type, name, created_by_id').in('id', chatIds),
+    getUnreadChatMessageCountsByChatId(),
+    // One row per chat (migration 20261005000300) instead of every message ever sent.
+    supabase.rpc('latest_messages_for_chats' as never, { p_chat_ids: chatIds } as never),
+    // Other participants in one go (up to 3 per chat for groups).
+    supabase
+      .from('chat_participants')
+      .select('chat_id, user_id, users(full_name, avatar_url)')
+      .in('chat_id', chatIds)
+      .neq('user_id', userId),
+  ]);
 
+  const { data: chats, error: chatsError } = chatsRes;
   if (chatsError) {
     console.warn('[Chat] getChatsForUser: chats error', chatsError.message, chatsError.code);
     return [];
   }
   if (!chats?.length) return [];
 
-  const unreadByChatId = await getUnreadChatMessageCountsByChatId();
-
-  // Fetch all last messages in one go (then pick the first per chat_id).
-  const { data: messageRows } = await supabase
-    .from('messages')
-    .select('id, chat_id, content, created_at, sender_id, users!sender_id(full_name)')
-    .in('chat_id', chatIds)
-    .order('created_at', { ascending: false });
-
   const lastByChatId = new Map<
     string,
     { id: string; chat_id: string; content: string | null; created_at: string | null; sender_id: string; users?: { full_name: string | null } | null }
   >();
-  for (const row of (messageRows ?? []) as {
+  for (const row of ((latestRes.data ?? []) as unknown) as {
     id: string;
     chat_id: string;
     content: string | null;
     created_at: string | null;
     sender_id: string;
-    users?: { full_name: string | null } | null;
+    sender_name: string | null;
   }[]) {
-    if (!lastByChatId.has(row.chat_id)) lastByChatId.set(row.chat_id, row);
+    lastByChatId.set(row.chat_id, { ...row, users: { full_name: row.sender_name } });
   }
 
-  // Fetch other participants in one go (up to 3 per chat for groups).
-  const { data: participantRowsAll } = await supabase
-    .from('chat_participants')
-    .select('chat_id, user_id, users(full_name, avatar_url)')
-    .in('chat_id', chatIds)
-    .neq('user_id', userId);
+  const participantRowsAll = participantsRes.data;
 
   const othersByChatId = new Map<
     string,
@@ -462,6 +458,9 @@ export async function setParticipantRole(
  * Fetch messages for a chat, ordered by created_at ascending (oldest first).
  * Enriches reply_to and tagged_user with names.
  */
+/** How many of a chat's newest messages a conversation opens with. */
+const MESSAGE_PAGE = 200;
+
 export async function getMessages(chatId: string): Promise<ChatMessage[]> {
   const userId = await getCurrentUserId();
   if (!userId || !isValidUUID(chatId)) {
@@ -473,24 +472,32 @@ export async function getMessages(chatId: string): Promise<ChatMessage[]> {
     .from('messages')
     .select('id, chat_id, sender_id, type, content, created_at, reply_to_id, tagged_user_id, users!sender_id(full_name, avatar_url)')
     .eq('chat_id', chatId)
-    .order('created_at', { ascending: true });
+    // The newest MESSAGE_PAGE, not the whole history; shown oldest-first.
+    .order('created_at', { ascending: false })
+    .limit(MESSAGE_PAGE);
 
   if (error) {
     console.warn('[Chat] getMessages error:', error.message, error.code, error.details);
     return [];
   }
-  const rows = (data ?? []) as unknown as MessageRow[];
+  const rows = ((data ?? []) as unknown as MessageRow[]).reverse();
 
   const replyIds = [...new Set(rows.map((r) => r.reply_to_id).filter(Boolean) as string[])];
   const taggedIds = [...new Set(rows.map((r) => r.tagged_user_id).filter(Boolean) as string[])];
   const replyMap = new Map<string, { senderName: string; message: string }>();
   const taggedNameMap = new Map<string, string>();
 
-  if (replyIds.length > 0) {
-    const { data: replyRows } = await supabase
-      .from('messages')
-      .select('id, content, sender_id, users!sender_id(full_name)')
-      .in('id', replyIds);
+  // The replied-to messages and the tagged names, together.
+  const [replyRes, taggedRes] = await Promise.all([
+    replyIds.length > 0
+      ? supabase.from('messages').select('id, content, sender_id, users!sender_id(full_name)').in('id', replyIds)
+      : Promise.resolve({ data: [] as unknown[] }),
+    taggedIds.length > 0
+      ? supabase.from('users').select('id, full_name').in('id', taggedIds)
+      : Promise.resolve({ data: [] as unknown[] }),
+  ]);
+  {
+    const replyRows = replyRes.data;
     for (const r of replyRows ?? []) {
       const msg = r as { id: string; content: string | null; sender_id: string; users: { full_name: string | null } | null };
       const snippet = (msg.content ?? '').slice(0, 80);
@@ -500,8 +507,8 @@ export async function getMessages(chatId: string): Promise<ChatMessage[]> {
       });
     }
   }
-  if (taggedIds.length > 0) {
-    const { data: userRows } = await supabase.from('users').select('id, full_name').in('id', taggedIds);
+  {
+    const userRows = taggedRes.data;
     for (const u of userRows ?? []) {
       const us = u as { id: string; full_name: string | null };
       taggedNameMap.set(us.id, us.full_name ?? 'Unknown');

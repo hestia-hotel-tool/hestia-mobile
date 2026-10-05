@@ -78,7 +78,12 @@ export async function refreshBadgeCounts(userId: string | undefined) {
     setCounts(ZERO);
     return;
   }
-  if (inflight) return inflight;
+  // A refresh asked for mid-flight would otherwise be dropped and the counts
+  // left stale; run one more when the current one lands.
+  if (inflight) {
+    pendingUserId = userId;
+    return inflight;
+  }
 
   inflight = (async () => {
     const [chatRes, generalRes, tasksRes, ticketRes, roomAssignRes] = await Promise.all([
@@ -139,11 +144,19 @@ export async function refreshBadgeCounts(userId: string | undefined) {
   } finally {
     inflight = null;
   }
+  if (pendingUserId) {
+    const next = pendingUserId;
+    pendingUserId = null;
+    await refreshBadgeCounts(next);
+  }
 }
+
+let pendingUserId: string | null = null;
 
 /** Clear the shared counts — tenant-scoped, so a user switch must not keep them. */
 export function clearBottomTabBadgeCounts() {
   counts = ZERO;
   inflight = null;
+  pendingUserId = null;
   emit();
 }

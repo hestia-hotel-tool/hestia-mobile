@@ -1,5 +1,7 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+// expo-image: cached in memory and on disk, unlike react-native's Image.
+import { Image } from 'expo-image';
 import { typography } from '@/theme';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 import { UnreadBadge } from './UnreadBadge';
@@ -46,7 +48,7 @@ export default function ChatItem({ chat, onPress }: ChatItemProps) {
     <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
       <View style={[styles.avatar, chat.isGroup ? styles.avatarGroup : null]}>
         {chat.avatar ? (
-          <Image source={chat.avatar} style={styles.avatarImage} resizeMode="cover" />
+          <Image source={chat.avatar} style={styles.avatarImage} contentFit="cover" cachePolicy="memory-disk" />
         ) : (
           <Text style={styles.avatarInitial}>{name.charAt(0).toUpperCase()}</Text>
         )}

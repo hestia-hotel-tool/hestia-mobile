@@ -98,7 +98,7 @@ export function subscribeToIncomingNotificationRows(userId: string): () => void 
         // A message in the chat already open is being read — no toast, no badge.
         const chatId = (row.data as { chatId?: string } | null)?.chatId;
         if (row.type === 'chat_message' && row.id && chatId && chatId === getOpenChatId()) {
-          void markNotificationRead(row.id).then(invalidateNotificationBadges);
+          void markNotificationRead(row.id).then((n) => n && invalidateNotificationBadges());
           return;
         }
         const key = incomingAlertDedupeKeyFromRow(row);

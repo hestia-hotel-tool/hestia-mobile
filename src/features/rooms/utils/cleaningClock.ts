@@ -141,3 +141,17 @@ export function promiseLine(room: ClockRoom, now: number): string | null {
   const at = Date.parse(room.promiseTimeAt);
   return Number.isFinite(at) ? `Promise time: ${formatDueTime(at, new Date(now))}` : null;
 }
+
+/**
+ * Does this room's card show anything that changes with the clock? A running
+ * cleaning timer, a DND check, a Return Later or a promise time. Cards
+ * without one need not re-render on every tick.
+ */
+export function roomHasLiveClock(room: ClockRoom): boolean {
+  return (
+    (room.houseKeepingStatus === 'InProgress' && !!room.cleaningStartedAt) ||
+    !!room.dndAt ||
+    !!room.returnLaterAt ||
+    !!room.promiseTimeAt
+  );
+}

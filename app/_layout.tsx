@@ -42,7 +42,7 @@ function navigateFromPushData(data: PushData & Record<string, unknown>) {
   const ticketId = str(data.ticketId);
 
   if (notificationId) {
-    void markNotificationRead(notificationId).then(invalidateNotificationBadges);
+    void markNotificationRead(notificationId).then((n) => n && invalidateNotificationBadges());
   }
 
   if (type === 'chat_message' && chatId) {
@@ -85,10 +85,20 @@ function NotificationExperience() {
     return subscribeToIncomingNotificationRows(uid);
   }, [session?.user?.id]);
 
-  // iOS / Android can rotate the device token; register again when they do.
+  // iOS / Android can rotate the device token; register again when they do —
+  // only when it actually changed. Fetching the push token emits this event
+  // too, and reacting to every one of them looped forever.
   useEffect(() => {
     if (!session?.user?.id) return;
-    const sub = Notifications.addPushTokenListener(() => {
+    let lastDeviceToken: string | null = null;
+    const sub = Notifications.addPushTokenListener((event) => {
+      const next = typeof event?.data === 'string' ? event.data : JSON.stringify(event?.data ?? null);
+      if (lastDeviceToken === null) {
+        lastDeviceToken = next;
+        return;
+      }
+      if (next === lastDeviceToken) return;
+      lastDeviceToken = next;
       void registerAndSyncPushToken().catch(() => {});
     });
     return () => sub.remove();
@@ -170,7 +180,9 @@ export default function RootLayout() {
         <AppProviders>
           <NotificationExperience />
           <StatusBar style="auto" />
-          <Stack screenOptions={{ headerShown: false }}>
+          {/* freezeOnBlur: a screen covered by a pushed one (the tabs under Room
+              Detail, say) stops rendering until it is shown again. */}
+          <Stack screenOptions={{ headerShown: false, freezeOnBlur: true }}>
             <Stack.Screen name="index" options={{ animation: 'fade' }} />
             <Stack.Screen name="(auth)" options={{ animation: 'fade' }} />
             <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />

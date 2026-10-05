@@ -4,7 +4,7 @@ import { formatDatesOfStayCompact, formatGuestCount } from '@/utils/formatting';
 import type { RoomCardData, GuestInfo } from '../../types/allRooms.types';
 import { getRoomCardStatus } from '../../types/allRooms.types';
 import { guestRowKind, guestTimeLabelForKind } from '../../utils/roomCardProps';
-import { assigneeStatus, promiseLine } from '../../utils/cleaningClock';
+import { assigneeStatus, promiseLine, roomHasLiveClock } from '../../utils/cleaningClock';
 import { useNow } from '@/hooks/useNow';
 import { roomCardSpecName, ROOM_CARD_SPECS } from './roomCardLayout';
 import { RoomCardBody } from './RoomCardBody';
@@ -52,7 +52,8 @@ export function ArrivalDepartureRoomCard({
   statusPillRef,
 }: ArrivalDepartureRoomCardProps) {
   // Live: "Credits", "Return at" and the promise move with the clock.
-  const now = useNow();
+  // Only cards with a running clock follow the tick (see roomHasLiveClock).
+  const now = useNow(roomHasLiveClock(room));
   const status = assigneeStatus(room, now);
   const promise = promiseLine(room, now);
   const displayStatus = getRoomCardStatus(room);
@@ -91,6 +92,7 @@ export function ArrivalDepartureRoomCard({
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel="Arrival/Departure"
         badges={roomBadges(room)}
+        assigneeKey={`${staff?.name ?? ''}|${status.text}`}
         assignee={
           <RoomAssigneeBlock
             name={staff?.name}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { View, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, Platform } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
@@ -110,7 +111,19 @@ export default function AllRoomsScreen() {
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
   const initialShift = routeShift || getShiftFromTime();
-  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, setSelectedShift, setRoomAttendant } = useRoomsStore();
+  // Only the fields this screen uses: a whole-store subscription re-rendered it
+  // on every change, including the per-update "saving" flag.
+  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, setSelectedShift, setRoomAttendant } = useRoomsStore(
+    useShallow((st) => ({
+      data: st.data,
+      loading: st.loading,
+      refreshing: st.refreshing,
+      fetchRooms: st.fetchRooms,
+      updateRoom: st.updateRoom,
+      setSelectedShift: st.setSelectedShift,
+      setRoomAttendant: st.setRoomAttendant,
+    }))
+  );
 
   /*
    * Memoised, because this is read by the `filteredRooms` memo and by every
@@ -287,7 +300,7 @@ export default function AllRoomsScreen() {
       }
       if (markedRoomAssignmentNotificationsReadRef.current) return;
       markedRoomAssignmentNotificationsReadRef.current = true;
-      void markAllRoomAssignmentNotificationsRead().then(() => invalidateNotificationBadges());
+      void markAllRoomAssignmentNotificationsRead().then((n) => n && invalidateNotificationBadges());
     }, [prioritizeMyAssignedRooms])
   );
 

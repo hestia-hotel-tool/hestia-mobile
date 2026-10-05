@@ -227,7 +227,10 @@ export default function RegisterLostAndFoundModal({
   }, [visible]);
 
   // The staff list backs the two pickers; the defaults above do not wait for it.
+  // Loaded the first time the sheet opens: it is always mounted, and fetching
+  // on mount downloaded every user on each visit to Lost & Found.
   useEffect(() => {
+    if (!visible || staff.length > 0) return;
     let cancelled = false;
     fetchStaffFromSupabase()
       .then((rows) => {
@@ -237,7 +240,7 @@ export default function RegisterLostAndFoundModal({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [visible, staff.length]);
 
   /*
    * Room Detail's "register a found item" entry passes the room it was opened

@@ -2,7 +2,7 @@
  * AI Chat overlay – open/close overlay on top of current screen.
  */
 
-import React, { createContext, useCallback, useContext, useState } from 'react';
+import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import AIChatOverlay from '../components/AIChatOverlay';
 
 interface AIChatOverlayContextType {
@@ -17,9 +17,12 @@ export function AIChatOverlayProvider({ children }: { children: React.ReactNode 
   const [visible, setVisible] = useState(false);
   const open = useCallback(() => setVisible(true), []);
   const close = useCallback(() => setVisible(false), []);
+  // Stable unless `visible` changes, so its consumers (the tab bar on every
+  // screen) do not re-render each time the provider does.
+  const value = useMemo(() => ({ open, close, visible }), [open, close, visible]);
 
   return (
-    <AIChatOverlayContext.Provider value={{ open, close, visible }}>
+    <AIChatOverlayContext.Provider value={value}>
       {children}
       <AIChatOverlay visible={visible} onClose={close} />
     </AIChatOverlayContext.Provider>

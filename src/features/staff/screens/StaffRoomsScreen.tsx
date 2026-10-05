@@ -182,16 +182,10 @@ export default function StaffRoomsScreen() {
     async (nextStaffId: string) => {
       const ids = [...selectedIds];
       setAssigning(true);
-      let failed = 0;
-      for (const roomId of ids) {
-        try {
-          const result = await assignRoomToStaff(roomId, nextStaffId, shift);
-          if (!result) failed += 1;
-        } catch (e) {
-          failed += 1;
-          if (__DEV__) console.warn('[StaffRoomsScreen] Could not reassign', roomId, e);
-        }
-      }
+      // In parallel: one by one, ten rooms waited on 30-40 round trips in a row.
+      const results = await Promise.allSettled(ids.map((roomId) => assignRoomToStaff(roomId, nextStaffId, shift)));
+      const failed = results.filter((r) => r.status === 'rejected' || !r.value).length;
+      if (__DEV__) results.forEach((r, i) => r.status === 'rejected' && console.warn('[StaffRoomsScreen] Could not reassign', ids[i], r.reason));
       setAssigning(false);
       exitReassign();
       // Whatever happened, the list is now stale — a room that moved is no
@@ -226,15 +220,9 @@ export default function StaffRoomsScreen() {
   const handleAssignHere = useCallback(async () => {
     const ids = [...selectedIds];
     setAssigning(true);
-    let failed = 0;
-    for (const roomId of ids) {
-      try {
-        if (!(await assignRoomToStaff(roomId, staffId, shift))) failed += 1;
-      } catch (e) {
-        failed += 1;
-        if (__DEV__) console.warn('[StaffRoomsScreen] Could not assign', roomId, e);
-      }
-    }
+    const results = await Promise.allSettled(ids.map((roomId) => assignRoomToStaff(roomId, staffId, shift)));
+    const failed = results.filter((r) => r.status === 'rejected' || !r.value).length;
+    if (__DEV__) results.forEach((r, i) => r.status === 'rejected' && console.warn('[StaffRoomsScreen] Could not assign', ids[i], r.reason));
     setAssigning(false);
     exitReassign();
     refresh();

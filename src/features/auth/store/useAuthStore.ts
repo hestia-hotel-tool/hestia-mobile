@@ -133,10 +133,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
-      set({ session, hotelId: null });
-      if (session) {
-        registerAndSyncPushToken().catch(() => {});
+      /*
+       * The same person, a new token (TOKEN_REFRESHED, about hourly, and the
+       * INITIAL_SESSION that follows init()). Keep their hotel and skip the
+       * sign-in work: clearing hotelId and re-registering push made every
+       * screen keyed on the session reload as if someone had just signed in.
+       */
+      if (prevUserId && prevUserId === nextUserId) {
+        set({ session });
+        return;
       }
+
+      set({ session, hotelId: null });
+      registerAndSyncPushToken().catch(() => {});
       getMyHotelId()
         .then((hotelId) => {
           if (!hotelId) set({ error: 'This account is not assigned to a hotel.' });

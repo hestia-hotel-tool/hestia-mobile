@@ -16,39 +16,6 @@ export function isHttpUrl(raw?: string | null): boolean {
   return /^https?:\/\//i.test(String(raw ?? '').trim());
 }
 
-export function fallbackGuestAvatarUrl(seed: string): string {
-  return `https://i.pravatar.cc/96?u=${encodeURIComponent(seed)}`;
-}
-
-/**
- * Resolve a single guest image value to a displayable URL.
- * Accepts an http(s) URL (returned as-is), a Storage path (signed URL, then
- * public URL), or empty (deterministic placeholder from `seed`).
- */
-export async function resolveGuestImageUrl(
-  rawUrl: string | null | undefined,
-  seed: string
-): Promise<string> {
-  const v = String(rawUrl ?? '').trim();
-  if (!v) return fallbackGuestAvatarUrl(seed);
-  if (isHttpUrl(v)) return v;
-  try {
-    const { data: signed } = await supabase.storage
-      .from(GUEST_IMAGES_BUCKET)
-      .createSignedUrl(v, GUEST_IMAGE_URL_TTL_SECONDS);
-    if (signed?.signedUrl) return signed.signedUrl;
-  } catch {
-    // fall through to public URL
-  }
-  try {
-    const { data: pub } = supabase.storage.from(GUEST_IMAGES_BUCKET).getPublicUrl(v);
-    if (pub?.publicUrl) return pub.publicUrl;
-  } catch {
-    // fall through to placeholder
-  }
-  return fallbackGuestAvatarUrl(seed);
-}
-
 /**
  * Batch-resolve guest-image Storage paths to displayable URLs.
  * http(s) URLs and blanks are skipped; returns a `path -> url` map.

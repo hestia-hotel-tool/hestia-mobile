@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+// expo-image: cached in memory and on disk, unlike react-native's Image.
+import { Image } from 'expo-image';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
@@ -139,7 +141,7 @@ export default function TaskDetailScreen() {
                             accessibilityRole="imagebutton"
                             accessibilityLabel={`Photo ${index + 1} of ${context.report!.photos.length}`}
                           >
-                            <Image source={{ uri }} style={styles.photo} resizeMode="cover" />
+                            <Image source={{ uri }} style={styles.photo} contentFit="cover" cachePolicy="memory-disk" />
                           </Pressable>
                         ))}
                       </ScrollView>

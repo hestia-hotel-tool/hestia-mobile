@@ -63,7 +63,28 @@ export async function setupNotificationPresentation(): Promise<void> {
  * Registers for push notifications and persists the Expo push token to Supabase.
  * No-ops on simulators and when Supabase is not configured.
  */
-export async function registerAndSyncPushToken(): Promise<{ token: string | null }> {
+/**
+ * One registration at a time, and none at all when nothing changed.
+ *
+ * Fetching the Expo push token makes the OS emit its device token, and the
+ * token listener in the root layout re-registered on every such event — so
+ * each registration triggered the next: an endless loop of RPCs from every
+ * signed-in device (over a million calls on dev). Calls now share the one in
+ * flight, and a token already registered for this user is not sent again.
+ */
+let inFlight: Promise<{ token: string | null }> | null = null;
+let registeredFor: { token: string; userId: string } | null = null;
+
+export function registerAndSyncPushToken(): Promise<{ token: string | null }> {
+  if (!inFlight) {
+    inFlight = registerOnce().finally(() => {
+      inFlight = null;
+    });
+  }
+  return inFlight;
+}
+
+async function registerOnce(): Promise<{ token: string | null }> {
   if (!isSupabaseConfigured) return { token: null };
   await setupNotificationPresentation();
 
@@ -102,7 +123,10 @@ export async function registerAndSyncPushToken(): Promise<{ token: string | null
   if (!token) return { token: null };
 
   const { data: sessionData } = await supabase.auth.getSession();
-  if (!sessionData?.session?.user?.id) return { token: null };
+  const userId = sessionData?.session?.user?.id;
+  if (!userId) return { token: null };
+  // Already registered for this user: nothing to tell the server.
+  if (registeredFor?.token === token && registeredFor.userId === userId) return { token };
 
   // SECURITY DEFINER so a device can move between accounts (the last one to
   // sign in on it gets its pushes) without RLS blocking the takeover.
@@ -116,6 +140,7 @@ export async function registerAndSyncPushToken(): Promise<{ token: string | null
     return { token: null };
   }
   registeredToken = token;
+  registeredFor = { token, userId };
   return { token };
 }
 
@@ -130,6 +155,7 @@ export async function unregisterPushToken(): Promise<void> {
   if (!isSupabaseConfigured || !registeredToken) return;
   const token = registeredToken;
   registeredToken = null;
+  registeredFor = null;
   const { error } = await supabase.rpc('unregister_expo_push_token' as never, { p_expo_push_token: token } as never);
   if (error) console.warn('[push] unregister_expo_push_token', error.message);
   await Notifications.setBadgeCountAsync(0).catch(() => {});

@@ -1,5 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, Image, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
+// expo-image: cached in memory and on disk, unlike react-native's Image.
+import { Image } from 'expo-image';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
 import { Icon } from '@/components/Icon';
@@ -99,7 +101,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           {!!ticket.guest?.name && (
             <View style={styles.guestRow}>
               {ticket.guest.imageUrl ? (
-                <Image source={{ uri: ticket.guest.imageUrl }} style={styles.guestThumb} resizeMode="cover" />
+                <Image source={{ uri: ticket.guest.imageUrl }} style={styles.guestThumb} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
                 <View style={styles.guestThumbPlaceholder}>
                   <Text style={styles.guestThumbInitial}>{getInitials(ticket.guest.name)}</Text>
@@ -186,7 +188,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           {(ticket.images ?? []).slice(0, 3).map((uri, idx) => (
             <TouchableOpacity key={`${uri}-${idx}`} activeOpacity={0.7} onPress={() => setPreviewImage(uri)}>
               <View style={styles.imageThumbWrap}>
-                <Image source={{ uri }} style={styles.imageThumb} resizeMode="cover" />
+                <Image source={{ uri }} style={styles.imageThumb} contentFit="cover" cachePolicy="memory-disk" />
               </View>
             </TouchableOpacity>
           ))}
@@ -196,7 +198,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
       <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
         <TouchableOpacity style={styles.previewOverlay} activeOpacity={1} onPress={() => setPreviewImage(null)}>
           {previewImage && (
-            <Image source={{ uri: previewImage }} style={styles.previewImage} resizeMode="contain" />
+            <Image source={{ uri: previewImage }} style={styles.previewImage} contentFit="contain" cachePolicy="memory-disk" />
           )}
         </TouchableOpacity>
       </Modal>

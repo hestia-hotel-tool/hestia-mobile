@@ -178,8 +178,12 @@ export default function TicketsScreen() {
   }, []);
 
   useEffect(() => {
-    loadTickets();
+    // The tab asked for on arrival (e.g. after creating a ticket), as the focus load does.
+    loadTickets(((route as any).params as { initialTab?: TicketTab } | undefined)?.initialTab);
+    // Mount only; later arrivals go through the focus effect.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadTickets]);
+  const focusedOnce = React.useRef(false);
 
   // Refresh on return to the tab, and clear the tickets badge. This used to sit
   // alongside a dead `activeTab` resync that compared `route.name` against
@@ -190,8 +194,10 @@ export default function TicketsScreen() {
       const params = (route as any).params as { initialTab?: TicketTab } | undefined;
       // An explicit initialTab (e.g. after creating a ticket) wins over the
       // stored selection.
-      loadTickets(params?.initialTab, { silent: true });
-      void markAllTicketTagNotificationsRead().then(() => invalidateNotificationBadges());
+      // The first focus comes with the mount load above; only later returns reload.
+      if (!focusedOnce.current) focusedOnce.current = true;
+      else loadTickets(params?.initialTab, { silent: true });
+      void markAllTicketTagNotificationsRead().then((n) => n && invalidateNotificationBadges());
     }, [route, loadTickets])
   );
 

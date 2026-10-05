@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
 import { router, useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
@@ -127,6 +127,12 @@ export default function LostAndFoundScreen() {
   const [shippingLocation, setShippingLocation] = useState('');
   const [shippingLocationCache, setShippingLocationCache] = useState<string[]>([]);
   const [shippingLocationByItemId, setShippingLocationByItemId] = useState<Record<string, string>>({});
+  // Read through a ref inside loadItems: as a dependency it rebuilt loadItems —
+  // and so re-ran the mount and focus loads — each time the map hydrated or changed.
+  const shippingRef = useRef(shippingLocationByItemId);
+  useEffect(() => {
+    shippingRef.current = shippingLocationByItemId;
+  }, [shippingLocationByItemId]);
 
   /**
    * PostgREST schema cache may not include newly added columns immediately.
@@ -280,7 +286,7 @@ export default function LostAndFoundScreen() {
           storedLocation: row.storage_location ?? '',
           shippedLocation:
             (row as any).shipped_location ??
-            shippingLocationByItemId[row.id] ??
+            shippingRef.current[row.id] ??
             undefined,
           registeredBy: {
             name: registeredByUser?.full_name ?? 'Staff',
@@ -307,7 +313,7 @@ export default function LostAndFoundScreen() {
       setRefetchLoading(false);
       hasLoadedOnceRef.current = true;
     }
-  }, [shippingLocationByItemId]);
+  }, []);
 
   useEffect(() => {
     loadItems('mount');
@@ -327,8 +333,14 @@ export default function LostAndFoundScreen() {
   // Reload on return to this tab; after the first load this is non-blocking
   // (header spinner only). Preserved from a focus effect whose other half — an
   // `activeTab` resync against route names the router never emits — was dead.
+  // Skips the first focus, which the mount load above already covers.
+  const focusedOnce = useRef(false);
   useFocusEffect(
     React.useCallback(() => {
+      if (!focusedOnce.current) {
+        focusedOnce.current = true;
+        return;
+      }
       loadItems('focus');
     }, [loadItems])
   );

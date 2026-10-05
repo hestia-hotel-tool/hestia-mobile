@@ -178,7 +178,7 @@ export default function ChatDetailScreen() {
        * keeps it until the chat list next reloads.
        */
       useChatStore.getState().markChatReadLocally(chatId);
-      void markChatMessageNotificationsReadForChat(chatId).then(() => invalidateNotificationBadges());
+      void markChatMessageNotificationsReadForChat(chatId).then((n) => n && invalidateNotificationBadges());
       setOpenChatId(chatId);
       return () => setOpenChatId(null);
     }, [chatId, isSupabaseChat])
@@ -751,7 +751,8 @@ export default function ChatDetailScreen() {
                 isCurrentUser={isCurrentUser}
                 isGroup={isGroup}
                 onLongPress={handleMessageLongPress}
-                onSwipeReply={(msg) => setReplyToMessage(msg)}
+                // The state setter itself: stable, so the memoised bubble keeps its gesture.
+                onSwipeReply={setReplyToMessage}
               />
             </View>
           );

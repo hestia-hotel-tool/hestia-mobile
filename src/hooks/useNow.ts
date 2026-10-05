@@ -29,9 +29,17 @@ function subscribe(listener: (now: number) => void): () => void {
   };
 }
 
-export function useNow(): number {
+/**
+ * The shared clock. With `enabled` false the component reads the time once
+ * and does not re-render on ticks — for a card with nothing on it that moves
+ * (a Dirty or Cleaned room), so only the live ones redraw every 15s.
+ */
+export function useNow(enabled = true): number {
   const [now, setNow] = useState(() => Date.now());
-  useEffect(() => subscribe(setNow), []);
+  useEffect(() => {
+    if (!enabled) return;
+    return subscribe(setNow);
+  }, [enabled]);
   return now;
 }
 

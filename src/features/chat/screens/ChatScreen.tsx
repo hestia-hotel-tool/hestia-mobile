@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, ScrollView, StyleSheet, RefreshControl, Platform } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
@@ -124,12 +124,21 @@ export default function ChatScreen() {
     setTasksNotification(tasks);
   }, [session?.user?.id]);
 
+  /*
+   * The chats to listen on, as a stable key. The effect below used to depend
+   * on `chats` itself, which every incoming message replaces — so each message
+   * tore down and re-opened every realtime channel. It resubscribes only when
+   * the set of chats changes.
+   */
+  const chatIdsKey = useMemo(
+    () => (chats ?? []).map((c) => c.id).filter(Boolean).sort().join(','),
+    [chats]
+  );
+
   // Realtime: keep chat list last-message updated instantly.
   useEffect(() => {
     if (!isSupabaseConfigured || !session?.user?.id) return;
-    if (!chats || chats.length === 0) return;
-
-    const ids = chats.map((c) => c.id).filter(Boolean);
+    const ids = chatIdsKey ? chatIdsKey.split(',') : [];
     if (ids.length === 0) return;
 
     // Supabase realtime filter supports `in` syntax: chat_id=in.(id1,id2,...)
@@ -180,7 +189,7 @@ export default function ChatScreen() {
         void supabase.removeChannel(ch);
       }
     };
-  }, [session?.user?.id, chats, applyIncomingMessageToChatList]);
+  }, [session?.user?.id, chatIdsKey, applyIncomingMessageToChatList]);
 
   /*
    * A new announcement (or anything else marked read or arriving) invalidates

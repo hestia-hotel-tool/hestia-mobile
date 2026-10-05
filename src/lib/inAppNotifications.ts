@@ -67,7 +67,22 @@ export function subscribeNotificationBadgeInvalidate(listener: () => void): () =
   };
 }
 
+/*
+ * Coalesced: callers fire this in bursts (a screen focus, a list reload and an
+ * incoming notification within the same moment), and each listener runs a
+ * handful of count queries. One trailing run per 300ms does the same job.
+ */
+let invalidateTimer: ReturnType<typeof setTimeout> | null = null;
+
 export function invalidateNotificationBadges(): void {
+  if (invalidateTimer) clearTimeout(invalidateTimer);
+  invalidateTimer = setTimeout(() => {
+    invalidateTimer = null;
+    runBadgeInvalidateListeners();
+  }, 300);
+}
+
+function runBadgeInvalidateListeners(): void {
   badgeInvalidateListeners.forEach((fn) => {
     try {
       fn();
@@ -78,90 +93,102 @@ export function invalidateNotificationBadges(): void {
 }
 
 /** User opened the Chat inbox — clear all unread chat_message inbox rows. */
-export async function markAllChatMessageNotificationsRead(): Promise<void> {
-  if (!isSupabaseConfigured) return;
+export async function markAllChatMessageNotificationsRead(): Promise<number> {
+  if (!isSupabaseConfigured) return 0;
   const readAt = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read_at: readAt })
     .eq('type', 'chat_message')
-    .is('read_at', null);
+    .is('read_at', null)
+    .select('id');
   if (error) {
     console.warn('[inAppNotifications] markAllChatMessageNotificationsRead', error.message);
   }
+  return data?.length ?? 0;
 }
 
 /**
  * User opened a specific chat — clear inbox rows for that chat (e.g. deep link).
  */
-export async function markChatMessageNotificationsReadForChat(chatId: string): Promise<void> {
-  if (!isSupabaseConfigured || !chatId) return;
+export async function markChatMessageNotificationsReadForChat(chatId: string): Promise<number> {
+  if (!isSupabaseConfigured || !chatId) return 0;
   const readAt = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read_at: readAt })
     .eq('type', 'chat_message')
     .is('read_at', null)
-    .contains('data', { chatId });
+    .contains('data', { chatId })
+    .select('id');
   if (error) {
     console.warn('[inAppNotifications] markChatMessageNotificationsReadForChat', error.message);
   }
+  return data?.length ?? 0;
 }
 
 /** User opened the Tickets tab — clear unread ticket_tag inbox rows. */
-export async function markAllTicketTagNotificationsRead(): Promise<void> {
-  if (!isSupabaseConfigured) return;
+export async function markAllTicketTagNotificationsRead(): Promise<number> {
+  if (!isSupabaseConfigured) return 0;
   const readAt = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read_at: readAt })
     .eq('type', 'ticket_tag')
-    .is('read_at', null);
+    .is('read_at', null)
+    .select('id');
   if (error) {
     console.warn('[inAppNotifications] markAllTicketTagNotificationsRead', error.message);
   }
+  return data?.length ?? 0;
 }
 
 /** User opened Rooms from the assignment badge — clear unread room_assignment inbox rows. */
-export async function markAllRoomAssignmentNotificationsRead(): Promise<void> {
-  if (!isSupabaseConfigured) return;
+export async function markAllRoomAssignmentNotificationsRead(): Promise<number> {
+  if (!isSupabaseConfigured) return 0;
   const readAt = new Date().toISOString();
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read_at: readAt })
     .eq('type', 'room_assignment')
-    .is('read_at', null);
+    .is('read_at', null)
+    .select('id');
   if (error) {
     console.warn('[inAppNotifications] markAllRoomAssignmentNotificationsRead', error.message);
   }
+  return data?.length ?? 0;
 }
 
 
 /** User opened one notification's detail — clear just that row. */
-export async function markNotificationRead(id: string): Promise<void> {
-  if (!isSupabaseConfigured || !id) return;
-  const { error } = await supabase
+export async function markNotificationRead(id: string): Promise<number> {
+  if (!isSupabaseConfigured || !id) return 0;
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
     .eq('id', id)
-    .is('read_at', null);
+    .is('read_at', null)
+    .select('id');
   if (error) {
     console.warn('[inAppNotifications] markNotificationRead', error.message);
   }
+  return data?.length ?? 0;
 }
 
 /** User opened a room — clear its unread room tasks (a room task's "detail" is its room). */
-export async function markRoomAssignmentNotificationsReadForRoom(roomId: string): Promise<void> {
-  if (!isSupabaseConfigured || !roomId) return;
-  const { error } = await supabase
+export async function markRoomAssignmentNotificationsReadForRoom(roomId: string): Promise<number> {
+  if (!isSupabaseConfigured || !roomId) return 0;
+  const { data, error } = await supabase
     .from('notifications')
     .update({ read_at: new Date().toISOString() })
     .in('type', [...ROOM_TASK_NOTIFICATION_TYPES])
     .is('read_at', null)
-    .contains('data', { roomId });
+    .contains('data', { roomId })
+    .select('id');
   if (error) {
     console.warn('[inAppNotifications] markRoomAssignmentNotificationsReadForRoom', error.message);
   }
+  return data?.length ?? 0;
 }
 
 /**

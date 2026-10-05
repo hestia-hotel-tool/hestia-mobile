@@ -3,7 +3,6 @@
  */
 
 import { create } from 'zustand';
-import { invalidateNotificationBadges } from '@/lib/inAppNotifications';
 import { dashboardService, type RoomClock, type RoomStateUpdate } from '../services/dashboard';
 import { fetchRoomBadgeCounts } from '../services/rooms';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
@@ -117,7 +116,6 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
         roomsPM: data.roomsPM?.map(update) ?? data.roomsPM,
       },
     });
-    queueMicrotask(() => invalidateNotificationBadges());
   },
 
   refreshRoomBadges: async (roomId) => {
@@ -202,8 +200,7 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
           lastFetchedAt: Date.now(),
           lastFetchedShift: currentShift,
         });
-        queueMicrotask(() => invalidateNotificationBadges());
-      } catch (e) {
+          } catch (e) {
         if (startedGeneration !== generation) return;
         const err = e instanceof Error ? e : new Error(String(e));
         set({

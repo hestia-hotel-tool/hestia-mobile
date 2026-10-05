@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useDesignScale } from '@/hooks/useDesignScale';
@@ -98,7 +99,9 @@ export default function HomeScreen() {
     selectedShift: getShiftFromTime(),
     categories: [] as any[],
   }));
-  const { data: roomsStoreData, loading: roomsLoading, fetchRooms, updateRoom } = useRoomsStore();
+  const { data: roomsStoreData, loading: roomsLoading, fetchRooms, updateRoom } = useRoomsStore(
+    useShallow((st) => ({ data: st.data, loading: st.loading, fetchRooms: st.fetchRooms, updateRoom: st.updateRoom }))
+  );
   const roomsForHome = useMemo(
     () => ({
       rooms: roomsStoreData?.rooms ?? [],

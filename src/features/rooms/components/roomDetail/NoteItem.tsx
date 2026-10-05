@@ -1,5 +1,7 @@
 import React, { useCallback } from 'react';
-import { View, Text, Image, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
+// expo-image: cached in memory and on disk, unlike react-native's Image.
+import { Image } from 'expo-image';
 import { scaleX, NOTES_SECTION } from '../../constants/roomDetailStyles';
 import type { Note } from '../../types/roomDetail.types';
 
@@ -41,7 +43,7 @@ export default function NoteItem({ note, onHeightMeasured }: NoteItemProps) {
                 : (avatarValue as any)
             }
             style={styles.profilePicture}
-            resizeMode="cover"
+            contentFit="cover" cachePolicy="memory-disk"
           />
         ) : (
           <View style={styles.initialsCircle}>

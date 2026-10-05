@@ -5,6 +5,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useShallow } from 'zustand/react/shallow';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect, router, NativeStackNavigationProp } from 'expo-router';
 import { ROOM_DETAIL_HEADER, scaleX } from '../constants/roomDetailStyles';
@@ -100,7 +101,9 @@ export default function RoomDetailScreen() {
   const initialTab = params?.initialTab;
   const departmentName = params?.departmentName;
 
-  const { updateRoom, updatingRoomId, data: roomsData } = useRoomsStore();
+  const { updateRoom, updatingRoomId, data: roomsData } = useRoomsStore(
+    useShallow((st) => ({ updateRoom: st.updateRoom, updatingRoomId: st.updatingRoomId, data: st.data }))
+  );
   const { session } = useAuth();
   const { roomsVariant, can } = usePermissions();
   /*
@@ -204,7 +207,7 @@ export default function RoomDetailScreen() {
   );
   useEffect(() => {
     if (!detailRoomId || !UUID_REGEX.test(detailRoomId)) return;
-    void markRoomAssignmentNotificationsReadForRoom(detailRoomId).then(invalidateNotificationBadges);
+    void markRoomAssignmentNotificationsReadForRoom(detailRoomId).then((n) => n && invalidateNotificationBadges());
   }, [detailRoomId]);
 
   useEffect(() => {

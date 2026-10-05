@@ -23,7 +23,7 @@ function placeholderGuest(seed: string): GuestInfo {
     time: 'N/A',
     timeLabel: 'N/A',
     guestCount: { adults: 0, kids: 0 },
-    imageUrl: `https://i.pravatar.cc/96?u=${seed}-0`,
+    imageUrl: undefined,
   } as GuestInfo;
 }
 
@@ -72,7 +72,7 @@ export function resolveGuestSlots(
       slot,
       guest: {
         ...guest,
-        imageUrl: guest.imageUrl ?? `https://i.pravatar.cc/96?u=${opts?.fallbackSeed ?? 'room'}-0`,
+        imageUrl: guest.imageUrl ?? undefined,
       },
     });
   }

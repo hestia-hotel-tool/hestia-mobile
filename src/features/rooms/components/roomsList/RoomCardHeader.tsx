@@ -15,6 +15,11 @@ export type RoomCardHeaderProps = {
   badges?: RoomBadge[];
   /** The assignee column, right of the number/type block. */
   assignee?: React.ReactNode;
+  /**
+   * What the assignee block says (name and line), so its width is measured
+   * again only when that changes — not kept as a second, hidden copy.
+   */
+  assigneeKey?: string;
 };
 
 const INK = '#334866';
@@ -34,15 +39,17 @@ export function RoomCardHeader({
   typeLabel,
   badges = [],
   assignee,
+  assigneeKey = '',
 }: RoomCardHeaderProps) {
   /** The header row's full width and the number/type block's width, once measured. */
   const [rowWidth, setRowWidth] = useState<number | null>(null);
   const [textWidth, setTextWidth] = useState<number | null>(null);
   /** The assignee block's own width, unconstrained — how narrow its column may go. */
-  const [assigneeWidth, setAssigneeWidth] = useState<number | null>(null);
+  const [assigneeWidth, setAssigneeWidth] = useState<{ key: string; width: number } | null>(null);
+  const measuredAssignee = assigneeWidth?.key === assigneeKey ? assigneeWidth.width : null;
   const layout =
-    badges.length > 0 && rowWidth != null && textWidth != null && assigneeWidth != null
-      ? headerLayout(spec, rowWidth, textWidth, badges.length, assigneeWidth)
+    badges.length > 0 && rowWidth != null && textWidth != null && measuredAssignee != null
+      ? headerLayout(spec, rowWidth, textWidth, badges.length, measuredAssignee)
       : null;
   const rightColumn = layout?.rightColumn ?? spec.rightColumn;
   const avatarGap = layout?.avatarGap ?? spec.avatarGap;
@@ -124,13 +131,14 @@ export function RoomCardHeader({
       {/* An invisible, unconstrained copy of the assignee, measured so its
           column never narrows past the name and status (only with badges,
           which are what ask it to narrow). */}
-      {badges.length > 0 ? (
+      {/* Mounted only until measured for what it currently says. */}
+      {badges.length > 0 && measuredAssignee == null ? (
         <View
           pointerEvents="none"
           accessibilityElementsHidden
           importantForAccessibility="no-hide-descendants"
           style={{ position: 'absolute', opacity: 0, left: 0, top: 0 }}
-          onLayout={(e) => setAssigneeWidth(e.nativeEvent.layout.width)}
+          onLayout={(e) => setAssigneeWidth({ key: assigneeKey, width: e.nativeEvent.layout.width })}
         >
           {assignee}
         </View>
