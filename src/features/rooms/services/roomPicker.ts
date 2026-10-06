@@ -98,7 +98,8 @@ export async function loadRoomPickerRoomsByIds(
 
 async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
   const rooms: RoomPickerRoom[] = (rows ?? []).map((room: any) => {
-    const reservation = pickReservation(toArray<any>(room?.reservations));
+    const all = toArray<any>(room?.reservations);
+    const reservation = pickReservation(all);
     const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();
 
     const guests: RoomPickerGuest[] = toArray<any>(reservation?.guests).map((g: any) => {
@@ -125,6 +126,9 @@ async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
       checkOut: reservation?.departure_date ?? null,
       guestCount: adults + kids,
       frontOfficeStatus: frontOfficeStatus || undefined,
+      isDeparture:
+        all.length >= 2 ||
+        all.some((r: any) => /departure/i.test(String(r?.front_office_status ?? ''))),
     };
   });
 

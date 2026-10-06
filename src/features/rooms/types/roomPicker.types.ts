@@ -42,4 +42,11 @@ export interface RoomPickerRoom {
   checkOut?: string | null;
   guestCount?: number;
   frontOfficeStatus?: string;
+  /**
+   * A departure room, as the Rooms list labels it: one of its reservations is
+   * "Departure" or "Arrival/Departure", or it has two (the list's own
+   * Arrival/Departure rule). Lost & Found offers only these — items are found
+   * in rooms a guest is leaving.
+   */
+  isDeparture: boolean;
 }

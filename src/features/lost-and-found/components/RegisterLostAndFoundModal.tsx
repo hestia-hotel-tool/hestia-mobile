@@ -1,10 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   TextInput,
   StyleSheet,
   Dimensions,
@@ -22,6 +21,7 @@ import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 import { fetchStaffFromSupabase } from '@features/staff/services/staff';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { RoomNumberSelector } from '@features/rooms/components/roomPicker';
+import { AddPhotosField } from '@/components/media/AddPhotosField';
 import { useRoomPickerRooms } from '@features/rooms/hooks/useRoomPickerRooms';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
 import { fetchPublicAreas } from '../services/lostAndFound';
@@ -34,11 +34,6 @@ import StatusDropdown, { StatusOption } from './StatusDropdown';
 import StoredLocationDropdown, { StoredLocationOption } from './StoredLocationDropdown';
 import type { StaffMember } from '@features/staff/types/staff.types';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const TWO_COL_GAP = 12 * scaleX;
-const PHOTO_GRID_ITEM_SIZE = (SCREEN_WIDTH - 2 * (27 * scaleX) - TWO_COL_GAP) / 2;
-/** Figma 733:7 — node 733:530 (photo, 185x158) and 733:149 (add tile, 183x156). */
-const PHOTO_GRID_ITEM_HEIGHT = 158 * scaleX;
 /** Figma 733:257 — the staff picker card (331) plus its 7px gap below the field. */
 const STAFF_PICKER_HEIGHT = (331 + 7) * scaleX;
 
@@ -109,7 +104,17 @@ export default function RegisterLostAndFoundModal({
    * reservation can change between two registrations, and the sheet should not
    * hold a stale guest list in the background.
    */
-  const { rooms, loading: roomsLoading } = useRoomPickerRooms(visible);
+  const { rooms: allRooms, loading: roomsLoading } = useRoomPickerRooms(visible);
+  /*
+   * Departure rooms only (Figma 733:7 — the departing guest's room). Items
+   * are found in rooms a guest is leaving; offering all 40 buried them. A
+   * room this sheet was opened *from* (Room Detail) stays selectable whatever
+   * its status — the user already chose it.
+   */
+  const rooms = useMemo(
+    () => allRooms.filter((room) => room.isDeparture || room.id === preselectedRoomId),
+    [allRooms, preselectedRoomId]
+  );
   const [selectedPublicArea, setSelectedPublicArea] = useState<string | null>(null);
 
   /*
@@ -698,36 +703,14 @@ export default function RegisterLostAndFoundModal({
           {currentStep === 1 && (
             <>
               <Text style={[styles.sectionLabel, styles.picturesLabel]}>Pictures</Text>
+              {/* The Create Ticket photo field, shared (AddPhotosField). */}
               <View style={styles.picturesContainer}>
-                {/* One grid whether or not a photo exists yet: the frame (733:7)
-                    draws photos followed by the #f2f2f2 add tile, and with none
-                    the add tile simply stands alone in the first slot. */}
-                <View style={styles.photosGrid}>
-                    {pictures.map((uri, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={styles.photoItem}
-                        activeOpacity={0.7}
-                        onPress={() => handleRemovePicture(index)}
-                      >
-                        <Image source={{ uri }} style={styles.photoImage} resizeMode="cover" />
-                        <View style={styles.pictureRemoveOverlay}>
-                          <Text style={styles.pictureRemoveText}>×</Text>
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-
-                    <TouchableOpacity
-                      style={[styles.addPhotoGridItem, showPictureError && styles.addPhotoGridItemError]}
-                      activeOpacity={0.7}
-                      onPress={handleAddPicture}
-                      accessibilityRole="button"
-                      accessibilityLabel="Add a photo"
-                    >
-                      {/* Node 733:150 — the glyph alone, 33x33, on a #f2f2f2 tile. */}
-                      <Icon name="action-add-photo" size={33 * scaleX} />
-                    </TouchableOpacity>
-                </View>
+                <AddPhotosField
+                  photos={pictures}
+                  onAdd={handleAddPicture}
+                  onRemove={handleRemovePicture}
+                  error={showPictureError}
+                />
               </View>
             </>
           )}
@@ -1237,54 +1220,6 @@ const styles = StyleSheet.create({
     position: 'relative',
     // Pictures end at y=932, the Notes row starts at y=969.
     marginBottom: 37 * scaleX,
-  },
-  photosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: TWO_COL_GAP,
-  },
-  photoItem: {
-    width: PHOTO_GRID_ITEM_SIZE,
-    height: PHOTO_GRID_ITEM_HEIGHT,
-    borderRadius: 16 * scaleX,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  addPhotoGridItem: {
-    // Node 733:149 — a #f2f2f2 tile at radius 11, no border.
-    width: PHOTO_GRID_ITEM_SIZE,
-    height: PHOTO_GRID_ITEM_HEIGHT,
-    borderRadius: 11 * scaleX,
-    backgroundColor: '#f2f2f2',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  /** Shown when Next is pressed with no photo — the tile is the only prompt. */
-  addPhotoGridItemError: {
-    borderWidth: 2,
-    borderColor: '#ff0000',
-  },
-  pictureRemoveOverlay: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
-    width: 24 * scaleX,
-    height: 24 * scaleX,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    borderRadius: 12 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-    margin: 4 * scaleX,
-  },
-  pictureRemoveText: {
-    color: '#ffffff',
-    fontSize: 18 * scaleX,
-    fontWeight: 'bold' as any,
-    lineHeight: 18 * scaleX,
   },
   notesContainer: {
     marginTop: 0,

@@ -18,6 +18,7 @@ import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText }
 import { useNavigation, useRoute, useRouter , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
 import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
+import { AddPhotosField } from '@/components/media/AddPhotosField';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
@@ -669,32 +670,7 @@ export default function CreateTicketFormScreen() {
 
         {/* Add Photo */}
         <View style={styles.section}>
-          {pictures.length === 0 ? (
-            <TouchableOpacity style={styles.addPhotoContainer} onPress={handleAddPicture} activeOpacity={0.7}>
-              <Image source={require('../../../../assets/icons/add-photos.png')} style={styles.addPhotoIcon} resizeMode="contain" />
-              <Text style={styles.addPhotoTitle}>Add Photo</Text>
-              <Text style={styles.addPhotoSubtitle}>Add photos of the item and our AI will do the rest</Text>
-            </TouchableOpacity>
-          ) : (
-            <View style={styles.photosGrid}>
-              {pictures.map((uri, index) => (
-                <View key={index} style={styles.photoItem}>
-                  <Image source={{ uri }} style={styles.photoImage} />
-                  <TouchableOpacity
-                    style={styles.removePhotoButton}
-                    onPress={() => handleRemovePicture(index)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.removePhotoText}>×</Text>
-                  </TouchableOpacity>
-                </View>
-              ))}
-              <TouchableOpacity style={styles.addPhotoGridItem} onPress={handleAddPicture} activeOpacity={0.7}>
-                <Image source={require('../../../../assets/icons/add-photos.png')} style={styles.addPhotoGridIcon} resizeMode="contain" />
-                <Text style={styles.addPhotoGridTitle}>Add Photo</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          <AddPhotosField photos={pictures} onAdd={handleAddPicture} onRemove={handleRemovePicture} />
         </View>
 
         {/* Description — Figma: nested card, gradient AI badge, inner white field + edit control */}
@@ -1124,92 +1100,6 @@ const styles = StyleSheet.create({
     borderRadius: 8 * scaleX,
     backgroundColor: '#fff',
     overflow: 'hidden',
-  },
-  addPhotoContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 32 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderRadius: 8 * scaleX,
-    borderStyle: 'dashed',
-  },
-  addPhotoIcon: {
-    width: 60 * scaleX,
-    height: 60 * scaleX,
-    marginBottom: 12 * scaleX,
-  },
-  addPhotoTitle: {
-    fontSize: 19 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#ff46a3',
-    marginBottom: 8 * scaleX,
-    textAlign: 'center',
-  },
-  addPhotoSubtitle: {
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-    textAlign: 'center',
-    maxWidth: 160 * scaleX,
-  },
-  photosGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12 * scaleX,
-  },
-  photoItem: {
-    width: (SCREEN_WIDTH - 60 * scaleX) / 2,
-    height: 120 * scaleX,
-    borderRadius: 8 * scaleX,
-    overflow: 'hidden',
-    position: 'relative',
-  },
-  addPhotoGridItem: {
-    width: (SCREEN_WIDTH - 60 * scaleX) / 2,
-    height: 120 * scaleX,
-    borderRadius: 8 * scaleX,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    borderStyle: 'dashed',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-  },
-  addPhotoGridIcon: {
-    width: 40 * scaleX,
-    height: 40 * scaleX,
-    marginBottom: 8 * scaleX,
-  },
-  addPhotoGridTitle: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#ff46a3',
-    textAlign: 'center',
-  },
-  photoImage: {
-    width: '100%',
-    height: '100%',
-  },
-  removePhotoButton: {
-    position: 'absolute',
-    top: 8 * scaleX,
-    right: 8 * scaleX,
-    width: 24 * scaleX,
-    height: 24 * scaleX,
-    borderRadius: 12 * scaleX,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removePhotoText: {
-    color: '#ffffff',
-    fontSize: 18 * scaleX,
-    fontWeight: 'bold',
   },
   descriptionCard: {
     backgroundColor: '#f5f6f8',
