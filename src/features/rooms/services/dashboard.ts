@@ -11,7 +11,6 @@ import { isSupabaseConfigured, supabase } from '@/lib/supabase';
 import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomClock, type RoomStateUpdate } from './rooms';
 import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets/services/tickets';
 import { getShiftFromTime } from '@/utils/shiftUtils';
-import { getToast } from '@/utils/toast';
 
 export type { RoomClock, RoomStateUpdate } from './rooms';
 
@@ -48,6 +47,7 @@ const dashboard = {
       const name = row.full_name ?? 'Staff';
       const initials = name.split(/\s+/).map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '?';
       return {
+        userId,
         name,
         initials,
         avatar: row.avatar_url ?? undefined,
@@ -57,15 +57,11 @@ const dashboard = {
     };
 
     if (isSupabaseConfigured && uuidRegex.test(roomId) && uuidRegex.test(userId)) {
-      try {
-        const info = await roomsAssignRoomToStaff(roomId, userId, shift);
-        return info ?? (await buildStaffInfoFromSupabase());
-      } catch (e) {
-        const message = e instanceof Error ? e.message : 'Assignment could not be saved';
-        console.warn('Assign room failed:', message, e);
-        getToast()?.show(message, { type: 'error', duration: 4000 });
-        return await buildStaffInfoFromSupabase();
-      }
+      // A refused assignment is an error, not an attendant: the card used to
+      // show the person the database had just refused, so In Progress was
+      // offered and then failed. The screen reports the message.
+      const info = await roomsAssignRoomToStaff(roomId, userId, shift);
+      return info ?? (await buildStaffInfoFromSupabase());
     }
 
     // Room from mock data but staff from Supabase – still update card with selected user

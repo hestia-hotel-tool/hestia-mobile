@@ -135,6 +135,8 @@ export interface RoomCardData {
    * Compared against `credit` (minutes) — see utils/cleaningClock.
    */
   cleaningStartedAt?: string | null;
+  /** When the current cleaning run started; "Undo start" is open for a short window after it. */
+  inProgressStartedAt?: string | null;
   cleaningElapsedSeconds?: number;
   /** When set (ISO timestamp), room is in "Refused Service" state (for display). */
   refuseServiceAt?: string | null;

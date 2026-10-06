@@ -145,6 +145,14 @@
     {
       "key": "tickets.manage",
       "description": "Edit or delete any ticket"
+    },
+    {
+      "key": "rooms.inspect",
+      "description": "Inspect cleaned rooms and send rooms back"
+    },
+    {
+      "key": "rooms.status.override",
+      "description": "Act on a room for its attendant (reason required)"
     }
   ],
   "rights": [
@@ -305,6 +313,15 @@
     "tickets.manage": [
       "full_access",
       "ops_senior"
+    ],
+    "rooms.inspect": [
+      "full_access"
+    ],
+    "rooms.status.override": [
+      "full_access"
+    ],
+    "rooms.rush.toggle": [
+      "fo_agent"
     ]
   },
   "departments": [

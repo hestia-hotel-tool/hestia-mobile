@@ -60,6 +60,10 @@ export const PERMISSIONS = {
   ROOMS_RUSH_TOGGLE: 'rooms.rush.toggle',
   /** Flag and unflag a room */
   ROOMS_FLAG_TOGGLE: 'rooms.flag.toggle',
+  /** Inspect cleaned rooms and send rooms back */
+  ROOMS_INSPECT: 'rooms.inspect',
+  /** Act on a room for its attendant (reason required) */
+  ROOMS_STATUS_OVERRIDE: 'rooms.status.override',
 
   // Chat
   /** Start a direct chat */

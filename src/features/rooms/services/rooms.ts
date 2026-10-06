@@ -37,6 +37,7 @@ type RoomRow = {
   promise_time_at?: string | null;
   cleaning_started_at?: string | null;
   cleaning_elapsed_seconds?: number | null;
+  in_progress_started_at?: string | null;
   dnd_at?: string | null;
   dnd_checked_at?: string | null;
   dnd_check_count?: number | null;
@@ -405,6 +406,7 @@ function mapRoomToCard(
     promiseTimeAt: room.promise_time_at ?? null,
     cleaningStartedAt: room.cleaning_started_at ?? null,
     cleaningElapsedSeconds: room.cleaning_elapsed_seconds ?? 0,
+    inProgressStartedAt: room.in_progress_started_at ?? null,
     guests: guestsForCard,
     roomAttendantAssigned: attendant,
     isPriority: room.priority === 'high',
@@ -580,7 +582,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
+        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
       )
       .order('room_number', { ascending: true }));
 
@@ -752,6 +754,8 @@ export type RoomClock = {
   dndCheckedAt: string | null;
   dndCheckCount: number;
   dndNextCheckAt: string | null;
+  /** When the current run started — the undo-start window counts from it. */
+  inProgressStartedAt?: string | null;
 };
 
 function isValidUUID(id: string): boolean {
@@ -991,7 +995,7 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
     const { data: row } = await supabase
       .from('rooms')
       .select(
-        'house_keeping_status, paused_at, return_later_at, return_later_reason, refuse_service_at, refuse_service_reason, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds'
+        'house_keeping_status, paused_at, return_later_at, return_later_reason, refuse_service_at, refuse_service_reason, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at'
       )
       .eq('id', roomId)
       .maybeSingle();
@@ -1013,38 +1017,14 @@ export async function updateRoom(roomId: string, updates: RoomStateUpdate): Prom
         dndCheckedAt: str('dnd_checked_at'),
         dndCheckCount: (r.dnd_check_count as number | null) ?? 0,
         dndNextCheckAt: str('dnd_next_check_at'),
+        inProgressStartedAt: str('in_progress_started_at'),
       };
     }
   }
 
-  // When a room moves to In Progress, stamp the assignment so the staff card's
-  // credit countdown starts from this moment. start_time is set only once (so a
-  // pause→resume keeps the original start); work_status reflects the transition.
-  // Best-effort — never block the room status update on this.
-  if (updates.house_keeping_status === 'InProgress') {
-    try {
-      const startedAt = new Date().toISOString();
-      await supabase.from('room_assignments').update({ work_status: 'in_progress' }).eq('room_id', roomId);
-      await supabase
-        .from('room_assignments')
-        .update({ start_time: startedAt })
-        .eq('room_id', roomId)
-        .is('start_time', null);
-    } catch (e) {
-      console.warn('[updateRoom] could not stamp room_assignments start_time', e);
-    }
-  } else if (updates.house_keeping_status === 'Cleaned' || updates.house_keeping_status === 'Inspected') {
-    // Room finished — clear the in-progress state so the staff card stops the
-    // countdown and no longer treats this as the attendant's current room.
-    try {
-      await supabase
-        .from('room_assignments')
-        .update({ work_status: 'completed', end_time: new Date().toISOString() })
-        .eq('room_id', roomId);
-    } catch (e) {
-      console.warn('[updateRoom] could not mark room_assignments completed', e);
-    }
-  }
+  // The assignment's work_status / start_time / end_time follow the room in
+  // the database now (room_action, migration 20261006000100) — for that
+  // room's assignee only, not every shift's row as this used to.
   return clock;
 }
 
@@ -1195,6 +1175,8 @@ export async function assignRoomToStaff(
   const avatarUrl = (userData as { full_name: string; avatar_url: string | null } | null)?.avatar_url ?? null;
   const initials = name.split(/\s+/).map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '?';
   const staffInfo: StaffInfo = {
+    // The status rules tell the attendant from everyone else by this id.
+    userId,
     name,
     initials,
     avatar: avatarUrl ?? undefined,
@@ -1204,9 +1186,8 @@ export async function assignRoomToStaff(
 
   const shiftId = await getShiftIdByName(shift);
   if (!shiftId) {
-    // No shift in DB – still return StaffInfo so the room card updates
-    console.warn('[assignRoomToStaff] No shift found for', shift, '– assignment not persisted. Add shifts (e.g. AM, PM) in Supabase.');
-    return staffInfo;
+    // Nothing was saved, so do not tell the card it was.
+    throw new Error(`No ${shift} shift is set up for this hotel, so the room could not be assigned.`);
   }
 
   // Tenant-scoped RLS requires `room_assignments.hotel_id = auth_hotel_id()`.
@@ -1361,6 +1342,7 @@ export interface FullRoomDetails {
     promise_time_at?: string | null;
     cleaning_started_at?: string | null;
     cleaning_elapsed_seconds?: number | null;
+    in_progress_started_at?: string | null;
   };
   reservations: ReservationDetail[];
   notes: RoomNoteDetail[];
@@ -1496,6 +1478,7 @@ export function fullRoomDetailsToRoomCardData(
     promiseTimeAt: ((room as any).promise_time_at ?? null) as string | null,
     cleaningStartedAt: ((room as any).cleaning_started_at ?? null) as string | null,
     cleaningElapsedSeconds: ((room as any).cleaning_elapsed_seconds ?? 0) as number,
+    inProgressStartedAt: ((room as any).in_progress_started_at ?? null) as string | null,
     refuseServiceAt: ((room as any).refuse_service_at ?? null) as string | null,
     refuseServiceReason: ((room as any).refuse_service_reason ?? null) as string | null,
     dndAt: ((room as any).dnd_at ?? null) as string | null,
@@ -1546,7 +1529,7 @@ export async function getFullRoomDetails(
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
-      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
+      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
     )
     .order('room_number', { ascending: true });
   const roomsQueryBase = supabase
@@ -1777,6 +1760,7 @@ export async function getFullRoomDetails(
       promise_time_at: (room as any).promise_time_at ?? null,
       cleaning_started_at: (room as any).cleaning_started_at ?? null,
       cleaning_elapsed_seconds: (room as any).cleaning_elapsed_seconds ?? 0,
+      in_progress_started_at: (room as any).in_progress_started_at ?? null,
       return_later_at: (room as any).return_later_at ?? null,
       paused_at: (room as any).paused_at ?? null,
       refuse_service_at: (room as any).refuse_service_at ?? null,

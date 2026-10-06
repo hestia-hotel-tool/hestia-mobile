@@ -86,6 +86,12 @@ EXTRA_GRANTS = {
     # tickets.manage — edit any ticket (its author may always edit their own)
     # and delete tickets. Same leadership set (migration 20260928000200).
     "tickets.manage": ["full_access", "ops_senior"],
+    # The room status state machine (migration 20261006000100): inspecting and
+    # sending rooms back, and acting for an attendant with a reason. Front
+    # Office may also mark a room priority.
+    "rooms.inspect": ["full_access"],
+    "rooms.status.override": ["full_access"],
+    "rooms.rush.toggle": ["fo_agent"],
 }
 
 PERMISSION_DESCRIPTIONS = {
@@ -119,6 +125,8 @@ PERMISSION_DESCRIPTIONS = {
     "tickets.update": "Edit a ticket",
     "tickets.close": "Close a ticket",
     "tickets.manage": "Edit or delete any ticket",
+    "rooms.inspect": "Inspect cleaned rooms and send rooms back",
+    "rooms.status.override": "Act on a room for its attendant (reason required)",
     "lost_and_found.read": "Browse lost & found items",
     "lost_and_found.register": "Register a found item",
     "lost_and_found.manage": "Edit and resolve lost & found items",

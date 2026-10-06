@@ -21,6 +21,7 @@ import FlagToggle from './FlagToggle';
 import StatusPopover, { type PopoverAnchor } from './StatusPopover';
 import RoomChecklistPanel, { type ChecklistItem } from './RoomChecklistPanel';
 import type { CleaningReport } from '../services/cleaningReports';
+import type { ResolvedOption, RoomAction } from '../utils/roomStatusMachine';
 
 export {
   STATUS_MODAL_WIDTH,
@@ -199,7 +200,28 @@ interface StatusChangeModalProps {
    * Set Promise Time row shows that time and a remove button.
    */
   onRemovePromise?: () => void;
+  /**
+   * The status options this reader may use on this room, from the room status
+   * rules (`roomStatusMachine`). When given, every other status option is
+   * hidden — Priority, the flag row and the promise row keep their own rules.
+   */
+  allowedOptions?: ReadonlyMap<StatusChangeOption, ResolvedOption>;
+  /** The attendant a supervisor would be acting for, named in the note. */
+  overrideFor?: string | null;
 }
+
+/**
+ * What an option is called when it does something more specific than its
+ * status name: "Dirty" on a Do Not Disturb room is the sign coming down.
+ */
+const ACTION_LABEL: Partial<Record<RoomAction, string>> = {
+  resume: 'Resume',
+  undo_start: 'Undo start',
+  dnd_recheck: 'Still DND',
+  dnd_clear: 'Sign removed',
+  refuse_clear: 'Service back on',
+  return_later_clear: 'Clear return',
+};
 
 /** Which face of the popover is showing. */
 type PopoverFace = 'status' | 'cleanChecklist' | 'inspectionChecklist' | 'flag';
@@ -222,6 +244,8 @@ export default function StatusChangeModal({
   canInspect = true,
   canStartCleaning = true,
   onRemovePromise,
+  allowedOptions,
+  overrideFor,
 }: StatusChangeModalProps) {
   /*
    * Choosing "Cleaned" turns this card into the clean checklist rather than
@@ -250,7 +274,20 @@ export default function StatusChangeModal({
   const isInspection = view === 'inspectionChecklist';
   const isChecklist = view === 'cleanChecklist' || isInspection;
   const isFlagEditor = view === 'flag' && !!onFlagToggle;
-  const options = statusOptionsFor(currentStatus, { canSetPriority, canInspect }, deriveRoomActivityState(room).kind);
+  const options = allowedOptions
+    ? STATUS_OPTIONS.filter(
+        (option) => (option.id === 'Priority' && canSetPriority) || allowedOptions.has(option.id)
+      )
+    : statusOptionsFor(currentStatus, { canSetPriority, canInspect }, deriveRoomActivityState(room).kind);
+  /** The name an option shows: its action's when that says more (see ACTION_LABEL). */
+  const labelFor = (id: StatusChangeOption, fallback: string) => {
+    const resolved = allowedOptions?.get(id);
+    if (!resolved) return fallback;
+    if (resolved.action === 'send_back') return currentStatus === 'Inspected' ? 'Reopen' : 'Send back';
+    return ACTION_LABEL[resolved.action] ?? fallback;
+  };
+  const actsForAttendant = !!allowedOptions && [...allowedOptions.values()].some((o) => o.viaOverride);
+  const nothingToChange = !!allowedOptions && options.filter((o) => o.id !== 'Priority').length === 0;
   const hasFlagRow = !!onFlagToggle;
   // A promise only stands until the room is clean (see promiseLine).
   const promiseAt = room.promiseTimeAt ? Date.parse(room.promiseTimeAt) : NaN;
@@ -325,6 +362,12 @@ export default function StatusChangeModal({
               <Text style={styles.needsAttendant} accessibilityRole="alert">
                 Assign a room attendant to start cleaning this room.
               </Text>
+            ) : actsForAttendant ? (
+              <Text style={styles.needsAttendant}>
+                {`Cleaning steps are ${overrideFor ? `${overrideFor}'s` : "the attendant's"}. Acting for them asks for a reason.`}
+              </Text>
+            ) : nothingToChange ? (
+              <Text style={styles.needsAttendant}>Nothing to change on this room right now.</Text>
             ) : null}
 
             <View style={styles.optionsGrid}>
@@ -338,7 +381,7 @@ export default function StatusChangeModal({
                   glyphHeight={option.glyphHeight}
                   circleColor={option.circleColor}
                   glyphColor={option.glyphColor}
-                  label={option.label}
+                  label={labelFor(option.id, option.label)}
                   onPress={() => {
                     // Dimmed, and the line above says why; the room is not changed.
                     if (blocked) return;
