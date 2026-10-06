@@ -64,7 +64,7 @@ export default function EmptyStaffState({ reason }: { reason: StaffEmptyReason }
         {/*
           `nav-staff` — the mark the app already gives this feature, the same
           substitution the other two empty states make. It *is* in
-          `TINTABLE_ICONS`, unlike `nav-lost-found`, so `color` is legal here.
+          `TINTABLE_ICONS`, so `color` is legal here.
 
           Per reason, because one of them is not about staff: "no rooms
           assigned" is drawn on the Staff Rooms screen, where a staff mark over

@@ -501,6 +501,7 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
       `
         id,
         room_number,
+        linen_status,
         reservations (
           guests (
             id,

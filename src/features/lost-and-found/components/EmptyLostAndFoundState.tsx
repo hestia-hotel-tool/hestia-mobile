@@ -51,17 +51,15 @@ export default function EmptyLostAndFoundState({ selectedTab }: EmptyLostAndFoun
           3128:32 draws no empty state, so there is no frame to match and this
           invents no art.
 
-          **No `color`.** This is a two-tone brand mark: `#5A759D` basket with
-          white knockouts, which `scripts/normalizeSvg.js` documents as one of
-          the marks that must keep its fills. Passing `color` would be ignored
-          and would earn a dev warning. Its blue is already the blue this
-          empty state wants.
+          The basket is tintable now (its blue is `currentColor`, the white
+          knockouts stay white) so the tab bar can turn it pink when active;
+          here it takes the brand blue it always had.
 
           Not `lost-found-registered`: that illustration is the success basket
           at 151x165, and shrinking celebration art into an 80pt "there is
           nothing here" disc reads as the wrong sentiment.
         */}
-        <Icon name="nav-lost-found" size={40 * scaleX} />
+        <Icon name="nav-lost-found" size={40 * scaleX} color="#5A759D" />
       </View>
       <Text style={styles.title}>{message.title}</Text>
       <Text style={styles.subtitle}>{message.subtitle}</Text>

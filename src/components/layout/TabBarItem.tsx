@@ -9,8 +9,10 @@ interface TabBarItemProps {
   /**
    * A registered SVG from `assets/icons/nav/`.
    *
-   * Single-colour marks are tinted to the active/inactive colour. Two-tone
-   * marks (`nav-home`, `nav-lost-found`, `nav-ai`) keep their own fills —
+   * Marks with a `currentColor` part are tinted to the active/inactive
+   * colour: `nav-lost-found` (its white knockouts stay white) and `nav-home`
+   * (its pink accent stays pink, so the active house is all pink). Fully
+   * two-tone marks (`nav-ai`) keep their own fills —
    * `Icon` warns if a colour is passed to one, and flattening them would
    * destroy the mark.
    */

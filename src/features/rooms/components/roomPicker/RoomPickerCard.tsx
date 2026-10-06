@@ -6,6 +6,7 @@ import { typography } from '@/theme';
 import { getInitialsFromFullName } from '@/utils/formatting';
 import type { RoomPickerRoom } from '../../types/roomPicker.types';
 import { ROOM_PICKER_LAYOUT as L } from './roomPickerLayout';
+import { GuestKindDisc } from '../roomsList/GuestRow';
 
 /** "2026-10-07" -> "07/10". Blank for anything unparseable. */
 function formatDayMonth(value?: string | null): string {
@@ -101,16 +102,12 @@ export default function RoomPickerCard({
                     <Text style={styles.thumbInitials}>{getInitialsFromFullName(guestName)}</Text>
                   </View>
                 )}
-                {guest?.vipCode ? (
-                  <View style={styles.vipDisc}>
-                    <Icon
-                      name="guest-arrow"
-                      size={L.guest.vip.arrow * scaleX}
-                      color="#ffffff"
-                      style={styles.vipArrow}
-                    />
-                  </View>
-                ) : null}
+                {/* The guest's front-office badge, as on the Rooms list:
+                    arrival, departure, stayover, turndown. It used to be a
+                    red departure arrow on any VIP, whatever the stay. */}
+                <View style={styles.kindDisc}>
+                  <GuestKindDisc kind={room.guestKind} size={L.guest.vip.size * scaleX} />
+                </View>
               </View>
 
               <View style={styles.guestDetails}>
@@ -298,21 +295,11 @@ function buildRoomPickerCardStyles(scaleX: number) {
       color: '#ffffff',
       ...androidText,
     },
-    vipDisc: {
+    /** Node 2961:186's spot on the photo's corner. */
+    kindDisc: {
       position: 'absolute',
       right: L.guest.vip.right * scaleX,
       bottom: L.guest.vip.bottom * scaleX,
-      width: L.guest.vip.size * scaleX,
-      height: L.guest.vip.size * scaleX,
-      borderRadius: (L.guest.vip.size / 2) * scaleX,
-      // Node 2961:186.
-      backgroundColor: '#f92424',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    /** `guest-arrow` points left; the badge points right. */
-    vipArrow: {
-      transform: [{ scaleX: -1 }],
     },
     guestDetails: {
       flex: 1,

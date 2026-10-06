@@ -114,7 +114,19 @@ export default function StaffShiftCard({
 
       {/* Always: zeros for someone with nothing assigned. */}
       {work ? (
-        <>
+        /*
+         * The whole activity block — heading, bar, counts and "View Details" —
+         * is one target that opens their Activity screen. It used to be the
+         * "View Details" text alone, a small target on a large card. As a
+         * nested Pressable it takes the tap before the card's own (close).
+         */
+        <Pressable
+          onPress={onViewDetails}
+          accessibilityRole="button"
+          accessibilityLabel={`${person.name}, view activity`}
+          accessibilityHint="Opens their activity for today"
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+        >
           {/* 4319:105 — "Activity", bold 14. */}
           <Text
             className="font-hestia-primary font-bold text-black"
@@ -140,27 +152,21 @@ export default function StaffShiftCard({
           >
             <StaffWorkloadBar work={work} />
             <StaffTaskStats work={work} />
-            <Pressable
-              onPress={onViewDetails}
-              hitSlop={8}
-              style={{ marginTop: s(L.activity.linkMarginTop), alignSelf: 'flex-start' }}
-              accessibilityRole="button"
-              accessibilityHint="Opens their activity for today"
+            {/* Still drawn as the cue; the whole block is the target. */}
+            <Text
+              className="font-hestia-primary"
+              style={{
+                marginTop: s(L.activity.linkMarginTop),
+                fontSize: s(L.activity.linkFontSize),
+                fontFamily: typography.fontFamily.primary,
+                fontWeight: '300',
+                color: '#5a759d',
+              }}
             >
-              <Text
-                className="font-hestia-primary"
-                style={{
-                  fontSize: s(L.activity.linkFontSize),
-                  fontFamily: typography.fontFamily.primary,
-                  fontWeight: '300',
-                  color: '#5a759d',
-                }}
-              >
-                View Details
-              </Text>
-            </Pressable>
+              View Details
+            </Text>
           </View>
-        </>
+        </Pressable>
       ) : null}
 
       {/* The way back: an up-chevron, centred, that closes the card. */}

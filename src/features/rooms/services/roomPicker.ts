@@ -8,6 +8,7 @@
 
 import { resolveGuestImageUrls, isHttpUrl } from '@/lib/guests';
 import type { RoomPickerGuest, RoomPickerRoom } from '../types/roomPicker.types';
+import type { GuestRowKind } from '../components/roomsList/GuestRow';
 import { listRoomsWithReservationGuests } from './rooms';
 
 /**
@@ -57,6 +58,21 @@ function pickPrimaryGuest(
   const isArrivalDeparture = frontOfficeStatus.toLowerCase() === 'arrival/departure';
   const preferred = isArrivalDeparture ? (guests[1] ?? guests[0]) : guests[0];
   return preferred ?? guests.find((g) => g.fullName) ?? guests[0];
+}
+
+/**
+ * The badge for the guest a picker card shows — the same kinds, from the same
+ * front-office status, as `guestRowKind` on the Rooms list. A room with two
+ * reservations is Arrival/Departure there, and the picker shows its departing
+ * guest (`pickPrimaryGuest`), so that is a departure.
+ */
+function pickerGuestKind(frontOfficeStatus: string, reservationCount: number, withLinen: boolean): GuestRowKind {
+  const status = frontOfficeStatus.toLowerCase().replace(/\s+/g, '');
+  if (reservationCount >= 2 || status.includes('departure')) return 'departure';
+  if (status.includes('arrival')) return 'arrival';
+  if (status.includes('stayover')) return withLinen ? 'stayover-linen' : 'stayover-no-linen';
+  if (status.includes('turndown')) return 'turndown';
+  return 'occupied';
 }
 
 function toArray<T>(value: T | T[] | null | undefined): T[] {
@@ -129,6 +145,7 @@ async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
       isDeparture:
         all.length >= 2 ||
         all.some((r: any) => /departure/i.test(String(r?.front_office_status ?? ''))),
+      guestKind: pickerGuestKind(frontOfficeStatus, all.length, room?.linen_status === 'with_linen'),
     };
   });
 

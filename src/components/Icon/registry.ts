@@ -333,6 +333,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'lf-stored',
   'location-pin',
   'nav-chat',
+  'nav-home',
+  'nav-lost-found',
   'nav-rooms',
   'nav-settings',
   'nav-staff',

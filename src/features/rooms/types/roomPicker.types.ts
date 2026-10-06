@@ -1,3 +1,5 @@
+import type { GuestRowKind } from '../components/roomsList/GuestRow';
+
 /**
  * The shape a room-and-guest picker needs.
  *
@@ -49,4 +51,9 @@ export interface RoomPickerRoom {
    * in rooms a guest is leaving.
    */
   isDeparture: boolean;
+  /**
+   * The badge on the guest photo, as the Rooms list draws it for the guest
+   * shown: arrival, departure, stayover (with or without linen), turndown.
+   */
+  guestKind: GuestRowKind;
 }
