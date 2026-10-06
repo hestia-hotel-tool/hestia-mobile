@@ -1,83 +1,52 @@
-# Assets Structure
+# Assets
 
-This directory contains all static assets for the Hestia application, organized by type for better maintainability and navigation.
-
-## Directory Structure
+## Layout
 
 ```
 assets/
-├── app/               # App configuration assets
-│   ├── icon.png       # App icon (used in Expo config)
-│   ├── adaptive-icon.png  # Android adaptive icon
-│   ├── splash.png     # Splash screen image
-│   └── favicon.png    # Web favicon
-│
-├── icons/             # UI icons
-│   ├── dropdown-arrow.png   # Dropdown/chevron arrow icon (18x9px)
-│   ├── recover-arrow.png    # Recovery/navigation arrow (8x17px)
-│   └── phone-icon.png       # Phone/call icon
-│
-└── logos/             # Brand logos
-    ├── logo.png                    # Main Hestia logo (used on splash screen)
-    ├── header-logo.png             # Header logo variant
-    └── customer-service-logo.png   # Customer service section logo
+  app/              Expo config assets — icon / splash / adaptive-icon / favicon.
+                    MUST stay PNG (Expo requirement). Referenced from app.config.ts.
+  brand/            Logos and wordmarks. SVG preferred.
+  icons/            UI glyphs — SVG ONLY, one concept per file.
+    nav/            tab bar + header nav: home, rooms, tickets, chat, staff, settings, lost-found, back, more
+    room-status/    dirty, in-progress, cleaned, inspected, out-of-order, out-of-service
+    guest-status/   arrival, departure, stayover, turndown, checked-in, checked-out, vacant, occupied
+    departments/    engineering, it, reception, concierge, hsk-portier, laundry, in-room-dining
+    actions/        plus, search, flag, print, download, recover, thumbs-up, thumbs-down, tick, priority
+    misc/           anything that doesn't fit above
+  illustrations/    Larger vector art — empty states, success screens. SVG.
+  images/           Raster only, where the content is genuinely photographic.
+    products/       Minibar / amenity shots. Prefer serving these from the DB.
 ```
 
-## Usage Guidelines
+Person avatars are **not** assets — they belong with mock data (`src/mocks/`) or
+come from the DB (`users.avatar_url`).
 
-### Importing Assets
+## Naming
 
-**Icons:**
-```typescript
-import { Image } from 'react-native';
-<Image source={require('../assets/icons/dropdown-arrow.png')} />
-```
+- `kebab-case`, lowercase, ASCII. No spaces, underscores, capitals.
+- **No `-icon` / `-image` suffix** — the folder already says what it is.
+- Pattern: **`domain-concept[-variant]`** so names cluster in autocomplete:
+  `status-dirty.svg`, `status-in-progress.svg`, `guest-arrival.svg`,
+  `dept-engineering.svg`, `nav-home.svg`, `action-flag.svg`.
+- One file per concept. Drive size and colour from props, not extra files.
+- Variants only when the shape differs: `-outline` / `-filled`, `-active`.
 
-**Logos:**
-```typescript
-<Image source={require('../assets/logos/header-logo.png')} />
-```
+## Icons: authoring
 
-**App Assets:**
-These are primarily referenced in `app.json` configuration:
-```json
-"icon": "./assets/app/icon.png"
-```
+Export from Figma, then before committing:
 
-### App Icon Requirements
+- 24×24 `viewBox` for UI icons, 1.5px strokes, snapped to the pixel grid.
+- Fills/strokes set to `currentColor` (so `<Icon color=…>` tints them).
+- Remove hardcoded `width` / `height`; keep `viewBox`.
+- Run through SVGO (Figma "SVGO Compressor" plugin, or `npx svgo`).
+- No embedded rasters or `<image>` tags.
 
-**iOS Icon (`icon.png`):**
-- **Size**: Must be exactly 1024x1024 pixels
-- **Format**: PNG with transparency support
-- **Padding**: The icon content should be centered with approximately 10-15% padding on all sides (safe zone: ~820x820px in the center)
-- **Content**: Should not extend to the edges to prevent distortion and cropping
+## Consuming
 
-**Android Adaptive Icon (`adaptive-icon.png`):**
-- **Size**: Must be exactly 1024x1024 pixels
-- **Format**: PNG with transparency support
-- **Padding**: The icon content should be in the safe zone (center 66% = ~675x675px), leaving 17% padding on each side
-- **Background**: Configured in `app.json` as `#5a759d`
-- **Content**: Should not extend beyond the safe zone to prevent clipping on different device shapes
+Icons: register in [`src/components/Icon/registry.ts`](../src/components/Icon/registry.ts),
+then `<Icon name="status-dirty" size={20} color={tokens.status.dirty} />`.
+Never `require()` an icon inside a screen or component.
 
-**Current Status:**
-- ⚠️ `icon.png` is currently 53x50px - needs to be resized to 1024x1024px with proper padding
-- ✅ `adaptive-icon.png` is correctly sized at 1024x1024px
-
-## Adding New Assets
-
-1. **Icons**: Place small UI icons in `assets/icons/`
-2. **Logos**: Place brand/company logos in `assets/logos/`
-3. **App Config**: Place app-level assets (splash, icon) in `assets/app/`
-
-## File Naming Convention
-
-- Use kebab-case: `dropdown-arrow.png`, `customer-service-logo.png`
-- Be descriptive: Name files based on their purpose, not appearance
-- Include dimensions in comments when relevant for developer reference
-
-## Maintenance
-
-- Keep assets optimized (compressed) for better app performance
-- Use appropriate formats: PNG for transparency, JPG for photos
-- Document any special requirements or dimensions in this README
-
+Other assets: import through the `@assets` alias —
+`import splash from '@assets/brand/logo.svg'` — not deep relative paths.

@@ -3,8 +3,6 @@
  * Central export point for all types
  */
 
-// Re-export navigation types
-export type { RootStackParamList, MainTabsParamList } from '../navigation/types';
 
 // Room types
 export type RoomStatus = 'dirty' | 'inProgress' | 'cleaned' | 'inspected' | 'priority';
@@ -28,6 +26,12 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  /**
+   * What this person does, e.g. "Room Attendant" — `users.job_title_id`.
+   * Distinct from `department` (where they work) and from `role` (which also
+   * carries permission-ish names when no job title is set).
+   */
+  jobTitle?: string;
   role: string;
   department?: string;
   avatar?: string;

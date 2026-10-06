@@ -13,15 +13,20 @@
       "inProgress": "#f0be1b",
       "cleaned": "#4a91fc",
       "inspected": "#41d541",
+      "paused": "#b0c0c6",
       "priority": "#ffebeb",
-      "priorityText": "#f92424"
+      "priorityText": "#f92424",
+      "outOfOrder": "#c6c5c5"
     },
     "background": {
       "primary": "#ffffff",
       "secondary": "#eef0f6",
       "tertiary": "#f1f6fc",
       "card": "#f9fafc",
+      "activity": "#f1f3f6",
+      "aiMic": "#eff4fb",
       "header": "#e4eefe",
+      "dashboard": "#e3e8f0",
       "overlay": "rgba(228, 228, 228, 0.1)"
     },
     "text": {
@@ -31,18 +36,32 @@
       "light": "#b1afaf",
       "white": "#ffffff",
       "accent": "#5a759d",
-      "pink": "#ff46a3"
+      "pink": "#ff46a3",
+      "muted": "#a9a9a9",
+      "link": "#3bc1f6",
+      "faint": "#d9d9d9"
     },
     "border": {
       "light": "#dbdbdb",
       "medium": "#e3e3e3",
-      "dark": "#e6e6e6"
+      "dark": "#e6e6e6",
+      "card": "rgba(90, 117, 157, 0.23)",
+      "control": "#c6c5c5",
+      "aiPanelStart": "#ff4dd8",
+      "aiPanelEnd": "#3bc1f6"
+    },
+    "guest": {
+      "arrival": "#39d47f",
+      "departure": "#f92424",
+      "stayover": "#3bc1f6",
+      "turndown": "#9b51e0"
     },
     "badge": {
       "eta": "#e9f7e9",
       "etd": "#ffe3e3",
       "group": "#ffebeb",
-      "priority": "#ffebeb"
+      "priority": "#ffebeb",
+      "results": "rgba(181, 207, 246, 0.37)"
     },
     "shadow": {
       "nav": "0px 0px 105.1px -35px rgba(100, 131, 176, 0.4)"
@@ -52,6 +71,10 @@
     "fontFamily": {
       "primary": "Helvetica",
       "secondary": "Inter"
+    },
+    "fontFamilyAndroid": {
+      "primary": "Roboto",
+      "secondary": "Roboto"
     },
     "fontWeights": {
       "light": "300",
@@ -193,6 +216,11 @@
       "backgroundColor": "#41d541",
       "icon": "inspected"
     },
+    "paused": {
+      "color": "#b0c0c6",
+      "backgroundColor": "#b0c0c6",
+      "icon": "paused"
+    },
     "priority": {
       "color": "#f92424",
       "backgroundColor": "#ffebeb",
@@ -244,4 +272,3 @@
     }
   }
 }
-

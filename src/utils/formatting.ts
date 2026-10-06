@@ -23,6 +23,69 @@ export const formatTime = (date: Date | string): string => {
 };
 
 /**
+ * A `Date` as "HH:mm", 24-hour — the form the Room Detail header's activity
+ * line prints ("Paused at 11:22", Figma 2333-132).
+ *
+ * A sibling of `formatClockTime` below rather than an overload of it: that one
+ * parses a *string* from the database and argues at length for staying
+ * string-only, since a bare time is not a date. This one starts from an instant
+ * and never parses anything. Same output shape, different input world.
+ */
+export const formatClock24 = (date: Date): string =>
+  `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+
+/**
+ * An instant in full, for a record's detail screen: "Sat 26 Sep 2026 · 14:30".
+ * "—" when missing or unparseable. Fixed English names, like `formatDueTime`,
+ * rather than a locale's ("Sept").
+ */
+export const formatMoment = (iso: string | null | undefined): string => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return '—';
+  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+  return `${day} ${d.getDate()} ${month} ${d.getFullYear()} · ${formatClock24(d)}`;
+};
+
+/**
+ * A wall-clock time as "HH:mm", 24-hour.
+ *
+ * `reservations.eta` is a Postgres `time`, so PostgREST returns it with seconds
+ * — "17:00:00". It was passed through untouched, and every ETA and EDT on the
+ * room cards and the detail screen read "ETA: 17:00:00" against a design that
+ * shows "ETA: 17:00" (Figma 1772-104). `GuestInfo.time`'s own doc comment
+ * already promised "HH:mm (24h)", so the service was the thing that was wrong.
+ *
+ * Not `formatTime` above: that takes a Date, returns 12-hour with AM/PM, and
+ * `new Date('17:00:00')` is Invalid Date anyway — a bare time is not a date.
+ *
+ * Tolerant on input because the value has three possible origins: the DB
+ * ("17:00:00"), a modal that already formatted it ("17:00"), and hand-entered
+ * strings in seed data ("5:00 PM"). Anything unparseable comes back empty
+ * rather than as itself, so a bad value shows nothing instead of showing
+ * garbage next to a label.
+ */
+export const formatClockTime = (value: string | null | undefined): string => {
+  const raw = (value ?? '').trim();
+  if (!raw || raw.toUpperCase() === 'N/A') return '';
+
+  const match = raw.match(/^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?$/i);
+  if (!match) return '';
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const meridiem = match[3]?.toUpperCase();
+
+  if (Number.isNaN(hours) || Number.isNaN(minutes) || minutes > 59) return '';
+  if (meridiem === 'PM' && hours < 12) hours += 12;
+  if (meridiem === 'AM' && hours === 12) hours = 0;
+  if (hours > 23) return '';
+
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+};
+
+/**
  * Format date and time together
  */
 export const formatDateTime = (date: Date | string): string => {
@@ -126,3 +189,73 @@ export const formatDatesOfStay = (datesOfStay: { from: string; to: string } | un
   return `${formatPart(datesOfStay.from)} - ${formatPart(datesOfStay.to)}`;
 };
 
+/**
+ * The same range with no spaces around the dash: "07/10-15/10".
+ *
+ * What the room card actually shows — Figma 3883:5592 and 3838:1329. The spaced
+ * form is ~8px wider at 14px Helvetica, which is enough to push the occupancy
+ * count off a 402pt-wide card.
+ *
+ * A separate export rather than a change to `formatDatesOfStay`, because that
+ * one also feeds the room-detail guest card and this pass has no design for it.
+ */
+export const formatDatesOfStayCompact = (
+  datesOfStay: { from: string; to: string } | undefined | null
+): string => formatDatesOfStay(datesOfStay).replace(' - ', '-');
+
+
+/**
+ * A moment, the way staff say it — 24-hour, and only as much date as needed:
+ * "14:30" today, "tomorrow 09:00", "yesterday 18:10", otherwise
+ * "Mon 29 Sep 09:00".
+ *
+ * Replaces showing the bare clock for Return Later and Promise Time, where a
+ * time on another day read as today's.
+ */
+export const formatDueTime = (at: Date | number, now: Date = new Date()): string => {
+  const d = typeof at === 'number' ? new Date(at) : at;
+  if (!Number.isFinite(d.getTime())) return '';
+  const clock = formatClock24(d);
+  const dayStart = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((dayStart(d) - dayStart(now)) / 86_400_000);
+  if (days === 0) return clock;
+  if (days === 1) return `tomorrow ${clock}`;
+  if (days === -1) return `yesterday ${clock}`;
+  // Fixed names, not toLocaleDateString: en-GB writes "Sept", and the
+  // server-side notification text (to_char 'Dy FMDD Mon') writes "Sep".
+  const weekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()];
+  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+  return `${weekday} ${d.getDate()} ${month} ${clock}`;
+};
+
+/**
+ * A span, as short as it can be and still read at a glance on a card:
+ * "under 1 min", "25 min", "1h 5m", "3h", then whole hours ("21h") and days
+ * ("1d 4h", "3d"). The further away, the coarser: at 20 hours, the 58
+ * minutes are noise, and "20h 58 min" pushed the rest of the line off the card.
+ */
+export const formatMinutesSpan = (ms: number): string => {
+  const mins = Math.round(Math.abs(ms) / 60_000);
+  if (mins < 1) return 'under 1 min';
+  if (mins < 60) return `${mins} min`;
+  if (mins < 600) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m === 0 ? `${h}h` : `${h}h ${m}m`;
+  }
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours}h`;
+  const d = Math.floor(hours / 24);
+  const h = hours % 24;
+  return d < 3 && h > 0 ? `${d}d ${h}h` : `${d}d`;
+};
+
+/**
+ * How far off a deadline is: "in 25 min", "in 1h 5m", "due now", or
+ * "25 min late" once it has passed.
+ */
+export const formatDueIn = (at: number, now: number = Date.now()): string => {
+  const diff = at - now;
+  if (Math.abs(diff) < 60_000) return 'due now';
+  return diff > 0 ? `in ${formatMinutesSpan(diff)}` : `${formatMinutesSpan(diff)} late`;
+};

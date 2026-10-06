@@ -4,19 +4,24 @@
     "strict": true,
     "skipLibCheck": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "@components/*": ["./src/components/*"],
-      "@screens/*": ["./src/screens/*"],
-      "@navigation/*": ["./src/navigation/*"],
-      "@theme/*": ["./src/theme/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@hooks/*": ["./src/hooks/*"],
-      "@services/*": ["./src/services/*"],
-      "@config/*": ["./src/config/*"],
-      "@types/*": ["./src/types/*"],
-      "@data/*": ["./src/data/*"],
-      "@constants/*": ["./src/constants/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@features/*": [
+        "./src/features/*"
+      ],
+      "@assets/*": [
+        "./assets/*"
+      ]
     }
   },
-  "include": ["**/*.ts", "**/*.tsx"]
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    "nativewind-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "supabase/functions"
+  ]
 }

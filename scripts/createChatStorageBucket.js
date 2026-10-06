@@ -8,11 +8,10 @@
  */
 
 const { createClient } = require('@supabase/supabase-js');
-const path = require('path');
-
-try {
-  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
-} catch (_) {}
+// Loads .env.<APP_ENV> then .env (see scripts/loadEnv.js). Default DB is
+// development; use `APP_ENV=production node scripts/createChatStorageBucket.js`.
+const { appEnv } = require('./loadEnv');
+console.log(`[createChatStorageBucket] target environment: ${appEnv}`);
 
 const BUCKET_NAME = 'chat-attachments';
 

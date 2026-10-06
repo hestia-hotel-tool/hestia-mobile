@@ -1,9 +1,9 @@
 import { ConfigContext, ExpoConfig } from "expo/config";
-import { version } from "./package.json";
 
-const EAS_PROJECT_ID = "812d1d0f-dd1e-4634-9ebc-c3a124ab1aa5";
+const EAS_PROJECT_ID = "1ac5a146-2c0d-497b-b6c6-ddebcaed2b38";
 const PROJECT_SLUG = "hestia";
-const OWNER = "wallice-dev";
+const OWNER = "wallace-mua-2";
+const VERSION = "1.2.2";
 
 const APP_NAME = "Hestia";
 const BUNDLE_IDENTIFIER = "com.hestiahotels.app";
@@ -29,18 +29,13 @@ export default ({ config }: ConfigContext): ExpoConfig => {
   return {
     ...config,
     name,
-    version,
+    version: VERSION,
     slug: PROJECT_SLUG,
     orientation: "portrait",
     userInterfaceStyle: "light",
     icon,
     scheme,
     assetBundlePatterns: ["**/*"],
-    splash: {
-      image: "./assets/app/splash.png",
-      resizeMode: "contain",
-      backgroundColor: "#FFFFFF",
-    },
     ios: {
       supportsTablet: true,
       bundleIdentifier,
@@ -59,11 +54,6 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         backgroundColor: "#FFFFFF",
       },
       package: packageName,
-      splash: {
-        image: "./assets/app/splash.png",
-        resizeMode: "contain",
-        backgroundColor: "#FFFFFF",
-      },
       softwareKeyboardLayoutMode: "resize",
     },
     web: {
@@ -73,6 +63,10 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       eas: {
         projectId: EAS_PROJECT_ID,
       },
+      // Exposed to the JS runtime (process.env.APP_ENV is NOT inlined into the
+      // app bundle). Read via Constants.expoConfig.extra.appEnv for debugging /
+      // env-aware UI. Supabase credentials come from EXPO_PUBLIC_* env vars.
+      appEnv,
     },
     owner: OWNER,
     updates: {
@@ -81,8 +75,59 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     runtimeVersion: {
       policy: "appVersion",
     },
+    // React Compiler: memoises components and hooks at build time, so a parent
+    // re-render no longer re-renders every child with unchanged props. It
+    // skips, rather than miscompiles, any component that breaks the rules of
+    // React (the react-hooks lint warnings), so those keep working as before.
+    experiments: {
+      ...config.experiments,
+      reactCompiler: true,
+    },
     plugins: [
       "expo-font",
+      "expo-asset",
+      [
+        "expo-router",
+        {
+          root: "./app",
+        },
+      ],
+      "expo-audio",
+      [
+        /*
+         * Dictation for the assistant.
+         *
+         * On-device speech recognition rather than a cloud transcription
+         * service: no second vendor or API key, partial results while the user
+         * is still speaking, and guest names and room numbers never leave the
+         * phone to be transcribed.
+         *
+         * Both usage strings are required. iOS terminates the app — it does
+         * not merely deny — when either permission is requested without a
+         * purpose string in Info.plist, and speech recognition needs its own
+         * on top of the microphone's.
+         */
+        "expo-speech-recognition",
+        {
+          microphonePermission:
+            "Hestia uses the microphone so you can ask the assistant a question out loud.",
+          speechRecognitionPermission:
+            "Hestia uses speech recognition to turn what you say into a question for the assistant.",
+        },
+      ],
+      "expo-image",
+      "expo-sharing",
+      [
+        "expo-splash-screen",
+        {
+          image: "./assets/app/splash-icon.png",
+          imageWidth: 160,
+          resizeMode: "contain",
+          backgroundColor: "#EEF0F6",
+          dark: { backgroundColor: "#EEF0F6" },
+        },
+      ],
+      "expo-status-bar",
       [
         "expo-notifications",
         {
