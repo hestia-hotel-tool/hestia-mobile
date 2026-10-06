@@ -7,6 +7,7 @@ import {
   Pressable } from 'react-native';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
+import { LostAndFoundStatusDisc } from './LostAndFoundStatusDisc';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 
 export type StatusOption = 'stored' | 'shipped' | 'discarded';
@@ -35,22 +36,6 @@ const statusOptions: { value: StatusOption; label: string }[] = [
   { value: 'discarded', label: 'Discarded' },
 ];
 
-/**
- * Dot colour per status. `#f0be1b` is `status-in-progress`, `#41d541` is
- * `status-inspected`.
- *
- * **`discarded` is deliberately the same yellow as `stored`, and that is very
- * likely wrong.** It was a fall-through in a nested ternary
- * (`stored ? yellow : shipped ? green : yellow`), so the duplication was
- * invisible; as a record it is at least legible. No frame in the Lost & Found
- * set draws a discarded state, so there is no value to correct it *to* — and
- * guessing one here would look researched. It needs a design answer.
- */
-const STATUS_CIRCLE_COLOR: Record<StatusOption, string> = {
-  stored: '#f0be1b',
-  shipped: '#41d541',
-  discarded: '#f0be1b',
-};
 
 const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; height: number } | null) => StyleSheet.create({
   backdrop: {
@@ -110,7 +95,6 @@ const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; h
   statusCircle: {
     width: REGISTER_FORM.step2.statusDropdown.item.icon.size * scaleX,
     height: REGISTER_FORM.step2.statusDropdown.item.icon.size * scaleX,
-    borderRadius: (REGISTER_FORM.step2.statusDropdown.item.icon.size / 2) * scaleX,
     marginRight: 12 * scaleX,
   },
   text: {
@@ -172,12 +156,13 @@ export default function StatusDropdown({
               onPress={() => handleSelect(option.value)}
               activeOpacity={0.7}
             >
-              <View
-                style={[
-                  dynamicStyles.statusCircle,
-                  { backgroundColor: STATUS_CIRCLE_COLOR[option.value] },
-                ]}
-              />
+              {/* The designed status mark (cube / plane / bin), not a bare dot. */}
+              <View style={dynamicStyles.statusCircle}>
+                <LostAndFoundStatusDisc
+                  status={option.value}
+                  size={REGISTER_FORM.step2.statusDropdown.item.icon.size * scaleX}
+                />
+              </View>
               <Text style={dynamicStyles.text}>{option.label}</Text>
               {selectedStatus === option.value && (
                 <Text style={dynamicStyles.checkmark}>✓</Text>

@@ -22,6 +22,7 @@ import { fetchStaffFromSupabase } from '@features/staff/services/staff';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { RoomNumberSelector } from '@features/rooms/components/roomPicker';
 import { AddPhotosField } from '@/components/media/AddPhotosField';
+import { LostAndFoundStatusDisc } from './LostAndFoundStatusDisc';
 import { useRoomPickerRooms } from '@features/rooms/hooks/useRoomPickerRooms';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
 import { fetchPublicAreas } from '../services/lostAndFound';
@@ -808,19 +809,12 @@ export default function RegisterLostAndFoundModal({
                 }}
               >
                 <View style={styles.step2FieldContent}>
-                  <View
-                    style={[
-                      styles.step2StatusCircle,
-                      {
-                        backgroundColor:
-                          status === 'stored'
-                            ? '#f0be1b'
-                            : status === 'shipped'
-                            ? '#41d541'
-                            : '#f0be1b',
-                      },
-                    ]}
-                  />
+                  <View style={styles.step2StatusCircle}>
+                    <LostAndFoundStatusDisc
+                      status={status === 'shipped' || status === 'discarded' ? status : 'stored'}
+                      size={REGISTER_FORM.step2.status.icon.size * scaleX}
+                    />
+                  </View>
                   <Text style={styles.step2FieldText}>{getStatusLabel(status)}</Text>
                 </View>
                 <View style={styles.step2Chevron}>
@@ -873,7 +867,7 @@ export default function RegisterLostAndFoundModal({
                 department: getStaffDepartment(registeredBy),
               }}
               statusLabel={getStatusLabel(status)}
-              statusColor={status === 'shipped' ? '#39d47f' : '#f0be1b'}
+              statusKey={status === 'shipped' || status === 'discarded' ? status : 'stored'}
               storedLocationLabel={getLocationLabel(storedLocation)}
               pictures={pictures}
               onEditLocation={() => setCurrentStep(1)}

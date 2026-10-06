@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LostAndFoundStatusDisc, type LostAndFoundStatusKey } from './LostAndFoundStatusDisc';
 import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { typography } from '@/theme';
 import { Icon } from '@/components/Icon';
@@ -26,7 +27,7 @@ export type RegisterConfirmStepProps = {
   foundedBy: ConfirmPerson;
   registeredBy: ConfirmPerson;
   statusLabel: string;
-  statusColor: string;
+  statusKey: LostAndFoundStatusKey;
   storedLocationLabel: string;
   pictures: string[];
   /** Back to step 1 — where the item was found. */
@@ -73,7 +74,7 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
     foundedBy,
     registeredBy,
     statusLabel,
-    statusColor,
+    statusKey,
     storedLocationLabel,
     pictures,
     onEditLocation,
@@ -165,7 +166,9 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
       <View style={[styles.panel, styles.statusPanel]}>
         <View style={styles.statusText}>
           <View style={styles.statusRow}>
-            <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
+            <View style={styles.statusDot}>
+              <LostAndFoundStatusDisc status={statusKey} size={s(18)} />
+            </View>
             <Text style={styles.statusValue}>{statusLabel}</Text>
           </View>
           <Text style={styles.storedLabel}>Stored Location</Text>
@@ -516,7 +519,7 @@ const styles = StyleSheet.create({
   statusText: { flex: 1 },
   statusRow: { flexDirection: 'row', alignItems: 'center' },
   // Node 1102:3337 — 18px.
-  statusDot: { width: s(18), height: s(18), borderRadius: s(9), marginRight: s(7) },
+  statusDot: { width: s(18), height: s(18), marginRight: s(7) },
   statusValue: {
     fontSize: s(16),
     fontFamily: typography.fontFamily.primary,
