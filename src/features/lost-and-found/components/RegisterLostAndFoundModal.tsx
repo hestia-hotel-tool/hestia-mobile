@@ -221,9 +221,13 @@ export default function RegisterLostAndFoundModal({
     setShowPictureError(false);
     setShowTitleError(false);
     setSelectedPublicArea(null);
-    if (preselectedRoomId) {
-      setSelectedLocation('room');
-    }
+    // Each item starts fresh: last time's room, status and storage place
+    // carried over, and a room no longer in the departure list could be
+    // submitted unnoticed. The preselect effect below sets a given room.
+    setSelectedLocation('room');
+    setSelectedRoom(null);
+    setStatus('stored');
+    setStoredLocation('hskOffice');
     setTitle('');
     setNotes('');
     setFoundedBy(currentUserId ?? '');

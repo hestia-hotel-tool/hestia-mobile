@@ -52,7 +52,13 @@ export function useStaffRoster(query: StaffRosterQuery | null): UseStaffRosterRe
       })
       .catch((e) => {
         if (__DEV__) console.warn('[useStaffRoster] Could not load roster', e);
-        if (!cancelled) setLoaded({ key, error: 'Could not load staff' });
+        if (cancelled) return;
+        // As useStaffAssignedRooms: a failed reload keeps the roster on screen.
+        setLoaded((prev) =>
+          prev?.roster && prev.key.slice(0, prev.key.lastIndexOf('|')) === key.slice(0, key.lastIndexOf('|'))
+            ? { key, roster: prev.roster }
+            : { key, error: 'Could not load staff' }
+        );
       });
 
     return () => {

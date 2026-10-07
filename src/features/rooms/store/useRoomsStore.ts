@@ -5,6 +5,8 @@
 import { create } from 'zustand';
 import { dashboardService, type RoomClock, type RoomStateUpdate } from '../services/dashboard';
 import { fetchRoomBadgeCounts } from '../services/rooms';
+import { runRoomAction as runRoomActionRpc, type RoomActionResult } from '../services/roomActions';
+import { workStatusAfter, type RoomAction } from '../utils/roomStatusMachine';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
 import type { ShiftType } from '@/types/shift.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
@@ -56,6 +58,15 @@ interface RoomsState {
   fetchRooms: (shift?: ShiftType, options?: { force?: boolean }) => Promise<void>;
   /** Resolves with the room's cleaning clock as the database left it. */
   updateRoom: (roomId: string, updates: RoomStateUpdate) => Promise<RoomClock | null>;
+  /**
+   * A housekeeping status or service-state change, through `room_action()` —
+   * the only path for those. Applies the room as the server left it.
+   */
+  runRoomAction: (
+    roomId: string,
+    action: RoomAction,
+    options?: { reason?: string | null; until?: string | null }
+  ) => Promise<RoomActionResult>;
   /** Set assigned staff for a room (optimistic update after assign from modal). */
   setRoomAttendant: (roomId: string, staff: StaffInfo | null) => void;
   /**
@@ -87,6 +98,7 @@ export function roomStateFromClock(clock: RoomClock): Partial<RoomCardData> {
     dndCheckedAt: clock.dndCheckedAt,
     dndCheckCount: clock.dndCheckCount,
     dndNextCheckAt: clock.dndNextCheckAt,
+    ...(clock.inProgressStartedAt !== undefined && { inProgressStartedAt: clock.inProgressStartedAt }),
   };
 }
 
@@ -215,6 +227,32 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 
     inflight = { shift: currentShift, token, promise: request };
     return request;
+  },
+
+  runRoomAction: async (roomId, action, options) => {
+    set({ updatingRoomId: roomId });
+    try {
+      const result = await runRoomActionRpc(roomId, action, options);
+      const { data } = get();
+      if (data) {
+        const nextWork = workStatusAfter(action);
+        const apply = (room: RoomCardData): RoomCardData => {
+          if (room.id !== roomId) return room;
+          const next = { ...room, ...roomStateFromClock(result) };
+          // The assignment's progress moved with the room (isRoomPaused reads it).
+          if (nextWork !== undefined && next.roomAttendantAssigned) {
+            next.roomAttendantAssigned = { ...next.roomAttendantAssigned, assignmentWorkStatus: nextWork };
+          }
+          return next;
+        };
+        set({
+          data: { ...data, rooms: data.rooms.map(apply), roomsPM: data.roomsPM?.map(apply) ?? data.roomsPM },
+        });
+      }
+      return result;
+    } finally {
+      set({ updatingRoomId: null });
+    }
   },
 
   updateRoom: async (roomId: string, updates: RoomStateUpdate) => {

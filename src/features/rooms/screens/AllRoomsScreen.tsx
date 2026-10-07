@@ -6,7 +6,6 @@ import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } f
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@/theme';
 import type { ShiftType } from '@/types/shift.types';
-import { type RoomStateUpdate } from '../services/dashboard';
 import { logRoomHistoryEvent } from '../services/roomHistory';
 import { submitCleaningReport, type CleaningReport } from '../services/cleaningReports';
 import { useRoomsStore } from '../store/useRoomsStore';
@@ -15,8 +14,6 @@ import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import {
   RoomCardData,
   StatusChangeOption,
-  activityStateToUpdate,
-  mapStatusOptionToRoomStatus,
   isRoomPaused,
 } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
@@ -57,7 +54,9 @@ import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
 import { RoomRow } from '../components/allRooms/RoomRow';
 import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { usePermissions } from '@/domain/rbac/usePermissions';
-import { findBlockingInProgressRoom } from '../utils/attendantRules';
+import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
+import { askReason } from '../utils/askReason';
+import { OVERRIDE_REASONS, SEND_BACK_REASONS } from '../utils/roomStatusMachine';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
@@ -114,13 +113,14 @@ export default function AllRoomsScreen() {
   const initialShift = routeShift || getShiftFromTime();
   // Only the fields this screen uses: a whole-store subscription re-rendered it
   // on every change, including the per-update "saving" flag.
-  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, setSelectedShift, setRoomAttendant } = useRoomsStore(
+  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, runRoomAction, setSelectedShift, setRoomAttendant } = useRoomsStore(
     useShallow((st) => ({
       data: st.data,
       loading: st.loading,
       refreshing: st.refreshing,
       fetchRooms: st.fetchRooms,
       updateRoom: st.updateRoom,
+      runRoomAction: st.runRoomAction,
       setSelectedShift: st.setSelectedShift,
       setRoomAttendant: st.setRoomAttendant,
     }))
@@ -151,6 +151,8 @@ export default function AllRoomsScreen() {
   const [changingStatusRoomId, setChangingStatusRoomId] = useState<string | null>(null); // Track which room is updating status
   const [assigningStaffRoomId, setAssigningStaffRoomId] = useState<string | null>(null); // Track which room is assigning staff
   const currentScrollYRef = useRef<number>(0); // Track current scroll position
+  /** Rooms with a status action in flight — see handleStatusSelect. */
+  const actingRoomIds = useRef(new Set<string>());
   const cardRefs = useRef<{ [key: string]: any }>({});
   const statusButtonRefs = useRef<{ [key: string]: any }>({});
 
@@ -197,7 +199,7 @@ export default function AllRoomsScreen() {
    * This is client-side only. The `rooms` RLS policy is tenant-scoped and does
    * not check this permission, so it stops the affordance, not the write.
    */
-  const canChangeStatus = can(PERMISSIONS.ROOMS_STATUS_UPDATE);
+  const { accessFor, canChangeAnyStatus, canInspect } = useRoomStatusAccess();
   /** Assigning / reassigning a room — withheld from room attendants (no rooms.reassign). */
   const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
   /*
@@ -206,8 +208,13 @@ export default function AllRoomsScreen() {
    * check on the attendant's work), and no Flag Room row (no rooms.flag.toggle).
    */
   const canSetPriority = can(PERMISSIONS.ROOMS_RUSH_TOGGLE);
-  const canInspect = roomsVariant !== 'attendant';
   const canFlag = can(PERMISSIONS.ROOMS_FLAG_TOGGLE);
+  /*
+   * The status pill is a button for anyone who can do something in the menu:
+   * a status step (their own rooms, inspecting, acting for an attendant),
+   * priority, or the flag. Front Office opens it for priority and promise time.
+   */
+  const canChangeStatus = canChangeAnyStatus || canSetPriority || canFlag;
   /** Tallest the menu can be for this reader (current status not excluded) — sizes the lift. */
   const statusSheetDesignHeight = statusSheetHeight(
     statusOptionsFor('Unknown' as never, { canSetPriority, canInspect }).length,
@@ -648,167 +655,128 @@ export default function AllRoomsScreen() {
     await keepRoomVisible(roomToUpdate.id);
   };
 
-  const handleStatusSelect = async (statusOption: StatusChangeOption, roomOverride?: RoomCardData | null) => {
+  /**
+   * A choice from the status menu. Every housekeeping status and service-state
+   * change goes through `room_action()` (the menu only offers what the rules
+   * allow this person; the server checks again under a lock). Priority is a
+   * mark, not a state, and keeps its own write.
+   *
+   * `presetReason` comes from the inspection checklist's "Send back".
+   */
+  const handleStatusSelect = async (
+    statusOption: StatusChangeOption,
+    roomOverride?: RoomCardData | null,
+    presetReason?: string
+  ) => {
     const roomToUpdate = roomOverride ?? selectedRoomForStatusChange;
-    if (!roomToUpdate) return;
+    if (!roomToUpdate) return false;
+    // One at a time per room: a second tap during the first does nothing.
+    if (actingRoomIds.current.has(roomToUpdate.id)) return false;
+    const label = `Room ${roomToUpdate.roomNumber}`;
 
-    /*
-     * Return Later, Refuse Service and Promised Time need a time or a reason,
-     * which their sheets on Room Detail ask for. They used to set the room to
-     * In Progress here and nothing else — no time, no reason — so the card and
-     * the detail screen never showed the state that was picked. Open the room
-     * with that sheet up instead; confirming it saves the state properly.
-     */
-    const sheet =
-      statusOption === 'ReturnLater'
-        ? 'returnLater'
-        : statusOption === 'RefuseService'
-          ? 'refuseService'
-          : statusOption === 'PromisedTime'
-            ? 'promisedTime'
-            : null;
-    if (sheet) {
+    // Set Promise Time (the row under the grid) opens its sheet on Room Detail.
+    // A promise is an attribute of the room, not a status step.
+    if (statusOption === 'PromisedTime') {
       await statusPopover.close();
+      if (!canInspect) {
+        toast.show('Only a manager or supervisor can set a promise time.', { type: 'error' });
+        return false;
+      }
       const roomType = mapFrontOfficeToRoomType(roomToUpdate.frontOfficeStatus, roomToUpdate.guests?.length ?? 0);
-      navigation.navigate('room/[roomId]', { room: roomToUpdate, roomType, roomId: roomToUpdate.id, openActivity: sheet } as any);
-      return;
+      navigation.navigate('room/[roomId]', {
+        room: roomToUpdate,
+        roomType,
+        roomId: roomToUpdate.id,
+        openActivity: 'promisedTime',
+      } as any);
+      return false;
     }
 
-    /*
-     * Do Not Disturb needs no sheet — the sign is on the door now. On a room
-     * already DND it records another look at the door (counted, next check
-     * scheduled). The database keeps the status (In Progress drops to Dirty)
-     * and tells the supervisors.
-     */
-    if (statusOption === 'DoNotDisturb') {
+    if (statusOption === 'Priority') {
       await statusPopover.close();
       setChangingStatusRoomId(roomToUpdate.id);
       try {
-        await updateRoom(
-          roomToUpdate.id,
-          roomToUpdate.dndAt
-            ? { dnd_checked_at: new Date().toISOString() }
-            : activityStateToUpdate({ kind: 'dnd', since: Date.now(), checks: 1, nextCheckAt: null })
-        );
-        toast.show(
-          roomToUpdate.dndAt
-            ? `Room ${roomToUpdate.roomNumber}: still Do Not Disturb — next check scheduled.`
-            : `Room ${roomToUpdate.roomNumber}: Do Not Disturb recorded. Your supervisor has been told.`,
-          { type: 'success' }
-        );
+        await updateRoom(roomToUpdate.id, { priority: roomToUpdate.isPriority ? 'normal' : 'high' });
       } catch (e) {
-        const message = e instanceof Error ? e.message.replace(/^Could not update the room: /, '') : 'Please try again.';
-        toast.show(`Room ${roomToUpdate.roomNumber} was not updated. ${message}`, { type: 'error', duration: 4500 });
+        toast.show(`${label} was not updated. ${e instanceof Error ? e.message : 'Please try again.'}`, {
+          type: 'error',
+          duration: 4000,
+        });
+        return false;
       } finally {
         setChangingStatusRoomId(null);
       }
       await keepRoomVisible(roomToUpdate.id);
-      return;
+      return true;
     }
 
-    // Priority is a mark on the room, not a status: it used to map to In
-    // Progress here, so marking a Dirty room priority also started it.
-    const isPriorityToggle = statusOption === 'Priority';
-    const newStatus = isPriorityToggle
-      ? roomToUpdate.houseKeepingStatus
-      : mapStatusOptionToRoomStatus(statusOption);
-
-    // Cleaning needs someone assigned (the menu dims it; the database refuses it).
-    if (
-      newStatus === 'InProgress' &&
-      roomToUpdate.houseKeepingStatus !== 'InProgress' &&
-      !roomToUpdate.roomAttendantAssigned
-    ) {
-      statusPopover.close();
-      messageModal.show({
-        title: 'Assign a room attendant first',
-        message: `Room ${roomToUpdate.roomNumber} has nobody assigned. Assign a room attendant before starting to clean it.`,
-        buttons: [{ text: 'OK' }],
-      });
-      return;
+    const resolved = accessFor(roomToUpdate).allowed.get(statusOption);
+    if (!resolved) {
+      await statusPopover.close();
+      toast.show(`That is not available for ${label} right now.`, { type: 'error' });
+      return false;
     }
-
-    // An attendant works one room at a time. Checked against every assigned room,
-    // not the filtered view, so a search cannot hide the room that is blocking.
-    if (isAttendant && newStatus === 'InProgress') {
-      const blocking = findBlockingInProgressRoom(assignedRooms, roomToUpdate.id);
-      if (blocking) {
-        statusPopover.close();
-        messageModal.show({
-          title: 'Finish your current room first',
-          message: `Room ${blocking.roomNumber} is already in progress. Pause or complete it before starting Room ${roomToUpdate.roomNumber}.`,
-          buttons: [{ text: 'OK' }],
-        });
-        return;
-      }
-    }
-
-    // Priority toggles: if already priority, clicking Priority resets to normal
-    const newIsPriority = isPriorityToggle ? !roomToUpdate.isPriority : roomToUpdate.isPriority;
-    const priorityPayload = isPriorityToggle ? (newIsPriority ? 'high' : 'normal') : undefined;
-
-    const supabaseUpdates: RoomStateUpdate = {
-      house_keeping_status: newStatus,
-    };
-    if (priorityPayload !== undefined) {
-      supabaseUpdates.priority = priorityPayload;
-    } else {
-      /*
-       * Pause enters an activity; any other status leaves whatever the room
-       * was doing (Paused, Return Later, Refused, a promise) — the same rule as
-       * Room Detail. Pause used to set In Progress only, so the room never
-       * showed as paused anywhere.
-       */
-      Object.assign(
-        supabaseUpdates,
-        activityStateToUpdate(
-          statusOption === 'Pause' ? { kind: 'paused', since: Date.now(), assignmentPaused: false } : { kind: 'none' }
-        )
-      );
-    }
-
-    // Show loading indicator
-    setChangingStatusRoomId(roomToUpdate.id);
-
-    // True once the room took the new status: the Clean Checklist files its
-    // report only then.
-    let saved = true;
-    try {
-      await updateRoom(roomToUpdate.id, supabaseUpdates);
-    } catch (e) {
-      saved = false;
-      /*
-       * Tell the reader, rather than only the console.
-       *
-       * The store leaves the card on its old status when the write fails, which
-       * is right — but on its own it is indistinguishable from the tap not
-       * registering, so the same status gets tapped again. A transient drop
-       * ("The network connection was lost") is already retried once in the
-       * Supabase fetch wrapper, so anything surfacing here has failed twice.
-       */
-      const message = e instanceof Error ? e.message : 'Could not update the room';
-      console.warn('Failed to update room status in Supabase', message, e);
-      toast.show(`Room ${roomToUpdate.roomNumber} was not updated. ${message}`, {
-        type: 'error',
-        duration: 4000,
-      });
-    } finally {
-      // Hide loading indicator
-      setChangingStatusRoomId(null);
-    }
-
-    // Reset state
 
     /*
-     * Dismiss, then make sure the room is still on screen.
-     *
-     * Awaited rather than fired off: closing the sheet scrolls the list back to
-     * where it sat before the card was lifted, and the status change has just
-     * moved that card into a different band. Running both at once means
-     * measuring a position the list is still animating away from, so the
-     * correction would be computed against the wrong offset.
+     * Return Later and Refuse Service need a time or a reason, which their
+     * sheets on Room Detail ask for; open the room with that sheet up.
      */
+    if (statusOption === 'ReturnLater' || statusOption === 'RefuseService') {
+      await statusPopover.close();
+      const roomType = mapFrontOfficeToRoomType(roomToUpdate.frontOfficeStatus, roomToUpdate.guests?.length ?? 0);
+      navigation.navigate('room/[roomId]', {
+        room: roomToUpdate,
+        roomType,
+        roomId: roomToUpdate.id,
+        openActivity: statusOption === 'ReturnLater' ? 'returnLater' : 'refuseService',
+      } as any);
+      return false;
+    }
+
     await statusPopover.close();
+
+    // A reason where the rules require one: sending back, acting for someone.
+    let reason: string | null = presetReason ?? null;
+    if (resolved.action === 'send_back' && !reason) {
+      reason = await askReason(
+        messageModal,
+        roomToUpdate.houseKeepingStatus === 'Inspected' ? `Reopen ${label}?` : `Send ${label} back?`,
+        'The attendant is told why and the room goes back to Dirty.',
+        SEND_BACK_REASONS
+      );
+      if (!reason) return false;
+    }
+    if (resolved.viaOverride && !reason) {
+      const attendant = roomToUpdate.roomAttendantAssigned?.name ?? 'the attendant';
+      reason = await askReason(
+        messageModal,
+        `Act for ${attendant}?`,
+        `This is ${attendant}'s step. It is recorded as done for them, and they are told.`,
+        OVERRIDE_REASONS
+      );
+      if (!reason) return false;
+    }
+
+    actingRoomIds.current.add(roomToUpdate.id);
+    setChangingStatusRoomId(roomToUpdate.id);
+    let saved = true;
+    try {
+      await runRoomAction(roomToUpdate.id, resolved.action, { reason });
+      if (resolved.action === 'dnd') {
+        toast.show(`${label}: Do Not Disturb recorded. Your supervisor has been told.`, { type: 'success' });
+      } else if (resolved.action === 'dnd_recheck') {
+        toast.show(`${label}: still Do Not Disturb — next check scheduled.`, { type: 'success' });
+      }
+    } catch (e) {
+      saved = false;
+      toast.show(`${label} was not updated. ${e instanceof Error ? e.message : 'Please try again.'}`, {
+        type: 'error',
+        duration: 4500,
+      });
+    } finally {
+      actingRoomIds.current.delete(roomToUpdate.id);
+      setChangingStatusRoomId(null);
+    }
     await keepRoomVisible(roomToUpdate.id);
     return saved;
   };
@@ -1124,7 +1092,8 @@ export default function AllRoomsScreen() {
               </View>
             );
 
-            if (isGroupedRooms && !showNoMatchingRoomsEmptyState) {
+            // No bands at all (no rooms this shift): the flat path below shows the empty card.
+            if (isGroupedRooms && !showNoMatchingRoomsEmptyState && roomGroups.length > 0) {
               return (
                 <GroupedRoomsList
                   groups={roomGroups}
@@ -1161,7 +1130,7 @@ export default function AllRoomsScreen() {
                     </View>
                   ) : null
                 }
-                ListEmptyComponent={showNoMatchingRoomsEmptyState ? emptyState : null}
+                ListEmptyComponent={showNoMatchingRoomsEmptyState || !loading ? emptyState : null}
               />
             );
           })()}
@@ -1206,8 +1175,8 @@ export default function AllRoomsScreen() {
         }}
         onInspectReject={() => {
           const target = selectedRoomForStatusChange;
-          // Back to Dirty; the attendant is told by a database trigger.
-          if (target) void handleStatusSelect('Dirty', target);
+          // Back to Dirty with the reason; the attendant is told why.
+          if (target) void handleStatusSelect('Dirty', target, 'Failed inspection');
         }}
         currentStatus={selectedRoomForStatusChange?.houseKeepingStatus || 'InProgress'}
         room={selectedRoomForStatusChange || undefined}
@@ -1221,8 +1190,11 @@ export default function AllRoomsScreen() {
         canInspect={canInspect}
         canStartCleaning={
           !!selectedRoomForStatusChange?.roomAttendantAssigned ||
-          selectedRoomForStatusChange?.houseKeepingStatus === 'InProgress'
+          selectedRoomForStatusChange?.houseKeepingStatus !== 'Dirty'
         }
+        allowedOptions={selectedRoomForStatusChange ? accessFor(selectedRoomForStatusChange).allowed : undefined}
+        canSetPromise={canInspect}
+        overrideFor={selectedRoomForStatusChange?.roomAttendantAssigned?.name ?? null}
         onCleanComplete={(report) => {
           const target = selectedRoomForStatusChange;
           if (!target) return;

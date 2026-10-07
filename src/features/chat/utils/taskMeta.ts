@@ -33,6 +33,8 @@ const META: Record<string, TaskMeta> = {
   room_rejected: { label: 'Room sent back', icon: 'status-dirty', iconSize: 18, target: 'room', colour: '#ff7a45' },
   // Figma 4378:174: started is the In Progress yellow with the vacuum, paused the same vacuum on grey.
   room_started: { label: 'Cleaning started', icon: 'status-in-progress', iconSize: 22, target: 'room', colour: '#f0be1b' },
+  // A supervisor did a cleaning step for the attendant (room_action override).
+  room_status_override: { label: 'Changed for you', icon: 'action-check', iconSize: 16, target: 'room', colour: '#5a759d' },
   room_paused: { label: 'Room Paused', icon: 'status-paused-vacuum', iconSize: 22, target: 'room', colour: '#b0c0c6' },
   room_overdue: { label: 'Taking longer than expected', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#f59e0b' },
   room_promise: { label: 'Promise time', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#fcf1cf', glyph: '#3f4c5f' },

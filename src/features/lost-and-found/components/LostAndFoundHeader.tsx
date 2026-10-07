@@ -56,34 +56,6 @@ export default function LostAndFoundHeader({
         paddingRight: S.header.registerRight * scaleX,
       }}
     >
-      {/* Node 4372:51 — out of the row: it is taller than the title and its
-          top sits 22 above it (y=47 against y=69). Clamped so a device with
-          no inset does not push it off the top. */}
-      <Pressable
-        onPress={onRegisterPress}
-        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        accessibilityRole="button"
-        accessibilityLabel="Register a lost and found item"
-        className="absolute items-center justify-center bg-ink-accent"
-        style={{
-          top: Math.max(4, insets.top + (S.safeAreaGap - S.header.register.liftAboveTitle) * scaleX),
-          right: S.header.registerRight * scaleX,
-          width: S.header.register.width * scaleX,
-          height: S.header.register.height * scaleX,
-          borderRadius: S.header.register.radius * scaleX,
-        }}
-      >
-        <Text
-          className="font-hestia-primary font-bold"
-          style={{
-            fontSize: S.header.register.fontSize * scaleX,
-            fontFamily: typography.fontFamily.primary,
-            color: S.header.register.color,
-          }}
-        >
-          Register
-        </Text>
-      </Pressable>
 
       <View className="flex-row items-center">
         <Pressable
@@ -118,6 +90,37 @@ export default function LostAndFoundHeader({
         ) : null}
 
       </View>
+
+      {/* After the row, so it is on top: the row spans the full width and,
+          drawn later, took the taps meant for the pill's middle. */}
+      {/* Node 4372:51 — out of the row: it is taller than the title and its
+          top sits 22 above it (y=47 against y=69). Clamped so a device with
+          no inset does not push it off the top. */}
+      <Pressable
+        onPress={onRegisterPress}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        accessibilityRole="button"
+        accessibilityLabel="Register a lost and found item"
+        className="absolute items-center justify-center bg-ink-accent"
+        style={{
+          top: Math.max(4, insets.top + (S.safeAreaGap - S.header.register.liftAboveTitle) * scaleX),
+          right: S.header.registerRight * scaleX,
+          width: S.header.register.width * scaleX,
+          height: S.header.register.height * scaleX,
+          borderRadius: S.header.register.radius * scaleX,
+        }}
+      >
+        <Text
+          className="font-hestia-primary font-bold"
+          style={{
+            fontSize: S.header.register.fontSize * scaleX,
+            fontFamily: typography.fontFamily.primary,
+            color: S.header.register.color,
+          }}
+        >
+          Register
+        </Text>
+      </Pressable>
     </View>
   );
 }

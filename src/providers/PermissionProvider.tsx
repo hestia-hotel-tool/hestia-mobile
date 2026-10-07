@@ -138,14 +138,21 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
    * setState.
    */
   const [resolvedFor, setResolvedFor] = useState<string | null | undefined>(undefined);
-  /** Consecutive failed loads; each one schedules the next retry. */
-  const [failures, setFailures] = useState(0);
+  /**
+   * Consecutive failed loads for one user; each schedules the next retry.
+   * Tagged with the user so a sign-in after someone else's failures starts
+   * from zero instead of retrying at once.
+   */
+  const [failState, setFailState] = useState<{ user: string | null; n: number }>({ user: null, n: 0 });
+  const failures = failState.user === userId ? failState.n : 0;
 
   // Signed out, or Supabase unconfigured: nothing to resolve, so there is
   // nothing to wait for either. Deriving this instead of setting it in an effect
   // keeps the effect body free of synchronous state updates.
   const canResolve = !!userId && isSupabaseConfigured;
-  const isLoading = canResolve && resolvedFor !== userId;
+  // Still loading while a failed load is being retried: an empty permission
+  // set then reads as "no access", which is not what is going on.
+  const isLoading = canResolve && (resolvedFor !== userId || failures > 0);
 
   // Guards against a slow response for a previous user landing last.
   const requestFor = useRef<string | null>(null);
@@ -178,7 +185,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       setPermissions(new Set(keys));
       setHomeVariant(asHomeVariant(variantResult.data));
       setRoomsVariant(asRoomsVariant(roomsVariantResult.data));
-      setFailures(0);
+      setFailState({ user: forUser, n: 0 });
       setError(
         keys.length === 0
           ? 'This account has no job title assigned, so it has no access yet.'
@@ -192,7 +199,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       setHomeVariant('default');
       setRoomsVariant('default');
       setError(LOAD_FAILED);
-      setFailures((n) => n + 1);
+      setFailState((prev) => ({ user: forUser, n: prev.user === forUser ? prev.n + 1 : 1 }));
     } finally {
       if (requestFor.current === forUser) setResolvedFor(forUser);
     }
@@ -234,7 +241,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       homeVariant: canResolve && resolvedFor === userId ? homeVariant : 'default',
       roomsVariant: canResolve && resolvedFor === userId ? roomsVariant : 'default',
       isLoading,
-      error: canResolve ? error : null,
+      error: canResolve && resolvedFor === userId ? error : null,
       refresh: resolve,
     }),
     [canResolve, resolvedFor, userId, permissions, homeVariant, roomsVariant, isLoading, error, resolve]

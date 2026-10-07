@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { getTicketCountsForAssignee } from '@features/tickets/services/tickets';
 import { useShallow } from 'zustand/react/shallow';
-import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { HOME_CHROME } from '../constants/homeChrome';
@@ -99,8 +99,8 @@ export default function HomeScreen() {
     selectedShift: getShiftFromTime(),
     categories: [] as any[],
   }));
-  const { data: roomsStoreData, loading: roomsLoading, fetchRooms, updateRoom } = useRoomsStore(
-    useShallow((st) => ({ data: st.data, loading: st.loading, fetchRooms: st.fetchRooms, updateRoom: st.updateRoom }))
+  const { data: roomsStoreData, loading: roomsLoading, fetchRooms, runRoomAction } = useRoomsStore(
+    useShallow((st) => ({ data: st.data, loading: st.loading, fetchRooms: st.fetchRooms, runRoomAction: st.runRoomAction }))
   );
   const roomsForHome = useMemo(
     () => ({
@@ -1059,9 +1059,9 @@ export default function HomeScreen() {
                   progressText={portierOverview.progressText}
                   latestPill={portierOverview.latestPill}
                   onResumePause={(roomId) => {
-                    // Match Room Detail "Resume": clear paused_at on the room record.
-                    updateRoom(roomId, { paused_at: null }).catch((e) =>
-                      console.warn('[HomeScreen] Failed to resume pause', e)
+                    // Room Detail's "Resume": the attendant's step, through room_action.
+                    runRoomAction(roomId, 'resume').catch((e) =>
+                      Alert.alert('Not resumed', e instanceof Error ? e.message : 'Please try again.')
                     );
                   }}
                   onPriorityPress={() => {

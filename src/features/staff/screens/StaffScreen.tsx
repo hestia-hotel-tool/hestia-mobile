@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, TextInput } from 'react-native';
 import { Icon } from '@/components/Icon';
-import { useNavigation, useRoute, useRouter } from 'expo-router';
+import { useFocusEffect, useNavigation, useRoute, useRouter } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 
 import { View, Text } from '@/tw';
@@ -95,17 +95,30 @@ export default function StaffScreen() {
     return hour < 12 ? 'am' : 'pm';
   });
   const pickedTab = useRef(false);
-  useEffect(() => {
-    let cancelled = false;
-    currentShiftTab()
-      .then((tab) => {
-        if (!cancelled && !pickedTab.current) setSelectedTab(tab);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  /** The shift last seen as current — a change means a shift boundary passed. */
+  const lastShiftTab = useRef<StaffTab | null>(null);
+  /*
+   * Checked on every focus, since this tab stays mounted: open from 13:00 to
+   * 15:00 it would otherwise still say AM. A tab picked by hand is kept until
+   * the shift actually changes.
+   */
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      currentShiftTab()
+        .then((tab) => {
+          if (cancelled) return;
+          const shiftChanged = lastShiftTab.current !== null && lastShiftTab.current !== tab;
+          lastShiftTab.current = tab;
+          if (shiftChanged) pickedTab.current = false;
+          if (!pickedTab.current) setSelectedTab(tab);
+        })
+        .catch(() => {});
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
   const selectTab = useCallback((tab: StaffTab) => {
     pickedTab.current = true;
     setSelectedTab(tab);

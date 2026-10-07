@@ -116,6 +116,13 @@ async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
   const rooms: RoomPickerRoom[] = (rows ?? []).map((room: any) => {
     const all = toArray<any>(room?.reservations);
     const reservation = pickReservation(all);
+    /*
+     * The Rooms list's view of the room: reservations departing within its
+     * 30-day window. Past stays must not make a room a departure (or two of
+     * them an Arrival/Departure) — the list would disagree with the card.
+     */
+    const windowStart = new Date(Date.now() - 30 * 86_400_000).toISOString().slice(0, 10);
+    const current = all.filter((r: any) => !r?.departure_date || String(r.departure_date) >= windowStart);
     const frontOfficeStatus = String(reservation?.front_office_status ?? '').trim();
 
     const guests: RoomPickerGuest[] = toArray<any>(reservation?.guests).map((g: any) => {
@@ -143,9 +150,9 @@ async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
       guestCount: adults + kids,
       frontOfficeStatus: frontOfficeStatus || undefined,
       isDeparture:
-        all.length >= 2 ||
-        all.some((r: any) => /departure/i.test(String(r?.front_office_status ?? ''))),
-      guestKind: pickerGuestKind(frontOfficeStatus, all.length, room?.linen_status === 'with_linen'),
+        current.length >= 2 ||
+        current.some((r: any) => /departure/i.test(String(r?.front_office_status ?? ''))),
+      guestKind: pickerGuestKind(frontOfficeStatus, current.length, room?.linen_status === 'with_linen'),
     };
   });
 

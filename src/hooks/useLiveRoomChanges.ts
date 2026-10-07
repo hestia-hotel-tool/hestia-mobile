@@ -15,8 +15,14 @@ let channelSeq = 0;
 
 export type RoomChange = {
   table: 'rooms' | 'room_assignments';
+  event: 'INSERT' | 'UPDATE' | 'DELETE';
   /** The row after the change, or before it for a delete. */
   row: Record<string, unknown>;
+  /**
+   * The row before the change, where realtime sends it. A delete under RLS
+   * carries only the primary key, so a missing field means "unknown".
+   */
+  old: Record<string, unknown>;
 };
 
 export type UseLiveRoomChangesOptions = {
@@ -110,7 +116,17 @@ export function useLiveRoomChanges(onChange: () => void, options: UseLiveRoomCha
       (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
         const row = (payload.eventType === 'DELETE' ? payload.old : payload.new) as Record<string, unknown>;
         const test = isRelevantRef.current;
-        if (test && !test({ table, row: row ?? {} })) return;
+        if (
+          test &&
+          !test({
+            table,
+            event: payload.eventType,
+            row: row ?? {},
+            old: (payload.old as Record<string, unknown>) ?? {},
+          })
+        ) {
+          return;
+        }
         if (focused.current) schedule();
         else stale.current = true;
       };

@@ -85,7 +85,10 @@ export async function refreshBadgeCounts(userId: string | undefined) {
     return inflight;
   }
 
-  inflight = (async () => {
+  // A sign-out while this is in flight bumps the generation; the old user's
+  // counts are then dropped instead of landing on the next user's screen.
+  const gen = generation;
+  const mine = (async () => {
     const [chatRes, generalRes, tasksRes, ticketRes, roomAssignRes] = await Promise.all([
       supabase
         .from('notifications')
@@ -130,6 +133,7 @@ export async function refreshBadgeCounts(userId: string | undefined) {
       console.warn('[badgeCounts] room_assignment count', roomAssignRes.error.message);
     }
 
+    if (gen !== generation) return;
     setCounts({
       chatMessage: chatRes.count ?? 0,
       general: generalRes.count ?? 0,
@@ -138,12 +142,15 @@ export async function refreshBadgeCounts(userId: string | undefined) {
       roomAssignment: roomAssignRes.count ?? 0,
     });
   })();
+  inflight = mine;
 
   try {
-    await inflight;
+    await mine;
   } finally {
-    inflight = null;
+    // Only clear the slot if it is still ours (a clear may have reset it).
+    if (inflight === mine) inflight = null;
   }
+  if (gen !== generation) return;
   if (pendingUserId) {
     const next = pendingUserId;
     pendingUserId = null;
@@ -152,9 +159,12 @@ export async function refreshBadgeCounts(userId: string | undefined) {
 }
 
 let pendingUserId: string | null = null;
+/** Bumped on clear: results from before it are ignored. */
+let generation = 0;
 
 /** Clear the shared counts — tenant-scoped, so a user switch must not keep them. */
 export function clearBottomTabBadgeCounts() {
+  generation += 1;
   counts = ZERO;
   inflight = null;
   pendingUserId = null;

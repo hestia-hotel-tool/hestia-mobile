@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView } from 'react-native';
+import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 
 import { View, Text } from '@/tw';
@@ -78,7 +79,9 @@ export default function StaffActivityScreen() {
   const name = one(params.name) ?? 'Staff';
   const avatarUrl = one(params.avatarUrl) || undefined;
   const jobTitle = one(params.jobTitle) || one(params.departmentName) || '';
-  const state = (one(params.state) as StaffShiftState | undefined) ?? 'on_shift';
+  // Validated: an unknown value (old link, new state) would crash the dot's colour lookup.
+  const rawState = one(params.state);
+  const state: StaffShiftState = rawState && rawState in SHIFT_GROUP_CHROME ? (rawState as StaffShiftState) : 'on_shift';
   const shift = one(params.shift) === 'PM' ? 'PM' : 'AM';
 
   const now = useNow();
@@ -129,14 +132,20 @@ export default function StaffActivityScreen() {
    */
   const againstCredit = totalCredit - totalUsed;
 
+  // The app's message modal, not Alert: Android's Alert shows three buttons,
+  // which dropped "Dirty" and "Cancel".
+  const messageModal = useMessageModal();
   const chooseFilter = () =>
-    Alert.alert('Show rooms', undefined, [
-      ...(Object.keys(FILTER_LABEL) as Filter[]).map((key) => ({
-        text: `${FILTER_LABEL[key]}${key === filter ? '  ✓' : ''}`,
-        onPress: () => setFilter(key),
-      })),
-      { text: 'Cancel', style: 'cancel' as const },
-    ]);
+    messageModal.show({
+      title: 'Show rooms',
+      buttons: [
+        ...(Object.keys(FILTER_LABEL) as Filter[]).map((key) => ({
+          text: `${FILTER_LABEL[key]}${key === filter ? '  ✓' : ''}`,
+          onPress: () => setFilter(key),
+        })),
+        { text: 'Cancel', style: 'cancel' as const },
+      ],
+    });
 
   return (
     <View className="flex-1 bg-surface-primary">

@@ -56,7 +56,14 @@ export function useStaffAssignedRooms(
       })
       .catch((e) => {
         if (__DEV__) console.warn('[useStaffAssignedRooms] Could not load rooms', e);
-        if (!cancelled) setLoaded({ key, error: 'Could not load rooms' });
+        if (cancelled) return;
+        // A reload that fails keeps what is on screen (same person and shift);
+        // only a first load with nothing to show reports the error.
+        setLoaded((prev) =>
+          prev?.rooms && prev.key.slice(0, prev.key.lastIndexOf('|')) === key.slice(0, key.lastIndexOf('|'))
+            ? { key, rooms: prev.rooms }
+            : { key, error: 'Could not load rooms' }
+        );
       });
 
     return () => {

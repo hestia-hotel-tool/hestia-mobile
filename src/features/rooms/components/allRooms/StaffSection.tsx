@@ -37,21 +37,7 @@ function formatHHMM(d: Date): string {
 export default function StaffSection({ staff, roomId, roomStatus, isPriority = false, frontOfficeStatus = '', selectedShift, onAssignPress, onStaffSectionPress, isLoading = false, isPaused = false }: StaffSectionProps) {
   const isDeparture = frontOfficeStatus === 'Departure';
 
-  // No staff assigned: the "Assign room" circle + pill, where the photo and name will go.
-  if (!staff) {
-    return (
-      <View style={styles.container} pointerEvents="box-none">
-        <AssignRoomButton
-          left={isPriority ? STAFF_SECTION.avatar.left : (STAFF_SECTION.avatarStandard?.left ?? STAFF_SECTION.avatar.left)}
-          top={isPriority ? STAFF_SECTION.avatar.top : (STAFF_SECTION.avatarStandard?.top ?? STAFF_SECTION.avatar.top)}
-          loading={isLoading}
-          onPress={onAssignPress}
-        />
-      </View>
-    );
-  }
-
-  const hasPromiseTime = !!staff.promiseTime;
+  // Before any return: hooks must run on every render, assigned or not.
   const derivedStatusText = useMemo(() => {
     // Rules requested:
     // - Paused (either signal) + staff assigned -> "Paused" (checked first: pausing overlays
@@ -74,7 +60,23 @@ export default function StaffSection({ staff, roomId, roomStatus, isPriority = f
       return `Inspected At: ${formatHHMM(t)}`;
     }
     return 'Not Started';
-  }, [roomId, roomStatus, staff.statusText, isPaused]);
+  }, [roomId, roomStatus, staff?.statusText, isPaused]);
+
+  // No staff assigned: the "Assign room" circle + pill, where the photo and name will go.
+  if (!staff) {
+    return (
+      <View style={styles.container} pointerEvents="box-none">
+        <AssignRoomButton
+          left={isPriority ? STAFF_SECTION.avatar.left : (STAFF_SECTION.avatarStandard?.left ?? STAFF_SECTION.avatar.left)}
+          top={isPriority ? STAFF_SECTION.avatar.top : (STAFF_SECTION.avatarStandard?.top ?? STAFF_SECTION.avatar.top)}
+          loading={isLoading}
+          onPress={onAssignPress}
+        />
+      </View>
+    );
+  }
+
+  const hasPromiseTime = !!staff.promiseTime;
 
   // Departure cards have different positioning due to promiseTime
   const avatarLeft = isPriority ? STAFF_SECTION.avatar.left : (STAFF_SECTION.avatarStandard?.left ?? STAFF_SECTION.avatar.left);

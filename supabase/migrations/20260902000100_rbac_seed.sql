@@ -84,7 +84,9 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'tickets.close',
   'lost_and_found.manage',
   'chat.announce',
-  'tickets.manage'
+  'tickets.manage',
+  'rooms.inspect',
+  'rooms.status.override'
 );
 
 -- 3. Departments.
@@ -156,7 +158,9 @@ INSERT INTO public.permissions (name, description) VALUES
   ('tickets.close', 'Close a ticket'),
   ('lost_and_found.manage', 'Edit and resolve lost & found items'),
   ('chat.announce', 'Publish a General Announcement to all staff'),
-  ('tickets.manage', 'Edit or delete any ticket')
+  ('tickets.manage', 'Edit or delete any ticket'),
+  ('rooms.inspect', 'Inspect cleaned rooms and send rooms back'),
+  ('rooms.status.override', 'Act on a room for its attendant (reason required)')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- 5. Roles — one per distinct permission profile.
@@ -220,6 +224,8 @@ SELECT r.id, p.id
   ('full_access', 'lost_and_found.manage'),
   ('full_access', 'chat.announce'),
   ('full_access', 'tickets.manage'),
+  ('full_access', 'rooms.inspect'),
+  ('full_access', 'rooms.status.override'),
   ('hk_room_attendant', 'tab.rooms.view'),
   ('hk_room_attendant', 'rooms.read'),
   ('hk_room_attendant', 'tab.chat.view'),
@@ -325,6 +331,7 @@ SELECT r.id, p.id
   ('fo_agent', 'rooms.special_instructions.view'),
   ('fo_agent', 'rooms.checklist.view'),
   ('fo_agent', 'rooms.checklist.complete'),
+  ('fo_agent', 'rooms.rush.toggle'),
   ('concierge_agent', 'tab.home.view'),
   ('concierge_agent', 'tab.rooms.view'),
   ('concierge_agent', 'rooms.read'),
@@ -538,11 +545,11 @@ BEGIN
   IF n_titles <> 54 THEN
     RAISE EXCEPTION 'expected 54 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 36 THEN
-    RAISE EXCEPTION 'expected 36 permissions, found %', n_perms;
+  IF n_perms  <> 38 THEN
+    RAISE EXCEPTION 'expected 38 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 235 THEN
-    RAISE EXCEPTION 'expected 235 role_permissions, found %', n_grants;
+  IF n_grants <> 238 THEN
+    RAISE EXCEPTION 'expected 238 role_permissions, found %', n_grants;
   END IF;
 END $$;
 
