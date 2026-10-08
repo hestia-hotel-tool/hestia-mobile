@@ -62,6 +62,21 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     extra: {
       eas: {
         projectId: EAS_PROJECT_ID,
+        // The push picture extension (plugins/withNotificationServiceExtension.js)
+        // is its own target: EAS signs it with its own provisioning profile.
+        build: {
+          experimental: {
+            ios: {
+              appExtensions: [
+                {
+                  targetName: "HestiaNotificationService",
+                  bundleIdentifier: `${bundleIdentifier}.NotificationService`,
+                  entitlements: {},
+                },
+              ],
+            },
+          },
+        },
       },
       // Exposed to the JS runtime (process.env.APP_ENV is NOT inlined into the
       // app bundle). Read via Constants.expoConfig.extra.appEnv for debugging /
@@ -136,6 +151,8 @@ export default ({ config }: ConfigContext): ExpoConfig => {
           defaultChannel: "default",
         },
       ],
+      // Lock-screen pictures on pushes (Figma 4443:595).
+      "./plugins/withNotificationServiceExtension",
     ],
   };
 };
