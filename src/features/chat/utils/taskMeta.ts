@@ -30,11 +30,15 @@ const META: Record<string, TaskMeta> = {
   room_unflagged: { label: 'Flag removed', icon: 'action-flag-outline', iconSize: 20, target: 'room', colour: '#9aa7bd' },
   room_priority: { label: 'Priority room', icon: 'action-priority', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
   room_cleaned: { label: 'Room cleaned', icon: 'status-clean', iconSize: 20, target: 'room', colour: '#4a91fc' },
+  // Figma 4443:375: inspected is green with the thumbs-up.
+  room_inspected: { label: 'Room inspected', icon: 'action-thumbs-up-solid', iconSize: 20, target: 'room', colour: '#41d541' },
   room_rejected: { label: 'Room sent back', icon: 'status-dirty', iconSize: 18, target: 'room', colour: '#ff7a45' },
   // Figma 4378:174: started is the In Progress yellow with the vacuum, paused the same vacuum on grey.
   room_started: { label: 'Cleaning started', icon: 'status-in-progress', iconSize: 22, target: 'room', colour: '#f0be1b' },
   // A supervisor did a cleaning step for the attendant (room_action override).
   room_status_override: { label: 'Changed for you', icon: 'action-check', iconSize: 16, target: 'room', colour: '#5a759d' },
+  // Shift end: rooms back in the unassigned pool — opens Rooms filtered to them.
+  room_pool: { label: 'Rooms unassigned', icon: 'nav-rooms', iconSize: 16, target: 'room', colour: '#5a759d' },
   room_paused: { label: 'Room Paused', icon: 'status-paused-vacuum', iconSize: 22, target: 'room', colour: '#b0c0c6' },
   room_overdue: { label: 'Taking longer than expected', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#f59e0b' },
   room_promise: { label: 'Promise time', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#fcf1cf', glyph: '#3f4c5f' },
@@ -51,6 +55,11 @@ const META: Record<string, TaskMeta> = {
   ticket_assigned: { label: 'Ticket assigned', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
   ticket_tag: { label: 'Tagged on a ticket', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
 };
+
+/** Whether a type has its own entry above (rather than the generic "Task"). */
+export function isKnownTaskType(type: string): boolean {
+  return Object.prototype.hasOwnProperty.call(META, type);
+}
 
 /** Label, icon and destination for a task notification type (see TASK_NOTIFICATION_TYPES). */
 export function taskMeta(type: string): TaskMeta {

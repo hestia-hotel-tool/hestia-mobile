@@ -92,6 +92,8 @@ EXTRA_GRANTS = {
     "rooms.inspect": ["full_access"],
     "rooms.status.override": ["full_access"],
     "rooms.rush.toggle": ["fo_agent"],
+    # Engineering opens a room from its ticket activity (Home → Recent activity).
+    "rooms.read": ["engineering"],
 }
 
 PERMISSION_DESCRIPTIONS = {

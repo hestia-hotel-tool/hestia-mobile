@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from '@/tw';
+import { View, Text, Pressable } from '@/tw';
 import { StatusBubble } from '@/components/ui/StatusBubble';
 import { TICKET_ACTIVITY_STATUS, type TicketActivityKey } from '@/components/ui/TicketStatusCircle';
 
@@ -23,6 +23,8 @@ export type TicketActivityItemProps = {
    * a colour.
    */
   status?: TicketActivityKey;
+  /** Opens the room the activity is about. Without it the row is not a button. */
+  onPress?: () => void;
 };
 
 /**
@@ -41,11 +43,16 @@ export function TicketActivityItem({
   message,
   timeLabel,
   status = 'neutral',
+  onPress,
 }: TicketActivityItemProps) {
   return (
-    <View
+    <Pressable
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole={onPress ? 'button' : undefined}
+      accessibilityHint={onPress ? 'Opens the room' : undefined}
       className="mb-md w-full flex-row items-center rounded-xl bg-surface-activity px-lg"
-      style={{ height: ROW_HEIGHT }}
+      style={({ pressed }) => ({ height: ROW_HEIGHT, opacity: pressed ? 0.7 : 1 })}
     >
       <StatusBubble
         spec={TICKET_ACTIVITY_STATUS[status]}
@@ -78,7 +85,7 @@ export function TicketActivityItem({
       >
         {timeLabel}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 

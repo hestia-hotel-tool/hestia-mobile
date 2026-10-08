@@ -54,6 +54,7 @@ import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
 import { RoomRow } from '../components/allRooms/RoomRow';
 import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { usePermissions } from '@/domain/rbac/usePermissions';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
 import { OVERRIDE_REASONS, SEND_BACK_REASONS } from '../utils/roomStatusMachine';
@@ -113,7 +114,7 @@ export default function AllRoomsScreen() {
   const initialShift = routeShift || getShiftFromTime();
   // Only the fields this screen uses: a whole-store subscription re-rendered it
   // on every change, including the per-update "saving" flag.
-  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, runRoomAction, setSelectedShift, setRoomAttendant } = useRoomsStore(
+  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
     useShallow((st) => ({
       data: st.data,
       loading: st.loading,
@@ -121,6 +122,7 @@ export default function AllRoomsScreen() {
       fetchRooms: st.fetchRooms,
       updateRoom: st.updateRoom,
       runRoomAction: st.runRoomAction,
+      applyRoomRow: st.applyRoomRow,
       setSelectedShift: st.setSelectedShift,
       setRoomAttendant: st.setRoomAttendant,
     }))
@@ -280,6 +282,32 @@ export default function AllRoomsScreen() {
     return shiftRooms.filter((room) => assignedIds.has(String(room.id)));
   }, [displayData.rooms, displayData.roomsPM, uiShift, assignedRoomIdsForShiftOrdered]);
 
+  /** Bumped by a live assignment change: re-reads "my rooms" quietly. */
+  const [assignmentsVersion, setAssignmentsVersion] = useState(0);
+
+  /*
+   * Live: other devices assign rooms and change their status. A room's own
+   * change arrives as its row and is applied to that card in place; an
+   * assignment change reloads the list quietly (it changes who is on a card,
+   * and for an attendant which rooms are theirs). Only while this screen is
+   * showing; a hidden screen catches up once when it comes back.
+   */
+  useLiveRoomChanges(
+    () => {
+      setAssignmentsVersion((n) => n + 1);
+      void fetchRooms(uiShift, { force: true, silent: true });
+    },
+    {
+      isRelevant: (change) => {
+        if (change.table === 'rooms' && change.event === 'UPDATE') {
+          applyRoomRow(change.row);
+          return false;
+        }
+        return true;
+      },
+    }
+  );
+
   React.useEffect(() => {
     if (!shouldPrioritizeAssignedOnly || !session?.user?.id) {
       setAssignedRoomIdsOrdered([]);
@@ -288,7 +316,8 @@ export default function AllRoomsScreen() {
       return;
     }
     let cancelled = false;
-    setAssignedRoomOrderLoading(true);
+    // A spinner only for the first read; a live re-read keeps the list up.
+    if (assignmentsVersion === 0) setAssignedRoomOrderLoading(true);
     void Promise.all([
       getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt(session.user.id),
       getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt(session.user.id, uiShift),
@@ -302,7 +331,7 @@ export default function AllRoomsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [shouldPrioritizeAssignedOnly, session?.user?.id, uiShift]);
+  }, [shouldPrioritizeAssignedOnly, session?.user?.id, uiShift, assignmentsVersion]);
 
   // Opening Rooms from the assignment badge: mark inbox rows read once so the tab badge clears (like Tickets).
   //
@@ -398,10 +427,14 @@ export default function AllRoomsScreen() {
   );
 
   /** What the filter bar lists — the Home category first, then the sheet's selection. */
-  const activeFilterParts = useMemo(
-    () => describeActiveFilters(activeFilters, routeCategoryFilter?.category ?? null),
-    [activeFilters, routeCategoryFilter]
-  );
+  const activeFilterParts = useMemo(() => {
+    const parts = describeActiveFilters(activeFilters, routeCategoryFilter?.category ?? null);
+    // Shown as a chip so "Clear" visibly takes it off again.
+    if (String((route.params as any)?.unassignedOnly) !== 'true') return parts;
+    const ids = String((route.params as any)?.roomIds ?? '').split(',').filter(Boolean);
+    const chip = ids.length ? `${ids.length} unassigned ${ids.length === 1 ? 'room' : 'rooms'}` : 'Unassigned';
+    return [chip, ...parts];
+  }, [activeFilters, routeCategoryFilter, route.params]);
 
   const handleShiftToggle = (shift: ShiftType) => {
     setSelectedShift(shift);
@@ -557,6 +590,8 @@ export default function AllRoomsScreen() {
     (navigation as unknown as { setParams: (p: Record<string, unknown>) => void }).setParams({
       filters: undefined,
       categoryFilter: undefined,
+      unassignedOnly: undefined,
+      roomIds: undefined,
     });
   }, [navigation]);
 
@@ -917,10 +952,23 @@ export default function AllRoomsScreen() {
     session,
   ]);
 
-  const filteredRooms = useMemo(
-    () => computeRooms(activeFilters),
-    [computeRooms, activeFilters]
+  /*
+   * Opened from a "rooms back in the pool" notice: the rooms it named (shown
+   * even if one has been handed out since, so the notice and the list agree),
+   * or — for a notice without them — every room nobody has.
+   */
+  const unassignedOnly = String((route.params as any)?.unassignedOnly) === 'true';
+  const poolRoomIdsParam = (route.params as any)?.roomIds as string | undefined;
+  const poolRoomIds = useMemo(
+    () => (unassignedOnly && poolRoomIdsParam ? new Set(poolRoomIdsParam.split(',').filter(Boolean)) : null),
+    [unassignedOnly, poolRoomIdsParam]
   );
+  const filteredRooms = useMemo(() => {
+    const rooms = computeRooms(activeFilters);
+    if (!unassignedOnly) return rooms;
+    if (poolRoomIds) return rooms.filter((room) => poolRoomIds.has(room.id));
+    return rooms.filter((room) => !room.roomAttendantAssigned);
+  }, [computeRooms, activeFilters, unassignedOnly, poolRoomIds]);
 
   /** What the filter sheet's confirm button describes, as the user ticks boxes. */
   const countMatching = useCallback(

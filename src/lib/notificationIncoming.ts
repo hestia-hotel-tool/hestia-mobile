@@ -2,6 +2,8 @@ import { Vibration, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { uniqueChannelName } from './realtimeChannel';
+import { notificationToastVisual, toastMessage, toastTitle } from './notificationToastVisual';
 import { getToast } from '../utils/toast';
 import {
   TASK_NOTIFICATION_TYPES,
@@ -47,7 +49,15 @@ export function incomingAlertDedupeKeyFromPushData(data: PushData & Record<strin
  * Toast + short vibration + badge refetch. Deduped so Realtime + push do not double-fire.
  * @returns whether the alert was shown (false if deduped)
  */
-export function presentIncomingNotificationAlert(dedupeKey: string, title: string, body: string): boolean {
+export function presentIncomingNotificationAlert(
+  dedupeKey: string,
+  title: string,
+  body: string,
+  /** The notification type — picks the toast's pill colour and glyph. */
+  type?: string | null,
+  /** The notification's data (a General Announcement's `senderId`). */
+  data?: Record<string, unknown> | null
+): boolean {
   const now = Date.now();
   pruneDedupe(now);
   if (dedupeUntil.has(dedupeKey)) return false;
@@ -64,17 +74,64 @@ export function presentIncomingNotificationAlert(dedupeKey: string, title: strin
   }
   const toast = getToast();
   if (toast) {
-    toast.show(body, { type: 'info', title: title || 'Update', duration: 4500 });
+    if (type === 'general') {
+      /*
+       * Figma 4443:547: "General Announcement" over the announcement's subject,
+       * with the sender's photo where the pill would be. Shown once the sender
+       * is known (a short lookup, cached); without one, initials.
+       */
+      const senderId = typeof data?.senderId === 'string' ? data.senderId : null;
+      void announcementSender(senderId).then((sender) => {
+        toast.show(toastMessage(title || body), {
+          type: 'info',
+          title: 'General Announcement',
+          duration: 4500,
+          visual: { colour: 'transparent', avatar: sender ?? { name: null } },
+        });
+      });
+    } else {
+      // Every other kind follows the same pattern: its pill, a Title Case
+      // title, the message without a closing full stop. A chat message is
+      // left as written — its title is a person's or group's name and its
+      // body their words.
+      const isChat = type === 'chat_message';
+      toast.show(isChat ? body : toastMessage(body), {
+        type: 'info',
+        title: isChat ? title || 'Message' : toastTitle(title || 'Update'),
+        duration: 4500,
+        visual: notificationToastVisual(type),
+      });
+    }
   }
   queueMicrotask(() => invalidateNotificationBadges());
   return true;
+}
+
+/** Senders already looked up — announcements usually come from a few managers. */
+const senderCache = new Map<string, { uri: string | null; name: string | null }>();
+
+async function announcementSender(
+  senderId: string | null
+): Promise<{ uri: string | null; name: string | null } | null> {
+  if (!senderId || !isSupabaseConfigured) return null;
+  const cached = senderCache.get(senderId);
+  if (cached) return cached;
+  try {
+    const { data } = await supabase.from('users').select('full_name, avatar_url').eq('id', senderId).maybeSingle();
+    const row = data as { full_name?: string | null; avatar_url?: string | null } | null;
+    const sender = { uri: row?.avatar_url ?? null, name: row?.full_name ?? null };
+    senderCache.set(senderId, sender);
+    return sender;
+  } catch {
+    return null;
+  }
 }
 
 export function subscribeToIncomingNotificationRows(userId: string): () => void {
   if (!isSupabaseConfigured || !userId) return () => {};
 
   const channel: RealtimeChannel = supabase
-    .channel(`notifications-incoming:${userId}`)
+    .channel(uniqueChannelName(`notifications-incoming:${userId}`))
     .on(
       'postgres_changes',
       {
@@ -102,7 +159,7 @@ export function subscribeToIncomingNotificationRows(userId: string): () => void 
           return;
         }
         const key = incomingAlertDedupeKeyFromRow(row);
-        presentIncomingNotificationAlert(key, row.title, row.body);
+        presentIncomingNotificationAlert(key, row.title, row.body, row.type, row.data as Record<string, unknown> | null);
       }
     )
     .subscribe();

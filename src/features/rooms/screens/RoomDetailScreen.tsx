@@ -27,7 +27,7 @@ import type { Note, Task, RoomType, HistoryEvent } from '../types/roomDetail.typ
 import { groupHistoryEvents } from '../utils/groupHistoryEvents';
 import type { LostAndFoundItem } from '@features/lost-and-found/types/lostAndFound.types';
 import type { RootStackParamList } from '@/types/navigation';
-import { roomStateFromClock, useRoomsStore } from '../store/useRoomsStore';
+import { roomPatchFromRow, roomStateFromClock, useRoomsStore } from '../store/useRoomsStore';
 import { useToast } from '@/contexts/ToastContext';
 import { authService } from '@features/auth/services/auth';
 import { colors } from '@/theme';
@@ -36,6 +36,7 @@ import { generateHistoryReport } from '../utils/generateHistoryReport';
 import { showStayoverWithLinenBadge } from '../utils/stayoverLinen';
 import { getDefaultTaskText } from '../utils/defaultTasks';
 import { usePermissions } from '@/domain/rbac/usePermissions';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
 import { OVERRIDE_REASONS, SEND_BACK_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
@@ -670,6 +671,23 @@ export default function RoomDetailScreen() {
       setServiceBusy(null);
     }
   };
+
+  /*
+   * Live: someone else changes this room (its attendant starts it, a
+   * supervisor inspects it) — the header, status and panels follow at once.
+   * The list's card is patched by the Rooms screen's own subscription.
+   */
+  useLiveRoomChanges(() => {}, {
+    isRelevant: (change) => {
+      if (change.table === 'rooms' && change.event === 'UPDATE' && change.row.id === room.id) {
+        const applied = roomPatchFromRow(change.row);
+        setLocalRoom((prev) => ({ ...prev, ...applied }));
+        if (applied.houseKeepingStatus) setCurrentStatus(applied.houseKeepingStatus);
+        setActivity(deriveRoomActivityState({ ...localRoomRef.current, ...applied }));
+      }
+      return false;
+    },
+  });
 
   const serviceActions = {
     onDndStill: () =>

@@ -6,6 +6,7 @@
 
 import * as FileSystem from 'expo-file-system/legacy';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { uniqueChannelName } from '@/lib/realtimeChannel';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import type { ChatMessage } from '@/types';
 import type { ChatItemData } from '../components/ChatItem';
@@ -616,7 +617,7 @@ export function subscribeToMessages(
   const userIdPromise = getCurrentUserId();
 
   channel = supabase
-    .channel(`messages:${chatId}`)
+    .channel(uniqueChannelName(`messages:${chatId}`))
     .on(
       'postgres_changes',
       {
@@ -852,6 +853,9 @@ export type Announcement = {
   ticketId?: string;
   /** The attendant it is about, when the notification records one (cleaned, overdue…). */
   attendantId?: string;
+  /** Rooms back in the pool: the shift they were on, and which rooms. */
+  shift?: string;
+  roomIds?: string[];
   /** The notification type — which kind of task this is. */
   type: string;
 };
@@ -865,7 +869,7 @@ type AnnouncementRow = {
   title: string;
   body: string;
   type: string;
-  data: { senderId?: string; roomId?: string; ticketId?: string; attendantId?: string } | null;
+  data: { senderId?: string; roomId?: string; ticketId?: string; attendantId?: string; shift?: string; roomIds?: string[] } | null;
   created_at: string;
   read_at: string | null;
 };
@@ -889,6 +893,8 @@ async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]>
       roomId: r.data?.roomId ?? undefined,
       ticketId: r.data?.ticketId ?? undefined,
       attendantId: r.data?.attendantId ?? undefined,
+      shift: r.data?.shift ?? undefined,
+      roomIds: Array.isArray(r.data?.roomIds) ? r.data.roomIds : undefined,
       type: r.type,
     };
   });

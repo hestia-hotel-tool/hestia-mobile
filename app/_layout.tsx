@@ -74,7 +74,13 @@ function NotificationExperience() {
       const key =
         incomingAlertDedupeKeyFromPushData(data) ??
         `push:${String(c.title ?? '')}:${String(c.body ?? '')}:${Date.now()}`;
-      presentIncomingNotificationAlert(key, c.title ?? 'Notification', c.body ?? '');
+      presentIncomingNotificationAlert(
+        key,
+        c.title ?? 'Notification',
+        c.body ?? '',
+        typeof data.type === 'string' ? data.type : null,
+        data
+      );
     });
     return () => sub.remove();
   }, []);

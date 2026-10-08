@@ -10,6 +10,7 @@ import { workStatusAfter, type RoomAction } from '../utils/roomStatusMachine';
 import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRooms.types';
 import type { ShiftType } from '@/types/shift.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
+import { ensureHotelShifts } from '@/lib/hotelShifts';
 
 /**
  * How long a fetched list is served without going back to the network.
@@ -55,7 +56,13 @@ interface RoomsState {
   lastFetchedAt: number | null;
   /** The shift `data` was fetched for, so a shift change always refetches. */
   lastFetchedShift: ShiftType | null;
-  fetchRooms: (shift?: ShiftType, options?: { force?: boolean }) => Promise<void>;
+  fetchRooms: (shift?: ShiftType, options?: { force?: boolean; silent?: boolean }) => Promise<void>;
+  /**
+   * A room row as realtime delivered it (another device changed it): applied
+   * to that card in place, no refetch. Returns false when the room is not in
+   * the list.
+   */
+  applyRoomRow: (row: Record<string, unknown>) => boolean;
   /** Resolves with the room's cleaning clock as the database left it. */
   updateRoom: (roomId: string, updates: RoomStateUpdate) => Promise<RoomClock | null>;
   /**
@@ -100,6 +107,34 @@ export function roomStateFromClock(clock: RoomClock): Partial<RoomCardData> {
     dndNextCheckAt: clock.dndNextCheckAt,
     ...(clock.inProgressStartedAt !== undefined && { inProgressStartedAt: clock.inProgressStartedAt }),
   };
+}
+
+/** Card fields from a raw `rooms` row (realtime payload), only those present. */
+export function roomPatchFromRow(row: Record<string, unknown>): Partial<RoomCardData> {
+  const has = (k: string) => Object.prototype.hasOwnProperty.call(row, k);
+  const str = (k: string) => (row[k] as string | null) ?? null;
+  const out: Partial<RoomCardData> = {};
+  if (has('house_keeping_status') && row.house_keeping_status) {
+    out.houseKeepingStatus = row.house_keeping_status as RoomCardData['houseKeepingStatus'];
+  }
+  if (has('priority')) out.isPriority = row.priority === 'high';
+  if (has('flagged')) out.flagged = !!row.flagged;
+  if (has('flag_reason')) out.flagReason = str('flag_reason');
+  if (has('paused_at')) out.pausedAt = str('paused_at');
+  if (has('return_later_at')) out.returnLaterAt = str('return_later_at');
+  if (has('return_later_reason')) out.returnLaterReason = str('return_later_reason');
+  if (has('refuse_service_at')) out.refuseServiceAt = str('refuse_service_at');
+  if (has('refuse_service_reason')) out.refuseServiceReason = str('refuse_service_reason');
+  if (has('promise_time_at')) out.promiseTimeAt = str('promise_time_at');
+  if (has('dnd_at')) out.dndAt = str('dnd_at');
+  if (has('dnd_checked_at')) out.dndCheckedAt = str('dnd_checked_at');
+  if (has('dnd_check_count')) out.dndCheckCount = (row.dnd_check_count as number | null) ?? 0;
+  if (has('dnd_next_check_at')) out.dndNextCheckAt = str('dnd_next_check_at');
+  if (has('cleaning_started_at')) out.cleaningStartedAt = str('cleaning_started_at');
+  if (has('cleaning_elapsed_seconds')) out.cleaningElapsedSeconds = (row.cleaning_elapsed_seconds as number | null) ?? 0;
+  if (has('in_progress_started_at')) out.inProgressStartedAt = str('in_progress_started_at');
+  if (has('special_instructions')) out.specialInstructions = str('special_instructions');
+  return out;
 }
 
 export const useRoomsStore = create<RoomsState>((set, get) => ({
@@ -161,7 +196,9 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     });
   },
 
-  fetchRooms: async (shift?: ShiftType, options?: { force?: boolean }) => {
+  fetchRooms: async (shift?: ShiftType, options?: { force?: boolean; silent?: boolean }) => {
+    // The hotel's shift times decide "now" — load them before the first guess.
+    if (!shift) await ensureHotelShifts();
     const currentShift = shift ?? getShiftFromTime();
     const { data, lastFetchedAt, lastFetchedShift } = get();
 
@@ -188,9 +225,10 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 
     const startedGeneration = generation;
     const isInitial = !data;
+    // A silent refetch (a live update) keeps the list on screen, no overlay.
     set({
       loading: isInitial,
-      refreshing: !isInitial,
+      refreshing: !isInitial && !options?.silent,
       error: null,
     });
 
@@ -227,6 +265,18 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
 
     inflight = { shift: currentShift, token, promise: request };
     return request;
+  },
+
+  applyRoomRow: (row) => {
+    const { data } = get();
+    const id = typeof row.id === 'string' ? row.id : null;
+    if (!data || !id) return false;
+    const inList = data.rooms.some((r) => r.id === id) || (data.roomsPM ?? []).some((r) => r.id === id);
+    if (!inList) return false;
+    const patch = roomPatchFromRow(row);
+    const apply = (room: RoomCardData): RoomCardData => (room.id === id ? { ...room, ...patch } : room);
+    set({ data: { ...data, rooms: data.rooms.map(apply), roomsPM: data.roomsPM?.map(apply) ?? data.roomsPM } });
+    return true;
   },
 
   runRoomAction: async (roomId, action, options) => {

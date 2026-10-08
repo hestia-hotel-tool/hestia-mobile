@@ -70,8 +70,29 @@ export default function TaskDetailScreen() {
   };
 
   const meta = item ? taskMeta(item.type) : null;
+  /*
+   * Rooms back in the pool (shift end): open Rooms on that shift, filtered to
+   * the unassigned rooms, so they can be handed out again.
+   */
+  const poolShift = item?.type === 'room_pool' ? (item.shift === 'AM' || item.shift === 'PM' ? item.shift : undefined) : undefined;
   const action =
-    item && meta
+    item?.type === 'room_pool'
+      ? {
+          label: item.roomIds?.length === 1 ? 'View Room' : 'View Rooms',
+          go: () =>
+            router.navigate({
+              pathname: '/(tabs)/(rooms)',
+              // Exactly the rooms this notice freed; without ids (older
+              // notices), every unassigned room on that shift.
+              params: {
+                unassignedOnly: 'true',
+                // Always set: the tab may still hold a previous notice's rooms.
+                roomIds: item.roomIds?.length ? item.roomIds.join(',') : '',
+                ...(poolShift ? { selectedShift: poolShift } : null),
+              },
+            } as never),
+        }
+      : item && meta
       ? meta.target === 'tickets'
         ? item.ticketId
           ? {

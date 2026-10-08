@@ -425,7 +425,8 @@ SELECT r.id, p.id
   ('engineering', 'rooms.front_office_status.view'),
   ('engineering', 'rooms.reservation_status.view'),
   ('engineering', 'rooms.rush.toggle'),
-  ('engineering', 'rooms.flag.toggle')
+  ('engineering', 'rooms.flag.toggle'),
+  ('engineering', 'rooms.read')
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
@@ -548,8 +549,8 @@ BEGIN
   IF n_perms  <> 38 THEN
     RAISE EXCEPTION 'expected 38 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 238 THEN
-    RAISE EXCEPTION 'expected 238 role_permissions, found %', n_grants;
+  IF n_grants <> 239 THEN
+    RAISE EXCEPTION 'expected 239 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

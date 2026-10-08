@@ -3,9 +3,10 @@ import { getTicketCountsForAssignee } from '@features/tickets/services/tickets';
 import { useShallow } from 'zustand/react/shallow';
 import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useDesignScale } from '@/hooks/useDesignScale';
 import { HOME_CHROME } from '../constants/homeChrome';
-import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
+import { useNavigation, useRoute, useFocusEffect, useRouter, NativeStackNavigationProp } from 'expo-router';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { colors } from '@/theme';
@@ -84,6 +85,7 @@ export default function HomeScreen() {
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildHomeScreenStyles(scaleX), [scaleX]);
   const navigation = useNavigation<HomeScreenNavigationProp>();
+  const router = useRouter();
   const route = useRoute();
   const { session } = useAuth();
   const { homeVariant } = usePermissions();
@@ -99,8 +101,14 @@ export default function HomeScreen() {
     selectedShift: getShiftFromTime(),
     categories: [] as any[],
   }));
-  const { data: roomsStoreData, loading: roomsLoading, fetchRooms, runRoomAction } = useRoomsStore(
-    useShallow((st) => ({ data: st.data, loading: st.loading, fetchRooms: st.fetchRooms, runRoomAction: st.runRoomAction }))
+  const { data: roomsStoreData, loading: roomsLoading, fetchRooms, runRoomAction, applyRoomRow } = useRoomsStore(
+    useShallow((st) => ({
+      data: st.data,
+      loading: st.loading,
+      fetchRooms: st.fetchRooms,
+      runRoomAction: st.runRoomAction,
+      applyRoomRow: st.applyRoomRow,
+    }))
   );
   const roomsForHome = useMemo(
     () => ({
@@ -209,6 +217,8 @@ export default function HomeScreen() {
   const [ticketRecent, setTicketRecent] = useState<
     {
       id: string;
+      /** The room the activity is about — tapping the row opens it. */
+      roomId?: string;
       roomLabel: string;
       message: string;
       timeLabel: string;
@@ -274,6 +284,7 @@ export default function HomeScreen() {
 
           return {
             id: l.id,
+            roomId: l.room_id ?? undefined,
             roomLabel: roomNum ? `Room ${roomNum}` : 'Room',
             message: `${staffName} ${action.charAt(0).toLowerCase()}${action.slice(1)}`,
             timeLabel,
@@ -707,6 +718,18 @@ export default function HomeScreen() {
     }, [effectiveShift, fetchRooms])
   );
 
+  // Live, as the Rooms list: a room's change patches its card in place, an
+  // assignment change reloads quietly — the dashboard counts follow.
+  useLiveRoomChanges(() => void fetchRooms(effectiveShift, { force: true, silent: true }), {
+    isRelevant: (change) => {
+      if (change.table === 'rooms' && change.event === 'UPDATE') {
+        applyRoomRow(change.row);
+        return false;
+      }
+      return true;
+    },
+  });
+
   const onRefresh = React.useCallback(async () => {
     setRefreshing(true);
     // Pull-to-refresh means "go and look", so it ignores the staleness window.
@@ -1027,6 +1050,12 @@ export default function HomeScreen() {
                         message={it.message}
                         timeLabel={it.timeLabel}
                         status={it.status}
+                        // Opens that room's details (engineering, dining).
+                        onPress={
+                          it.roomId
+                            ? () => router.push({ pathname: '/room/[roomId]', params: { roomId: it.roomId! } } as never)
+                            : undefined
+                        }
                       />
                     ))
                   )}

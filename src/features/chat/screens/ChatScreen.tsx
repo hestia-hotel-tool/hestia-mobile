@@ -21,6 +21,7 @@ import {
   subscribeNotificationBadgeInvalidate,
 } from '@/lib/inAppNotifications';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { uniqueChannelName } from '@/lib/realtimeChannel';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
@@ -149,7 +150,7 @@ export default function ChatScreen() {
 
     const channels: RealtimeChannel[] = chunks.map((chunk, i) =>
       supabase
-        .channel(`chat-list-messages:${session.user.id}:${i}`)
+        .channel(uniqueChannelName(`chat-list-messages:${session.user.id}:${i}`))
         .on(
           'postgres_changes',
           {

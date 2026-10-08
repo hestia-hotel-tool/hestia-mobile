@@ -322,6 +322,9 @@
     ],
     "rooms.rush.toggle": [
       "fo_agent"
+    ],
+    "rooms.read": [
+      "engineering"
     ]
   },
   "departments": [

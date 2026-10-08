@@ -1,12 +1,11 @@
 import { ShiftType } from '@/types/shift.types';
+import { currentShiftNow } from '@/lib/hotelShifts';
 
 /**
- * Determines the shift based on current time
- * PM: 17:00 (5 PM) to 23:59 (11:59 PM)
- * AM: 00:00 (midnight) to 16:59 (4:59 PM)
+ * The shift on now, by the hotel's own shift times (see `lib/hotelShifts`).
+ *
+ * This used to switch to PM at a fixed 17:00 while the hotel's PM shift starts
+ * at 14:00, so between 14:00 and 17:00 rooms assigned from the Rooms list were
+ * filed under AM and did not show on the attendant's PM view.
  */
-export const getShiftFromTime = (): ShiftType => {
-  const now = new Date();
-  const hour = now.getHours();
-  return hour >= 17 ? 'PM' : 'AM';
-};
+export const getShiftFromTime = (): ShiftType => currentShiftNow();
