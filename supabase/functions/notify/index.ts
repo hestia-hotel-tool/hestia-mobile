@@ -132,6 +132,33 @@ async function sendToExpo(messages: ExpoMessage[]): Promise<{ sent: number; fail
   return { sent, failed, deadTokens };
 }
 
+/** Words left lower-case inside a title, as the designs write them. */
+const SMALL_WORDS = new Set(["a", "an", "and", "at", "for", "in", "of", "on", "or", "the", "to", "with"]);
+
+/**
+ * The push text in the design's pattern (Figma 4443:595), the same rules the
+ * app's toasts use (src/lib/notificationToastVisual.ts): a Title Case title
+ * ("Cleaning Started", "Room Inspected"), the message without a closing full
+ * stop, and an announcement as "General Announcement" over its subject.
+ * Chat messages are left exactly as written.
+ */
+function titleCase(title: string): string {
+  return title.trim().split(/\s+/).map((word, i) => {
+    if (/^[A-Z0-9]{2,}$/.test(word)) return word;
+    const lower = word.toLowerCase();
+    if (i > 0 && SMALL_WORDS.has(lower)) return lower;
+    return lower.charAt(0).toUpperCase() + lower.slice(1);
+  }).join(" ");
+}
+
+function pushText(row: { type: string; title: string; body: string }): { title: string; body: string } {
+  if (row.type === "chat_message") return { title: row.title, body: row.body };
+  if (row.type === "general") {
+    return { title: "General Announcement", body: (row.title || row.body).trim().replace(/\.$/, "") };
+  }
+  return { title: titleCase(row.title || "Update"), body: row.body.trim().replace(/\.$/, "") };
+}
+
 Deno.serve(async (req) => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (!SUPABASE_URL || !SERVICE_ROLE_KEY || !PUSH_WEBHOOK_SECRET) {
@@ -212,12 +239,13 @@ Deno.serve(async (req) => {
       const data = { ...(row.data ?? {}), type: row.type, notificationId: row.id };
       const subtitle =
         row.type === "chat_message" ? groupName.get(String(row.data?.chatId ?? "")) : undefined;
+      const text = pushText(row);
       for (const to of devices) {
         messages.push({
           to,
-          title: row.title,
+          title: text.title,
           ...(subtitle ? { subtitle } : {}),
-          body: row.body,
+          body: text.body,
           data,
           sound: "default",
           ...(unread.has(row.user_id) ? { badge: unread.get(row.user_id) } : {}),
