@@ -53,6 +53,8 @@ type ExpoMessage = {
   badge?: number;
   priority: "high";
   channelId: "default";
+  /** iOS: wake the Notification Service Extension, which adds the lock-screen picture. */
+  mutableContent: true;
 };
 
 type ExpoTicket = { status: "ok" | "error"; id?: string; message?: string; details?: { error?: string } };
@@ -232,11 +234,35 @@ Deno.serve(async (req) => {
       for (const c of chats) if (c.name && c.type !== "direct") groupName.set(c.id, c.name);
     }
 
+    // The sender's photo for announcements and chat — the extension shows it
+    // on the lock screen in place of the type's picture (Figma 4443:595).
+    const senderIds = Array.from(new Set(
+      rows
+        .filter((r) => r.type === "general" || r.type === "chat_message")
+        .map((r) => r.data?.senderId)
+        .filter((v): v is string => typeof v === "string"),
+    ));
+    const avatarBySender = new Map<string, string>();
+    if (senderIds.length > 0) {
+      const senders = await rest<{ id: string; avatar_url: string | null }[]>(
+        `users?id=in.${inList(senderIds)}&select=id,avatar_url`,
+      ).catch(() => []);
+      for (const u of senders) {
+        if (u.avatar_url && /^https?:\/\//.test(u.avatar_url)) avatarBySender.set(u.id, u.avatar_url);
+      }
+    }
+
     const messages: ExpoMessage[] = [];
     for (const row of rows) {
       const devices = tokensByUser.get(row.user_id);
       if (!devices) continue;
-      const data = { ...(row.data ?? {}), type: row.type, notificationId: row.id };
+      const senderAvatarUrl = avatarBySender.get(String(row.data?.senderId ?? ""));
+      const data = {
+        ...(row.data ?? {}),
+        type: row.type,
+        notificationId: row.id,
+        ...(senderAvatarUrl ? { senderAvatarUrl } : {}),
+      };
       const subtitle =
         row.type === "chat_message" ? groupName.get(String(row.data?.chatId ?? "")) : undefined;
       const text = pushText(row);
@@ -251,6 +277,7 @@ Deno.serve(async (req) => {
           ...(unread.has(row.user_id) ? { badge: unread.get(row.user_id) } : {}),
           priority: "high",
           channelId: "default",
+          mutableContent: true,
         });
       }
     }
