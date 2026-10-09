@@ -39,6 +39,9 @@ export default ({ config }: ConfigContext): ExpoConfig => {
     ios: {
       supportsTablet: true,
       bundleIdentifier,
+      // Apple Developer team (Membership details → Team ID). Prebuild signs the
+      // app and the push extension with it, so Xcode needs no team picked.
+      appleTeamId: "S2DF75LLN6",
       icon,
       backgroundColor: "#FFFFFF",
       infoPlist: {

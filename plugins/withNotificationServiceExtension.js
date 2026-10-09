@@ -12,8 +12,10 @@
  *  - gives the app the Communication Notifications entitlement and declares
  *    INSendMessageIntent, which iOS requires before it draws the picture
  *
- * Signing: EAS manages the extension's provisioning profile through
- * `extra.eas.build.experimental.ios.appExtensions` in app.config.ts.
+ * Signing: in Xcode (Automatic), the extension uses the app's team — set
+ * `ios.appleTeamId` in app.config.ts to have prebuild fill it in for both
+ * targets, or pick the team on the HestiaNotificationService target once.
+ * EAS builds sign it through `extra.eas.build.experimental.ios.appExtensions`.
  */
 const fs = require('fs');
 const path = require('path');
@@ -98,7 +100,11 @@ function withExtensionTarget(config) {
         GENERATE_INFOPLIST_FILE: 'NO',
         SKIP_INSTALL: 'YES',
         CLANG_ENABLE_MODULES: 'YES',
-        ...(main.DEVELOPMENT_TEAM ? { DEVELOPMENT_TEAM: main.DEVELOPMENT_TEAM } : {}),
+        // The app's team, so Xcode signs the extension like the app: from the
+        // main target, or `ios.appleTeamId` in app.config.ts.
+        ...(main.DEVELOPMENT_TEAM || (cfg.ios && cfg.ios.appleTeamId)
+          ? { DEVELOPMENT_TEAM: main.DEVELOPMENT_TEAM || cfg.ios.appleTeamId }
+          : {}),
       });
     }
     return cfg;
