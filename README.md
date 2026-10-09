@@ -141,6 +141,10 @@ In Xcode, select the **Hestia** scheme and a device, then choose
 **Product → Archive** and upload to TestFlight. Signing uses team
 `S2DF75LLN6` (set via `ios.appleTeamId`), and the extension target inherits it.
 
+> **CocoaPods crashes with `Unicode Normalization not appropriate for ASCII-8BIT`?**
+> Your shell locale isn't UTF-8. Add `export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8`
+> to `~/.zshrc`, open a new terminal, and run `cd ios && pod install`.
+
 Re-run `prebuild` whenever `app.config.ts`, a config plugin in `plugins/` or a
 native dependency changes. Never edit `ios/` or `android/` by hand, because
 the next prebuild discards those edits.
