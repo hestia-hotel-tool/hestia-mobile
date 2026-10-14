@@ -86,7 +86,13 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'chat.announce',
   'tickets.manage',
   'rooms.inspect',
-  'rooms.status.override'
+  'rooms.status.override',
+  'backoffice.access',
+  'rooms.manage',
+  'reservations.manage',
+  'guests.manage',
+  'reports.view',
+  'audit.view'
 );
 
 -- 3. Departments.
@@ -160,7 +166,13 @@ INSERT INTO public.permissions (name, description) VALUES
   ('chat.announce', 'Publish a General Announcement to all staff'),
   ('tickets.manage', 'Edit or delete any ticket'),
   ('rooms.inspect', 'Inspect cleaned rooms and send rooms back'),
-  ('rooms.status.override', 'Act on a room for its attendant (reason required)')
+  ('rooms.status.override', 'Act on a room for its attendant (reason required)'),
+  ('backoffice.access', 'Sign in to the back office'),
+  ('rooms.manage', 'Create, edit and delete rooms, room types, floors and public areas'),
+  ('reservations.manage', 'Create, edit and check reservations in and out'),
+  ('guests.manage', 'Create and edit guests'),
+  ('reports.view', 'Open reports and dashboard charts'),
+  ('audit.view', 'Open the activity log')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- 5. Roles — one per distinct permission profile.
@@ -226,6 +238,12 @@ SELECT r.id, p.id
   ('full_access', 'tickets.manage'),
   ('full_access', 'rooms.inspect'),
   ('full_access', 'rooms.status.override'),
+  ('full_access', 'backoffice.access'),
+  ('full_access', 'rooms.manage'),
+  ('full_access', 'reservations.manage'),
+  ('full_access', 'guests.manage'),
+  ('full_access', 'reports.view'),
+  ('full_access', 'audit.view'),
   ('hk_room_attendant', 'tab.rooms.view'),
   ('hk_room_attendant', 'rooms.read'),
   ('hk_room_attendant', 'tab.chat.view'),
@@ -313,6 +331,10 @@ SELECT r.id, p.id
   ('ops_senior', 'chat.announce'),
   ('ops_senior', 'lost_and_found.manage'),
   ('ops_senior', 'tickets.manage'),
+  ('ops_senior', 'backoffice.access'),
+  ('ops_senior', 'reservations.manage'),
+  ('ops_senior', 'guests.manage'),
+  ('ops_senior', 'reports.view'),
   ('fo_agent', 'tab.home.view'),
   ('fo_agent', 'tab.rooms.view'),
   ('fo_agent', 'rooms.read'),
@@ -546,11 +568,11 @@ BEGIN
   IF n_titles <> 54 THEN
     RAISE EXCEPTION 'expected 54 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 38 THEN
-    RAISE EXCEPTION 'expected 38 permissions, found %', n_perms;
+  IF n_perms  <> 44 THEN
+    RAISE EXCEPTION 'expected 44 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 239 THEN
-    RAISE EXCEPTION 'expected 239 role_permissions, found %', n_grants;
+  IF n_grants <> 249 THEN
+    RAISE EXCEPTION 'expected 249 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

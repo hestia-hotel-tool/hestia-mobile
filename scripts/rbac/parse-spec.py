@@ -94,9 +94,24 @@ EXTRA_GRANTS = {
     "rooms.rush.toggle": ["fo_agent"],
     # Engineering opens a room from its ticket activity (Home → Recent activity).
     "rooms.read": ["engineering"],
+    # The back office (hestia-backoffice, docs/04-backend-changes.md §B1).
+    # Signing in is for leadership; property setup and the activity log are
+    # admin-only; front office data and reports are shared with ops_senior.
+    "backoffice.access": ["full_access", "ops_senior"],
+    "rooms.manage": ["full_access"],
+    "reservations.manage": ["full_access", "ops_senior"],
+    "guests.manage": ["full_access", "ops_senior"],
+    "reports.view": ["full_access", "ops_senior"],
+    "audit.view": ["full_access"],
 }
 
 PERMISSION_DESCRIPTIONS = {
+    "backoffice.access": "Sign in to the back office",
+    "rooms.manage": "Create, edit and delete rooms, room types, floors and public areas",
+    "reservations.manage": "Create, edit and check reservations in and out",
+    "guests.manage": "Create and edit guests",
+    "reports.view": "Open reports and dashboard charts",
+    "audit.view": "Open the activity log",
     "tab.home.view": "See the Home (Dashboard) tab",
     "tab.rooms.view": "See the Rooms tab",
     "tab.chat.view": "See the Chat tab",

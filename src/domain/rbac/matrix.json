@@ -153,6 +153,30 @@
     {
       "key": "rooms.status.override",
       "description": "Act on a room for its attendant (reason required)"
+    },
+    {
+      "key": "backoffice.access",
+      "description": "Sign in to the back office"
+    },
+    {
+      "key": "rooms.manage",
+      "description": "Create, edit and delete rooms, room types, floors and public areas"
+    },
+    {
+      "key": "reservations.manage",
+      "description": "Create, edit and check reservations in and out"
+    },
+    {
+      "key": "guests.manage",
+      "description": "Create and edit guests"
+    },
+    {
+      "key": "reports.view",
+      "description": "Open reports and dashboard charts"
+    },
+    {
+      "key": "audit.view",
+      "description": "Open the activity log"
     }
   ],
   "rights": [
@@ -325,6 +349,28 @@
     ],
     "rooms.read": [
       "engineering"
+    ],
+    "backoffice.access": [
+      "full_access",
+      "ops_senior"
+    ],
+    "rooms.manage": [
+      "full_access"
+    ],
+    "reservations.manage": [
+      "full_access",
+      "ops_senior"
+    ],
+    "guests.manage": [
+      "full_access",
+      "ops_senior"
+    ],
+    "reports.view": [
+      "full_access",
+      "ops_senior"
+    ],
+    "audit.view": [
+      "full_access"
     ]
   },
   "departments": [
