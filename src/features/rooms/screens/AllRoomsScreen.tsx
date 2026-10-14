@@ -57,7 +57,8 @@ import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
-import { OVERRIDE_REASONS, SEND_BACK_REASONS } from '../utils/roomStatusMachine';
+import { OVERRIDE_REASONS } from '../utils/roomStatusMachine';
+import { useSendBackSheet } from '../components/SendBackSheet';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
@@ -80,6 +81,7 @@ export default function AllRoomsScreen() {
   const navigation = useNavigation<AllRoomsScreenNavigationProp>();
   const { session } = useAuth();
   const messageModal = useMessageModal();
+  const sendBack = useSendBackSheet();
   const toast = useToast();
 
   /*
@@ -771,15 +773,21 @@ export default function AllRoomsScreen() {
     await statusPopover.close();
 
     // A reason where the rules require one: sending back, acting for someone.
-    let reason: string | null = presetReason ?? null;
-    if (resolved.action === 'send_back' && !reason) {
-      reason = await askReason(
-        messageModal,
-        roomToUpdate.houseKeepingStatus === 'Inspected' ? `Reopen ${label}?` : `Send ${label} back?`,
-        'The attendant is told why and the room goes back to Dirty.',
-        SEND_BACK_REASONS
-      );
-      if (!reason) return false;
+    let reason: string | null = null;
+    let photoUrls: string[] = [];
+    if (resolved.action === 'send_back') {
+      // Why, in a preset or their own words, with photos of what to fix. A
+      // preset from the Inspection Checklist's reject is ticked on opening.
+      const sent = await sendBack.ask({
+        roomNumber: roomToUpdate.roomNumber,
+        fromInspected: roomToUpdate.houseKeepingStatus === 'Inspected',
+        presetReason: presetReason ?? undefined,
+      });
+      if (!sent) return false;
+      reason = sent.reason;
+      photoUrls = sent.photoUrls;
+    } else {
+      reason = presetReason ?? null;
     }
     if (resolved.viaOverride && !reason) {
       const attendant = roomToUpdate.roomAttendantAssigned?.name ?? 'the attendant';
@@ -796,7 +804,7 @@ export default function AllRoomsScreen() {
     setChangingStatusRoomId(roomToUpdate.id);
     let saved = true;
     try {
-      await runRoomAction(roomToUpdate.id, resolved.action, { reason });
+      await runRoomAction(roomToUpdate.id, resolved.action, { reason, photoUrls });
       if (resolved.action === 'dnd') {
         toast.show(`${label}: Do Not Disturb recorded. Your supervisor has been told.`, { type: 'success' });
       } else if (resolved.action === 'dnd_recheck') {
@@ -1210,6 +1218,8 @@ export default function AllRoomsScreen() {
       <BottomTabBar />
 
       {/* Status Change Modal */}
+      {sendBack.element}
+
       <StatusChangeModal
         visible={showStatusModal}
         onClose={statusPopover.close}

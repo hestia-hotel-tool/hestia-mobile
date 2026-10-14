@@ -224,6 +224,8 @@ export const ROOM_CARD_SPECS: Record<RoomCardSpecName, RoomCardSpec> = scaled(DE
 export const PRIORITY_FRAME = scaled({
   background: '#f9fafc',
   border: '#f92424',
+  /** Client feedback: the 1pt hairline was too easy to miss — a priority room has to stand out. */
+  borderWidth: 3,
   radius: 12,
   paddingX: 15,
   paddingTop: 22,

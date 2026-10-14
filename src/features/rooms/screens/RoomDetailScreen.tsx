@@ -39,7 +39,8 @@ import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
-import { OVERRIDE_REASONS, SEND_BACK_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
+import { useSendBackSheet } from '../components/SendBackSheet';
+import { OVERRIDE_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
 import { PERMISSIONS } from '@/domain/rbac';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, type RoomStateUpdate, assignRoomToStaff } from '../services/rooms';
@@ -595,9 +596,10 @@ export default function RoomDetailScreen() {
    * room is then shown as the server left it.
    */
   const acting = useRef(false);
+  const sendBack = useSendBackSheet();
   const act = async (
     option: StatusChangeOption,
-    extra: { reason?: string | null; until?: string | null; done?: string; busy?: ServiceBusy } = {}
+    extra: { reason?: string | null; until?: string | null; done?: string; busy?: ServiceBusy; photoUrls?: string[] } = {}
   ): Promise<boolean> => {
     // One at a time: a second tap while the first is in flight does nothing.
     if (acting.current) return false;
@@ -613,17 +615,16 @@ export default function RoomDetailScreen() {
       return false;
     }
     let reason = extra.reason?.trim() || null;
+    let photoUrls = extra.photoUrls ?? [];
     if (resolved.action === 'send_back' && !reason) {
-      reason = await askReason(
-        messageModal,
-        currentStatus === 'Inspected' ? `Reopen Room ${room.roomNumber}?` : `Send Room ${room.roomNumber} back?`,
-        'The attendant is told why and the room goes back to Dirty.',
-        SEND_BACK_REASONS
-      );
-      if (!reason) {
+      // Why, in a preset or their own words, with photos of what to fix.
+      const sent = await sendBack.ask({ roomNumber: room.roomNumber, fromInspected: currentStatus === 'Inspected' });
+      if (!sent) {
         setPendingActivity(null);
         return false;
       }
+      reason = sent.reason;
+      photoUrls = sent.photoUrls;
     }
     if (resolved.viaOverride && !reason) {
       const attendant = assignedStaff?.name ?? 'the attendant';
@@ -641,7 +642,7 @@ export default function RoomDetailScreen() {
     acting.current = true;
     setServiceBusy(extra.busy ?? null);
     try {
-      const result = await runRoomAction(room.id, resolved.action, { reason, until: extra.until ?? null });
+      const result = await runRoomAction(room.id, resolved.action, { reason, until: extra.until ?? null, photoUrls });
       const applied = roomStateFromClock(result);
       const nextWork = workStatusAfter(resolved.action);
       setLocalRoom((prev) => ({
@@ -942,9 +943,19 @@ export default function RoomDetailScreen() {
   /** Inspected through the Inspection Checklist: the same filing, as an inspection. */
   const handleInspectComplete = handleCleanComplete;
 
-  /** The inspection failed: back to Dirty, and the attendant is told why. */
+  /**
+   * The inspection failed: back to Dirty, and the attendant is told why —
+   * "Failed inspection" ticked, with room for a comment and photos.
+   */
   const handleInspectReject = () => {
-    void act('Dirty', { reason: 'Failed inspection' });
+    void (async () => {
+      const sent = await sendBack.ask({
+        roomNumber: room.roomNumber,
+        fromInspected: currentStatus === 'Inspected',
+        presetReason: 'Failed inspection',
+      });
+      if (sent) void act('Dirty', { reason: sent.reason, photoUrls: sent.photoUrls });
+    })();
   };
 
   const handleSaveNote = async (noteText: string) => {
@@ -1236,6 +1247,8 @@ export default function RoomDetailScreen() {
           setLocalRoom((prev) => ({ ...prev, flagged, flagReason }));
         }}
       />
+
+      {sendBack.element}
 
       <ReturnLaterModal
         top={modalHeaderHeight * scaleX}

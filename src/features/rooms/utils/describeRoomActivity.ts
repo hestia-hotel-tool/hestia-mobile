@@ -79,7 +79,7 @@ export function describeRoomActivity(
     case 'promisedTime':
       if (activity.dueAt == null) return { text: '' };
       return {
-        text: `Ready by ${formatDueTime(activity.dueAt, new Date(now))}`,
+        text: `Promised · Ready by ${formatDueTime(activity.dueAt, new Date(now))}`,
         emphasis: formatDueIn(activity.dueAt, now),
       };
 

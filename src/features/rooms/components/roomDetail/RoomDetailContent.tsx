@@ -171,14 +171,7 @@ export default function RoomDetailContent({
       />
 
       {activeTab === 'Checklist' ? (
-        <ChecklistSection
-          roomNumber={roomNumber}
-          roomCode={roomCode}
-          roomStatus={currentStatus}
-          onSubmit={(data) => {
-            // TODO: persist the checklist submission.
-          }}
-        />
+        roomId ? <ChecklistSection roomId={roomId} roomNumber={roomNumber} roomCode={roomCode} /> : null
       ) : activeTab === 'Tickets' ? (
         <RoomTicketsSection
           roomId={roomId}

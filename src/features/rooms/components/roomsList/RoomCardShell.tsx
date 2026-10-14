@@ -62,7 +62,7 @@ export function RoomCardShell({ children, spec, framed, onPress, onLayout, measu
           framed
             ? {
                 backgroundColor: PRIORITY_FRAME.background,
-                borderWidth: 1,
+                borderWidth: PRIORITY_FRAME.borderWidth,
                 borderColor: PRIORITY_FRAME.border,
                 borderRadius: PRIORITY_FRAME.radius,
                 paddingHorizontal: PRIORITY_FRAME.paddingX,

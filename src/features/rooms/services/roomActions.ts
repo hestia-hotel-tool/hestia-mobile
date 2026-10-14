@@ -32,7 +32,7 @@ function requestId(): string {
 export async function runRoomAction(
   roomId: string,
   action: RoomAction,
-  options: { reason?: string | null; until?: string | null } = {}
+  options: { reason?: string | null; until?: string | null; photoUrls?: string[] } = {}
 ): Promise<RoomActionResult> {
   // Cast: room_action lands in 20261006000100; the generated types predate it.
   const rpc = supabase.rpc.bind(supabase) as unknown as (
@@ -46,6 +46,9 @@ export async function runRoomAction(
     p_reason: options.reason ?? null,
     p_until: options.until ?? null,
     p_request_id: requestId(),
+    // Only when there are photos: servers without migration 20261014000100
+    // have no such parameter, and every other call must keep working there.
+    ...(options.photoUrls?.length ? { p_photo_urls: options.photoUrls } : null),
   });
   if (error) {
     const err = new Error(error.message || 'The room could not be updated.');

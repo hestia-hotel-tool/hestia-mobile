@@ -746,22 +746,14 @@ export default function ReturnLaterModal({
               <Text style={styles.confirmButtonText}>Confirm</Text>
             </TouchableOpacity>
 
-            {/* Assigned To Title - Outside the card */}
             {assignedTo && (
-              <Text style={styles.assignedToTitle}>Assigned to</Text>
+              <>
+                <Text style={styles.assignedToTitle}>Assigned to</Text>
+                <View style={styles.assignedTaskCard}>
+                  <AssignedToSection staff={assignedTo} onReassignPress={onReassignPress} />
+                </View>
+              </>
             )}
-
-            {/* Card Container for Assigned to */}
-            <View style={styles.assignedTaskCard}>
-              {/* Assigned To Section */}
-              {assignedTo && (
-                <AssignedToSection
-                  staff={assignedTo}
-                  onReassignPress={onReassignPress}
-                />
-              )}
-
-            </View>
           </ScrollView>
         </View>
       </View>
@@ -948,38 +940,27 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   
-  // Card Container for Assigned to and Task
+  // Card Container for Assigned to
   assignedTaskCard: {
     marginHorizontal: 35 * scaleX, // Same as confirm button
-    minHeight: 181 * scaleX, // Min height from Figma, can grow
     backgroundColor: '#f9fafc',
     borderRadius: 9 * scaleX,
     borderWidth: 1,
     borderColor: '#e3e3e3',
     paddingHorizontal: 16 * scaleX,
-    paddingTop: 12 * scaleX, // Adjusted for proper spacing
-    paddingBottom: 100 * scaleX, // Extra padding at bottom for task section
+    paddingVertical: 12 * scaleX,
     marginBottom: 30 * scaleX,
   },
-  
-  // Divider between Assigned to and Task
-  cardDivider: {
-    position: 'absolute',
-    left: 16 * scaleX, // Margin from left border (match card padding)
-    right: 16 * scaleX, // Margin from right border (match card padding)
-    top: 78 * scaleX,
-    height: 1,
-    backgroundColor: '#e3e3e3',
-    zIndex: 2,
-  },
-  
-  // Task Section
+
+  /*
+   * In the sheet's flow, under the time wheels. It used to sit inside the
+   * Assigned-to card, pinned absolutely 86pt from the card's top; moved out
+   * with that pin still on, it was drawn 86pt from the top of the sheet —
+   * over the suggestions and the wheels.
+   */
   taskSection: {
-    position: 'absolute',
-    left: 16 * scaleX, // Match card padding
-    right: 16 * scaleX, // Match card padding
-    top: 86 * scaleX, // Below divider (78px) + 8px spacing
-    paddingHorizontal: 0,
+    marginTop: 32 * scaleX,
+    marginHorizontal: 24 * scaleX,
   },
   
   taskTitle: {

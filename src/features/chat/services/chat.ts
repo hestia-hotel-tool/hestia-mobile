@@ -856,6 +856,8 @@ export type Announcement = {
   /** Rooms back in the pool: the shift they were on, and which rooms. */
   shift?: string;
   roomIds?: string[];
+  /** A send-back or reopen: the photos the supervisor or manager attached. */
+  photoUrls?: string[];
   /** The notification type — which kind of task this is. */
   type: string;
 };
@@ -869,7 +871,15 @@ type AnnouncementRow = {
   title: string;
   body: string;
   type: string;
-  data: { senderId?: string; roomId?: string; ticketId?: string; attendantId?: string; shift?: string; roomIds?: string[] } | null;
+  data: {
+    senderId?: string;
+    roomId?: string;
+    ticketId?: string;
+    attendantId?: string;
+    shift?: string;
+    roomIds?: string[];
+    photoUrls?: string[];
+  } | null;
   created_at: string;
   read_at: string | null;
 };
@@ -895,6 +905,7 @@ async function toAnnouncements(rows: AnnouncementRow[]): Promise<Announcement[]>
       attendantId: r.data?.attendantId ?? undefined,
       shift: r.data?.shift ?? undefined,
       roomIds: Array.isArray(r.data?.roomIds) ? r.data.roomIds : undefined,
+      photoUrls: Array.isArray(r.data?.photoUrls) && r.data.photoUrls.length > 0 ? r.data.photoUrls : undefined,
       type: r.type,
     };
   });

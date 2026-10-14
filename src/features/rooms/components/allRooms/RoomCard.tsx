@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   },
   priorityBorder: {
     borderColor: CARD_COLORS.priorityBorder,
-    borderWidth: 1,
+    borderWidth: 3, // Same as the list's priority frame (PRIORITY_FRAME.borderWidth).
   },
   roomHeader: {
     flexDirection: 'row',

@@ -212,11 +212,9 @@ export function getRoomDisplayStatus(
     case 'returnLater':
       return 'ReturnLater';
     case 'promisedTime':
-      // A promise only overlays a room still to be cleaned; once Cleaned or
-      // Inspected the promise has been kept.
-      return room.houseKeepingStatus === 'Cleaned' || room.houseKeepingStatus === 'Inspected'
-        ? room.houseKeepingStatus
-        : 'PromisedTime';
+      // A promise is a note on the room, not a status: the room keeps its own
+      // (Dirty, In Progress, …) and can move through them as usual.
+      return room.houseKeepingStatus;
     default:
       return room.houseKeepingStatus;
   }
@@ -262,7 +260,8 @@ export const ROOM_ACTIVITY_LABEL: Record<RoomActivityKind, string | null> = {
   dnd: 'Do Not Disturb',
   returnLater: 'Return Later',
   refuseService: 'Refused Service',
-  promisedTime: 'Promised Time',
+  // Not a status: the header keeps the room's own label (client feedback).
+  promisedTime: null,
 };
 
 /** ISO → epoch ms, or null when absent/unparseable. */

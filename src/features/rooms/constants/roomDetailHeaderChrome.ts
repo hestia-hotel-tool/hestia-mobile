@@ -153,10 +153,13 @@ export const ROOM_DETAIL_HEADER_CHROME: Record<RoomActivityKind, RoomDetailHeade
     inlineAction: null,
     verifiedAgainst: '2333-312',
   },
+  // Client feedback: a promise is a note on the room, not a status. The header
+  // keeps the room's own status (colour, glyph, label) and the promise is the
+  // line under it.
   promisedTime: {
     statusSource: 'room',
-    ground: 'palette',
-    labelEmphasis: 'regular',
+    ground: 'status',
+    labelEmphasis: 'strong',
     subtitle: true,
     inlineAction: null,
     verifiedAgainst: null,
