@@ -137,6 +137,11 @@ export interface RoomCardData {
   cleaningStartedAt?: string | null;
   /** When the current cleaning run started; "Undo start" is open for a short window after it. */
   inProgressStartedAt?: string | null;
+  /**
+   * Out of order today: the back office's rooms.out_of_order_from–to
+   * (inclusive) and reason. Null when the room is in service.
+   */
+  outOfOrder?: { from: string; to: string; reason: string | null } | null;
   cleaningElapsedSeconds?: number;
   /** When set (ISO timestamp), room is in "Refused Service" state (for display). */
   refuseServiceAt?: string | null;

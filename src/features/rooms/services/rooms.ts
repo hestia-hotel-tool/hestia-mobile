@@ -42,7 +42,32 @@ type RoomRow = {
   dnd_checked_at?: string | null;
   dnd_check_count?: number | null;
   dnd_next_check_at?: string | null;
+  /** Back office setup (migration 20261014120000); absent on older databases. */
+  active?: boolean | null;
+  out_of_order_from?: string | null;
+  out_of_order_to?: string | null;
+  out_of_order_reason?: string | null;
 };
+
+/**
+ * Inactive rooms are hidden everywhere (the back office deactivates rather than
+ * deletes rooms with history). Rows from a database without the column stay.
+ */
+const isActiveRoom = (room: { active?: boolean | null }) => room.active !== false;
+
+/** Today's date on the device, "yyyy-mm-dd" (the phone is in the hotel). */
+function localDateString(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** The room's out-of-order period when today falls inside it (dates are inclusive). */
+function outOfOrderToday(room: RoomRow, today = localDateString()): RoomCardData['outOfOrder'] {
+  const from = room.out_of_order_from;
+  const to = room.out_of_order_to;
+  if (!from || !to || today < from || today > to) return null;
+  return { from, to, reason: room.out_of_order_reason ?? null };
+}
 
 /** Aggregated note info per room (from room_notes table) */
 type RoomNotesAggregate = {
@@ -403,6 +428,7 @@ function mapRoomToCard(
     dndCheckedAt: room.dnd_checked_at ?? null,
     dndCheckCount: room.dnd_check_count ?? 0,
     dndNextCheckAt: room.dnd_next_check_at ?? null,
+    outOfOrder: outOfOrderToday(room),
     promiseTimeAt: room.promise_time_at ?? null,
     cleaningStartedAt: room.cleaning_started_at ?? null,
     cleaningElapsedSeconds: room.cleaning_elapsed_seconds ?? 0,
@@ -504,6 +530,7 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
         id,
         room_number,
         linen_status,
+        active,
         reservations (
           guests (
             id,
@@ -526,7 +553,7 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
 
   const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as any[];
+  return ((data ?? []) as any[]).filter(isActiveRoom);
 }
 
 /** Resolve a set of room ids to a `roomId → room_number` map. */
@@ -582,7 +609,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
+        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, active, out_of_order_from, out_of_order_to, out_of_order_reason'
       )
       .order('room_number', { ascending: true }));
 
@@ -594,7 +621,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     }
 
     if (error) throw error;
-    return (data ?? []) as RoomRow[];
+    return ((data ?? []) as RoomRow[]).filter(isActiveRoom);
   };
 
   // Wave 1: rooms, and the shift id nothing depends on.
@@ -1474,6 +1501,7 @@ export function fullRoomDetailsToRoomCardData(
     reservationStatus: reservationStatus as ReservationStatus,
     promisedTime: (promisedTime === '12:00' || promisedTime === '13:00' ? promisedTime : null) as PromisedTime,
     returnLaterAt: (room.return_later_at ?? null) as string | null,
+    outOfOrder: outOfOrderToday(room),
     pausedAt: ((room as any).paused_at ?? null) as string | null,
     promiseTimeAt: ((room as any).promise_time_at ?? null) as string | null,
     cleaningStartedAt: ((room as any).cleaning_started_at ?? null) as string | null,
@@ -1529,7 +1557,7 @@ export async function getFullRoomDetails(
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
-      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
+      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, active, out_of_order_from, out_of_order_to, out_of_order_reason'
     )
     .order('room_number', { ascending: true });
   const roomsQueryBase = supabase
@@ -1562,7 +1590,7 @@ export async function getFullRoomDetails(
   }
 
   if (roomsError) throw roomsError;
-  const rooms = (roomsData ?? []) as RoomRow[];
+  const rooms = ((roomsData ?? []) as RoomRow[]).filter(isActiveRoom);
   if (rooms.length === 0) {
     // An empty result is a normal state, not something to log on every call.
     return [];

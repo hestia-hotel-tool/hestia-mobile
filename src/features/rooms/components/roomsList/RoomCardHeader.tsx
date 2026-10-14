@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text } from '@/tw';
-import { typography } from '@/theme';
+import { colors, typography } from '@/theme';
 import { ROOM_CARD, cardPx, type RoomCardSpec } from './roomCardLayout';
 import { BADGE_TILE, RoomBadgeTile, type RoomBadge } from './RoomBadgeTile';
 
@@ -20,6 +20,8 @@ export type RoomCardHeaderProps = {
    * again only when that changes — not kept as a second, hidden copy.
    */
   assigneeKey?: string;
+  /** Out of order today (set in the back office): a grey pill under the type. */
+  outOfOrder?: boolean;
 };
 
 const INK = '#334866';
@@ -40,6 +42,7 @@ export function RoomCardHeader({
   badges = [],
   assignee,
   assigneeKey = '',
+  outOfOrder = false,
 }: RoomCardHeaderProps) {
   /** The header row's full width and the number/type block's width, once measured. */
   const [rowWidth, setRowWidth] = useState<number | null>(null);
@@ -99,6 +102,17 @@ export function RoomCardHeader({
           >
             {typeLabel}
           </Text>
+          {outOfOrder ? (
+            <View
+              className="self-start rounded-full"
+              style={{ marginTop: cardPx(4), paddingHorizontal: cardPx(8), paddingVertical: cardPx(2), backgroundColor: colors.status.outOfOrder }}
+              accessibilityLabel="Out of order"
+            >
+              <Text style={{ fontFamily: typography.fontFamily.primary, fontSize: cardPx(11), fontWeight: '700', color: colors.text.white }}>
+                Out of order
+              </Text>
+            </View>
+          ) : null}
         </View>
         {/* Drawn once measured, so the first frame never overlaps the text. */}
         {layout ? (

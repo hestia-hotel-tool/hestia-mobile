@@ -76,6 +76,7 @@ export function SingleGuestRoomCard({
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel={getStayoverDisplayLabel(room)}
         badges={roomBadges(room)}
+        outOfOrder={Boolean(room.outOfOrder)}
         assigneeKey={`${staff?.name ?? ''}|${status.text}`}
         assignee={
           <RoomAssigneeBlock

@@ -92,6 +92,7 @@ export function ArrivalDepartureRoomCard({
         category={`${room.roomCategory} - ${room.credit}`}
         typeLabel="Arrival/Departure"
         badges={roomBadges(room)}
+        outOfOrder={Boolean(room.outOfOrder)}
         assigneeKey={`${staff?.name ?? ''}|${status.text}`}
         assignee={
           <RoomAssigneeBlock
