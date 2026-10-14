@@ -90,6 +90,15 @@ function generateTenantUsers(hotelName) {
   });
 }
 
+async function ensureDefaultHotelId(supabase) {
+  const { data, error } = await supabase.from('hotels').select('id').eq('is_default', true).limit(1).maybeSingle();
+  if (error && error.code !== '42703') throw error; // 42703: an old database without hotels.is_default
+  if (data?.id) return data.id;
+  const id = await ensureHotelId(supabase, DEFAULT_HOTEL_NAME);
+  if (id && !error) await supabase.from('hotels').update({ is_default: true }).eq('id', id);
+  return id;
+}
+
 async function ensureHotelId(supabase, hotelName) {
   // Some deployments don't have the tenant schema (no hotels table / schema cache not updated).
   // In that case, return null and proceed without hotel_id.
@@ -164,7 +173,9 @@ async function main() {
   const supabase = createClient(url, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
 
   // Ensure hotels exist (idempotent)
-  const defaultHotelId = await ensureHotelId(supabase, DEFAULT_HOTEL_NAME);
+  // The default hotel by flag (migration 20261014110000), so it may be renamed;
+  // DEFAULT_HOTEL_NAME is only the name it gets when a fresh database has none.
+  const defaultHotelId = await ensureDefaultHotelId(supabase);
   const newHotelId = await ensureHotelId(supabase, NEW_HOTEL_NAME);
 
   // Job titles carry both the permission profile and the department, so one

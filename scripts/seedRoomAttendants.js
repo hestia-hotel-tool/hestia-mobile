@@ -1,5 +1,5 @@
 /**
- * Add Housekeeping Room Attendants to the Default Hotel, each on a shift.
+ * Add Housekeeping Room Attendants to the default hotel (hotels.is_default), each on a shift.
  *
  * Rooms are assigned to room attendants only, and the development database
  * had just one — so the Assign sheet listed a single person and the AM tab
@@ -19,7 +19,6 @@ const { appEnv } = require('./loadEnv');
 console.log(`[seedRoomAttendants] target environment: ${appEnv}`);
 
 const PASSWORD = 'Hestia2025!';
-const HOTEL_NAME = 'Default Hotel';
 const JOB_TITLE_KEY = 'housekeeping_room_attendant';
 
 const ATTENDANTS = [
@@ -42,9 +41,9 @@ async function main() {
   const { data: hotel, error: hotelErr } = await supabase
     .from('hotels')
     .select('id')
-    .eq('name', HOTEL_NAME)
+    .eq('is_default', true)
     .single();
-  if (hotelErr || !hotel) throw new Error(`Hotel "${HOTEL_NAME}" not found: ${hotelErr?.message}`);
+  if (hotelErr || !hotel) throw new Error(`Default hotel (hotels.is_default) not found: ${hotelErr?.message}`);
 
   const { data: jobTitle, error: jtErr } = await supabase
     .from('job_titles')

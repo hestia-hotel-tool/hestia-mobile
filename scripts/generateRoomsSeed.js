@@ -28,18 +28,20 @@ function loadMockData() {
 }
 
 function main() {
-  const HOTEL_NAME = 'Default Hotel';
+  // The default hotel by flag (migration 20261014110000), so it can be renamed.
+  const HOTEL = '(SELECT id FROM public.hotels WHERE is_default LIMIT 1)';
   const mock = loadMockData();
   const rooms = mock.rooms || [];
 
   const lines = [];
-  lines.push('-- Seed: Default Hotel rooms/guests/reservations from mockAllRoomsData (AM)');
+  lines.push('-- Seed: default hotel rooms/guests/reservations from mockAllRoomsData (AM)');
   lines.push('-- Run after migrations and SEED_DATA.sql.');
-  lines.push(`-- Target hotel (tenant): ${HOTEL_NAME}`);
+  lines.push('-- Target hotel (tenant): the default hotel (hotels.is_default), whatever it is called');
   lines.push('');
 
   lines.push('-- Ensure target hotel exists');
-  lines.push(`INSERT INTO public.hotels (name) VALUES (${escapeSql(HOTEL_NAME)}) ON CONFLICT (name) DO NOTHING;`);
+  lines.push("INSERT INTO public.hotels (name, is_default)");
+  lines.push("SELECT 'Default Hotel', true WHERE NOT EXISTS (SELECT 1 FROM public.hotels WHERE is_default);");
   lines.push('');
 
   lines.push('-- Ensure required columns exist (older dev DBs)');
@@ -62,7 +64,7 @@ function main() {
 
     lines.push(
       `INSERT INTO public.rooms (room_number, category, credit, linen_status, priority, flagged, special_instructions, house_keeping_status, hotel_id) ` +
-      `VALUES (${escapeSql(rn)}, ${escapeSql(cat)}, ${credit}, ${escapeSql(linen)}, ${escapeSql(priority)}, ${flagged}, ${escapeSql(spec)}, ${escapeSql(hk)}, (SELECT id FROM public.hotels WHERE name = ${escapeSql(HOTEL_NAME)} LIMIT 1)) ` +
+      `VALUES (${escapeSql(rn)}, ${escapeSql(cat)}, ${credit}, ${escapeSql(linen)}, ${escapeSql(priority)}, ${flagged}, ${escapeSql(spec)}, ${escapeSql(hk)}, ${HOTEL}) ` +
       `ON CONFLICT (hotel_id, room_number) DO UPDATE SET category = EXCLUDED.category, credit = EXCLUDED.credit, linen_status = EXCLUDED.linen_status, priority = EXCLUDED.priority, flagged = EXCLUDED.flagged, special_instructions = EXCLUDED.special_instructions, house_keeping_status = EXCLUDED.house_keeping_status;`
     );
   });
@@ -76,7 +78,7 @@ function main() {
     lines.push(
       `INSERT INTO public.room_notes (room_id, text, created_by_id, hotel_id) ` +
       `SELECT r.id, ${escapeSql(noteText)}, NULL, r.hotel_id ` +
-      `FROM public.rooms r WHERE r.room_number = ${escapeSql(room.roomNumber)} AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = ${escapeSql(HOTEL_NAME)} LIMIT 1) ` +
+      `FROM public.rooms r WHERE r.room_number = ${escapeSql(room.roomNumber)} AND r.hotel_id = ${HOTEL} ` +
       `AND NOT EXISTS (SELECT 1 FROM public.room_notes n WHERE n.room_id = r.id AND n.text = ${escapeSql(noteText)});`
     );
   });
@@ -113,14 +115,14 @@ y    // If the mock contains two guests with the same name for the same room,
 
       lines.push(
         `INSERT INTO public.guests (full_name, vip_code, image_url, hotel_id) ` +
-        `SELECT ${escapeSql(guestName)}, ${vip ? escapeSql(vip) : 'NULL'}, ${imageUrl ? escapeSql(imageUrl) : 'NULL'}, (SELECT id FROM public.hotels WHERE name = ${escapeSql(HOTEL_NAME)} LIMIT 1) ` +
-        `WHERE NOT EXISTS (SELECT 1 FROM public.guests WHERE full_name = ${escapeSql(guestName)} AND hotel_id = (SELECT id FROM public.hotels WHERE name = ${escapeSql(HOTEL_NAME)} LIMIT 1));`
+        `SELECT ${escapeSql(guestName)}, ${vip ? escapeSql(vip) : 'NULL'}, ${imageUrl ? escapeSql(imageUrl) : 'NULL'}, ${HOTEL} ` +
+        `WHERE NOT EXISTS (SELECT 1 FROM public.guests WHERE full_name = ${escapeSql(guestName)} AND hotel_id = ${HOTEL});`
       );
 
       lines.push(
         `INSERT INTO public.reservations (room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time, hotel_id) ` +
         `SELECT r.id, ${escapeSql(from)}, ${escapeSql(to)}, ${eta ? escapeSql(eta) : 'NULL'}, ${adults}, ${kids}, ${escapeSql(resStatus)}, ${escapeSql(frontOffice)}, ${promisedTime ? escapeSql(promisedTime) : 'NULL'}, r.hotel_id ` +
-        `FROM public.rooms r WHERE r.room_number = ${escapeSql(room.roomNumber)} AND r.hotel_id = (SELECT id FROM public.hotels WHERE name = ${escapeSql(HOTEL_NAME)} LIMIT 1) ` +
+        `FROM public.rooms r WHERE r.room_number = ${escapeSql(room.roomNumber)} AND r.hotel_id = ${HOTEL} ` +
         `AND NOT EXISTS (SELECT 1 FROM public.reservations res WHERE res.room_id = r.id AND res.hotel_id = r.hotel_id AND res.arrival_date = ${escapeSql(from)} AND res.departure_date = ${escapeSql(to)} AND COALESCE(res.eta::text,'') = ${escapeSql(eta || '')} AND res.adults = ${adults} AND res.kids = ${kids});`
       );
 
