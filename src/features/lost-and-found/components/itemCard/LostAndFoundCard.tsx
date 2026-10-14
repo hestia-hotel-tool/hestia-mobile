@@ -1,4 +1,5 @@
 import React from 'react';
+import { formatCardTimestamp } from '../../utils/searchLostAndFound';
 import { Pressable, Text, View } from '@/tw';
 import { scaleX } from '@/utils/responsive';
 import type { LostAndFoundItem } from '../../types/lostAndFound.types';
@@ -23,17 +24,8 @@ export type LostAndFoundCardProps = {
   statusUpdating?: boolean;
 };
 
-/** "11:00, 12/2/2026" from an ISO string; empty when unparseable. */
-function formatTimestamp(iso?: string): string {
-  if (!iso) return '';
-  const dt = new Date(iso);
-  if (Number.isNaN(dt.getTime())) return '';
-  // Node 3871:3716 — "11:00, 12/2/2026": padded clock, a comma, unpadded day/month.
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(dt.getHours())}:${pad(dt.getMinutes())}, ${dt.getDate()}/${
-    dt.getMonth() + 1
-  }/${dt.getFullYear()}`;
-}
+/** The card's own timestamp format — shared with search (utils/searchLostAndFound). */
+const formatTimestamp = formatCardTimestamp;
 
 /**
  * Pull a URL out of whatever shape `registeredBy.avatar` arrives in.
