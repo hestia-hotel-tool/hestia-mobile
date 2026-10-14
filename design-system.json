@@ -59,12 +59,12 @@
     "badge": {
       "eta": "#e9f7e9",
       "etd": "#ffe3e3",
-      "group": "#ffebeb",
       "priority": "#ffebeb",
       "results": "rgba(181, 207, 246, 0.37)"
     },
     "shadow": {
-      "nav": "0px 0px 105.1px -35px rgba(100, 131, 176, 0.4)"
+      "nav": "0px 0px 105.1px -35px rgba(100, 131, 176, 0.4)",
+      "float": "0px 4px 14.4px rgba(136, 136, 136, 0.12)"
     }
   },
   "typography": {
@@ -75,6 +75,9 @@
     "fontFamilyAndroid": {
       "primary": "Roboto",
       "secondary": "Roboto"
+    },
+    "fontFamilyWeb": {
+      "primary": "\"Helvetica Neue\", Helvetica, Inter, Arial, system-ui, sans-serif"
     },
     "fontWeights": {
       "light": "300",
@@ -100,7 +103,8 @@
     },
     "lineHeights": {
       "tight": "1.147",
-      "normal": "normal"
+      "normal": "normal",
+      "body": "1.45"
     }
   },
   "spacing": {

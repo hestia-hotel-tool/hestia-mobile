@@ -61,7 +61,6 @@
     /* Badge */
     --color-badge-eta: #e9f7e9;
     --color-badge-etd: #ffe3e3;
-    --color-badge-group: #ffebeb;
     --color-badge-priority: #ffebeb;
     --color-badge-results: rgba(181, 207, 246, 0.37);
 
@@ -127,6 +126,7 @@
 
     /* Shadows */
     --shadow-nav: 0px 0px 105.1px -35px rgba(100, 131, 176, 0.4);
+    --shadow-float: 0px 4px 14.4px rgba(136, 136, 136, 0.12);
   }
 }
 

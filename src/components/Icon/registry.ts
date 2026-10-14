@@ -65,7 +65,6 @@ import GuestTurndown from '@assets/icons/guest-status/guest-turndown.svg';
 import GuestVacant from '@assets/icons/guest-status/guest-vacant.svg';
 // misc
 import AiAssistantMark from '@assets/icons/misc/ai-assistant-mark.svg';
-import AiTypingDots from '@assets/icons/misc/ai-typing-dots.svg';
 import AreaPublic from '@assets/icons/misc/area-public.svg';
 import BadgeBell from '@assets/icons/misc/badge-bell.svg';
 import BadgeLostFound from '@assets/icons/misc/badge-lost-found.svg';
@@ -151,7 +150,6 @@ export const icons = {
   'guest-vacant': GuestVacant,
   // misc
   'ai-assistant-mark': AiAssistantMark,
-  'ai-typing-dots': AiTypingDots,
   'area-public': AreaPublic,
   'badge-bell': BadgeBell,
   'badge-lost-found': BadgeLostFound,
@@ -242,7 +240,6 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'guest-turndown': 1,
   'guest-vacant': 1,
   'ai-assistant-mark': 0.9778,
-  'ai-typing-dots': 3.7753,
   'area-public': 0.9615,
   'badge-bell': 1,
   'badge-lost-found': 0.9018,
@@ -320,7 +317,6 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'guest-stayover-no-linen',
   'guest-turndown',
   'guest-vacant',
-  'ai-typing-dots',
   'area-public',
   'badge-bell',
   'badge-lost-found',
