@@ -523,35 +523,39 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
    */
   if (roomIds && roomIds.length === 0) return [];
 
-  let query = supabase
-    .from('rooms')
-    .select(
-      `
-        id,
-        room_number,
-        linen_status,
-        active,
-        reservations (
-          guests (
-            id,
-            full_name,
-            vip_code,
-            image_url,
-            primary_email
-          ),
-          arrival_date,
-          departure_date,
-          adults,
-          kids,
-          front_office_status
-        )
-      `
-    )
-    .order('room_number', { ascending: true });
+  const { data, error } = await withoutClosedStays((filter) => {
+    let query = supabase
+      .from('rooms')
+      .select(
+        `
+          id,
+          room_number,
+          linen_status,
+          active,
+          reservations (
+            guests (
+              id,
+              full_name,
+              vip_code,
+              image_url,
+              primary_email
+            ),
+            arrival_date,
+            departure_date,
+            adults,
+            kids,
+            front_office_status
+          )
+        `
+      )
+      .order('room_number', { ascending: true });
 
-  if (roomIds) query = query.in('id', roomIds);
+    if (roomIds) query = query.in('id', roomIds);
+    // Only the stays that hold the room, not cancelled or no-show ones.
+    if (filter) query = query.not('reservations.stay_status', 'in', CLOSED_STAYS);
+    return query;
+  });
 
-  const { data, error } = await query;
   if (error) throw error;
   return ((data ?? []) as any[]).filter(isActiveRoom);
 }
@@ -575,6 +579,18 @@ export async function getRoomNumbersByIds(ids: string[]): Promise<Map<string, st
  * reservation the hotel ever had — the largest payload in the app, re-read on
  * every Rooms and Home open, and growing every day.
  */
+/**
+ * Cancelled and no-show stays don't belong on a room (back office, migration
+ * 20261015140000: reservations.stay_status). A database without that column
+ * answers 42703; then there is nothing to filter, so the query runs again
+ * without the filter.
+ */
+export const CLOSED_STAYS = '(cancelled,no_show)';
+export async function withoutClosedStays<T extends { error: { code?: string } | null }>(run: (filter: boolean) => PromiseLike<T>): Promise<T> {
+  const first = await run(true);
+  return first.error?.code === '42703' ? run(false) : first;
+}
+
 const RESERVATION_WINDOW_DAYS = 30;
 function reservationWindowStart(): string {
   const d = new Date(Date.now() - RESERVATION_WINDOW_DAYS * 86_400_000);
@@ -638,13 +654,16 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     fetchRoomNotesAggregate(roomIds),
     fetchRoomAssignmentsForShiftId(shiftId),
     (async () => {
-      const { data: resData, error: resError } = await supabase
-        .from('reservations')
-        .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
-        .in('room_id', roomIds)
-        // Stays still relevant (see RESERVATION_WINDOW_DAYS), not every booking ever.
-        .gte('departure_date', reservationWindowStart())
-        .order('arrival_date', { ascending: false });
+      const { data: resData, error: resError } = await withoutClosedStays((filter) => {
+        let q = supabase
+          .from('reservations')
+          .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
+          .in('room_id', roomIds)
+          // Stays still relevant (see RESERVATION_WINDOW_DAYS), not every booking ever.
+          .gte('departure_date', reservationWindowStart());
+        if (filter) q = q.not('stay_status', 'in', CLOSED_STAYS);
+        return q.order('arrival_date', { ascending: false });
+      });
       if (resError) throw resError;
       return (resData ?? []) as ReservationRow[];
     })(),
@@ -1599,12 +1618,15 @@ export async function getFullRoomDetails(
   const roomIds = rooms.map((r) => r.id);
 
   const [reservationsRes, notesRes, assignmentsRes, lfRes, ticketsRes] = await Promise.all([
-    supabase
-      .from('reservations')
-      .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
-      .in('room_id', roomIds)
-      .gte('departure_date', reservationWindowStart())
-      .order('arrival_date', { ascending: false }),
+    withoutClosedStays((filter) => {
+      let q = supabase
+        .from('reservations')
+        .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
+        .in('room_id', roomIds)
+        .gte('departure_date', reservationWindowStart());
+      if (filter) q = q.not('stay_status', 'in', CLOSED_STAYS);
+      return q.order('arrival_date', { ascending: false });
+    }),
     supabase
       .from('room_notes')
       .select('id, room_id, text, created_at, users(full_name, avatar_url)')

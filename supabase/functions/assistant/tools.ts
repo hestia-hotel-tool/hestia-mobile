@@ -167,6 +167,8 @@ export const TOOLS: ToolDefinition[] = [
               "reservations(arrival_date, departure_date, adults, kids, front_office_status, guests(full_name, vip_code))",
           )
           .eq("room_number", roomNumber)
+          // Cancelled and no-show stays aren't the room's guests.
+          .not("reservations.stay_status", "in", "(cancelled,no_show)")
           .limit(1),
       );
       if (data.length === 0) return { found: false, room_number: roomNumber };

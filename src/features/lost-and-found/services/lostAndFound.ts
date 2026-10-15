@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { getMyHotelId } from '@/lib/tenant';
 import { base64ToArrayBuffer } from '@/utils/encoding';
 import type { LostAndFoundStatus } from '../types/lostAndFound.types';
+import { CLOSED_STAYS, withoutClosedStays } from '@features/rooms/services/rooms';
 
 export const LOST_AND_FOUND_BUCKET = 'lost-and-found';
 
@@ -139,11 +140,14 @@ export async function fetchLostAndFoundRows(): Promise<LostAndFoundRowsResult> {
   let data: any[] | null = null;
   let error: any = null;
 
-  ({ data, error } = await supabase
-    .from('lost_and_found_items')
-    .select(WITH_SHIPPED_SELECT)
-    .order('found_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false }));
+  // Each guest is the room's stay, never a cancelled or no-show one; a database
+  // without stay_status (42703) is asked again without that filter.
+  const list = (select: string, filter: boolean) => {
+    let q = supabase.from('lost_and_found_items').select(select);
+    if (filter) q = q.not('rooms.reservations.stay_status', 'in', CLOSED_STAYS);
+    return q.order('found_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+  };
+  ({ data, error } = await withoutClosedStays((filter) => list(WITH_SHIPPED_SELECT, filter)));
 
   let shippedLocationColumnAvailable = !error;
 
@@ -515,7 +519,11 @@ const DETAIL_SELECT = `
 
 /** One lost & found item by id, with its room, guest and people. Null if gone. */
 export async function fetchLostAndFoundItemDetail(id: string): Promise<LostAndFoundItemDetail | null> {
-  const { data, error } = await supabase.from('lost_and_found_items').select(DETAIL_SELECT).eq('id', id).maybeSingle();
+  const { data, error } = await withoutClosedStays((filter) => {
+    let q = supabase.from('lost_and_found_items').select(DETAIL_SELECT).eq('id', id);
+    if (filter) q = q.not('rooms.reservations.stay_status', 'in', CLOSED_STAYS);
+    return q.maybeSingle();
+  });
   if (error) throw new Error(error.message || 'Could not load the item.');
   if (!data) return null;
   const row = data as any;
