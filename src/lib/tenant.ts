@@ -30,6 +30,12 @@ export async function getMyHotelId(): Promise<string | null> {
     }
 
     if (error || !row) return null;
+    if (await isDisabled(userId)) {
+      // Disabled from the back office: drop this device's push tokens and sign out.
+      await supabase.from('user_push_tokens').delete().eq('user_id', userId).then(() => {}, () => {});
+      await supabase.auth.signOut().catch(() => {});
+      throw new AccountDisabledError();
+    }
     const hid = (row as { hotel_id?: string | null }).hotel_id ?? null;
     cachedHotelId = hid;
     return hid;
@@ -40,6 +46,23 @@ export async function getMyHotelId(): Promise<string | null> {
   } finally {
     inflight = null;
   }
+}
+
+/** A manager disabled this account (users.active = false, back office Step 2.1). */
+export class AccountDisabledError extends Error {
+  constructor() {
+    super('This account has been disabled. Ask your manager.');
+    this.name = 'AccountDisabledError';
+  }
+}
+
+/**
+ * users.active, read on its own so a database without the column (older
+ * environments) still signs in: any error reads as "not disabled".
+ */
+async function isDisabled(userId: string): Promise<boolean> {
+  const { data, error } = await (supabase as any).from('users').select('active').eq('id', userId).maybeSingle();
+  return !error && data?.active === false;
 }
 
 export function clearCachedHotelId() {
