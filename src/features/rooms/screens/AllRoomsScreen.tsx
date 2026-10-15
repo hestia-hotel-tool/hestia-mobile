@@ -44,6 +44,7 @@ import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
 import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@/utils/shiftUtils';
+import { useShiftLock } from '@features/account/hooks/useShiftLock';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
@@ -113,7 +114,9 @@ export default function AllRoomsScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
-  const initialShift = routeShift || getShiftFromTime();
+  /** Room attendants work their own shift only: no toggle, and links cannot switch it (useShiftLock). */
+  const shiftLock = useShiftLock();
+  const initialShift = shiftLock.locked ? shiftLock.shift : routeShift || getShiftFromTime();
   // Only the fields this screen uses: a whole-store subscription re-rendered it
   // on every change, including the per-update "saving" flag.
   const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
@@ -379,14 +382,22 @@ export default function AllRoomsScreen() {
     React.useCallback(() => {
       const params = route.params as any;
       const currentRouteShift = params?.selectedShift as ShiftType | undefined;
-      if (currentRouteShift && currentRouteShift !== allRoomsData?.selectedShift) {
+      if (!shiftLock.locked && currentRouteShift && currentRouteShift !== allRoomsData?.selectedShift) {
         setSelectedShift(currentRouteShift);
         fetchRooms(currentRouteShift);
         setLocalFilters(undefined);
         setSearchQuery('');
       }
-    }, [route.params, allRoomsData?.selectedShift, fetchRooms, setSelectedShift])
+    }, [route.params, allRoomsData?.selectedShift, fetchRooms, setSelectedShift, shiftLock.locked])
   );
+
+  // A locked attendant always sees their own shift, once it is known.
+  React.useEffect(() => {
+    if (shiftLock.locked && allRoomsData && allRoomsData.selectedShift !== shiftLock.shift) {
+      setSelectedShift(shiftLock.shift);
+      fetchRooms(shiftLock.shift);
+    }
+  }, [shiftLock.locked, shiftLock.shift, allRoomsData, setSelectedShift, fetchRooms]);
 
   // Sync local filters with route params when navigating (e.g. from Home with categoryFilter)
   React.useEffect(() => {
@@ -1030,7 +1041,7 @@ export default function AllRoomsScreen() {
               role={profile?.role}
               avatarUrl={profile?.avatar}
               shift={displayData.selectedShift}
-              onShiftChange={handleShiftToggle}
+              onShiftChange={shiftLock.locked ? undefined : handleShiftToggle}
               searchQuery={searchQuery}
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}

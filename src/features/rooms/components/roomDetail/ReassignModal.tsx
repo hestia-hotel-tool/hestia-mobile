@@ -1,13 +1,21 @@
-import React, { useState, useRef } from 'react';
-import { View, StyleSheet, TextInput, Keyboard } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Pressable, SectionList, Text, TextInput, View } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
-import { scaleX } from '../../constants/reassignModalStyles';
-import { fetchRoomAttendants } from '@features/staff/services/staff';
-import { ReassignTab, StaffMember } from '@features/staff/types/staff.types';
-import ReassignHeader from './ReassignHeader';
-import ReassignTabs from './ReassignTabs';
-import StaffListContainer from './StaffListContainer';
+import { Icon } from '@/components/Icon';
+import { getDepartments } from '@/lib/departments';
 import { typography } from '@/theme';
+import { scaleX } from '@/utils/responsive';
+import { fetchRoomAttendants } from '@features/staff/services/staff';
+import type { StaffMember } from '@features/staff/types/staff.types';
+import type { StaffRosterPerson } from '@features/staff/types/staffRoster.types';
+import { useStaffRoster } from '@features/staff/hooks/useStaffRoster';
+import StaffHeader from '@features/staff/components/StaffHeader';
+import StaffTabs from '@features/staff/components/StaffTabs';
+import ShiftGroupHeading from '@features/staff/components/staffList/ShiftGroupHeading';
+import StaffIdentityRow from '@features/staff/components/staffList/StaffIdentityRow';
+import StaffWorkloadBar from '@features/staff/components/staffList/StaffWorkloadBar';
+import { STAFF_LIST_LAYOUT as L } from '@features/staff/components/staffList/staffListLayout';
 
 interface ReassignModalProps {
   visible: boolean;
@@ -19,14 +27,23 @@ interface ReassignModalProps {
   roomNumber?: string;
   /** When false, hides the Auto Assign button (e.g. for "Assign Staff" flow). Default true. */
   showAutoAssign?: boolean;
-  /**
-   * The shift the room is being worked on. The sheet opens on the attendants
-   * rostered on it (Settings › Shifts), not on everyone; the other tabs are
-   * still one tap away.
-   */
+  /** The shift the room is being worked on: the sheet opens on it; the other is one tap away. */
   shift?: 'AM' | 'PM';
 }
 
+type Tab = 'am' | 'pm';
+
+/**
+ * Pick who cleans a room — drawn like the Staff roster, so the two read as one
+ * app: the same blue band, AM / PM tabs, On Shift / On Break / Shift End
+ * groups, identity rows with the presence dot, and the "3/7" workload bar.
+ *
+ * Data is the Staff roster's too (`useStaffRoster`, Housekeeping, the chosen
+ * shift), narrowed to Room Attendants — the only people rooms go to. It
+ * replaces a sheet with its own tabs (an "On Shift" tab that duplicated AM/PM)
+ * and a workload bar that always read 0: the list it drew never loaded
+ * anyone's rooms, so "Auto Assign" picked blindly.
+ */
 export default function ReassignModal({
   visible,
   onClose,
@@ -37,178 +54,237 @@ export default function ReassignModal({
   showAutoAssign = true,
   shift,
 }: ReassignModalProps) {
-  const [activeTab, setActiveTab] = useState<ReassignTab>(shift ?? 'OnShift');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStaffId, setSelectedStaffId] = useState<string | null>(
-    currentAssignedStaffId || null
-  );
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [showSearch, setShowSearch] = useState(false);
-  const [loadingStaff, setLoadingStaff] = useState(false);
-  const searchInputRef = useRef<TextInput>(null);
+  const s = (n: number) => n * scaleX;
+  const [tab, setTab] = useState<Tab>(shift === 'PM' ? 'pm' : 'am');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [attendants, setAttendants] = useState<StaffMember[] | null>(null);
+  const [department, setDepartment] = useState<{ id: string; name: string } | null>(null);
 
-  const focusSearch = () => {
-    if (!showSearch) {
-      setShowSearch(true);
-      // Defer focus slightly so input is mounted
-      setTimeout(() => searchInputRef.current?.focus(), 0);
-      return;
-    }
-    searchInputRef.current?.focus();
-  };
-
-  /*
-   * Rooms are assigned to Housekeeping Room Attendants only, so that is all
-   * this sheet lists — on the Rooms list, Room Detail and a staff member's
-   * rooms alike. Loaded each time it opens, so a newly rostered attendant shows.
-   */
-  React.useEffect(() => {
+  // Loaded each time it opens, so a newly rostered attendant shows.
+  useEffect(() => {
     if (!visible) return;
     let cancelled = false;
-    setLoadingStaff(true);
-    (async () => {
-      const attendants = await fetchRoomAttendants();
+    void Promise.all([fetchRoomAttendants(), getDepartments()]).then(([people, depts]) => {
       if (cancelled) return;
-      setStaff(attendants);
-      setLoadingStaff(false);
-    })();
+      setAttendants(people);
+      const rows = depts.data ?? [];
+      const hk =
+        rows.find((d) => (d as { key?: string | null }).key === 'housekeeping') ??
+        rows.find((d) => (d.name ?? '').trim().toLowerCase() === 'housekeeping');
+      setDepartment(hk ? { id: hk.id, name: hk.name ?? 'Housekeeping' } : null);
+    });
     return () => {
       cancelled = true;
     };
   }, [visible]);
 
-  // Reset search state when modal is closed; reopen on the room's shift.
-  React.useEffect(() => {
+  // Reopen on the room's shift, with no search.
+  useEffect(() => {
     if (!visible) {
-      setShowSearch(false);
-      setSearchQuery('');
-      setActiveTab(shift ?? 'OnShift');
+      setSearchOpen(false);
+      setQuery('');
+      setTab(shift === 'PM' ? 'pm' : 'am');
     }
   }, [visible, shift]);
 
-  const handleStaffSelect = (staffId: string) => {
-    setSelectedStaffId(staffId);
-    onStaffSelect(staffId, staff.find((s) => s.id === staffId));
+  const { roster, loading, error } = useStaffRoster(
+    visible && department
+      ? { departmentId: department.id, departmentName: department.name, statKind: 'cleaning', shift: tab === 'am' ? 'AM' : 'PM' }
+      : null
+  );
+
+  const attendantIds = useMemo(() => new Set((attendants ?? []).map((a) => a.id)), [attendants]);
+
+  const sections = useMemo(() => {
+    const needle = query.trim().toLowerCase();
+    return (roster?.sections ?? [])
+      .map((section) => ({
+        ...section,
+        data: section.people
+          .filter((p) => attendantIds.has(p.id))
+          .filter(
+            (p) =>
+              !needle ||
+              p.name.toLowerCase().includes(needle) ||
+              (p.jobTitle ?? '').toLowerCase().includes(needle)
+          )
+          // Lightest load first: the natural pick is at the top of each group.
+          .sort((a, b) => (a.work?.total ?? 0) - (b.work?.total ?? 0)),
+      }))
+      .filter((section) => section.data.length > 0);
+  }, [roster, attendantIds, query]);
+
+  const select = (person: StaffRosterPerson) => {
+    onStaffSelect(person.id, attendants?.find((a) => a.id === person.id));
     onClose();
   };
 
-  const handleAutoAssign = () => {
-    // Find staff with lowest workload
-    const filteredStaff = getFilteredStaff();
-    if (filteredStaff.length > 0) {
-      // Sort by workload and select the one with lowest workload
-      const sortedStaff = [...filteredStaff].sort((a, b) => (a.workload ?? 0) - (b.workload ?? 0));
-      handleStaffSelect(sortedStaff[0].id);
-    } else {
-      // Fallback: call the onAutoAssign callback
-      onAutoAssign();
-    }
+  /** The on-shift attendant with the fewest rooms; else ask the caller. */
+  const autoAssign = () => {
+    const onShift = sections.find((sec) => sec.state === 'on_shift')?.data ?? [];
+    const pick = [...onShift].sort((a, b) => (a.work?.total ?? 0) - (b.work?.total ?? 0))[0];
+    if (pick) select(pick);
+    else onAutoAssign();
   };
 
-  const getFilteredStaff = (): StaffMember[] => {
-    let filtered = staff;
-    
-    // Filter by tab
-    switch (activeTab) {
-      case 'OnShift':
-        filtered = filtered.filter((s) => s.onShift);
-        break;
-      case 'AM':
-        filtered = filtered.filter((s) => s.onShift && s.shift === 'AM');
-        break;
-      case 'PM':
-        filtered = filtered.filter((s) => s.onShift && s.shift === 'PM');
-        break;
-    }
-    
-    // Filter by search (name, department, role)
-    if (searchQuery.trim()) {
-      const lowerQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (s) =>
-          (s.name ?? '').toLowerCase().includes(lowerQuery) ||
-          (s.department ?? '').toLowerCase().includes(lowerQuery) ||
-          (s.role ?? '').toLowerCase().includes(lowerQuery)
-      );
-    }
-    
-    return filtered;
-  };
+  if (!visible) return null;
 
-  if (!visible) {
-    return null;
-  }
+  const busy = attendants == null || (loading && !roster);
 
   return (
-    <Modal
-      visible={visible}
-      animationType="slide"
-      onRequestClose={onClose}
-    >
-      <View style={styles.container}>
-        {/* Header */}
-        <ReassignHeader
+    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
+        <StaffHeader
           onBackPress={onClose}
-          onAutoAssignPress={showAutoAssign ? handleAutoAssign : undefined}
+          title={roomNumber ? `Assign Room ${roomNumber}` : 'Assign Room'}
+          searchOpen={searchOpen}
+          onSearchPress={() => {
+            if (searchOpen) setQuery('');
+            setSearchOpen(!searchOpen);
+          }}
         />
 
-        {/* Tabs */}
-        <ReassignTabs
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          onSearchPress={focusSearch}
-        />
-
-        {/* Search bar – filters staff by name within the active tab */}
-        {showSearch && (
-          <View style={styles.searchBarContainer}>
-            <TextInput
-              ref={searchInputRef}
-              style={styles.searchInput}
-              placeholder="Search staff by name..."
-              placeholderTextColor="#999"
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              returnKeyType="search"
-              onSubmitEditing={Keyboard.dismiss}
-            />
+        {searchOpen ? (
+          <View
+            className="bg-surface-header"
+            style={{ flexDirection: 'row', paddingHorizontal: s(L.gutter), paddingBottom: s(14) }}
+          >
+            <View
+              style={{
+                flex: 1,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#ffffff',
+                height: s(42),
+                borderRadius: s(21),
+                paddingHorizontal: s(16),
+                gap: s(10),
+              }}
+            >
+              <Icon name="action-search" size={s(16)} color="#5a759d" />
+              <TextInput
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Search attendants"
+                placeholderTextColor="#9aa7bd"
+                autoFocus
+                returnKeyType="search"
+                style={{ flex: 1, fontSize: s(16), fontFamily: typography.fontFamily.primary, color: '#334866', paddingVertical: 0 }}
+                accessibilityLabel="Search attendants"
+              />
+            </View>
           </View>
-        )}
+        ) : null}
 
-        {/* Staff List */}
-        <StaffListContainer
-          staff={staff}
-          activeTab={activeTab}
-          searchQuery={searchQuery}
-          selectedStaffId={selectedStaffId || undefined}
-          onStaffSelect={handleStaffSelect}
-          isLoading={loadingStaff}
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: s(L.gutter),
+            paddingTop: s(16),
+          }}
+        >
+          <StaffTabs selectedTab={tab} onTabPress={setTab} />
+          {showAutoAssign ? (
+            <Pressable
+              onPress={autoAssign}
+              disabled={busy}
+              accessibilityRole="button"
+              accessibilityHint="Assigns the on-shift attendant with the fewest rooms"
+              style={({ pressed }) => ({
+                paddingHorizontal: s(16),
+                paddingVertical: s(8),
+                borderRadius: s(18),
+                backgroundColor: '#e4eefe',
+                opacity: pressed || busy ? 0.6 : 1,
+              })}
+            >
+              <Text style={{ fontSize: s(14), fontFamily: typography.fontFamily.primary, fontWeight: '700', color: '#5a759d' }}>
+                Auto Assign
+              </Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <SectionList
+          style={{ flex: 1 }}
+          contentContainerStyle={{ paddingBottom: s(40), flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          stickySectionHeadersEnabled={false}
+          sections={busy || error ? [] : sections}
+          keyExtractor={(p) => p.id}
+          renderSectionHeader={({ section }) => (
+            <View style={{ paddingHorizontal: s(L.gutter) }}>
+              <ShiftGroupHeading state={section.state} />
+            </View>
+          )}
+          renderItem={({ item: person }) => {
+            const current = person.id === currentAssignedStaffId;
+            return (
+              <View style={{ paddingHorizontal: s(L.gutter) }}>
+                <Pressable
+                  onPress={() => select(person)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Assign to ${person.name}`}
+                  accessibilityState={{ selected: current }}
+                  style={({ pressed }) => ({
+                    borderRadius: s(L.card.radius),
+                    borderWidth: 1,
+                    borderColor: current ? '#5a759d' : '#e3e3e3',
+                    backgroundColor: pressed ? '#eef2f8' : '#f9fafc',
+                    paddingVertical: s(14),
+                    paddingHorizontal: s(L.card.paddingHorizontal),
+                    gap: s(12),
+                  })}
+                >
+                  <StaffIdentityRow
+                    person={person}
+                    showChevron={false}
+                    trailing={
+                      current ? (
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: s(4) }}>
+                          <Ionicons name="checkmark-circle" size={s(20)} color="#5a759d" />
+                          <Text style={{ fontSize: s(12), fontFamily: typography.fontFamily.primary, color: '#5a759d', fontWeight: '700' }}>
+                            Assigned
+                          </Text>
+                        </View>
+                      ) : undefined
+                    }
+                  />
+                  {person.work ? <StaffWorkloadBar work={person.work} /> : null}
+                </Pressable>
+              </View>
+            );
+          }}
+          ItemSeparatorComponent={() => <View style={{ height: s(10) }} />}
+          ListEmptyComponent={
+            busy ? (
+              <View style={{ paddingVertical: s(48) }}>
+                <ActivityIndicator size="large" color="#5a759d" />
+              </View>
+            ) : (
+              <Text
+                style={{
+                  textAlign: 'center',
+                  paddingVertical: s(40),
+                  paddingHorizontal: s(24),
+                  fontSize: s(14),
+                  fontFamily: typography.fontFamily.primary,
+                  color: '#a0a0a0',
+                }}
+              >
+                {error
+                  ? error
+                  : query.trim()
+                    ? 'No attendant matches your search.'
+                    : `No room attendants are rostered on the ${tab === 'am' ? 'AM' : 'PM'} shift.`}
+              </Text>
+            )
+          }
         />
       </View>
     </Modal>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  searchBarContainer: {
-    paddingHorizontal: 20 * scaleX,
-    paddingVertical: 10 * scaleX,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e3e3e3',
-  },
-  searchInput: {
-    height: 40 * scaleX,
-    paddingHorizontal: 12 * scaleX,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10 * scaleX,
-    fontSize: 15 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    color: '#1e1e1e',
-  },
-});
-

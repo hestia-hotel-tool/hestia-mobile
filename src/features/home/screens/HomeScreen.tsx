@@ -36,6 +36,7 @@ import { describeActiveFilters, hasAnyActiveFilter } from '@features/rooms/utils
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
+import { useShiftLock } from '@features/account/hooks/useShiftLock';
 import { useRenderLoopProbe } from '@/utils/useRenderLoopProbe';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
@@ -125,10 +126,22 @@ export default function HomeScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [assignedRoomIdsOrdered, setAssignedRoomIdsOrdered] = useState<string[]>([]);
 
+  /*
+   * Room attendants work their own shift only: no AM/PM toggle, and Home
+   * follows their rostered shift (useShiftLock).
+   */
+  const shiftLock = useShiftLock();
+  useEffect(() => {
+    if (shiftLock.locked && homeData.selectedShift !== shiftLock.shift) {
+      setHomeData((prev) => ({ ...prev, selectedShift: shiftLock.shift }));
+    }
+  }, [shiftLock.locked, shiftLock.shift, homeData.selectedShift]);
+
   // PM should behave like AM during AM hours; PM home categories differ from AM (see derivedCategories).
+  // Not for a locked attendant: a PM attendant opening the app in the morning sees their PM rooms.
   const currentShiftFromClock = useMemo(() => getShiftFromTime(), []);
   const effectiveShift: ShiftType =
-    homeData.selectedShift === 'PM' && currentShiftFromClock === 'AM'
+    !shiftLock.locked && homeData.selectedShift === 'PM' && currentShiftFromClock === 'AM'
       ? 'AM'
       : homeData.selectedShift;
 
@@ -950,7 +963,7 @@ export default function HomeScreen() {
             role={safeUser?.role}
             avatarUrl={safeUser?.avatar}
             shift={homeData.selectedShift}
-            onShiftChange={handleShiftToggle}
+            onShiftChange={shiftLock.locked ? undefined : handleShiftToggle}
           />
         </View>
 

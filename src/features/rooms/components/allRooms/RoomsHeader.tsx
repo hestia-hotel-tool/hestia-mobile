@@ -10,7 +10,8 @@ export type RoomsHeaderProps = {
   role?: string | null;
   avatarUrl?: string | null;
   shift: ShiftType;
-  onShiftChange: (shift: ShiftType) => void;
+  /** Omit to lock the shift (room attendants) — see HomeHeader. */
+  onShiftChange?: (shift: ShiftType) => void;
   searchQuery: string;
   onSearch: (text: string) => void;
   onFilterPress?: () => void;

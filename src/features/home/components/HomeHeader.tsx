@@ -15,7 +15,11 @@ export type HomeHeaderProps = {
   role?: string | null;
   avatarUrl?: string | null;
   shift: ShiftType;
-  onShiftChange: (shift: ShiftType) => void;
+  /**
+   * Omit to lock the shift: room attendants work theirs only, so they see it
+   * as a fixed pill instead of the AM/PM toggle (see useShiftLock).
+   */
+  onShiftChange?: (shift: ShiftType) => void;
 };
 
 /**
@@ -75,7 +79,20 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
         )}
       </View>
 
-      <SegmentedToggle options={SHIFT_OPTIONS} value={shift} onChange={onShiftChange} />
+      {onShiftChange ? (
+        <SegmentedToggle options={SHIFT_OPTIONS} value={shift} onChange={onShiftChange} />
+      ) : (
+        // The toggle's own thumb, alone: the same blue pill and white label,
+        // with nothing to switch to.
+        <View
+          className="items-center justify-center rounded-full bg-primary"
+          style={{ width: 64.612, height: 30.544 }}
+          accessible
+          accessibilityLabel={`Your shift: ${shift}`}
+        >
+          <Text className="font-hestia-primary text-hestia-lg font-bold text-ink-white">{shift}</Text>
+        </View>
+      )}
     </View>
   );
 }
