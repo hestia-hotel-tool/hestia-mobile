@@ -16,6 +16,8 @@ import { RoomPromiseRow } from './RoomPromiseRow';
 import { RoomAssigneeBlock } from './RoomAssigneeBlock';
 import { isActivePriority } from '../../utils/roomGroups';
 import { roomBadges } from './RoomBadgeTile';
+import { PorterStatusPill, GuestPresence } from './PorterStatusPill';
+import { PORTER_SPEC_STATUS, type PorterStatus } from '../../utils/porter';
 
 export type ArrivalDepartureRoomCardProps = {
   room: RoomCardData;
@@ -29,6 +31,11 @@ export type ArrivalDepartureRoomCardProps = {
   measureRef?: React.Ref<RNView>;
   /** Measured by the screen to anchor the status popover. */
   statusPillRef?: React.Ref<RNView>;
+  /**
+   * The porter's view (Figma 3859:1041): the porter check replaces the
+   * room status pill, and Guest in / Guest Out replaces the assignee.
+   */
+  porter?: { status: PorterStatus; guestIn: boolean };
 };
 
 /**
@@ -50,6 +57,7 @@ export function ArrivalDepartureRoomCard({
   onLayout,
   measureRef,
   statusPillRef,
+  porter,
 }: ArrivalDepartureRoomCardProps) {
   // Live: "Credits", "Return at" and the promise move with the clock.
   // Only cards with a running clock follow the tick (see roomHasLiveClock).
@@ -60,8 +68,12 @@ export function ArrivalDepartureRoomCard({
   // The red frame and rush pill are for a priority room still to be started
   // (Figma 3883:5765, "Not Started"). Once it is In Progress, paused, DND or
   // anything else, the card shows that state and its pill, like any room.
-  const priority = isActivePriority(room) && displayStatus === 'Dirty';
-  const spec = ROOM_CARD_SPECS[roomCardSpecName(displayStatus, true, priority)];
+  const priority = porter
+    ? !!room.isPriority && porter.status === 'unchecked'
+    : isActivePriority(room) && displayStatus === 'Dirty';
+  // A porter's card is styled by the porter check, not the cleaning status.
+  const specStatus = porter ? PORTER_SPEC_STATUS[porter.status] : displayStatus;
+  const spec = ROOM_CARD_SPECS[roomCardSpecName(specStatus, true, priority)];
   const staff = room.roomAttendantAssigned;
 
   const renderGuest = (guest: GuestInfo, index: number) => {
@@ -93,8 +105,11 @@ export function ArrivalDepartureRoomCard({
         typeLabel="Arrival/Departure"
         badges={roomBadges(room)}
         outOfOrder={Boolean(room.outOfOrder)}
-        assigneeKey={`${staff?.name ?? ''}|${status.text}`}
+        assigneeKey={porter ? `guest|${porter.guestIn}` : `${staff?.name ?? ''}|${status.text}`}
         assignee={
+          porter ? (
+            <GuestPresence guestIn={porter.guestIn} />
+          ) : (
           <RoomAssigneeBlock
             name={staff?.name}
             avatarUrl={staff?.avatar}
@@ -102,6 +117,7 @@ export function ArrivalDepartureRoomCard({
             status={staff?.name || status.text !== 'Not Started' ? status : null}
             onPress={onAssignPress}
           />
+          )
         }
       />
 
@@ -111,6 +127,14 @@ export function ArrivalDepartureRoomCard({
         spec={spec}
         guests={room.guests.slice(0, 2).map(renderGuest)}
         action={
+          porter ? (
+            <PorterStatusPill
+              status={porter.status}
+              onPress={onStatusPress}
+              loading={isChangingStatus}
+              measureRef={statusPillRef}
+            />
+          ) : (
           <RoomStatusPill
             status={displayStatus}
             tone={priority ? 'priority' : 'solid'}
@@ -118,6 +142,7 @@ export function ArrivalDepartureRoomCard({
             loading={isChangingStatus}
             measureRef={statusPillRef}
           />
+          )
         }
       />
     </RoomCardShell>

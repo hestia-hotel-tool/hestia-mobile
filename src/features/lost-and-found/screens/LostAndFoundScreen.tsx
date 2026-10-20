@@ -41,7 +41,6 @@ type MainTabsParamList = {
   '(tickets)/index': undefined;
   '(lost_and_found)/index': undefined;
   '(staff)/index': undefined;
-  '(settings)/index': undefined;
 };
 
 type LostAndFoundScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(lost_and_found)/index'>;

@@ -45,6 +45,10 @@ import ReassignModal from '../components/roomDetail/ReassignModal';
 import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { useShiftLock } from '@features/account/hooks/useShiftLock';
+import OffShiftNotice from '@features/account/components/OffShiftNotice';
+import { usePorterChecks } from '../hooks/usePorterChecks';
+import { groupRoomsForPorter, isGuestIn, type PorterAction } from '../utils/porter';
+import PorterStatusModal from '../components/PorterStatusModal';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
@@ -193,7 +197,14 @@ export default function AllRoomsScreen() {
    * permission: supervisors and attendants hold the same rights as the managers
    * above them, only their day differs.
    */
-  const { roomsVariant, can } = usePermissions();
+  const { roomsVariant, can, homeVariant } = usePermissions();
+  /**
+   * Porters (Figma 3859:1041) see every room grouped by their own round —
+   * In Progress, Paused, Priority, Checked, UnChecked — and set that mark from
+   * the pill. It is separate from the cleaning status (utils/porter.ts).
+   */
+  const isPorter = homeVariant === 'hsk_portier' && can(PERMISSIONS.ROOMS_PORTER_CHECK);
+  const porterChecks = usePorterChecks(uiShift, isPorter);
   /*
    * Whether the status pill is a control or just a badge.
    *
@@ -996,8 +1007,28 @@ export default function AllRoomsScreen() {
   );
 
   const roomGroups = useMemo(
-    () => (isGroupedRooms ? groupRoomsByStatus(filteredRooms) : []),
-    [isGroupedRooms, filteredRooms]
+    () =>
+      isGroupedRooms
+        ? isPorter
+          ? groupRoomsForPorter(filteredRooms, porterChecks.statusOf)
+          : groupRoomsByStatus(filteredRooms)
+        : [],
+    [isGroupedRooms, isPorter, filteredRooms, porterChecks.statusOf]
+  );
+
+  /** A porter step chosen in the porter's Change Status menu. */
+  const runPorterStep = useCallback(
+    (room: RoomCardData, action: PorterAction) => {
+      porterChecks
+        .act(room.id, action)
+        .then(() => {
+          if (action === 'check') toast.show(`Room ${room.roomNumber} checked`, { type: 'success' });
+        })
+        .catch((e: unknown) =>
+          toast.show(e instanceof Error ? e.message : 'The room could not be updated.', { type: 'error' })
+        );
+    },
+    [porterChecks, toast]
   );
 
   /*
@@ -1118,6 +1149,9 @@ export default function AllRoomsScreen() {
               ),
             };
 
+            // A room attendant off the shift that is on now: say so, and when theirs is.
+            if (shiftLock.offShift) return <OffShiftNotice info={shiftLock.offShift} />;
+
             const renderRoomCard = (room: RoomCardData) => (
               <RoomRow
                 key={room.id}
@@ -1125,10 +1159,13 @@ export default function AllRoomsScreen() {
                 rebuilt={chrome.rebuiltCard}
                 selectedShift={displayData.selectedShift}
                 canChangeStatus={canChangeStatus}
-                isChangingStatus={changingStatusRoomId === room.id}
+                isChangingStatus={changingStatusRoomId === room.id || (isPorter && porterChecks.busyRoomId === room.id)}
                 isAssigningStaff={assigningStaffRoomId === room.id}
                 onPress={handleRoomPress}
                 onStatusPress={handleStatusPress}
+                porter={
+                  isPorter ? { status: porterChecks.statusOf(room.id), guestIn: isGuestIn(room) } : undefined
+                }
                 onAssignPress={canReassign ? handleAssignStaffPress : undefined}
                 registerCardRef={registerCardRef}
                 registerPillRef={registerPillRef}
@@ -1231,8 +1268,20 @@ export default function AllRoomsScreen() {
       {/* Status Change Modal */}
       {sendBack.element}
 
+      {/* Porters get the same menu, with the porter round's steps (Figma 3859:1041). */}
+      <PorterStatusModal
+        visible={showStatusModal && isPorter}
+        onClose={statusPopover.close}
+        room={isPorter ? selectedRoomForStatusChange : null}
+        status={selectedRoomForStatusChange ? porterChecks.statusOf(selectedRoomForStatusChange.id) : 'unchecked'}
+        onSelect={runPorterStep}
+        buttonPosition={statusButtonPosition}
+        headerHeight={modalHeaderHeight}
+        blurTop={statusBlurTop}
+      />
+
       <StatusChangeModal
-        visible={showStatusModal}
+        visible={showStatusModal && !isPorter}
         onClose={statusPopover.close}
         onStatusSelect={handleStatusSelect}
         onInspectComplete={(report) => {

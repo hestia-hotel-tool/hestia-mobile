@@ -242,20 +242,25 @@ function daysAgo(days: number): string {
 export type TicketCounts = { total: number; priority: number; unsolved: number; solved: number; outOfOrder: number };
 
 /**
- * Home's ticket dashboard: the signed-in user's tickets in their department,
- * counted by state. Reads only those rows — it used to download every ticket
- * in the hotel (with photos, people and guests) to count five numbers.
+ * The department's tickets, counted for a ticket dashboard (Engineering, In
+ * Room Dining): every open one, and the closed ones from the last
+ * TICKET_WINDOW_DAYS — the same window as the Tickets list, so tapping a
+ * number there shows the tickets it counted.
+ *
+ * Department-wide, not the viewer's own: a director or supervisor watches the
+ * team's queue, and an unassigned ticket is exactly the one that needs seeing.
  */
-export async function getTicketCountsForAssignee(userId: string, departmentName: string): Promise<TicketCounts> {
+export async function getTicketCountsForDepartment(departmentName: string): Promise<TicketCounts> {
   const zero = { total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 };
-  if (!isSupabaseConfigured || !userId) return zero;
+  if (!isSupabaseConfigured || !departmentName) return zero;
   const { data, error } = await supabase
     .from('tickets')
     .select('status, priority, departments!inner(name)')
-    .eq('assigned_to_id', userId)
-    .ilike('departments.name', departmentName);
+    .ilike('departments.name', departmentName)
+    .or(`status.not.in.(done,closed,resolved),created_at.gte.${daysAgo(TICKET_WINDOW_DAYS)}`)
+    .limit(TICKET_LIST_LIMIT);
   if (error || !data) {
-    console.warn('[tickets.getTicketCountsForAssignee]', error?.message);
+    console.warn('[tickets.getTicketCountsForDepartment]', error?.message);
     return zero;
   }
   const rows = data as unknown as { status: string | null; priority: string | null }[];

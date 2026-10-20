@@ -66,6 +66,8 @@ export const PERMISSIONS = {
   ROOMS_STATUS_OVERRIDE: 'rooms.status.override',
   /** Create, edit and delete rooms, room types, floors and public areas */
   ROOMS_MANAGE: 'rooms.manage',
+  /** Mark a room checked on the porter round */
+  ROOMS_PORTER_CHECK: 'rooms.porter.check',
 
   // Chat
   /** Start a direct chat */

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { getTicketCountsForAssignee } from '@features/tickets/services/tickets';
+import { getTicketCountsForDepartment } from '@features/tickets/services/tickets';
 import { useShallow } from 'zustand/react/shallow';
 import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
@@ -37,6 +37,7 @@ import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { useShiftLock } from '@features/account/hooks/useShiftLock';
+import OffShiftNotice from '@features/account/components/OffShiftNotice';
 import { useRenderLoopProbe } from '@/utils/useRenderLoopProbe';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
@@ -252,9 +253,9 @@ export default function HomeScreen() {
     if (!isTicketDashboard) return;
 
     try {
-      // Only this user's tickets in this department, counted (not the hotel's whole list).
-      const uid = session?.user?.id;
-      setTicketCounts(uid ? await getTicketCountsForAssignee(uid, ticketDepartment ?? '') : { total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 });
+      // The department's queue (open, plus closed in the last 30 days) — not
+      // only the viewer's own: a director saw 0 while the team had tickets.
+      setTicketCounts(await getTicketCountsForDepartment(ticketDepartment ?? ''));
     } catch (e) {
       console.warn('[HomeScreen] Failed to load ticket dashboard counts', e);
     }
@@ -310,11 +311,21 @@ export default function HomeScreen() {
     } catch (e) {
       console.warn('[HomeScreen] Failed to load ticket dashboard recent activity', e);
     }
-  }, [isTicketDashboard, ticketDepartment, session?.user?.id, ticketActivityLimit]);
+  }, [isTicketDashboard, ticketDepartment, ticketActivityLimit]);
 
-  useEffect(() => {
-    void refreshTicketDashboard();
-  }, [refreshTicketDashboard]);
+  /*
+   * On every visit, not once: Home stays mounted behind the other tabs, so a
+   * ticket created from Tickets never reached the counts until a restart.
+   * And every minute while it is on screen, for tickets others create.
+   */
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isTicketDashboard) return;
+      void refreshTicketDashboard();
+      const timer = setInterval(() => void refreshTicketDashboard(), 60_000);
+      return () => clearInterval(timer);
+    }, [isTicketDashboard, refreshTicketDashboard])
+  );
 
   const [portierOverview, setPortierOverview] = useState<{
     total: number;
@@ -981,7 +992,10 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Scrollable Content with conditional blur */}
+        {/* A room attendant off the shift that is on now: say so, and when theirs is. */}
+        {shiftLock.offShift ? (
+          <OffShiftNotice info={shiftLock.offShift} />
+        ) : (
         <View style={styles.scrollContainer}>
           <ScrollView
             style={styles.scrollView}
@@ -1223,6 +1237,7 @@ export default function HomeScreen() {
           </ScrollView>
           
         </View>
+        )}
 
       </KeyboardAvoidingView>
 

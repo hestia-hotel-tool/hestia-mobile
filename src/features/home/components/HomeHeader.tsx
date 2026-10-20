@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text } from '@/tw';
+import { router } from 'expo-router';
+import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import type { ShiftType } from '@/types/shift.types';
@@ -53,6 +54,17 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
       // Status bar height is a runtime value, so it stays a style.
       style={{ paddingTop: insets.top + 12 }}
     >
+      {/*
+        Who you are opens your Settings — there is no Settings tab any more.
+        The avatar, name and title are one target.
+      */}
+      <Pressable
+        className="flex-1 flex-row items-center gap-lg"
+        onPress={() => router.push('/settings')}
+        accessibilityRole="button"
+        accessibilityLabel={`${name ?? 'Your profile'}, open account`}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
       <Avatar uri={avatarUrl} name={name} size={51} />
 
       <View className="flex-1">
@@ -78,6 +90,7 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
           </Text>
         )}
       </View>
+      </Pressable>
 
       {onShiftChange ? (
         <SegmentedToggle options={SHIFT_OPTIONS} value={shift} onChange={onShiftChange} />

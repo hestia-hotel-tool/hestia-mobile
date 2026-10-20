@@ -16,6 +16,8 @@ export type RoomListCardProps = {
   measureRef?: React.Ref<RNView>;
   /** Measured by the screen to anchor the status popover. */
   statusPillRef?: React.Ref<RNView>;
+  /** The porter's view — see SingleGuestRoomCard. */
+  porter?: { status: import('../../utils/porter').PorterStatus; guestIn: boolean };
 };
 
 /**

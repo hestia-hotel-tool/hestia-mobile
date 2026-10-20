@@ -177,6 +177,10 @@
     {
       "key": "audit.view",
       "description": "Open the activity log"
+    },
+    {
+      "key": "rooms.porter.check",
+      "description": "Mark a room checked on the porter round"
     }
   ],
   "rights": [
@@ -371,6 +375,10 @@
     ],
     "audit.view": [
       "full_access"
+    ],
+    "rooms.porter.check": [
+      "hk_houseman",
+      "full_access"
     ]
   },
   "departments": [
@@ -408,11 +416,6 @@
       "key": "executive",
       "name": "Executive and Administration",
       "description": "General management and hotel administration"
-    },
-    {
-      "key": "food_beverage",
-      "name": "Food & Beverage / Kitchen",
-      "description": "Restaurants, bars, banquets and kitchen brigade"
     }
   ],
   "roles": [
@@ -420,7 +423,7 @@
       "key": "full_access",
       "name": "Full Access",
       "description": "Every right. Housekeeping leadership and hotel executives.",
-      "titleCount": 9,
+      "titleCount": 3,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -550,7 +553,7 @@
       "key": "ops_senior",
       "name": "Operations Senior",
       "description": "Front Office, Concierge and In-Room Dining leadership.",
-      "titleCount": 20,
+      "titleCount": 8,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -576,7 +579,7 @@
       "key": "fo_agent",
       "name": "Front Office Agent",
       "description": "Front desk agents and trainees.",
-      "titleCount": 4,
+      "titleCount": 2,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -602,7 +605,7 @@
       "key": "concierge_agent",
       "name": "Concierge Agent",
       "description": "Concierge, bell desk and valet floor staff.",
-      "titleCount": 5,
+      "titleCount": 3,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -628,7 +631,7 @@
       "key": "ird_service",
       "name": "In-Room Dining Service",
       "description": "In-room dining order takers and butlers.",
-      "titleCount": 2,
+      "titleCount": 0,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -654,7 +657,7 @@
       "key": "technical",
       "name": "Technical",
       "description": "IT. Ticket-driven.",
-      "titleCount": 5,
+      "titleCount": 1,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -680,7 +683,7 @@
       "key": "fnb_kitchen",
       "name": "F&B / Kitchen",
       "description": "Chat, tickets and lost & found only.",
-      "titleCount": 1,
+      "titleCount": 0,
       "rights": {
         "dashboard": false,
         "rooms": false,
@@ -706,7 +709,7 @@
       "key": "engineering",
       "name": "Engineering",
       "description": "Engineering. Ticket-driven, works from Home rather than Rooms.",
-      "titleCount": 4,
+      "titleCount": 2,
       "rights": {
         "dashboard": true,
         "rooms": false,
@@ -739,40 +742,8 @@
       "roomsVariant": "leadership"
     },
     {
-      "key": "housekeeping_manager",
-      "name": "Housekeeping Manager",
-      "department": "housekeeping",
-      "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "assistant_housekeeping_manager",
-      "name": "Assistant Housekeeping Manager",
-      "department": "housekeeping",
-      "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "senior_supervisor",
-      "name": "Senior Supervisor",
-      "department": "housekeeping",
-      "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "supervisor"
-    },
-    {
       "key": "supervisor",
       "name": "Supervisor",
-      "department": "housekeeping",
-      "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "supervisor"
-    },
-    {
-      "key": "coordinator",
-      "name": "Coordinator",
       "department": "housekeeping",
       "role": "full_access",
       "homeVariant": "default",
@@ -819,32 +790,8 @@
       "roomsVariant": "leadership"
     },
     {
-      "key": "assistant_director_of_rooms",
-      "name": "Assistant Director Of Rooms",
-      "department": "front_office",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "director_of_front_office",
-      "name": "Director of Front Office",
-      "department": "front_office",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
       "key": "front_office_manager",
       "name": "Front Office Manager",
-      "department": "front_office",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "assistant_front_office_manager",
-      "name": "Assistant Front Office Manager",
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
@@ -867,24 +814,8 @@
       "roomsVariant": "leadership"
     },
     {
-      "key": "front_office_trainee",
-      "name": "Front Office Trainee",
-      "department": "front_office",
-      "role": "fo_agent",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
       "key": "night_manager",
       "name": "Night Manager",
-      "department": "front_office",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "night_auditor",
-      "name": "Night Auditor",
       "department": "front_office",
       "role": "ops_senior",
       "homeVariant": "default",
@@ -899,64 +830,8 @@
       "roomsVariant": "leadership"
     },
     {
-      "key": "guest_relations_manager",
-      "name": "Guest Relations Manager",
-      "department": "front_office",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "guest_relations_supervisor",
-      "name": "Guest Relations Supervisor",
-      "department": "front_office",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
-      "key": "guest_relations_agent",
-      "name": "Guest Relations Agent",
-      "department": "front_office",
-      "role": "fo_agent",
-      "homeVariant": "default",
-      "roomsVariant": "leadership"
-    },
-    {
       "key": "head_concierge",
       "name": "Head Concierge",
-      "department": "concierge",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "chief_concierge",
-      "name": "Chief Concierge",
-      "department": "concierge",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "concierge_manager",
-      "name": "Concierge Manager",
-      "department": "concierge",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "assistant_concierge_manager",
-      "name": "Assistant Concierge Manager",
-      "department": "concierge",
-      "role": "ops_senior",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "concierge_supervisor",
-      "name": "Concierge Supervisor",
       "department": "concierge",
       "role": "ops_senior",
       "homeVariant": "default",
@@ -987,40 +862,8 @@
       "roomsVariant": "default"
     },
     {
-      "key": "valet_supervisor",
-      "name": "Valet Supervisor",
-      "department": "concierge",
-      "role": "concierge_agent",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "valet_attendant",
-      "name": "Valet Attendant",
-      "department": "concierge",
-      "role": "concierge_agent",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "director_of_in_room_dining",
-      "name": "Director Of In Room Dining",
-      "department": "in_room_dining",
-      "role": "ops_senior",
-      "homeVariant": "dining",
-      "roomsVariant": "default"
-    },
-    {
       "key": "in_room_dining_manager",
       "name": "In Room Dining Manager",
-      "department": "in_room_dining",
-      "role": "ops_senior",
-      "homeVariant": "dining",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "in_room_dining_assistant_manager",
-      "name": "In Room Dining Assistant Manager",
       "department": "in_room_dining",
       "role": "ops_senior",
       "homeVariant": "dining",
@@ -1043,40 +886,8 @@
       "roomsVariant": "default"
     },
     {
-      "key": "in_room_dining_order_taker",
-      "name": "In Room Dining Order Taker",
-      "department": "in_room_dining",
-      "role": "ird_service",
-      "homeVariant": "dining",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "butler_in_room_dining",
-      "name": "Butler In Room Dining",
-      "department": "in_room_dining",
-      "role": "ird_service",
-      "homeVariant": "dining",
-      "roomsVariant": "default"
-    },
-    {
       "key": "director_of_engineering",
       "name": "Director of Engineering",
-      "department": "engineering",
-      "role": "engineering",
-      "homeVariant": "engineering",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "assistant_director_of_engineering",
-      "name": "Assistant Director Of Engineering",
-      "department": "engineering",
-      "role": "engineering",
-      "homeVariant": "engineering",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "engineering_supervisor",
-      "name": "Engineering Supervisor",
       "department": "engineering",
       "role": "engineering",
       "homeVariant": "engineering",
@@ -1099,66 +910,10 @@
       "roomsVariant": "default"
     },
     {
-      "key": "it_manager",
-      "name": "IT Manager",
-      "department": "it",
-      "role": "technical",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "assistant_it_manager",
-      "name": "Assistant IT Manager",
-      "department": "it",
-      "role": "technical",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "it_supervisor",
-      "name": "IT Supervisor",
-      "department": "it",
-      "role": "technical",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "it_agent",
-      "name": "IT Agent",
-      "department": "it",
-      "role": "technical",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "general_manager",
-      "name": "General Manager",
-      "department": "executive",
-      "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
       "key": "hotel_manager",
       "name": "Hotel Manager",
       "department": "executive",
       "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "assistant_to_general_and_hotel_manager",
-      "name": "Assistant to General & Hotel Manager",
-      "department": "executive",
-      "role": "full_access",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "fandb_kitchen_staff",
-      "name": "F&B / Kitchen Staff",
-      "department": "food_beverage",
-      "role": "fnb_kitchen",
       "homeVariant": "default",
       "roomsVariant": "default"
     }

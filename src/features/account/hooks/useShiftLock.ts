@@ -1,31 +1,99 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { usePermissions } from '@/domain/rbac/usePermissions';
+import { useNow } from '@/hooks/useNow';
+import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
+import { currentShiftNow, ensureHotelShifts, nextShiftStart } from '@/lib/hotelShifts';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import type { ShiftType } from '@/types/shift.types';
-import { fetchMyRosteredShift } from '../services/myShift';
+import { fetchMyAssignmentShifts, fetchMyRosteredShift } from '../services/myShift';
+
+/** Not working the shift that is on now: the screen says so instead of showing an empty list. */
+export type OffShift = {
+  /** The shift that is on now, which they are not on. */
+  shift: ShiftType;
+  /** Their next shift and when it starts; null when nothing is planned for them. */
+  next: { shift: ShiftType; startsAt: Date } | null;
+};
+
+export type ShiftLock = {
+  /** Room attendants: no AM/PM toggle. */
+  locked: boolean;
+  /** The shift to show: the one on now (by the hotel's shift times). */
+  shift: ShiftType;
+  /** Set when a locked attendant has nothing on the current shift. */
+  offShift: OffShift | null;
+};
+
+/** Re-read assignments this often even without a realtime event. */
+const REFRESH_MS = 5 * 60_000;
 
 /**
- * Room attendants work one shift: theirs. They do not get the AM/PM toggle —
- * Home and Rooms open on their rostered shift (`users.shift_id`), or, when none
- * is set, the shift the clock is in.
+ * Room attendants do not toggle AM / PM: they see the shift that is on now.
  *
- * Everyone else (`locked: false`) keeps the toggle and the clock default.
+ * An attendant can hold rooms on both shifts in one day, so the screen follows
+ * the clock — AM during the AM shift, PM during the PM shift — and switches by
+ * itself when the shift changes while the app is open.
+ *
+ * When the shift on now is not theirs (no rooms on it and not rostered on it),
+ * `offShift` says so and gives their next shift — the earliest start among the
+ * shifts they have rooms on or are rostered on — so the screen can say
+ * "You have no PM shift. Your next shift is AM, tomorrow at 06:00".
+ *
+ * Everyone else (`locked: false`) keeps the toggle; `shift` is still the clock's.
  */
-export function useShiftLock(): { locked: boolean; shift: ShiftType } {
-  const { roomsVariant } = usePermissions();
-  const locked = roomsVariant === 'attendant';
-  const [rostered, setRostered] = useState<ShiftType | null>(null);
+export function useShiftLock(): ShiftLock {
+  const { roomsVariant, homeVariant } = usePermissions();
+  // Attendants, and porters ("everything the same as the room attendant").
+  const locked = roomsVariant === 'attendant' || homeVariant === 'hsk_portier';
+
+  // Ticks every 15s: the shift boundary is picked up within that.
+  const nowMs = useNow(locked);
+  const [shiftsLoaded, setShiftsLoaded] = useState(false);
+  const shift = locked && shiftsLoaded ? currentShiftNow(new Date(nowMs)) : getShiftFromTime();
+
+  const [mine, setMine] = useState<{ rostered: ShiftType | null; assigned: Set<ShiftType> } | null>(null);
+
+  const load = useCallback(async () => {
+    const [rostered, assigned] = await Promise.all([fetchMyRosteredShift(), fetchMyAssignmentShifts()]);
+    setMine({ rostered, assigned });
+  }, []);
 
   useEffect(() => {
     if (!locked) return;
     let cancelled = false;
-    void fetchMyRosteredShift().then((shift) => {
-      if (!cancelled) setRostered(shift);
+    void ensureHotelShifts().then(() => {
+      if (!cancelled) setShiftsLoaded(true);
     });
+    void load();
+    const timer = setInterval(() => void load(), REFRESH_MS);
     return () => {
       cancelled = true;
+      clearInterval(timer);
     };
-  }, [locked]);
+  }, [locked, load]);
 
-  return { locked, shift: rostered ?? getShiftFromTime() };
+  // Re-check at the shift change, and whenever rooms or assignments change
+  // (a supervisor handing them PM rooms clears the notice at once).
+  useEffect(() => {
+    if (locked) void load();
+  }, [locked, shift, load]);
+  useLiveRoomChanges(() => void load(), { enabled: locked });
+
+  let offShift: OffShift | null = null;
+  // A porter is never assigned rooms, so only a rostered shift says when they
+  // work; one with none is treated as on every shift rather than locked out.
+  const porterUnrostered = homeVariant === 'hsk_portier' && mine != null && mine.rostered == null;
+  if (locked && mine && !porterUnrostered) {
+    const works = (s: ShiftType) => mine.assigned.has(s) || mine.rostered === s;
+    if (!works(shift)) {
+      const now = new Date(nowMs);
+      const candidates = (['AM', 'PM'] as ShiftType[]).filter((s) => s !== shift && works(s));
+      const next = candidates
+        .map((s) => ({ shift: s, startsAt: nextShiftStart(s, now) }))
+        .sort((a, b) => a.startsAt.getTime() - b.startsAt.getTime())[0];
+      offShift = { shift, next: next ?? null };
+    }
+  }
+
+  return { locked, shift, offShift };
 }

@@ -41,8 +41,7 @@ export type ReturnToTab =
   | '(chats)/index'
   | '(tickets)/index'
   | '(lost_and_found)/index'
-  | '(staff)/index'
-  | '(settings)/index';
+  | '(staff)/index';
 
 export type MainTabsParamList = {
   '(home)/index': undefined;
@@ -55,5 +54,4 @@ export type MainTabsParamList = {
     preselectedRoomId?: string;
   } | undefined;
   '(staff)/index': { returnToTab?: ReturnToTab } | undefined;
-  '(settings)/index': { returnToTab?: ReturnToTab } | undefined;
 };

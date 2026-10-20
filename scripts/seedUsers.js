@@ -30,43 +30,31 @@ const NEW_HOTEL_NAME = 'Palm Haven Hotel';
 // `job_title_key` matches job_titles.key, seeded from src/domain/rbac/matrix.json.
 // The trailing comment is the permission profile that title resolves to.
 const users = [
-  { full_name: 'Wallace Mua', email: 'wallace@hestia.ch', job_title_key: 'general_manager', hotel_name: DEFAULT_HOTEL_NAME },                       // full_access
-  { full_name: 'Stella Kitou', email: 'stella@hestia.ch', job_title_key: 'hotel_manager', hotel_name: DEFAULT_HOTEL_NAME },                         // full_access
+  { full_name: 'Stella Kitou', email: 'stella@hestia.ch', job_title_key: 'executive_housekeeper', hotel_name: DEFAULT_HOTEL_NAME },                         // full_access
 
   { full_name: 'Henry Tankeu', email: 'henry@hestia.ch', job_title_key: 'executive_housekeeper', hotel_name: DEFAULT_HOTEL_NAME },                  // full_access
-  { full_name: 'Giovanna Rossi', email: 'gio@hestia.ch', job_title_key: 'housekeeping_manager', hotel_name: DEFAULT_HOTEL_NAME },                   // full_access
-  { full_name: 'Leon Meyer', email: 'leon@hestia.ch', job_title_key: 'assistant_housekeeping_manager', hotel_name: DEFAULT_HOTEL_NAME },            // full_access
-  { full_name: 'Etleva Kola', email: 'etleva@hestia.ch', job_title_key: 'senior_supervisor', hotel_name: DEFAULT_HOTEL_NAME },                      // full_access
   { full_name: 'Alex Morin', email: 'alex@hestia.ch', job_title_key: 'supervisor', hotel_name: DEFAULT_HOTEL_NAME },                                // full_access
-  { full_name: 'Maria Lopez', email: 'maria@hestia.ch', job_title_key: 'coordinator', hotel_name: DEFAULT_HOTEL_NAME },                             // full_access
   { full_name: 'Zoe Cakeri', email: 'zoe@hestia.ch', job_title_key: 'housekeeping_room_attendant', hotel_name: DEFAULT_HOTEL_NAME },                // hk_room_attendant
   { full_name: 'Jordan Lee', email: 'jordan@hestia.ch', job_title_key: 'housekeeping_porter_houseman', hotel_name: DEFAULT_HOTEL_NAME },            // hk_houseman
   { full_name: 'Samantha Nguyen', email: 'sam@hestia.ch', job_title_key: 'housekeeping_laundry_attendant', hotel_name: DEFAULT_HOTEL_NAME },        // hk_laundry
   { full_name: 'Taylor Robinson', email: 'taylor@hestia.ch', job_title_key: 'housekeeping_public_area_attendant', hotel_name: DEFAULT_HOTEL_NAME }, // hk_public_area
 
   { full_name: 'Chris Johnson', email: 'chris@hestia.ch', job_title_key: 'director_of_rooms', hotel_name: DEFAULT_HOTEL_NAME },                     // ops_senior
-  { full_name: 'Morgan Patel', email: 'morgan@hestia.ch', job_title_key: 'assistant_director_of_rooms', hotel_name: DEFAULT_HOTEL_NAME },           // ops_senior
 
-  { full_name: 'Chi Henry', email: 'chi@hestia.ch', job_title_key: 'director_of_front_office', hotel_name: DEFAULT_HOTEL_NAME },                    // ops_senior
   { full_name: 'Alex Martinez', email: 'alexm@hestia.ch', job_title_key: 'front_office_manager', hotel_name: DEFAULT_HOTEL_NAME },                  // ops_senior
   { full_name: 'Sofia Blanc', email: 'sofia@hestia.ch', job_title_key: 'front_office_supervisor', hotel_name: DEFAULT_HOTEL_NAME },                 // ops_senior
   { full_name: 'Noah Weber', email: 'noah@hestia.ch', job_title_key: 'front_office_agent', hotel_name: DEFAULT_HOTEL_NAME },                        // fo_agent
-  { full_name: 'Emma Dubois', email: 'emma@hestia.ch', job_title_key: 'front_office_trainee', hotel_name: DEFAULT_HOTEL_NAME },                     // fo_agent
 
   { full_name: 'Lucas Braun', email: 'lucas@hestia.ch', job_title_key: 'night_manager', hotel_name: DEFAULT_HOTEL_NAME },                           // ops_senior
-  { full_name: 'Nina Keller', email: 'nina@hestia.ch', job_title_key: 'night_auditor', hotel_name: DEFAULT_HOTEL_NAME },                            // ops_senior
   { full_name: 'Paul Steiner', email: 'paul@hestia.ch', job_title_key: 'night_agent', hotel_name: DEFAULT_HOTEL_NAME },                             // fo_agent
 
   { full_name: 'Felix Fuhrken', email: 'felix@hestia.ch', job_title_key: 'director_of_engineering', hotel_name: DEFAULT_HOTEL_NAME },               // technical
-  { full_name: 'Marco Rossi', email: 'marco@hestia.ch', job_title_key: 'engineering_supervisor', hotel_name: DEFAULT_HOTEL_NAME },                  // technical
   { full_name: 'Ivan Petrov', email: 'ivan@hestia.ch', job_title_key: 'shift_engineer', hotel_name: DEFAULT_HOTEL_NAME },                           // technical
 
-  { full_name: 'Brian Osei', email: 'brian@hestia.ch', job_title_key: 'it_manager', hotel_name: DEFAULT_HOTEL_NAME },                               // technical
+  { full_name: 'Brian Osei', email: 'brian@hestia.ch', job_title_key: 'director_of_information_technology', hotel_name: DEFAULT_HOTEL_NAME },                               // technical
 
-  // Added so every one of the 11 permission profiles has a test account.
+  // Added so the permission profiles in use have a test account.
   { full_name: 'Yara Haddad', email: 'yara@hestia.ch', job_title_key: 'concierge_agent', hotel_name: DEFAULT_HOTEL_NAME },                          // concierge_agent
-  { full_name: 'Tomas Novak', email: 'tomas@hestia.ch', job_title_key: 'in_room_dining_order_taker', hotel_name: DEFAULT_HOTEL_NAME },              // ird_service
-  { full_name: 'Rui Almeida', email: 'rui@hestia.ch', job_title_key: 'fandb_kitchen_staff', hotel_name: DEFAULT_HOTEL_NAME },                       // fnb_kitchen
 ];
 
 function generateTenantUsers(hotelName) {
@@ -75,8 +63,6 @@ function generateTenantUsers(hotelName) {
     { full_name: 'Amina Diallo', job_title_key: 'hotel_manager' },
     { full_name: 'Jonas Fischer', job_title_key: 'front_office_manager' },
     { full_name: 'Sofia Mendes', job_title_key: 'executive_housekeeper' },
-    { full_name: 'Daniel Kim', job_title_key: 'engineering_supervisor' },
-    { full_name: 'Priya Shah', job_title_key: 'night_auditor' },
   ];
 
   return templates.map((t) => {

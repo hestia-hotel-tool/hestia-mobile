@@ -17,7 +17,8 @@ export const TAB_ROUTE: Record<string, string> = {
   Tickets: '/(tabs)/(tickets)',
   LostAndFound: '/(tabs)/(lost_and_found)',
   Staff: '/(tabs)/(staff)',
-  Settings: '/(tabs)/(settings)',
+  // Not a tab any more: opened from your profile at the top of Home and Rooms.
+  Settings: '/settings',
 };
 
 /**

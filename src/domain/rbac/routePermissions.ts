@@ -24,7 +24,6 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   '(tabs)/(tickets)': PERMISSIONS.TICKETS_VIEW,
   '(tabs)/(lost_and_found)': PERMISSIONS.LOST_AND_FOUND_VIEW,
   '(tabs)/(staff)': PERMISSIONS.STAFF_VIEW,
-  '(tabs)/(settings)': PERMISSIONS.SETTINGS_VIEW,
 
   // Room detail reads room data.
   'room': PERMISSIONS.ROOMS_READ,

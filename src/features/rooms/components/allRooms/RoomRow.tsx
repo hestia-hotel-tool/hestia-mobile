@@ -51,6 +51,8 @@ export type RoomRowProps = {
   LegacyCard: React.ComponentType<any>;
   /** The rebuilt card's slot style, owned by the screen's stylesheet. */
   slotStyle?: any;
+  /** The porter's view: the porter check pill (always tappable) and Guest in / Out. */
+  porter?: { status: import('../../utils/porter').PorterStatus; guestIn: boolean };
 };
 
 function RoomRowInner({
@@ -68,6 +70,7 @@ function RoomRowInner({
   RebuiltCard,
   LegacyCard,
   slotStyle,
+  porter,
 }: RoomRowProps) {
   const handlePress = useCallback(() => onPress(room), [onPress, room]);
   const handleStatusPress = useCallback(() => onStatusPress(room), [onStatusPress, room]);
@@ -92,8 +95,9 @@ function RoomRowInner({
         <RebuiltCard
           room={room}
           onPress={handlePress}
-          onStatusPress={canChangeStatus ? handleStatusPress : undefined}
+          onStatusPress={canChangeStatus || porter ? handleStatusPress : undefined}
           onAssignPress={onAssignPress ? handleAssignPress : undefined}
+          porter={porter}
           isChangingStatus={isChangingStatus}
           measureRef={measureRef}
           statusPillRef={pillRef}

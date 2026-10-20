@@ -11,7 +11,10 @@ export type RoomGroupKey =
   | 'priority'
   | 'dirty'
   | 'cleaned'
-  | 'inspected';
+  | 'inspected'
+  // The porter round's bands (utils/porter.ts).
+  | 'checked'
+  | 'unchecked';
 
 export interface RoomGroup {
   key: RoomGroupKey;
@@ -45,6 +48,8 @@ const GROUP_LABEL: Record<RoomGroupKey, string> = {
   dirty: 'Dirty',
   cleaned: 'Cleaned',
   inspected: 'Inspected',
+  checked: 'Checked',
+  unchecked: 'UnChecked',
 };
 
 const GROUP_COLOR: Record<RoomGroupKey, string> = {
@@ -55,6 +60,8 @@ const GROUP_COLOR: Record<RoomGroupKey, string> = {
   dirty: STATUS_CONFIGS.Dirty.color,
   cleaned: STATUS_CONFIGS.Cleaned.color,
   inspected: STATUS_CONFIGS.Inspected.color,
+  checked: STATUS_CONFIGS.Cleaned.color,
+  unchecked: STATUS_CONFIGS.Dirty.color,
 };
 
 /**

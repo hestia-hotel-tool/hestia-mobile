@@ -38,7 +38,6 @@ const TAB_ROUTE_NAMES: Record<string, string> = {
   Tickets: '(tickets)/index',
   LostAndFound: '(lost_and_found)/index',
   Staff: '(staff)/index',
-  Settings: '(settings)/index',
 };
 
 /** Route name -> tab id, inverted from the map above so the two cannot drift. */
@@ -63,7 +62,6 @@ const TAB_RETURN_ROUTE: Record<string, ReturnToTab> = {
   Tickets: '(tickets)/index',
   LostAndFound: '(lost_and_found)/index',
   Staff: '(staff)/index',
-  Settings: '(settings)/index',
 };
 
 /**
@@ -252,7 +250,7 @@ export default function BottomTabBar() {
       (navigation as any).navigate(targetRoute, {
         prioritizeMyAssignedRooms: !!options?.fromRoomsAssignmentBadge,
       });
-    } else if (tabId === 'LostAndFound' || tabId === 'Staff' || tabId === 'Settings') {
+    } else if (tabId === 'LostAndFound' || tabId === 'Staff') {
       (navigation as any).navigate(targetRoute, {
         returnToTab: TAB_RETURN_ROUTE[activeTab] ?? '(home)/index',
       });

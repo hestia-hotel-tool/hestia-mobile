@@ -16,7 +16,6 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BottomTabBar from '@/components/layout/BottomTabBar';
 import { Avatar } from '@/components/ui/Avatar';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { usePermissions } from '@/domain/rbac/usePermissions';
@@ -137,16 +136,29 @@ export default function SettingsScreen() {
 
   const version = Constants.expoConfig?.version ?? '—';
   const appEnv = (Constants.expoConfig?.extra as { appEnv?: string } | undefined)?.appEnv;
-  const subtitle = [account?.jobTitle, account?.department].filter(Boolean).join(' · ');
+  // The job title alone — "Executive Housekeeper · Housekeeping" repeated itself and
+  // was cut off. The department only stands in when there is no title.
+  const subtitle = account?.jobTitle || account?.department || '';
 
   return (
     <View style={styles.screen}>
+      {/* A pushed screen now — opened from your profile on Home and Rooms — so it has a way back. */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/(home)'))}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={26} color={C.title} />
+        </Pressable>
+        {/* "Account": your profile, preferences and sign-out — opened from your profile, not a tab. */}
+        <Text style={styles.headerTitle}>Account</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -255,14 +267,14 @@ export default function SettingsScreen() {
         </SettingsSection>
       </ScrollView>
 
-      <BottomTabBar />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.screen },
-  header: { backgroundColor: C.header, paddingHorizontal: 20, paddingBottom: 14 },
+  header: { backgroundColor: C.header, paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backButton: { marginLeft: -6 },
   headerTitle: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 28, color: C.title },
   content: { paddingHorizontal: 16, paddingTop: 16 },
   pressed: { opacity: 0.75 },

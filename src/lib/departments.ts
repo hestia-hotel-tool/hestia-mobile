@@ -37,14 +37,15 @@ export const DEPARTMENT_SLUG_TO_DB_NAME: Record<string, string> = {
  * the department strip drew three identical wrenches. Conversely `HSK Portier`,
  * `Laundry` and `Reception` are Figma labels that match no row in the table.
  *
- * Keep this keyed on the live names. Verified against the table on 2026-09-18:
- * Concierge, Engineering, Executive and Administration, Food & Beverage /
- * Kitchen, Front Office, Housekeeping, In Room Dining, IT.
+ * Keep this keyed on the live names. Verified against the table on 2026-10-19:
+ * Concierge, Engineering, Executive and Administration, Front Office,
+ * Housekeeping, In Room Dining, IT. (Food & Beverage / Kitchen was removed
+ * that day — migration 20261019200000.)
  *
  * The glyphs themselves are the Figma vectors, path-for-path — `dept-*` in
- * `assets/icons/departments/`. Two departments share a glyph with a designed
- * sibling because the design has fewer marks than the table has rows; that is a
- * mapping on meaning, not a missing export.
+ * `assets/icons/departments/`. Front Office borrows the Receptionist mark
+ * because the design names the desk, not the department; that is a mapping on
+ * meaning, not a missing export.
  *
  * **Every value here is a mark that exists in the design.** A department with
  * no designed glyph is absent from this map and renders without one — see
@@ -58,8 +59,6 @@ export const DEPARTMENT_NAME_TO_ICON: Record<string, IconName> = {
   IT: 'dept-it',
   /** Front Office is the desk the "Receptionist" mark was drawn for. */
   'Front Office': 'dept-reception',
-  /** Kitchen shares the cocktail-and-bottle mark with In Room Dining. */
-  'Food & Beverage / Kitchen': 'dept-in-room-dining',
   // `Executive and Administration` is deliberately absent: 589-514 draws no
   // mark for it. It renders as a bare disc rather than borrowing someone
   // else's glyph — see the note on the return type below.

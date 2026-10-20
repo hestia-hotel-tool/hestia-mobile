@@ -71,11 +71,13 @@ for (const entry of fs.readdirSync(tabDir, { withFileTypes: true })) {
 // 3. Tab routes agree with the map the tab bar itself uses.
 const TAB_SEGMENT = {
   Home: '(home)', Rooms: '(rooms)', Chat: '(chats)', Tickets: '(tickets)',
-  LostAndFound: '(lost_and_found)', Staff: '(staff)', Settings: '(settings)',
+  LostAndFound: '(lost_and_found)', Staff: '(staff)',
 };
+// Settings is no longer a tab: it is the pushed `settings` screen, opened from the profile.
+const TAB_ROUTE_KEY = (tab) => (tab === 'Settings' ? 'settings' : `(tabs)/${TAB_SEGMENT[tab]}`);
 const tabBlock = section(permsSrc, 'TAB_PERMISSION', '\n};');
 for (const [, tab, constant] of tabBlock.matchAll(/^ {2}(\w+): PERMISSIONS\.([A-Z0-9_]+),$/gm)) {
-  const routeConstant = routes.get(`(tabs)/${TAB_SEGMENT[tab]}`);
+  const routeConstant = routes.get(TAB_ROUTE_KEY(tab));
   if (routeConstant !== constant) {
     problems.push(
       `tab '${tab}': tab bar requires ${constant} but the route requires ${routeConstant ?? 'nothing'}`
