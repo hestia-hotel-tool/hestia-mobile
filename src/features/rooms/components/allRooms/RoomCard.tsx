@@ -145,7 +145,15 @@ const RoomCard = forwardRef<React.ElementRef<typeof TouchableOpacity>, RoomCardP
 
   // Card background: priority tint, else paused cream (Figma), else default
   const getCardStyles = () => {
-    if (isAssignmentPaused && !room.isPriority) {
+    // Figma 4488:72: #f92424 at 8% with a 1pt #f92424 hairline.
+    if (room.isPriority) {
+      return {
+        backgroundColor: CARD_COLORS.priorityBackground,
+        borderColor: CARD_COLORS.priorityBorder,
+        borderWidth: 1,
+      };
+    }
+    if (isAssignmentPaused) {
       return {
         backgroundColor: CARD_COLORS.pausedBackground,
         borderColor: CARD_COLORS.border,
@@ -433,7 +441,7 @@ const styles = StyleSheet.create({
   },
   priorityBorder: {
     borderColor: CARD_COLORS.priorityBorder,
-    borderWidth: 3, // Same as the list's priority frame (PRIORITY_FRAME.borderWidth).
+    borderWidth: 1, // Same as the list's priority frame (PRIORITY_FRAME.borderWidth).
   },
   roomHeader: {
     flexDirection: 'row',

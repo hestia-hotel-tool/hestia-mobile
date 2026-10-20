@@ -57,7 +57,7 @@ export function RoomCardBody({ spec, guests, action }: RoomCardBodyProps) {
           paddingLeft: body.photoLeft,
           paddingVertical: padV,
           borderRadius: ROOM_CARD.panelRadius,
-          backgroundColor: PANEL_FILL,
+          backgroundColor: body.fill ?? PANEL_FILL,
         }}
       >
         {row(body.photoTop - padV)}

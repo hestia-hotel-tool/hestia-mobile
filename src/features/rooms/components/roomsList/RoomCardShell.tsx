@@ -8,8 +8,9 @@ export type RoomCardShellProps = {
   /** The card's ground, border and radius, and how far it sits in from the list. */
   spec: RoomCardSpec;
   /**
-   * Priority rooms sit in a red frame — Figma 3883:5765: a 422 #f9fafc card
-   * with a #f92424 hairline at radius 12, holding the card 15 in, 22 down.
+   * Priority rooms sit in a red frame — Figma 4488:72: a 422 card tinted
+   * #f92424 at 8% with a #f92424 hairline at radius 12, holding the card 15
+   * in, 22 down.
    */
   framed?: boolean;
   onPress?: () => void;

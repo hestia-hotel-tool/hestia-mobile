@@ -101,6 +101,8 @@ type PanelBody = {
   photoLeft: number;
   photoTop: number;
   pillRight: number;
+  /** Panel fill; the translucent #dfe6f0 at 40% when absent (RoomCardBody). */
+  fill?: string;
 };
 
 type DividerBody = {
@@ -188,11 +190,15 @@ const DESIGN_SPECS = {
     avatarTop: 20,
     body: { kind: 'panel', top: 70, left: 9, right: 11, bottom: 6, minHeight: 101, photoLeft: 6, photoTop: 20, pillRight: 16 },
   },
-  /** 3883:5765 — the card inside a priority room's red frame (see PRIORITY_FRAME). */
+  /**
+   * 3883:5765 — the card inside a priority room's red frame (see
+   * PRIORITY_FRAME). Clear, so the frame's red tint is the card's ground
+   * (4488:72); only the guest panel stays white.
+   */
   priority: {
     ...WHITE_HEADER,
     inset: 0,
-    background: '#eef2f7',
+    background: 'transparent',
     border: null,
     numberLeft: 18,
     numberTop: 14,
@@ -203,7 +209,8 @@ const DESIGN_SPECS = {
     rightColumn: 178,
     avatarGap: 16,
     avatarTop: 19,
-    body: { kind: 'panel', top: 70, left: 10, right: 10, bottom: 6, minHeight: 101, photoLeft: 6, photoTop: 20, pillRight: 20 },
+    // 3883:5772 — solid white: the translucent default would pick up the red tint.
+    body: { kind: 'panel', top: 70, left: 10, right: 10, bottom: 6, minHeight: 101, photoLeft: 6, photoTop: 20, pillRight: 20, fill: '#ffffff' },
   },
   /** 3883:5881 / 4349:2537 — the rule-and-no-panel card. */
   whiteDivider: {
@@ -221,16 +228,23 @@ export const ROOM_CARD_SPECS: Record<RoomCardSpecName, RoomCardSpec> = scaled(DE
  * radius 12, holding the card 15 in from each side, 22 from the top and 15
  * from the bottom.
  */
-export const PRIORITY_FRAME = scaled({
-  background: '#f9fafc',
-  border: '#f92424',
-  /** Client feedback: the 1pt hairline was too easy to miss — a priority room has to stand out. */
-  borderWidth: 3,
-  radius: 12,
-  paddingX: 15,
-  paddingTop: 22,
-  paddingBottom: 15,
-} as const);
+export const PRIORITY_FRAME = {
+  ...scaled({
+    /**
+     * 4488:72 — the frame is tinted, #f92424 at 8%, with a 1pt hairline. The
+     * tint, not a heavy border, is what makes a priority room stand out (it
+     * replaced an interim 3pt border); the card inside is clear so it shows.
+     */
+    background: 'rgba(249, 36, 36, 0.08)',
+    border: '#f92424',
+    radius: 12,
+    paddingX: 15,
+    paddingTop: 22,
+    paddingBottom: 15,
+  } as const),
+  /** Not scaled: a 1pt line like every other card's (RoomCardShell). */
+  borderWidth: 1,
+};
 
 /** Which of the design's cards a room gets. */
 export function roomCardSpecName(
