@@ -35,6 +35,7 @@ import { BreakRuleSheet } from '../components/BreakRuleSheet';
 import { fetchOpenBreaks, listBreakRules, type BreakRule, type StaffBreak } from '../services/breaks';
 import { formatMinutesSpan } from '@/utils/formatting';
 import { NO_SHIFT_ID } from './ShiftsScreen';
+import { sortDepartmentsByDisplayOrder } from '@/lib/departments';
 
 type Editing = { which: 'start' | 'end'; value: string } | null;
 
@@ -99,6 +100,20 @@ export default function ShiftDetailScreen() {
       .filter((m) => !q || m.name.toLowerCase().includes(q) || (m.jobTitle ?? '').toLowerCase().includes(q));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roster, query, id, shifts]);
+
+  /*
+   * By department, in the Staff tab's order, each with its count: the Staff
+   * tab lists one department at a time, so "Housekeeping · 9" here is the
+   * same 9 the Staff tab shows for Housekeeping on this shift.
+   */
+  const groups = useMemo(() => {
+    const byName = new Map<string, RosterMember[]>();
+    for (const m of members) {
+      const name = m.department ?? 'No department';
+      byName.set(name, [...(byName.get(name) ?? []), m]);
+    }
+    return sortDepartmentsByDisplayOrder(Array.from(byName, ([name, people]) => ({ name, people })));
+  }, [members]);
 
   const move = async (people: RosterMember[], to: Shift | null) => {
     const ids = people.map((p) => p.id);
@@ -285,46 +300,55 @@ export default function ShiftDetailScreen() {
           </View>
         ) : null}
 
-        <View style={styles.list}>
-          {members.length === 0 ? (
+        {members.length === 0 ? (
+          <View style={styles.list}>
             <Text style={styles.empty}>
               {query ? 'No one matches that search.' : isNone ? 'Everyone is on a shift.' : 'No one is on this shift yet.'}
             </Text>
-          ) : (
-            members.map((m, i) => (
-              <React.Fragment key={m.id}>
-                {i > 0 ? <View style={styles.divider} /> : null}
-                <Pressable
-                  onPress={() => personActions(m)}
-                  disabled={busyIds.has(m.id)}
-                  style={({ pressed }) => [styles.person, pressed && styles.personPressed]}
-                  accessibilityRole="button"
-                  accessibilityHint="Move to another shift"
-                >
-                  <Avatar uri={m.avatarUrl ?? undefined} name={m.name} size={38} />
-                  <View style={styles.personText}>
-                    <Text style={styles.personName} numberOfLines={1}>
-                      {m.name}
-                    </Text>
-                    <Text style={styles.personSub} numberOfLines={1}>
-                      {[m.jobTitle, m.department].filter(Boolean).join(' · ') || '—'}
-                    </Text>
-                  </View>
-                  {onBreak.has(m.id) ? (
-                    <View style={styles.breakChip}>
-                      <Text style={styles.breakChipText}>On break</Text>
-                    </View>
-                  ) : null}
-                  {busyIds.has(m.id) ? (
-                    <ActivityIndicator color={C.title} />
-                  ) : (
-                    <Ionicons name="swap-horizontal" size={18} color="#b4bfd0" />
-                  )}
-                </Pressable>
-              </React.Fragment>
-            ))
-          )}
-        </View>
+          </View>
+        ) : (
+          groups.map((g) => (
+            <View key={g.name} style={styles.group}>
+              <Text style={styles.groupTitle} accessibilityRole="header">
+                {g.name} · {g.people.length}
+              </Text>
+              <View style={styles.list}>
+                {g.people.map((m, i) => (
+                  <React.Fragment key={m.id}>
+                    {i > 0 ? <View style={styles.divider} /> : null}
+                    <Pressable
+                      onPress={() => personActions(m)}
+                      disabled={busyIds.has(m.id)}
+                      style={({ pressed }) => [styles.person, pressed && styles.personPressed]}
+                      accessibilityRole="button"
+                      accessibilityHint="Move to another shift"
+                    >
+                      <Avatar uri={m.avatarUrl ?? undefined} name={m.name} size={38} />
+                      <View style={styles.personText}>
+                        <Text style={styles.personName} numberOfLines={1}>
+                          {m.name}
+                        </Text>
+                        <Text style={styles.personSub} numberOfLines={1}>
+                          {m.jobTitle || '—'}
+                        </Text>
+                      </View>
+                      {onBreak.has(m.id) ? (
+                        <View style={styles.breakChip}>
+                          <Text style={styles.breakChipText}>On break</Text>
+                        </View>
+                      ) : null}
+                      {busyIds.has(m.id) ? (
+                        <ActivityIndicator color={C.title} />
+                      ) : (
+                        <Ionicons name="swap-horizontal" size={18} color="#b4bfd0" />
+                      )}
+                    </Pressable>
+                  </React.Fragment>
+                ))}
+              </View>
+            </View>
+          ))
+        )}
       </ScrollView>
 
       {/* Hours: one wheel at a time, the new length shown before saving. */}
@@ -541,6 +565,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.divider, marginLeft: 64 },
+  group: { marginBottom: 14 },
+  groupTitle: { marginHorizontal: 6, marginBottom: 6, fontFamily: typography.fontFamily.primary, fontWeight: '600', fontSize: 14, color: C.title },
   person: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10, backgroundColor: '#ffffff' },
   personPressed: { backgroundColor: '#f1f4f9' },
   personText: { flex: 1, minWidth: 0 },

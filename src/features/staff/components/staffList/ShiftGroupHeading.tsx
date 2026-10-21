@@ -14,8 +14,12 @@ import { STAFF_LIST_LAYOUT as L } from './staffListLayout';
  * 283..402. They are reproduced as `flex-1` instead: at 440 that yields the
  * same 122, and on a wider device the label stays centred rather than leaving
  * a gap on the right.
+ *
+ * `count` adds "· 8": the groups split the shift's people, so without it a
+ * reader takes On Shift for the whole shift and it disagrees with the
+ * shift's own list (Account → Shifts & breaks).
  */
-export default function ShiftGroupHeading({ state }: { state: StaffShiftState }) {
+export default function ShiftGroupHeading({ state, count }: { state: StaffShiftState; count?: number }) {
   const s = (n: number) => n * scaleX;
   const chrome = SHIFT_GROUP_CHROME[state];
 
@@ -39,6 +43,7 @@ export default function ShiftGroupHeading({ state }: { state: StaffShiftState })
         }}
       >
         {chrome.title}
+        {count != null ? ` · ${count}` : ''}
       </Text>
       <View className="h-px flex-1" style={{ backgroundColor: chrome.color, opacity: 0.45 }} />
     </View>

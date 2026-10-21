@@ -1,3 +1,4 @@
+import { ActionSheetIOS, Alert, Platform } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 
 /**
@@ -19,6 +20,32 @@ const COMMON: ImagePicker.ImagePickerOptions = {
    */
   preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
 };
+
+export type PhotoSource = 'camera' | 'library';
+
+/**
+ * Ask where the photos come from — Take Photo or Choose from Library — the
+ * one chooser every photo field in the app uses, so staff can always shoot
+ * the item in front of them rather than only pick an existing picture.
+ * An action sheet on iOS, an alert on Android; Cancel calls nothing.
+ */
+export function choosePhotoSource(onPick: (source: PhotoSource) => void, title = 'Add photos'): void {
+  if (Platform.OS === 'ios') {
+    ActionSheetIOS.showActionSheetWithOptions(
+      { title, options: ['Take Photo', 'Choose from Library', 'Cancel'], cancelButtonIndex: 2 },
+      (i) => {
+        if (i === 0) onPick('camera');
+        if (i === 1) onPick('library');
+      }
+    );
+    return;
+  }
+  Alert.alert(title, undefined, [
+    { text: 'Take Photo', onPress: () => onPick('camera') },
+    { text: 'Choose from Library', onPress: () => onPick('library') },
+    { text: 'Cancel', style: 'cancel' },
+  ]);
+}
 
 /**
  * Photos from the library (several at once) or the camera. `remaining` caps

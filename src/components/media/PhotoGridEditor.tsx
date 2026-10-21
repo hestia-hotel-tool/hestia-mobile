@@ -12,7 +12,7 @@ import {
 import { Image } from 'expo-image';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
-import { MAX_PHOTOS, pickPhotos } from './photoPicker';
+import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from './photoPicker';
 
 /** A photo on a form: already stored (`remote`), or just picked on the device. */
 export type EditablePhoto = { uri: string; remote: boolean };
@@ -44,7 +44,7 @@ export function PhotoGridEditor({ photos, onChange, gutter = 20 }: Props) {
   const { width } = useWindowDimensions();
   const tile = Math.floor((width - gutter * 2 - GRID_GAP * (COLUMNS - 1)) / COLUMNS);
 
-  const addPhotos = async (source: 'library' | 'camera') => {
+  const addPhotos = async (source: PhotoSource) => {
     const result = await pickPhotos(source, MAX_PHOTOS - photos.length);
     if ('error' in result) {
       toast.show(result.error, { type: 'error', title: 'Photos' });
@@ -55,23 +55,7 @@ export function PhotoGridEditor({ photos, onChange, gutter = 20 }: Props) {
     }
   };
 
-  const chooseSource = () => {
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Take Photo', 'Choose from Library', 'Cancel'], cancelButtonIndex: 2 },
-        (i) => {
-          if (i === 0) void addPhotos('camera');
-          if (i === 1) void addPhotos('library');
-        }
-      );
-    } else {
-      Alert.alert('Add photos', undefined, [
-        { text: 'Take Photo', onPress: () => void addPhotos('camera') },
-        { text: 'Choose from Library', onPress: () => void addPhotos('library') },
-        { text: 'Cancel', style: 'cancel' },
-      ]);
-    }
-  };
+  const chooseSource = () => choosePhotoSource((source) => void addPhotos(source));
 
   const remove = (index: number) => onChange(photos.filter((_, i) => i !== index));
 

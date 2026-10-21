@@ -17,7 +17,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useNavigation, useRoute, useRouter , NativeStackNavigationProp } from 'expo-router';
 import { RouteProp } from 'expo-router/react-navigation';
-import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
+import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from '@/components/media/photoPicker';
 import { AddPhotosField } from '@/components/media/AddPhotosField';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
@@ -320,9 +320,10 @@ export default function CreateTicketFormScreen() {
     setShowFrequentCasesDropdown(false);
   };
 
-  // Several at once, up to MAX_PHOTOS in all — the picker used to take one.
-  const handleAddPicture = async () => {
-    const result = await pickPhotos('library', MAX_PHOTOS - pictures.length);
+  // The camera, or several at once from the library — up to MAX_PHOTOS in all.
+  const handleAddPicture = () => choosePhotoSource((source) => void addPictures(source));
+  const addPictures = async (source: PhotoSource) => {
+    const result = await pickPhotos(source, MAX_PHOTOS - pictures.length);
     if ('error' in result) {
       toast.show(result.error, { type: 'error' });
       return;

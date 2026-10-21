@@ -13,7 +13,7 @@ import {
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
+import { MAX_PHOTOS, choosePhotoSource as askPhotoSource, pickPhotos } from '@/components/media/photoPicker';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { CLEANING_NOTE_MAX, type CleaningReport } from '../services/cleaningReports';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -167,11 +167,7 @@ export default function RoomChecklistPanel({
       Alert.alert('Photo not added', `You can add up to ${MAX_PHOTOS} photos.`);
       return;
     }
-    Alert.alert('Add photo', undefined, [
-      { text: 'Take photo', onPress: () => void addPhotos('camera') },
-      { text: 'Choose from library', onPress: () => void addPhotos('library') },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    askPhotoSource((source) => void addPhotos(source), 'Add photo');
   };
   const thumbPosition = useRef(new Animated.Value(0)).current;
   const isCompletingRef = useRef(false);

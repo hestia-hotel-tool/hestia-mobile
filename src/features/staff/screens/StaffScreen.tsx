@@ -359,7 +359,7 @@ export default function StaffScreen() {
         keyExtractor={(person) => person.id}
         renderSectionHeader={({ section }) => (
           <View style={{ paddingHorizontal: s(L.gutter) }}>
-            <ShiftGroupHeading state={section.state} />
+            <ShiftGroupHeading state={section.state} count={section.data.length} />
           </View>
         )}
         /*

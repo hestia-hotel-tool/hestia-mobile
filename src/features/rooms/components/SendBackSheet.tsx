@@ -17,7 +17,7 @@ import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/u
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { Icon } from '@/components/Icon';
 import { AddPhotosField } from '@/components/media/AddPhotosField';
-import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
+import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from '@/components/media/photoPicker';
 import { DESIGN_WIDTH } from '@/utils/responsive';
 import { SEND_BACK_REASONS } from '../utils/roomStatusMachine';
 import { uploadRoomActionPhotos } from '../services/cleaningReports';
@@ -72,8 +72,9 @@ function SendBackSheet({
     : 'The attendant is told why, and the room goes back to Dirty.';
   const confirmLabel = fromInspected ? 'Reopen Room' : 'Send Back';
 
-  const addPhotos = async () => {
-    const result = await pickPhotos('library', MAX_PHOTOS - photos.length);
+  const addPhotos = () => choosePhotoSource((source) => void addFrom(source));
+  const addFrom = async (source: PhotoSource) => {
+    const result = await pickPhotos(source, MAX_PHOTOS - photos.length);
     if ('error' in result) {
       setError(result.error);
       return;

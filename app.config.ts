@@ -133,6 +133,20 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "Hestia uses speech recognition to turn what you say into a question for the assistant.",
         },
       ],
+      [
+        /*
+         * Every photo field offers Take Photo and Choose from Library
+         * (src/components/media/photoPicker.ts). iOS shows these strings in
+         * the permission prompt; App Review rejects generic ones.
+         */
+        "expo-image-picker",
+        {
+          cameraPermission:
+            "Hestia uses the camera so you can photograph lost & found items, room issues and tickets.",
+          photosPermission:
+            "Hestia uses your photos so you can attach pictures to lost & found items, tickets and chats.",
+        },
+      ],
       "expo-image",
       "expo-sharing",
       [
