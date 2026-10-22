@@ -9,13 +9,18 @@ import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import { SETTINGS_COLORS as C } from '../components/SettingsList';
 import { changeMyPassword, MIN_PASSWORD_LENGTH } from '../services/account';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /**
  * Change Password — a sheet from Settings. The current password is checked
  * before the new one is set; the new one needs MIN_PASSWORD_LENGTH characters
  * and must be typed twice. The session stays signed in.
  */
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Changing their password' }];
+
 export default function ChangePasswordScreen() {
+  useAssistantScreen('Change password', ASSISTANT_FACTS);
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const [current, setCurrent] = useState('');

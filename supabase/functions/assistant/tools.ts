@@ -75,6 +75,24 @@ function rows<T>(result: { data: T[] | null; error: { message?: string } | null 
   return result.data ?? [];
 }
 
+/**
+ * Is a shift on now, by the hotel's clock? `start`/`end` are "06:00:00";
+ * an end before the start is an overnight shift.
+ */
+function isWithinShift(start: string, end: string, timeZone: string): boolean {
+  const toMin = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+  let hhmm: string;
+  try {
+    hhmm = new Intl.DateTimeFormat("en-GB", { timeZone, hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date());
+  } catch {
+    hhmm = new Date().toISOString().slice(11, 16);
+  }
+  const now = toMin(hhmm);
+  const a = toMin(start);
+  const b = toMin(end);
+  return a <= b ? now >= a && now < b : now >= a || now < b;
+}
+
 export const TOOLS: ToolDefinition[] = [
   {
     name: "list_rooms",
@@ -349,42 +367,94 @@ export const TOOLS: ToolDefinition[] = [
   {
     name: "list_staff",
     description:
-      "Staff and their departments. Use for questions about who works here and who is in which department. Does not include contact details.",
+      "Staff: name, job title, department, rostered shift (AM/PM with its hours), whether that shift is on right now, and whether they are on a break. Use for who works here, who is in a department, who is on a shift, and whether a named person is on shift now — search by `name` (first name is enough). Does not include contact details.",
     requiredPermission: "staff.read",
     input_schema: {
       type: "object",
       properties: {
+        name: { type: "string", description: 'Part of a name, e.g. "Zoe".' },
         department: { type: "string", description: 'e.g. "Housekeeping".' },
+        shift: { type: "string", enum: ["AM", "PM"], description: "Only people rostered on this shift." },
+        on_shift_now: { type: "boolean", description: "Only people whose shift is on right now." },
         limit: { type: "integer", description: `Max rows, default ${DEFAULT_ROWS}.` },
       },
     },
     async execute(db, input) {
-      const data = rows(
-        await db
-          .from("users")
-          .select("full_name, departments(name), job_titles(name)")
-          .order("full_name", { ascending: true })
-          .limit(cap(input.limit)),
-      ) as { departments?: { name?: string } | null }[];
+      /*
+       * Filters run in the query, before the limit. They used to run after a
+       * 25-row, name-ordered fetch, so in a hotel of 34 anyone late in the
+       * alphabet ("Zoe") was cut off before the department filter ever saw
+       * them, and the assistant reported them missing.
+       *
+       * `!inner` makes a filtered embed drop the row rather than null it.
+       * `hotels!users_hotel_id_fkey`: backoffice_section_seen is a second path
+       * from users to hotels, so the bare embed is ambiguous (PGRST201).
+       */
+      const department = typeof input.department === "string" ? input.department.trim() : "";
+      const shift = typeof input.shift === "string" ? input.shift.trim().toUpperCase() : "";
+      let q = db
+        .from("users")
+        .select(
+          `id, full_name, active, job_titles(name), departments${department ? "!inner" : ""}(name), ` +
+            `shifts${shift ? "!inner" : ""}(name, start_time, end_time), hotels!users_hotel_id_fkey(timezone)`,
+        )
+        .eq("active", true)
+        .order("full_name", { ascending: true })
+        .limit(MAX_ROWS);
+      if (typeof input.name === "string" && input.name.trim()) q = q.ilike("full_name", `%${input.name.trim()}%`);
+      if (department) q = q.ilike("departments.name", `%${department}%`);
+      if (shift) q = q.ilike("shifts.name", shift);
 
-      const wanted =
-        typeof input.department === "string" ? input.department.trim().toLowerCase() : "";
-      const filtered = wanted
-        ? data.filter((r) => (r.departments?.name ?? "").toLowerCase().includes(wanted))
-        : data;
+      type Row = {
+        id: string;
+        full_name: string | null;
+        job_titles: { name: string | null } | null;
+        departments: { name: string | null } | null;
+        shifts: { name: string | null; start_time: string | null; end_time: string | null } | null;
+        hotels: { timezone: string | null } | null;
+      };
+      const data = rows(await q) as unknown as Row[];
 
-      return { count: filtered.length, staff: filtered };
+      const ids = data.map((r) => r.id);
+      const onBreak = new Set<string>();
+      if (ids.length) {
+        const breaks = rows(
+          await db.from("staff_breaks").select("user_id").in("user_id", ids).is("ended_at", null),
+        ) as { user_id: string }[];
+        for (const b of breaks) onBreak.add(b.user_id);
+      }
+
+      let staff = data.map((r) => {
+        const s = r.shifts;
+        const onNow = s?.start_time && s?.end_time
+          ? isWithinShift(s.start_time, s.end_time, r.hotels?.timezone ?? "UTC")
+          : null;
+        return {
+          name: r.full_name,
+          job_title: r.job_titles?.name ?? null,
+          department: r.departments?.name ?? null,
+          shift: s?.name ?? null,
+          shift_hours: s?.start_time && s?.end_time ? `${s.start_time.slice(0, 5)}–${s.end_time.slice(0, 5)}` : null,
+          shift_on_now: onNow,
+          on_break: onBreak.has(r.id),
+        };
+      });
+      if (input.on_shift_now === true) staff = staff.filter((p) => p.shift_on_now === true);
+      const shown = staff.slice(0, cap(input.limit));
+      return { count: staff.length, showing: shown.length, staff: shown };
     },
   },
 
   {
     name: "list_room_assignments",
     description:
-      "Which staff member is assigned to which room on a shift, and how that work is going. Work status values: not_started, in_progress, paused, completed. Use for questions about who is cleaning what and what is still outstanding on a shift.",
+      "Which staff member is assigned to which room on a shift, and how that work is going. Work status values: not_started, in_progress, paused, completed. Assignments stay with a shift until changed, as the app shows them, so an older `assigned_at` is still current. Filter by `name` for one person's rooms. Use for who is cleaning what and what is still outstanding.",
     requiredPermission: "rooms.read",
     input_schema: {
       type: "object",
       properties: {
+        name: { type: "string", description: 'Part of the assignee\'s name, e.g. "Zoe".' },
+        shift: { type: "string", enum: ["AM", "PM"] },
         work_status: {
           type: "string",
           enum: ["not_started", "in_progress", "paused", "completed"],
@@ -393,16 +463,27 @@ export const TOOLS: ToolDefinition[] = [
       },
     },
     async execute(db, input) {
+      const name = typeof input.name === "string" ? input.name.trim() : "";
+      const shift = typeof input.shift === "string" ? input.shift.trim().toUpperCase() : "";
       let q = db
         .from("room_assignments")
         // `!room_assignments_user_id_fkey`: two links to users since `assigned_by_id`; this is the assignee.
-        .select("work_status, start_time, end_time, rooms(room_number), users!room_assignments_user_id_fkey(full_name), shifts(name)")
+        .select(
+          `work_status, pause_reason, start_time, end_time, created_at, rooms(room_number), ` +
+            `users!room_assignments_user_id_fkey${name ? "!inner" : ""}(full_name), shifts${shift ? "!inner" : ""}(name)`,
+        )
+        .order("created_at", { ascending: false })
         .limit(cap(input.limit));
 
       if (typeof input.work_status === "string") q = q.eq("work_status", input.work_status);
+      if (name) q = q.ilike("users.full_name", `%${name}%`);
+      if (shift) q = q.ilike("shifts.name", shift);
 
-      const data = rows(await q);
-      return { count: data.length, assignments: data };
+      const data = rows(await q) as Record<string, unknown>[];
+      return {
+        count: data.length,
+        assignments: data.map(({ created_at, ...rest }) => ({ ...rest, assigned_at: created_at })),
+      };
     },
   },
 ];

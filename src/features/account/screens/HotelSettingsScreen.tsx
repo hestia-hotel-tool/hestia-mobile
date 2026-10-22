@@ -25,6 +25,7 @@ import { fetchHotelSettings, updateHotelServiceRules, updateHotelSettings, type 
 import { TimeWheelPicker } from '@/components/ui/TimeWheelPicker';
 import { formatMinutesSpan } from '@/utils/formatting';
 import { TIME_ZONES, timeInZone, timeZoneCity } from '../utils/timeZones';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /**
  * Settings › Hotel — the hotel's name and time zone, for `settings.manage`.
@@ -39,6 +40,20 @@ export default function HotelSettingsScreen() {
   const navigation = useNavigation();
   const now = useNow();
   const [original, setOriginal] = useState<HotelSettings | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () =>
+      original
+        ? [
+            { label: 'Hotel name', value: original.name },
+            { label: 'Time zone', value: original.timezone },
+            { label: 'Do Not Disturb recheck (minutes)', value: original.dndRecheckMinutes },
+          ]
+        : [],
+    [original]
+  );
+  useAssistantScreen('Hotel settings', assistantFacts);
   const [name, setName] = useState('');
   const [timezone, setTimezone] = useState('UTC');
   const [recheck, setRecheck] = useState(60);

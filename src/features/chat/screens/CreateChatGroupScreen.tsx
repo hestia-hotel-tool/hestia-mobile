@@ -39,12 +39,17 @@ import type { RootStackParamList } from '@/types/navigation';
 import { createGroupChat } from '../services/chat';
 import { groupByDepartment, loadAllColleagues, matchesColleague } from '../utils/colleagues';
 import { CHAT_COLORS, scaleX } from '../constants/chatStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'create-chat-group/index'>;
 
 const NAME_MAX = 64;
 
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Creating a group chat' }];
+
 export default function CreateChatGroupScreen() {
+  useAssistantScreen('New group chat', ASSISTANT_FACTS);
   const navigation = useNavigation<Nav>();
   const toast = useToast();
   const insets = useSafeAreaInsets();

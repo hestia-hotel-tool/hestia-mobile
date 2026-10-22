@@ -39,6 +39,7 @@ import { getShiftFromTime } from '@/utils/shiftUtils';
 import { useShiftLock } from '@features/account/hooks/useShiftLock';
 import OffShiftNotice from '@features/account/components/OffShiftNotice';
 import { useRenderLoopProbe } from '@/utils/useRenderLoopProbe';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
 import { getLatestPausedAssignment } from '../services/home';
@@ -873,6 +874,80 @@ export default function HomeScreen() {
 
     return { roomStates, guests, floors, totalRooms, reservations };
   }, [homeData.categories, derivedCategories, homeData.selectedShift, roomsForHome]);
+
+  /*
+   * What this Home shows, for the assistant: "I can read 18 on my Home screen"
+   * should be something it can see (tester feedback). The same figures the
+   * cards draw, for whichever Home this viewer has.
+   */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    const facts: ScreenFact[] = [{ label: 'Shift shown', value: homeData.selectedShift }];
+    if (shiftLock.offShift) {
+      facts.push({ label: 'Notice', value: `You have no ${shiftLock.offShift.shift} shift` });
+      return facts;
+    }
+    if (isTicketDashboard) {
+      facts.push(
+        { label: 'Tickets overview (open, plus the last 30 days)', value: ticketCounts.total },
+        { label: 'Priority tickets', value: ticketCounts.priority },
+        { label: 'Unsolved tickets', value: ticketCounts.unsolved },
+        { label: 'Solved tickets', value: ticketCounts.solved },
+        { label: 'Out of order', value: ticketCounts.outOfOrder },
+      );
+      return facts;
+    }
+    if (isHskPortierUser) {
+      facts.push(
+        { label: 'My rooms', value: portierOverview.total },
+        { label: 'Done (cleaned + inspected)', value: portierOverview.progressText },
+        { label: 'Dirty', value: portierOverview.dirty },
+        { label: 'In progress', value: portierOverview.inProgress },
+        { label: 'Cleaned', value: portierOverview.cleaned },
+        { label: 'Inspected', value: portierOverview.inspected },
+        { label: 'Priority', value: portierOverview.priority },
+        ...portierRows.map((r) => ({ label: r.label, value: r.count })),
+      );
+      return facts;
+    }
+    const { roomStates, guests, reservations, totalRooms } = filterCounts;
+    facts.push({ label: 'Rooms on this shift', value: totalRooms ?? 0 });
+    for (const c of derivedCategories) {
+      const detail = `dirty ${c.status.dirty}, in progress ${c.status.inProgress}, cleaned ${c.status.cleaned}, inspected ${c.status.inspected}`;
+      facts.push({
+        label: `${c.name} card`,
+        value: `${c.total} rooms (${detail}${c.priority ? `, priority ${c.priority}` : ''})`,
+      });
+    }
+    facts.push(
+      { label: 'Stayovers', value: guests.stayOver },
+      { label: 'Arrivals', value: guests.arrivals },
+      { label: 'Departures', value: guests.departures },
+      { label: 'Turndowns', value: guests.turnDown ?? 0 },
+      { label: 'Dirty', value: roomStates.dirty },
+      { label: 'In progress', value: roomStates.inProgress },
+      { label: 'Cleaned', value: roomStates.cleaned },
+      { label: 'Inspected', value: roomStates.inspected },
+      { label: 'Priority', value: roomStates.priority },
+      { label: 'Paused', value: roomStates.paused ?? 0 },
+      { label: 'Return later', value: roomStates.returnLater ?? 0 },
+      { label: 'Refused service', value: roomStates.refused ?? 0 },
+      { label: 'Occupied', value: reservations?.occupied ?? 0 },
+      { label: 'Vacant', value: reservations?.vacant ?? 0 },
+    );
+    return facts;
+  }, [
+    homeData.selectedShift,
+    shiftLock.offShift,
+    isTicketDashboard,
+    ticketCounts,
+    isHskPortierUser,
+    portierOverview,
+    portierRows,
+    filterCounts,
+    derivedCategories,
+  ]);
+
+  useAssistantScreen('Home', assistantFacts);
 
   /**
    * "See Rooms" in the filter sheet.

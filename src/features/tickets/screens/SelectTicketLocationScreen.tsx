@@ -24,13 +24,18 @@ import {
   CREATE_TICKET_BETA_TO_DESCRIPTION_PX,
   createTicketScaleX,
 } from '../constants/createTicketStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type SelectTicketLocationScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
   'select-ticket-location/index'
 >;
 
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Choosing the room or public area for a ticket' }];
+
 export default function SelectTicketLocationScreen() {
+  useAssistantScreen('Ticket location', ASSISTANT_FACTS);
   const navigation = useNavigation<SelectTicketLocationScreenNavigationProp>();
 
   const { width: windowWidth } = useWindowDimensions();

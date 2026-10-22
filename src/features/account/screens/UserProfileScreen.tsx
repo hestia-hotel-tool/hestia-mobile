@@ -31,6 +31,8 @@ import {
   type MyAccount,
 } from '../services/account';
 import { useUserStore } from '../store/useUserStore';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+import { NO_CAMERA_MESSAGE, cameraAvailable } from '@/components/media/photoPicker';
 
 type Form = { fullName: string; phone: string };
 
@@ -42,7 +44,11 @@ type Form = { fullName: string; phone: string };
  * them; the database refuses those edits (migration 20260929000000). Leaving
  * with unsaved changes asks first.
  */
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Viewing and editing their own profile (photo, name, phone)' }];
+
 export default function UserProfileScreen() {
+  useAssistantScreen('My profile', ASSISTANT_FACTS);
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const navigation = useNavigation();
@@ -116,6 +122,11 @@ export default function UserProfileScreen() {
 
   const uploadPhoto = async (source: 'camera' | 'library') => {
     if (!account) return;
+    // The iOS simulator has no camera; launching it there is a native crash.
+    if (source === 'camera' && !cameraAvailable()) {
+      toast.show(NO_CAMERA_MESSAGE, { type: 'error', title: 'No camera' });
+      return;
+    }
     const perm =
       source === 'camera'
         ? await ImagePicker.requestCameraPermissionsAsync()

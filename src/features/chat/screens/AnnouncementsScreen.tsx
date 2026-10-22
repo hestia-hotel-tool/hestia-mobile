@@ -11,6 +11,7 @@ import { ChatFilterMenu, type FilterOption } from '../components/ChatFilterMenu'
 import { fetchAnnouncements, fetchTaskReportExtras, type Announcement } from '../services/chat';
 import { taskHeadline, taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type AnnouncementFilter = 'all' | 'unread';
 const FILTER_OPTIONS: FilterOption<AnnouncementFilter>[] = [
@@ -116,6 +117,21 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
       );
     });
   }, [items, query, filter]);
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Filter', value: filter },
+      { label: 'Announcements listed', value: visible.length },
+      { label: 'Unread', value: visible.filter((a) => a.unread).length },
+      ...visible.slice(0, 25).map((a) => ({
+        label: `"${a.subject}"`,
+        value: `${a.unread ? 'unread' : 'read'}${a.senderName ? `, from ${a.senderName}` : ''}, ${a.createdAt}`,
+      })),
+    ],
+    [filter, visible]
+  );
+  useAssistantScreen('Announcements', assistantFacts);
 
   const goBack = () => router.navigate('/(tabs)/(chats)' as never);
 

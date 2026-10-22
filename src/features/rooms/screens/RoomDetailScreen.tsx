@@ -4,7 +4,7 @@
  * Supports: Arrival, Departure, ArrivalDeparture, Stayover, Turndown
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect, router, NativeStackNavigationProp } from 'expo-router';
@@ -48,6 +48,7 @@ import { formatDueTime } from '@/utils/formatting';
 import { supabase } from '@/lib/supabase';
 import { invalidateNotificationBadges, markRoomAssignmentNotificationsReadForRoom } from '@/lib/inAppNotifications';
 import { buildFriendlyRoomHistoryMessage, getRoomHistoryEvents, logRoomHistoryEvent } from '../services/roomHistory';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type RoomDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -300,6 +301,39 @@ export default function RoomDetailScreen() {
   const roomType = fetchedRoomType ?? initialRoomType;
   /** Whether `room` is real data rather than the stand-in. Checked after the hooks. */
   const hasRoom = Boolean(fetchedRoom ?? initialRoom);
+
+  /** What this room's page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    if (!hasRoom) return [];
+    const facts: ScreenFact[] = [
+      { label: 'Room', value: `${room.roomNumber} · ${room.roomCategory}` },
+      { label: 'Housekeeping status', value: String(room.houseKeepingStatus) },
+      { label: 'Front office status', value: String(room.frontOfficeStatus) },
+      { label: 'Reservation status', value: String(room.reservationStatus ?? '—') },
+      { label: 'Assigned to', value: room.roomAttendantAssigned?.name ?? 'Nobody' },
+      { label: 'Priority', value: room.isPriority ? 'Yes' : 'No' },
+      { label: 'Credit (minutes)', value: room.credit },
+    ];
+    if (room.flagged) facts.push({ label: 'Flagged', value: room.flagReason || 'Yes' });
+    if (room.promisedTime) facts.push({ label: 'Promised time', value: String(room.promisedTime) });
+    if (room.pausedAt) facts.push({ label: 'Paused since', value: room.pausedAt });
+    if (room.returnLaterAt) facts.push({ label: 'Return later', value: `${room.returnLaterAt}${room.returnLaterReason ? ` (${room.returnLaterReason})` : ''}` });
+    if (room.refuseServiceReason || room.refuseServiceAt) facts.push({ label: 'Refused service', value: room.refuseServiceReason || 'Yes' });
+    if (room.dndAt) facts.push({ label: 'Do not disturb since', value: room.dndAt });
+    if (room.outOfOrder) facts.push({ label: 'Out of order', value: `${room.outOfOrder.from} to ${room.outOfOrder.to}${room.outOfOrder.reason ? ` (${room.outOfOrder.reason})` : ''}` });
+    if (room.specialInstructions) facts.push({ label: 'Special instructions', value: room.specialInstructions });
+    if (room.lostAndFoundCount) facts.push({ label: 'Lost & found items stored', value: room.lostAndFoundCount });
+    room.guests
+      .filter((g) => g.name && g.name !== 'Guest')
+      .forEach((g, i) =>
+        facts.push({
+          label: room.guests.length > 1 ? `Guest ${i + 1}` : 'Guest',
+          value: `${g.name}, ${g.datesOfStay.from}–${g.datesOfStay.to}${g.timeLabel !== 'N/A' ? `, ${g.timeLabel} ${g.time}` : ''}, ${g.guestCount.adults} adults / ${g.guestCount.kids} kids`,
+        })
+      );
+    return facts;
+  }, [hasRoom, room]);
+  useAssistantScreen('Room detail', assistantFacts);
 
   const roomGuests = room.guests || [];
   const isUpdating = updatingRoomId === room.id;

@@ -58,6 +58,8 @@ import {
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+import { NO_CAMERA_MESSAGE, cameraAvailable } from '@/components/media/photoPicker';
 
 type ChatDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'chat/[chatId]'>;
 
@@ -89,6 +91,13 @@ export default function ChatDetailScreen() {
 
   const isSupabaseChat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chatId);
   const [fetchedChat, setFetchedChat] = useState<{ name: string; isGroup: boolean; created_by_id: string } | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). Not the messages themselves. */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => (fetchedChat ? [{ label: fetchedChat.isGroup ? 'Group chat' : 'Chat with', value: fetchedChat.name }] : []),
+    [fetchedChat]
+  );
+  useAssistantScreen('Chat conversation', assistantFacts);
   const baseChat = chatParam ?? (isSupabaseChat ? { id: chatId, name: 'Chat', lastMessage: '', isGroup: false } : null);
   const isGroup = fetchedChat ? fetchedChat.isGroup : (baseChat?.isGroup ?? false);
   const chat = baseChat
@@ -366,6 +375,11 @@ export default function ChatDetailScreen() {
   };
 
   const handleTakePhoto = async () => {
+    // The iOS simulator has no camera; launching it there is a native crash.
+    if (!cameraAvailable()) {
+      toast.show(NO_CAMERA_MESSAGE, { type: 'error', title: 'No camera' });
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {

@@ -36,6 +36,7 @@ import { fetchOpenBreaks, listBreakRules, type BreakRule, type StaffBreak } from
 import { formatMinutesSpan } from '@/utils/formatting';
 import { NO_SHIFT_ID } from './ShiftsScreen';
 import { sortDepartmentsByDisplayOrder } from '@/lib/departments';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type Editing = { which: 'start' | 'end'; value: string } | null;
 
@@ -114,6 +115,24 @@ export default function ShiftDetailScreen() {
     }
     return sortDepartmentsByDisplayOrder(Array.from(byName, ([name, people]) => ({ name, people })));
   }, [members]);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Shift', value: isNone ? 'Not on a shift' : shift ? `${shift.name} ${shift.start}–${shift.end}` : '—' },
+      { label: 'People listed', value: members.length },
+      ...groups.map((g) => ({
+        label: `${g.name} (${g.people.length})`,
+        value: g.people.map((m) => `${m.name}${onBreak.has(m.id) ? ' (on break)' : ''}`).join(', '),
+      })),
+      ...rules.map((r) => ({
+        label: `Break: ${r.name}`,
+        value: `${r.minutes} min${r.windowStart ? `, between ${r.windowStart} and ${r.windowEnd}` : ', any time in the shift'}`,
+      })),
+    ],
+    [isNone, shift, members, groups, onBreak, rules]
+  );
+  useAssistantScreen('Shift detail', assistantFacts);
 
   const move = async (people: RosterMember[], to: Shift | null) => {
     const ids = people.map((p) => p.id);

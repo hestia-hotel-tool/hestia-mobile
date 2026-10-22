@@ -19,6 +19,7 @@ import StaffDepartmentStrip from '../components/StaffDepartmentStrip';
 import EmptyStaffState, { type StaffEmptyReason } from '../components/EmptyStaffState';
 import StaffShiftCard from '../components/staffList/StaffShiftCard';
 import ShiftGroupHeading from '../components/staffList/ShiftGroupHeading';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { STAFF_LIST_LAYOUT as L } from '../components/staffList/staffListLayout';
 import { useStaffRoster } from '../hooks/useStaffRoster';
 import type { StaffTab } from '../types/staff.types';
@@ -284,6 +285,30 @@ export default function StaffScreen() {
   );
 
   const visibleCount = sections.reduce((n, s) => n + s.people.length, 0);
+
+  /** What this roster shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    const facts: ScreenFact[] = [
+      { label: 'Department', value: activeDepartment?.name ?? '—' },
+      { label: 'Shift tab', value: selectedTab === 'am' ? 'AM' : 'PM' },
+      { label: 'People on this shift', value: roster?.totalCount ?? 0 },
+    ];
+    for (const section of sections) {
+      if (!section.people.length) continue;
+      facts.push({
+        label: `${section.title} (${section.people.length})`,
+        value: section.people
+          .map((p) => {
+            const w = p.work;
+            const load = w && w.total ? ` – ${w.completed}/${w.total} rooms done` : '';
+            return `${p.name} (${p.jobTitle ?? 'staff'})${load}`;
+          })
+          .join('; '),
+      });
+    }
+    return facts;
+  }, [activeDepartment, selectedTab, roster, sections]);
+  useAssistantScreen('Staff', assistantFacts);
 
   /** Which empty state, if any. Order matters: most specific first. */
   const emptyReason: StaffEmptyReason | null = (() => {

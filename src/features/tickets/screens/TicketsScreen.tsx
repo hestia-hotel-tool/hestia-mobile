@@ -44,6 +44,7 @@ import { Icon } from '@/components/Icon';
 import { useToast } from '@/contexts/ToastContext';
 import StatusPopover from '@features/rooms/components/StatusPopover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
 const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed'];
@@ -453,6 +454,25 @@ export default function TicketsScreen() {
     }
     return true; // 'all' shows all tickets
   });
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const TAB_NAMES: Record<TicketTab, string> = { myTickets: 'My Tickets', all: 'All', open: 'Open', closed: 'Closed' };
+  const assistantKey = filteredTickets.map((t) => `${t.id}:${t.status}`).join('|');
+  const assistantFacts = React.useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Tab', value: TAB_NAMES[selectedTab] },
+      { label: 'Tickets listed', value: filteredTickets.length },
+      ...filteredTickets.slice(0, 30).map((t) => ({
+        label: `Ticket "${t.title}"`,
+        value: [t.status, t.priority, t.locationText || (t.roomNumber ? `Room ${t.roomNumber}` : ''), t.assignedTo?.name ? `assigned to ${t.assignedTo.name}` : 'unassigned']
+          .filter(Boolean)
+          .join(', '),
+      })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedTab, assistantKey]
+  );
+  useAssistantScreen('Tickets', assistantFacts);
 
   return (
     <View style={styles.container}>

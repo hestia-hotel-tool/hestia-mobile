@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -28,6 +28,7 @@ import { useAuth } from '@features/auth/hooks/useAuth';
 import { SettingsRow, SettingsSection, SETTINGS_COLORS as C } from '../components/SettingsList';
 import { fetchMyAccount, type MyAccount } from '../services/account';
 import { MyShiftCard } from '../components/MyShiftCard';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** Each language in its own words, so anyone can find theirs. */
 const LANGUAGE_NAMES: Record<LanguageCode, string> = {
@@ -60,6 +61,23 @@ export default function SettingsScreen() {
 
   const [account, setAccount] = useState<MyAccount | null>(null);
   const [push, setPush] = useState<PushStatus | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () =>
+      account
+        ? [
+            { label: 'Name', value: account.fullName },
+            { label: 'Job title', value: account.jobTitle ?? '—' },
+            { label: 'Department', value: account.department ?? '—' },
+            { label: 'Shift', value: account.shift ? `${account.shift.name}${account.shift.start ? ` ${account.shift.start}–${account.shift.end}` : ''}` : 'Not assigned' },
+            { label: 'Hotel', value: account.hotelName ?? '—' },
+            { label: 'Push notifications', value: push ?? 'unknown' },
+          ]
+        : [],
+    [account, push]
+  );
+  useAssistantScreen('Account', assistantFacts);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {

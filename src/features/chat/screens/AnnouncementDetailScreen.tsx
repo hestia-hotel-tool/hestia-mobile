@@ -8,6 +8,7 @@ import { invalidateNotificationBadges, markNotificationRead } from '@/lib/inAppN
 import { typography } from '@/theme';
 import { fetchAnnouncement, type Announcement } from '../services/chat';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** "Thursday 25 September 2026, 20:00" */
 function formatFull(iso: string): string {
@@ -31,6 +32,21 @@ export default function AnnouncementDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [item, setItem] = useState<Announcement | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = React.useMemo<ScreenFact[]>(
+    () =>
+      item
+        ? [
+            { label: 'Subject', value: item.subject },
+            { label: 'From', value: item.senderName ?? '—' },
+            { label: 'Sent', value: item.createdAt },
+            { label: 'Message', value: item.body },
+          ]
+        : [],
+    [item]
+  );
+  useAssistantScreen('Announcement', assistantFacts);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,7 @@ import {
 } from '../services/lostAndFound';
 import type { LostAndFoundStatus } from '../types/lostAndFound.types';
 import { storedLocationLabel } from '../utils/storedLocations';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 const C = {
   header: '#e4eefe',
@@ -151,6 +152,27 @@ export default function LostAndFoundItemScreen() {
       }}
     />
   );
+
+  /** What this item's page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    if (!item) return [];
+    const facts: ScreenFact[] = [
+      { label: 'Item', value: item.itemName },
+      { label: 'Status', value: item.status },
+      { label: 'Found at', value: item.foundLocation || '—' },
+    ];
+    if (item.trackingNumber) facts.push({ label: 'Tracking number', value: item.trackingNumber });
+    if (item.description) facts.push({ label: 'Description', value: item.description });
+    if (item.storageLocation) facts.push({ label: 'Stored at', value: storedLocationLabel(item.storageLocation) });
+    if (item.shippedLocation) facts.push({ label: 'Shipped to', value: item.shippedLocation });
+    if (item.foundAt) facts.push({ label: 'Found', value: item.foundAt });
+    if (item.guest) facts.push({ label: 'Guest', value: `${item.guest.name}${item.guest.dates ? `, ${item.guest.dates}` : ''}` });
+    if (item.foundBy) facts.push({ label: 'Found by', value: item.foundBy.name });
+    if (item.registeredBy) facts.push({ label: 'Registered by', value: item.registeredBy.name });
+    if (item.photos.length) facts.push({ label: 'Photos', value: item.photos.length });
+    return facts;
+  }, [item]);
+  useAssistantScreen('Lost & Found item', assistantFacts);
 
   if (loading) {
     return (

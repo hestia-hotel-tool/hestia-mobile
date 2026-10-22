@@ -24,6 +24,7 @@ import {
 } from '../services/lostAndFound';
 import { PhotoGridEditor, type EditablePhoto } from '@/components/media/PhotoGridEditor';
 import { STORED_LOCATIONS } from '../utils/storedLocations';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 const C = {
   title: '#5a759d',
@@ -45,7 +46,11 @@ type Form = { itemName: string; description: string; storageLocation: string; ph
  * (route gated on `lost_and_found.manage`, and the database refuses edits from
  * anyone else). Leaving with unsaved changes asks first.
  */
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Editing a lost & found item' }];
+
 export default function LostAndFoundEditScreen() {
+  useAssistantScreen('Edit lost & found item', ASSISTANT_FACTS);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const toast = useToast();

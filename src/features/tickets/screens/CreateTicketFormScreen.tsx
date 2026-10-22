@@ -44,6 +44,7 @@ import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
 import { showStayoverWithLinenBadge } from '@features/rooms/utils/stayoverLinen';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** Same guard `RoomDetailScreen` uses before treating a param as a room id. */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -116,7 +117,11 @@ const FREQUENT_CASES = [
 
 type DepartmentUiItem = { id: string; name: string; iconName: IconName | null };
 
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Filling in a new ticket (title, location, priority, photos, assignee)' }];
+
 export default function CreateTicketFormScreen() {
+  useAssistantScreen('Create ticket', ASSISTANT_FACTS);
   const navigation = useNavigation<CreateTicketFormScreenNavigationProp>();
   const router = useRouter();
   const route = useRoute<CreateTicketFormScreenRouteProp>();

@@ -118,11 +118,15 @@ export default function AIChatOverlay({ visible, onClose }: AIChatOverlayProps) 
         </Text>
 
         {hasConversation ? (
+          // A pill, well clear of ✕: side by side, a tap meant to close the
+          // assistant wiped the conversation instead (tester feedback).
           <Pressable
             onPress={clear}
-            hitSlop={10}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 4 }}
             accessibilityRole="button"
             accessibilityLabel="Clear the conversation"
+            className="rounded-full border border-border-medium"
+            style={{ paddingHorizontal: s(12), paddingVertical: s(5), marginRight: s(14) }}
           >
             <Text
               className="font-hestia-primary text-ink-accent"

@@ -68,6 +68,7 @@ import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
 import { useKeepRoomVisible } from '../hooks/useKeepRoomVisible';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { ROOMS_LIST_CHROME } from '../constants/roomsListChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -1015,6 +1016,33 @@ export default function AllRoomsScreen() {
         : [],
     [isGroupedRooms, isPorter, filteredRooms, porterChecks.statusOf]
   );
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    const facts: ScreenFact[] = [{ label: 'Shift shown', value: uiShift }];
+    if (shiftLock.offShift) {
+      facts.push({ label: 'Notice', value: `You have no ${shiftLock.offShift.shift} shift` });
+      return facts;
+    }
+    facts.push({ label: 'Rooms listed', value: filteredRooms.length });
+    if (activeFilterParts.length) facts.push({ label: 'Filters on', value: activeFilterParts.join(', ') });
+    if (searchQuery.trim()) facts.push({ label: 'Search', value: searchQuery.trim() });
+    const numbers = (rooms: RoomCardData[]) => rooms.map((r) => r.roomNumber).join(', ');
+    if (roomGroups.length) {
+      for (const g of roomGroups) facts.push({ label: `${g.label} (${g.rooms.length})`, value: numbers(g.rooms) });
+    } else {
+      const byStatus = new Map<string, RoomCardData[]>();
+      for (const r of filteredRooms) {
+        const k = String(r.houseKeepingStatus ?? 'Unknown');
+        byStatus.set(k, [...(byStatus.get(k) ?? []), r]);
+      }
+      for (const [k, rooms] of byStatus) facts.push({ label: `${k} (${rooms.length})`, value: numbers(rooms) });
+    }
+    const priority = filteredRooms.filter((r) => r.isPriority);
+    if (priority.length) facts.push({ label: `Priority (${priority.length})`, value: numbers(priority) });
+    return facts;
+  }, [uiShift, shiftLock.offShift, filteredRooms, activeFilterParts, searchQuery, roomGroups]);
+  useAssistantScreen(isPorter ? 'Rooms (porter round)' : 'Rooms', assistantFacts);
 
   /** A porter step chosen in the porter's Change Status menu. */
   const runPorterStep = useCallback(

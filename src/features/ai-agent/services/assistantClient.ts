@@ -16,6 +16,7 @@
 import { fetch as streamingFetch } from 'expo/fetch';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { getAssistantScreenContext } from '../screenContext';
 
 export interface AssistantMessage {
   role: 'user' | 'assistant';
@@ -96,6 +97,9 @@ export async function askAssistant(
         // The function renders "today" in this zone. A model answering a
         // 23:30 question in Zurich from UTC would name the wrong day.
         timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC',
+        // What the screen behind the assistant shows, so "the 18 on my Home"
+        // means something to it (see screenContext.ts).
+        screen: getAssistantScreenContext() ?? undefined,
         probe: probe === true,
       }),
     });

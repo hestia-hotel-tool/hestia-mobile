@@ -16,6 +16,7 @@ import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
 import { fetchAllRooms, assignRoomToStaff } from '../services/rooms';
 import type { RoomCardData } from '../types/allRooms.types';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type Nav = NativeStackNavigationProp<RootStackParamList, 'assign-rooms/index'>;
 type Rt = RouteProp<RootStackParamList, 'assign-rooms/index'>;
@@ -48,6 +49,17 @@ export default function AssignRoomsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Doing', value: 'Choosing rooms to assign' },
+      { label: 'Rooms listed', value: rooms.length },
+      { label: 'Selected', value: rooms.filter((r) => selected.has(r.id)).map((r) => r.roomNumber).join(', ') || 'none' },
+    ],
+    [rooms, selected]
+  );
+  useAssistantScreen('Assign rooms', assistantFacts);
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [assigning, setAssigning] = useState(false);

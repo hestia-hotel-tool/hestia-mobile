@@ -19,6 +19,7 @@ import StaffHeader from '../components/StaffHeader';
 import { SHIFT_GROUP_CHROME } from '../components/staffList/staffShiftChrome';
 import { useStaffAssignedRooms } from '../hooks/useStaffAssignedRooms';
 import type { StaffShiftState } from '../types/staffRoster.types';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const s = (n: number) => n * scaleX;
@@ -118,6 +119,21 @@ export default function StaffActivityScreen() {
       }),
     [rooms, now]
   );
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Staff member', value: `${name}${jobTitle ? ` (${jobTitle})` : ''}` },
+      { label: 'Shift', value: shift },
+      { label: 'Rooms', value: lines.length },
+      ...lines.map((l) => ({
+        label: `Room ${l.room.roomNumber}`,
+        value: `${l.statusLabel}, ${l.used} of ${l.credit} min used${l.over ? ' (over credit)' : ''}`,
+      })),
+    ],
+    [name, jobTitle, shift, lines]
+  );
+  useAssistantScreen('Staff activity', assistantFacts);
 
   const shown = filter === 'all' ? lines : lines.filter((l) => l.statusKey === filter);
   const done = lines.filter((l) => l.statusKey === 'Cleaned' || l.statusKey === 'Inspected').length;

@@ -22,6 +22,7 @@ import { ExcludeStaffModal, summariseExclusion } from '../components/ExcludeStaf
 import { loadAllColleagues } from '../utils/colleagues';
 import { ANNOUNCEMENT_LIMITS, publishAnnouncement } from '../services/chat';
 import { CHAT_COLORS, scaleX } from '../constants/chatStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** Design px on the 440-wide frame — Figma 4241:405. */
 const A = {
@@ -58,7 +59,11 @@ const A = {
  * list's "General" row). The server function checks `chat.announce`; this
  * route is gated on it too, and the menu hides the option without it.
  */
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Writing an announcement to staff' }];
+
 export default function GeneralAnnouncementScreen() {
+  useAssistantScreen('New announcement', ASSISTANT_FACTS);
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();

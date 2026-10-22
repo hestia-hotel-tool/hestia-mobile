@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef } from 'react';
 import { AppState, StyleSheet } from 'react-native';
-import { Stack , router } from 'expo-router';
+import { Stack , router, usePathname } from 'expo-router';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
@@ -23,6 +23,18 @@ import {
   subscribeNotificationBadgeInvalidate,
 } from '@/lib/inAppNotifications';
 import * as NativeSplash from 'expo-splash-screen';
+import { flushClientErrors, installCrashReporter, setCrashRoute } from '@/lib/crashReporter';
+import { supabase } from '@/lib/supabase';
+
+// Before the first render, so an error during start-up is recorded too.
+installCrashReporter();
+
+/**
+ * A screen that throws while rendering shows "Something went wrong · Try
+ * again" instead of closing the app (expo-router uses this export for the
+ * layout and every route under it).
+ */
+export { AppErrorBoundary as ErrorBoundary } from '@/components/feedback/AppErrorBoundary';
 
 // Keep the native splash up until the first screen has painted, so there is no
 // white flash between the OS splash and the app's launch screen.
@@ -160,23 +172,25 @@ export default function RootLayout() {
     void Notifications.clearLastNotificationResponseAsync();
   }, [lastNotificationResponse, openAppFromNotificationResponse]);
 
+  // Where the person was when an error happened, for the report.
+  const pathname = usePathname();
   useEffect(() => {
-    const anyGlobal: any = (typeof window !== 'undefined' ? window : globalThis) as any;
-    const ErrorUtils = anyGlobal?.ErrorUtils;
-    if (!ErrorUtils?.getGlobalHandler || !ErrorUtils?.setGlobalHandler) return;
-    const prev = ErrorUtils.getGlobalHandler();
-    ErrorUtils.setGlobalHandler((err: any, isFatal: boolean) => {
-      try {
-        const msg = err?.message ?? String(err);
-        const stack = err?.stack ?? '';
-        console.error('[GlobalErrorHandler] isFatal=', String(isFatal));
-        console.error('[GlobalErrorHandler] message=', msg);
-        if (stack) console.error('[GlobalErrorHandler] stack=\n' + String(stack));
-      } catch (_) {}
-      prev(err, isFatal);
+    setCrashRoute(pathname);
+  }, [pathname]);
+
+  // Send errors queued on the device (a crash cannot send its own): now, on
+  // sign-in, and whenever the app comes back to the foreground.
+  useEffect(() => {
+    void flushClientErrors();
+    const auth = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN') void flushClientErrors();
+    });
+    const app = AppState.addEventListener('change', (state) => {
+      if (state === 'active') void flushClientErrors();
     });
     return () => {
-      try { ErrorUtils.setGlobalHandler(prev); } catch (_) {}
+      auth.data.subscription.unsubscribe();
+      app.remove();
     };
   }, []);
 

@@ -27,6 +27,7 @@ import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import type { RootStackParamList } from '@/types/navigation';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type MainTabsParamList = {
   '(home)/index': undefined;
@@ -263,6 +264,25 @@ export default function ChatScreen() {
     );
   });
   const hasNotifications = Boolean(generalNotification || tasksNotification);
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantKey = filteredChats.map((c) => `${c.id}:${c.unreadCount ?? 0}`).join('|');
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Filter', value: filter },
+      { label: 'Conversations listed', value: filteredChats.length },
+      { label: 'Unread messages', value: filteredChats.reduce((n, c) => n + (c.unreadCount ?? 0), 0) },
+      ...(generalNotification ? [{ label: 'General notifications unread', value: generalNotification.unreadCount ?? 0 }] : []),
+      ...(tasksNotification ? [{ label: 'Task notifications unread', value: tasksNotification.unreadCount ?? 0 }] : []),
+      ...filteredChats.slice(0, 20).map((c) => ({
+        label: `${c.isGroup ? 'Group' : 'Chat'} "${String(c.name ?? '')}"`,
+        value: `${c.unreadCount ?? 0} unread`,
+      })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filter, assistantKey, generalNotification, tasksNotification]
+  );
+  useAssistantScreen('Chat', assistantFacts);
 
   return (
     <View style={styles.container}>

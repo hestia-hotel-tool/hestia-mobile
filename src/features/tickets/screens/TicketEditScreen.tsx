@@ -27,6 +27,7 @@ import {
   uploadTicketPhotos,
   type TicketDetail,
 } from '../services/tickets';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 const C = {
   title: '#5a759d',
@@ -56,7 +57,11 @@ type Form = { title: string; description: string; priority: Priority | null; pho
  * else. Leaving with unsaved changes asks first. Status, assignee and due time
  * stay where they are changed today: the detail screen and the list.
  */
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Editing an existing ticket' }];
+
 export default function TicketEditScreen() {
+  useAssistantScreen('Edit ticket', ASSISTANT_FACTS);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const toast = useToast();

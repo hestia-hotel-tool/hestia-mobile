@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,6 +21,7 @@ import { typography } from '@/theme';
 import { formatMoment } from '@/utils/formatting';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { deleteTicket, fetchTicketDetail, updateTicketStatus, type TicketDetail } from '../services/tickets';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import type { TicketStatus } from '../types/tickets.types';
 
 const C = {
@@ -162,6 +163,28 @@ export default function TicketDetailScreen() {
       }}
     />
   );
+
+  /** What this ticket's page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    if (!ticket) return [];
+    const facts: ScreenFact[] = [
+      { label: 'Ticket', value: ticket.title },
+      { label: 'Status', value: ticket.status },
+      { label: 'Priority', value: ticket.priority ?? 'none' },
+      { label: 'Location', value: ticket.locationText || '—' },
+      { label: 'Department', value: ticket.departmentName ?? '—' },
+      { label: 'Created', value: ticket.createdAt },
+      { label: 'Created by', value: ticket.createdBy?.name ?? '—' },
+      { label: 'Assigned to', value: ticket.assignedTo?.name ?? 'Nobody' },
+    ];
+    if (ticket.description) facts.push({ label: 'Description', value: ticket.description });
+    if (ticket.dueAt) facts.push({ label: 'Due', value: ticket.dueAt });
+    if (ticket.resolvedAt) facts.push({ label: 'Resolved', value: ticket.resolvedAt });
+    if (ticket.tagged.length) facts.push({ label: 'Tagged', value: ticket.tagged.map((p) => p.name).join(', ') });
+    if (ticket.photos.length) facts.push({ label: 'Photos', value: ticket.photos.length });
+    return facts;
+  }, [ticket]);
+  useAssistantScreen('Ticket detail', assistantFacts);
 
   if (loading) {
     return (

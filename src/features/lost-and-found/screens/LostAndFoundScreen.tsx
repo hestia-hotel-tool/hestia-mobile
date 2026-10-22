@@ -1,8 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { View, ScrollView, StyleSheet, RefreshControl, TextInput, Text, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Icon } from '@/components/Icon';
 import { matchesLostAndFoundQuery } from '../utils/searchLostAndFound';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { router, useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
 import { LOST_AND_FOUND_CARD_LAYOUT as CARD_LAYOUT } from '../components/itemCard/lostAndFoundCardLayout';
@@ -610,6 +611,25 @@ export default function LostAndFoundScreen() {
           }))
           .filter((t) => t.count > 0)
       : [];
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantKey = filteredItems.map((i) => `${i.id}:${i.status}`).join('|');
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Tab', value: TAB_LABEL[selectedTab] },
+      ...(searching ? [{ label: 'Search', value: query.trim() }] : []),
+      { label: 'Items listed', value: filteredItems.length },
+      ...filteredItems.slice(0, 30).map((i) => ({
+        label: `${i.itemName} (${i.itemId})`,
+        value: [i.status, i.location, i.guestName ? `guest ${i.guestName}` : '', i.storedLocation ? `stored at ${i.storedLocation}` : '', `registered by ${i.registeredBy.name}`]
+          .filter(Boolean)
+          .join(', '),
+      })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedTab, searching, query, assistantKey]
+  );
+  useAssistantScreen('Lost & Found', assistantFacts);
 
   const toggleSearch = () => {
     if (searchOpen) setQuery('');
