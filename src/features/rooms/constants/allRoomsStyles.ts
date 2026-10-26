@@ -31,7 +31,7 @@ export const CARD_DIMENSIONS = {
 export const CARD_COLORS = {
   background: '#f9fafc', // Default white/light gray for all non-priority cards
   border: '#e3e3e3',
-  priorityBackground: 'rgba(249, 36, 36, 0.08)', // Light pink/reddish for priority cards (exact from Figma)
+  priorityBackground: '#F9E9EB', // #f92424 at 8% over #f9fafc, solid so PM mode's dark page does not show through
   priorityBorder: '#f92424', // Red border for priority cards
   /** Paused assignment — matches room detail paused header (Figma 2333-132) */
   pausedBackground: '#FCF1CF',

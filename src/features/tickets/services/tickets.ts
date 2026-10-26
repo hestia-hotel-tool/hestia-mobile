@@ -16,6 +16,7 @@ type TicketsRow = {
   type: string | null;
   assigned_to_id: string | null;
   created_by_id: string;
+  department_id?: string | null;
   created_at: string;
   due_at?: string | null;
   photo_urls?: string[] | null;
@@ -48,6 +49,7 @@ const TICKET_SELECT = [
   'type',
   'assigned_to_id',
   'created_by_id',
+  'department_id',
   'created_at',
   'due_at',
   'photo_urls',
@@ -214,6 +216,7 @@ function mapRowToTicketData(
         : undefined,
     assignedToId: row.assigned_to_id,
     createdById: row.created_by_id,
+    departmentId: row.department_id ?? null,
     viewerIsTagged: taggedTicketIds.has(row.id),
     priority: priority ?? undefined,
   };
@@ -572,6 +575,8 @@ export type TicketDetail = {
   /** "Room 203", or the public area's name. */
   locationText: string;
   departmentName: string | null;
+  /** The department the ticket was raised for: who may resolve and reassign it. */
+  departmentId: string | null;
   dueAt: string | null;
   createdAt: string;
   updatedAt: string | null;
@@ -590,6 +595,7 @@ type TicketDetailRow = {
   priority: string | null;
   type: string | null;
   room_id: string | null;
+  department_id: string | null;
   photo_urls: string[] | null;
   due_at: string | null;
   created_at: string;
@@ -637,6 +643,7 @@ export async function fetchTicketDetail(id: string): Promise<TicketDetail | null
         'resolved_at',
         'created_by_id',
         'assigned_to_id',
+        'department_id',
         'departments(name)',
         'rooms (room_number)',
         'created_by:users!tickets_created_by_id_fkey (full_name, avatar_url, departments(name))',
@@ -677,6 +684,7 @@ export async function fetchTicketDetail(id: string): Promise<TicketDetail | null
     room: row.room_id ? { id: row.room_id, number: roomNumber } : null,
     locationText: row.room_id ? `Room ${roomNumber}` : (row.type ?? 'Public Area'),
     departmentName: row.departments?.name ?? null,
+    departmentId: row.department_id ?? null,
     dueAt: row.due_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

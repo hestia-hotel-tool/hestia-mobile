@@ -45,6 +45,8 @@ import { useToast } from '@/contexts/ToastContext';
 import StatusPopover from '@features/rooms/components/StatusPopover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+import { useTicketAccess } from '../hooks/useTicketAccess';
+import { usePickerShift } from '../hooks/usePickerShift';
 
 /** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
 const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed'];
@@ -97,6 +99,9 @@ export default function TicketsScreen() {
   const userProfile = useUserStore((s) => s.profile);
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  // Resolve: the ticket's department. Reassign: its leads. (migration 20261026090000)
+  const { canResolve, canReassign } = useTicketAccess();
+  const pickerShift = usePickerShift();
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
@@ -228,21 +233,34 @@ export default function TicketsScreen() {
     router.push({ pathname: '/ticket/[id]', params: { id: ticket.id } });
   };
 
-  const handleAssigneePress = async (ticket: TicketData) => {
-    const deptName = ticket.category;
-    if (!deptName) return;
-    setAssigneeStaffLoading(true);
+  const handleAssigneePress = (ticket: TicketData) => {
+    if (!ticket.category) return;
     setAssigneeModalTicket(ticket);
-    try {
-      const res = await getUsersByDepartment(deptName, { limit: 100 });
-      setDepartmentStaff(res.data);
-    } catch (e) {
-      console.warn('[TicketsScreen] Failed to load staff for department', deptName, e);
-      setDepartmentStaff([]);
-    } finally {
-      setAssigneeStaffLoading(false);
-    }
   };
+
+  // The picker's staff: the ticket's department, the target shift only (client
+  // RBAC update) — reloaded when the AM / PM tab changes.
+  const assigneeDept = assigneeModalTicket?.category ?? null;
+  useEffect(() => {
+    const shift = pickerShift.shift;
+    if (!assigneeDept || !shift) return;
+    let cancelled = false;
+    setAssigneeStaffLoading(true);
+    getUsersByDepartment(assigneeDept, { limit: 100, shift })
+      .then((res) => {
+        if (!cancelled) setDepartmentStaff(res.data);
+      })
+      .catch((e) => {
+        console.warn('[TicketsScreen] Failed to load staff for department', assigneeDept, e);
+        if (!cancelled) setDepartmentStaff([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAssigneeStaffLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [assigneeDept, pickerShift.shift]);
 
   const handleAssigneeSelect = async (staffIds: string[]) => {
     const ticket = assigneeModalTicket;
@@ -253,6 +271,8 @@ export default function TicketsScreen() {
       await loadTickets(selectedTab, { silent: true });
     } catch (e) {
       console.warn('[TicketsScreen] Failed to assign ticket', e);
+      const message = (e as { message?: string } | null)?.message;
+      toast.show(message || 'The ticket could not be reassigned.', { type: 'error', title: 'Not reassigned' });
     }
   };
 
@@ -491,8 +511,8 @@ export default function TicketsScreen() {
             <TicketCard
               ticket={ticket}
               onPress={() => handleTicketPress(ticket)}
-              onStatusPress={(anchor) => handleStatusPress(ticket, anchor)}
-              onAssigneePress={() => handleAssigneePress(ticket)}
+              onStatusPress={canResolve(ticket) ? (anchor) => handleStatusPress(ticket, anchor) : undefined}
+              onAssigneePress={canReassign(ticket) ? () => handleAssigneePress(ticket) : undefined}
             />
           )}
           ListEmptyComponent={<EmptyTicketsState selectedTab={selectedTab} />}
@@ -667,6 +687,8 @@ export default function TicketsScreen() {
         selectedStaffIds={assigneeModalTicket?.assignedToId ? [assigneeModalTicket.assignedToId] : []}
         departmentName={assigneeModalTicket?.category ?? ''}
         loading={assigneeStaffLoading}
+        shift={pickerShift.shift ?? undefined}
+        onShiftChange={pickerShift.canSwitch ? pickerShift.setShift : undefined}
       />
 
       {/* Header - Fixed at top */}

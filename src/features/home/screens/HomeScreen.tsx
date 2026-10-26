@@ -43,6 +43,7 @@ import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenCo
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
 import { getLatestPausedAssignment } from '../services/home';
+import { pmSurface } from '@/theme/shiftSurface';
 
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
@@ -133,6 +134,8 @@ export default function HomeScreen() {
    * follows their rostered shift (useShiftLock).
    */
   const shiftLock = useShiftLock();
+  // Colours for text drawn on the page itself, which is dark in PM mode.
+  const pm = pmSurface(homeData?.selectedShift ?? null);
   useEffect(() => {
     if (shiftLock.locked && homeData.selectedShift !== shiftLock.shift) {
       setHomeData((prev) => ({ ...prev, selectedShift: shiftLock.shift }));
@@ -1069,7 +1072,7 @@ export default function HomeScreen() {
 
         {/* A room attendant off the shift that is on now: say so, and when theirs is. */}
         {shiftLock.offShift ? (
-          <OffShiftNotice info={shiftLock.offShift} />
+          <OffShiftNotice info={shiftLock.offShift} onDark={homeData.selectedShift === 'PM'} />
         ) : (
         <View style={styles.scrollContainer}>
           <ScrollView
@@ -1136,7 +1139,7 @@ export default function HomeScreen() {
                     }}
                   />
 
-                  <Text style={styles.ticketDashboardRecentTitle}>Recent activity</Text>
+                  <Text style={[styles.ticketDashboardRecentTitle, pm && { color: pm.text }]}>Recent activity</Text>
                   {ticketRecent.length === 0 ? (
                     <TicketActivityItem
                       roomLabel="—"
@@ -1172,14 +1175,14 @@ export default function HomeScreen() {
                       accessibilityRole="button"
                       style={styles.ticketDashboardLoadMore}
                     >
-                      <Text style={styles.ticketDashboardLoadMoreText}>Load more</Text>
+                      <Text style={[styles.ticketDashboardLoadMoreText, pm && { color: pm.accent }]}>Load more</Text>
                     </Pressable>
                   )}
                 </View>
               </>
             ) : isHskPortierUser ? (
               <View style={{ paddingTop: 12 * scaleX, paddingBottom: 24 * scaleX }}>
-                <Text style={styles.portierTitle}>Tasks Overview</Text>
+                <Text style={[styles.portierTitle, pm && { color: pm.text }]}>Tasks Overview</Text>
                 <HskPortierTasksOverviewCard
                   total={portierOverview.total}
                   dirty={portierOverview.dirty}

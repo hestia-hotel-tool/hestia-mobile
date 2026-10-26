@@ -15,6 +15,7 @@ import { typography, colors } from '@/theme';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';
 import type { User } from '@/types';
+import StaffTabs from '@features/staff/components/StaffTabs';
 
 interface TicketStaffSelectorModalProps {
   visible: boolean;
@@ -25,6 +26,14 @@ interface TicketStaffSelectorModalProps {
   selectedStaffIds?: string[];
   departmentName: string;
   loading?: boolean;
+  /**
+   * The shift whose staff are listed. With `onShiftChange`, AM / PM tabs let
+   * someone who works both switch; without it (staff locked to their own
+   * shift) the list is that shift only. Either way only the target shift's
+   * staff appear.
+   */
+  shift?: 'AM' | 'PM';
+  onShiftChange?: (shift: 'AM' | 'PM') => void;
 }
 
 /**
@@ -49,6 +58,8 @@ export default function TicketStaffSelectorModal({
   selectedStaffIds = [],
   departmentName,
   loading = false,
+  shift,
+  onShiftChange,
 }: TicketStaffSelectorModalProps) {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -103,7 +114,7 @@ export default function TicketStaffSelectorModal({
             <View style={styles.headerText}>
               <Text style={styles.title}>Tag staff</Text>
               <Text style={styles.subtitle} numberOfLines={1}>
-                {departmentName}
+                {shift ? `${departmentName} · ${shift} shift` : departmentName}
               </Text>
             </View>
             {/*
@@ -115,6 +126,12 @@ export default function TicketStaffSelectorModal({
               <Text style={styles.closeText}>✕</Text>
             </TouchableOpacity>
           </View>
+
+          {shift && onShiftChange ? (
+            <View style={styles.shiftTabs}>
+              <StaffTabs selectedTab={shift === 'PM' ? 'pm' : 'am'} onTabPress={(t) => onShiftChange(t === 'pm' ? 'PM' : 'AM')} />
+            </View>
+          ) : null}
 
           {hasStaff && !loading ? (
             <View style={styles.searchWrap}>
@@ -158,10 +175,13 @@ export default function TicketStaffSelectorModal({
                 <View style={styles.emptyIconCircle}>
                   <Icon name="nav-staff" size={30} color={colors.text.accent} />
                 </View>
-                <Text style={styles.emptyTitle}>No staff in {departmentName}</Text>
+                <Text style={styles.emptyTitle}>
+                  {shift ? `No ${departmentName} staff on the ${shift} shift` : `No staff in ${departmentName}`}
+                </Text>
                 <Text style={styles.emptyBody}>
-                  Nobody is assigned to this department yet, so there is no one to tag. You
-                  can still create the ticket — it will go to the department itself.
+                  {shift
+                    ? `Nobody in ${departmentName} is rostered on the ${shift} shift.${onShiftChange ? ' Try the other shift, or' : ''} You can still create the ticket — it will go to the department itself.`
+                    : 'Nobody is assigned to this department yet, so there is no one to tag. You can still create the ticket — it will go to the department itself.'}
                 </Text>
               </View>
             ) : filteredStaff.length === 0 ? (
@@ -315,6 +335,7 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     padding: 0,
   },
+  shiftTabs: { paddingHorizontal: 20, paddingBottom: 8 },
   clearSearch: {
     fontSize: 15,
     color: colors.text.secondary,

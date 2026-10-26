@@ -45,6 +45,7 @@ import { showStayoverWithLinenBadge } from '@features/rooms/utils/stayoverLinen'
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+import { usePickerShift } from '../hooks/usePickerShift';
 
 /** Same guard `RoomDetailScreen` uses before treating a param as a room id. */
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -147,6 +148,8 @@ export default function CreateTicketFormScreen() {
   const [description, setDescription] = useState('');
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [departmentStaff, setDepartmentStaff] = useState<User[]>([]);
+  // Only the target shift's staff; AM / PM tabs for those who work both.
+  const pickerShift = usePickerShift();
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(paramRoomId ?? null);
@@ -289,10 +292,11 @@ export default function CreateTicketFormScreen() {
 
   // Load department staff
   useEffect(() => {
-    if (!selectedDepartmentId) return;
+    const shift = pickerShift.shift;
+    if (!selectedDepartmentId || !shift) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true })
+    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true, shift })
       .then((response) => {
         if (cancelled) return;
         setDepartmentStaff(response.data);
@@ -307,7 +311,7 @@ export default function CreateTicketFormScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedDepartmentId]);
+  }, [selectedDepartmentId, pickerShift.shift]);
 
   /*
    * `navigation.goBack()` alone strands a cold-start deep link: this screen is
@@ -748,6 +752,8 @@ export default function CreateTicketFormScreen() {
         }}
         departmentName={selectedDepartmentName || paramDepartmentName || 'Department'}
         loading={loadingStaff}
+        shift={pickerShift.shift ?? undefined}
+        onShiftChange={pickerShift.canSwitch ? pickerShift.setShift : undefined}
       />
     </View>
   );

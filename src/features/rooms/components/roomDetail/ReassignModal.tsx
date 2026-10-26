@@ -27,7 +27,10 @@ interface ReassignModalProps {
   roomNumber?: string;
   /** When false, hides the Auto Assign button (e.g. for "Assign Staff" flow). Default true. */
   showAutoAssign?: boolean;
-  /** The shift the room is being worked on: the sheet opens on it; the other is one tap away. */
+  /**
+   * The shift the room is being worked on: the sheet opens on it. Each tab lists
+   * only the attendants rostered on that shift.
+   */
   shift?: 'AM' | 'PM';
 }
 
@@ -37,6 +40,7 @@ type Tab = 'am' | 'pm';
  * Pick who cleans a room — drawn like the Staff roster, so the two read as one
  * app: the same blue band, AM / PM tabs, On Shift / On Break / Shift End
  * groups, identity rows with the presence dot, and the "3/7" workload bar.
+ * Each tab lists only that shift's attendants.
  *
  * Data is the Staff roster's too (`useStaffRoster`, Housekeeping, the chosen
  * shift), narrowed to Room Attendants — the only people rooms go to. It

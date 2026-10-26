@@ -4,6 +4,7 @@ import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
 import { HomeHeader } from '@features/home/components/HomeHeader';
 import type { ShiftType } from '@/types/shift.types';
 import { RoomsProgressPill } from './RoomsProgressPill';
+import { pmSurface } from '@/theme/shiftSurface';
 
 export type RoomsHeaderProps = {
   name?: string | null;
@@ -93,7 +94,11 @@ export function RoomsHeader({
           // 20 and 16 tokens.
           <View className="flex-row items-center gap-md pb-lg pt-xl">
             {/* Node 3883:5764 sits at x=34 while the field starts at 20. */}
-            <Text className="pl-[14px] font-hestia-primary text-hestia-4xl font-bold text-ink-primary">
+            {/* White on PM mode's dark page; the light page keeps its ink. */}
+            <Text
+              className="pl-[14px] font-hestia-primary text-hestia-4xl font-bold text-ink-primary"
+              style={pmSurface(shift) ? { color: pmSurface(shift)!.text } : undefined}
+            >
               Rooms
             </Text>
             {progress && <RoomsProgressPill finished={progress.finished} total={progress.total} />}

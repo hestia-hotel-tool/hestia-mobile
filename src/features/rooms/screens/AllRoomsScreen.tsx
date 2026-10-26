@@ -1178,7 +1178,7 @@ export default function AllRoomsScreen() {
             };
 
             // A room attendant off the shift that is on now: say so, and when theirs is.
-            if (shiftLock.offShift) return <OffShiftNotice info={shiftLock.offShift} />;
+            if (shiftLock.offShift) return <OffShiftNotice info={shiftLock.offShift} onDark={displayData.selectedShift === 'PM'} />;
 
             const renderRoomCard = (room: RoomCardData) => (
               <RoomRow

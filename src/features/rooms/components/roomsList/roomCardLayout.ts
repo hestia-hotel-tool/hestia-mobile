@@ -234,8 +234,13 @@ export const PRIORITY_FRAME = {
      * 4488:72 — the frame is tinted, #f92424 at 8%, with a 1pt hairline. The
      * tint, not a heavy border, is what makes a priority room stand out (it
      * replaced an interim 3pt border); the card inside is clear so it shows.
+     *
+     * Solid, not the literal 8% alpha: #F9E9EB *is* #f92424 at 8% over the
+     * card ground #f9fafc, so on the light page it looks the same — but the
+     * translucent version let PM mode's dark slate through and the card's dark
+     * header text disappeared (client feedback, 2026-10-26).
      */
-    background: 'rgba(249, 36, 36, 0.08)',
+    background: '#F9E9EB',
     border: '#f92424',
     radius: 12,
     paddingX: 15,

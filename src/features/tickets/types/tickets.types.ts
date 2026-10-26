@@ -44,6 +44,8 @@ export interface TicketData {
    * Currently not used for filtering but kept for future extensions.
    */
   createdById?: string;
+  /** The department the ticket was raised for: who may resolve and reassign it. */
+  departmentId?: string | null;
   /** Current session user appears in ticket_tags for this ticket. */
   viewerIsTagged?: boolean;
   priority?: 'urgent' | 'medium' | 'notUrgent';

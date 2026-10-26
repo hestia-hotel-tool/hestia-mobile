@@ -29,6 +29,7 @@ import {
   DEPARTMENT_CHIP,
 } from '@/lib/departments';
 import { Icon, type IconName } from '@/components/Icon';
+import { usePickerShift } from '../hooks/usePickerShift';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -132,6 +133,8 @@ export default function TicketForm({
   const [description, setDescription] = useState('');
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [departmentStaff, setDepartmentStaff] = useState<User[]>([]);
+  // Only the target shift's staff; AM / PM tabs for those who work both.
+  const pickerShift = usePickerShift();
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const descriptionInputRef = useRef<TextInput>(null);
@@ -186,10 +189,11 @@ export default function TicketForm({
 
   // Load department staff
   useEffect(() => {
-    if (!selectedDepartmentId) return;
+    const shift = pickerShift.shift;
+    if (!selectedDepartmentId || !shift) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true })
+    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true, shift })
       .then((response) => {
         if (cancelled) return;
         setDepartmentStaff(response.data);
@@ -204,7 +208,7 @@ export default function TicketForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedDepartmentId]);
+  }, [selectedDepartmentId, pickerShift.shift]);
 
   const handleFrequentCaseSelect = (caseItem: string) => {
     setTicketName(caseItem);
@@ -655,6 +659,8 @@ export default function TicketForm({
         }}
         departmentName={selectedDepartmentName || departmentName || 'Department'}
         loading={loadingStaff}
+        shift={pickerShift.shift ?? undefined}
+        onShiftChange={pickerShift.canSwitch ? pickerShift.setShift : undefined}
       />
     </View>
   );

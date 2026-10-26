@@ -23,6 +23,7 @@ import { useAuth } from '@features/auth/hooks/useAuth';
 import { deleteTicket, fetchTicketDetail, updateTicketStatus, type TicketDetail } from '../services/tickets';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import type { TicketStatus } from '../types/tickets.types';
+import { useTicketAccess } from '../hooks/useTicketAccess';
 
 const C = {
   header: '#e4eefe',
@@ -71,6 +72,9 @@ export default function TicketDetailScreen() {
   const [pendingStatus, setPendingStatus] = useState<TicketStatus | null>(null);
 
   const canEdit = canManage || (!!ticket && ticket.createdBy?.id === session?.user?.id);
+  // Resolve: the ticket's department only (migration 20261026090000).
+  const { canResolve } = useTicketAccess();
+  const mayResolve = !!ticket && canResolve({ departmentId: ticket.departmentId, createdById: ticket.createdBy?.id });
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -105,7 +109,8 @@ export default function TicketDetailScreen() {
       void Haptics.selectionAsync();
     } catch (e) {
       setTicket((t) => (t ? { ...t, status: previous } : t));
-      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Status not changed' });
+      const message = (e as { message?: string } | null)?.message;
+      toast.show(message || 'Please try again.', { type: 'error', title: 'Status not changed' });
     } finally {
       setPendingStatus(null);
     }
@@ -269,7 +274,7 @@ export default function TicketDetailScreen() {
                 <Pressable
                   key={key}
                   onPress={() => void changeStatus(key)}
-                  disabled={!!pendingStatus}
+                  disabled={!!pendingStatus || !mayResolve}
                   style={[styles.segmentItem, selected && { backgroundColor: s.color }]}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, busy }}
@@ -286,6 +291,11 @@ export default function TicketDetailScreen() {
               );
             })}
           </View>
+          {!mayResolve ? (
+            <Text style={styles.statusNote}>
+              {ticket.departmentName ? `Only ${ticket.departmentName} can resolve this ticket.` : 'Only the person who raised this ticket or a manager can change its status.'}
+            </Text>
+          ) : null}
 
           <DetailCard>
             <DetailRow
@@ -386,6 +396,7 @@ const styles = StyleSheet.create({
   chipDot: { width: 7, height: 7, borderRadius: 4 },
   chipText: { fontFamily: typography.fontFamily.primary, fontWeight: '600', fontSize: 13, color: C.title },
   sectionTitle: { marginTop: 24, fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 15, color: C.ink },
+  statusNote: { marginTop: 8, marginHorizontal: 4, fontFamily: typography.fontFamily.primary, fontSize: 13, color: '#6b7a90' },
   segment: {
     marginTop: 10,
     flexDirection: 'row',

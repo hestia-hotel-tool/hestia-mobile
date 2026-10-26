@@ -3,6 +3,7 @@ import { Text, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { typography } from '@/theme';
 import type { OffShift } from '../hooks/useShiftLock';
+import { PM_SURFACE } from '@/theme/shiftSurface';
 
 function describeStart(at: Date, now: Date): string {
   const time = `${String(at.getHours()).padStart(2, '0')}:${String(at.getMinutes()).padStart(2, '0')}`;
@@ -17,7 +18,7 @@ function describeStart(at: Date, now: Date): string {
  * Shown to a room attendant in place of the room list when the shift on now is
  * not theirs: which shift this is, and when their next one starts.
  */
-export default function OffShiftNotice({ info }: { info: OffShift }) {
+export default function OffShiftNotice({ info, onDark = false }: { info: OffShift; /** On PM mode's dark page. */ onDark?: boolean }) {
   const { width } = useWindowDimensions();
   const s = (n: number) => (n * width) / 440;
   const now = new Date();
@@ -33,20 +34,20 @@ export default function OffShiftNotice({ info }: { info: OffShift }) {
           width: s(88),
           height: s(88),
           borderRadius: s(44),
-          backgroundColor: '#e4eefe',
+          backgroundColor: onDark ? PM_SURFACE.iconDisc : '#e4eefe',
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: s(20),
         }}
       >
-        <Ionicons name={info.shift === 'PM' ? 'moon-outline' : 'sunny-outline'} size={s(40)} color="#5a759d" />
+        <Ionicons name={info.shift === 'PM' ? 'moon-outline' : 'sunny-outline'} size={s(40)} color={onDark ? PM_SURFACE.accent : '#5a759d'} />
       </View>
       <Text
         style={{
           fontFamily: typography.fontFamily.primary,
           fontWeight: '700',
           fontSize: s(20),
-          color: '#334866',
+          color: onDark ? PM_SURFACE.text : '#334866',
           textAlign: 'center',
         }}
       >
@@ -57,7 +58,7 @@ export default function OffShiftNotice({ info }: { info: OffShift }) {
           fontFamily: typography.fontFamily.primary,
           fontSize: s(15),
           lineHeight: s(22),
-          color: '#607aa1',
+          color: onDark ? PM_SURFACE.textMuted : '#607aa1',
           textAlign: 'center',
           marginTop: s(10),
         }}

@@ -142,6 +142,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           <TouchableOpacity
             style={styles.statusPillPress}
             onPress={handleStatusPress}
+            disabled={!onStatusPress}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel="Change ticket status"
@@ -231,7 +232,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           <Icon name="guest-arrow" size={10 * scaleX} color="#1e1e1e" />
         </View>
 
-        <TouchableOpacity style={styles.footerPerson} onPress={onAssigneePress} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.footerPerson} onPress={onAssigneePress} disabled={!onAssigneePress} activeOpacity={0.7}>
           <Avatar
             uri={typeof ticket.assignedTo?.avatar === 'string' ? ticket.assignedTo.avatar : undefined}
             name={ticket.assignedTo?.name}
