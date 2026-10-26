@@ -731,7 +731,10 @@ export default function RegisterLostAndFoundModal({
                   <View style={styles.notesIcon}>
                     <Icon name="action-add-note" size={16.4 * scaleX} color="#5A759D" />
                   </View>
-                  <Text style={styles.notesLabel}>Notes</Text>
+                  {/* Optional (tester feedback): a photo and a title are enough to register an item. */}
+                  <Text style={styles.notesLabel}>
+                    Notes <Text style={styles.notesOptional}>(optional)</Text>
+                  </Text>
                 </View>
                 <TextInput
                   style={styles.notesInput}
@@ -751,8 +754,8 @@ export default function RegisterLostAndFoundModal({
           {/* Step 2 Content */}
           {currentStep === 2 && (
             <>
-              {/* Founded By Section */}
-              <Text style={styles.step2LeadLabel}>Founded by</Text>
+              {/* Found By Section */}
+              <Text style={styles.step2LeadLabel}>Found by</Text>
               <TouchableOpacity
                 ref={foundedByFieldRef}
                 style={styles.step2Field}
@@ -888,18 +891,18 @@ export default function RegisterLostAndFoundModal({
               currentStep === 2 && styles.nextButtonStep2,
               currentStep === 3 && styles.nextButtonStep3,
               (currentStep === 1 &&
-                (pictures.length === 0 || notes.trim() === '' || title.trim() === '')) &&
+                (pictures.length === 0 || title.trim() === '')) &&
                 styles.nextButtonDisabled,
             ]}
             onPress={handleNext}
             activeOpacity={0.7}
-            disabled={currentStep === 1 && (pictures.length === 0 || notes.trim() === '' || title.trim() === '')}
+            disabled={currentStep === 1 && (pictures.length === 0 || title.trim() === '')}
           >
             <Text
               style={[
                 styles.nextButtonText,
                 (currentStep === 1 &&
-                  (pictures.length === 0 || notes.trim() === '' || title.trim() === '')) &&
+                  (pictures.length === 0 || title.trim() === '')) &&
                   styles.nextButtonTextDisabled,
               ]}
             >
@@ -932,7 +935,7 @@ export default function RegisterLostAndFoundModal({
           onClose={() => setShowFoundedByModal(false)}
           onSelect={setFoundedBy}
           selectedStaffId={foundedBy}
-          title="Founded by"
+          title="Found by"
           staff={staff}
           showMeOption={true}
           currentUserId={currentUserId ?? undefined}
@@ -1240,6 +1243,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     // Disc ends at x=60, "Notes" starts at x=68.
     marginRight: 8 * scaleX,
+  },
+  notesOptional: {
+    fontWeight: '400',
+    color: '#999999',
   },
   notesLabel: {
     fontSize: REGISTER_FORM.notes.label.fontSize * scaleX,

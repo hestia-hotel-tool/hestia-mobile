@@ -124,7 +124,9 @@ export function LostAndFoundCard({
             `ItemPhoto` clears its loading state without a reset effect. */}
         <ItemPhoto key={photoKey} source={item.image} />
 
-        <View className="flex-1" style={{ gap: 10 * scaleX }}>
+        {/* No notes (they are optional): centre Found In on the photo rather
+            than leaving the space the notes would have filled empty below it. */}
+        <View className="flex-1" style={{ gap: 10 * scaleX, justifyContent: item.notes ? 'flex-start' : 'center' }}>
           <Text
             className="font-hestia-primary font-light text-black"
             style={{ fontSize: L.labelFontSize * scaleX, fontFamily: typography.fontFamily.primary }}
@@ -151,6 +153,7 @@ export function LostAndFoundCard({
               timestamp={formatTimestamp(item.storedAt ?? item.createdAt)}
               chipLabel={roomNumber}
               showTile={false}
+              roomNumber={roomNumber}
             />
           ) : (
             <FoundInPublicAreaRow
@@ -158,6 +161,19 @@ export function LostAndFoundCard({
               timestamp={formatTimestamp(item.storedAt ?? item.createdAt) || item.guestDates}
             />
           )}
+
+          {/* The registration notes, in the space under Found In (client change). */}
+          {item.notes ? (
+            <Text
+              className="font-hestia-primary text-ink-secondary"
+              numberOfLines={3}
+              ellipsizeMode="tail"
+              style={{ fontSize: 12 * scaleX, lineHeight: 16 * scaleX, fontFamily: typography.fontFamily.primary }}
+              accessibilityLabel={`Notes: ${item.notes}`}
+            >
+              {item.notes}
+            </Text>
+          ) : null}
         </View>
       </View>
 

@@ -48,6 +48,7 @@ export function lostAndFoundSearchText(item: LostAndFoundItem): string {
     item.guestDates,
     item.storedLocation,
     storedLocationLabel(item.storedLocation),
+    item.notes,
     item.shippedLocation,
     item.shippedLocation ? storedLocationLabel(item.shippedLocation) : null,
     chrome.footerLabel,

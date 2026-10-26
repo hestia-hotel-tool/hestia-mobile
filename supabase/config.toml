@@ -1,3 +1,7 @@
 [functions.notify]
 verify_jwt = false
 
+# Called by the email_outbox trigger with the shared secret, like notify.
+[functions.send-email]
+verify_jwt = false
+

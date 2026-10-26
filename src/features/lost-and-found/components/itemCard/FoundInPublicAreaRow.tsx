@@ -5,6 +5,7 @@ import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
 import { LOST_AND_FOUND_CARD_LAYOUT as L } from './lostAndFoundCardLayout';
 import { MetaChip } from './MetaChip';
+import { RoomNumberTile } from './FoundInGuestRow';
 
 export type FoundInPublicAreaRowProps = {
   areaName: string;
@@ -24,6 +25,8 @@ export type FoundInPublicAreaRowProps = {
    * is a public area.
    */
   showTile?: boolean;
+  /** A room with no guest: the room-number tile instead of the area tile, and no chip. */
+  roomNumber?: string | null;
 };
 
 /**
@@ -42,10 +45,13 @@ export function FoundInPublicAreaRow({
   timestamp,
   chipLabel = 'public area',
   showTile = true,
+  roomNumber,
 }: FoundInPublicAreaRowProps) {
   return (
     <View className="flex-row items-center" style={{ gap: 12 * scaleX }}>
-      {showTile ? (
+      {roomNumber ? (
+        <RoomNumberTile roomNumber={roomNumber} />
+      ) : showTile ? (
         <View
           className="items-center justify-center overflow-hidden"
           style={{
@@ -70,7 +76,7 @@ export function FoundInPublicAreaRow({
           >
             {areaName}
           </Text>
-          {chipLabel ? <MetaChip label={chipLabel} variant={showTile ? 'publicArea' : 'room'} /> : null}
+          {chipLabel && !roomNumber ? <MetaChip label={chipLabel} variant={showTile ? 'publicArea' : 'room'} /> : null}
         </View>
         {timestamp ? (
           <Text

@@ -127,6 +127,10 @@ export default function LostAndFoundScreen() {
     trackingNumber: string;
     itemImage?: string;
     itemData: any;
+    /** Set once the insert returns; the success sheet's Print needs it. */
+    itemId?: string | null;
+    /** The guest email's outcome, when the box was ticked. */
+    email?: { queuedTo: string } | { error: string };
   } | null>(null);
   const [needsRefreshAfterRegister, setNeedsRefreshAfterRegister] = useState(false);
   const registerInflightRef = React.useRef<Promise<void> | null>(null);
@@ -297,6 +301,7 @@ export default function LostAndFoundScreen() {
            */
           guestImage: guestImageUri ? { uri: guestImageUri } : undefined,
           storedLocation: row.storage_location ?? '',
+          notes: (row as { description?: string | null }).description?.trim() || null,
           shippedLocation:
             (row as any).shipped_location ??
             shippingRef.current[row.id] ??
@@ -396,6 +401,8 @@ export default function LostAndFoundScreen() {
     itemData: any;
   }) => {
     let trackingNumberFromDb: string = data.trackingNumber ?? '';
+    let insertedId: string | null = null;
+    let emailOutcome: { queuedTo: string } | { error: string } | undefined;
     const firstImageUri: string | undefined = data.itemImage;
 
     // Close the register modal first; then show success.
@@ -418,7 +425,11 @@ export default function LostAndFoundScreen() {
           imageUri: firstImageUri,
         });
         if (result.trackingNumber) trackingNumberFromDb = result.trackingNumber;
-        if (result.id) pendingInsertedItemIdRef.current = result.id;
+        if (result.id) {
+          pendingInsertedItemIdRef.current = result.id;
+          insertedId = result.id;
+        }
+        emailOutcome = result.email;
         // The room's card on Rooms gets its lost-and-found tile now, not on
         // the list's next refetch.
         if (result.id && data.itemData?.selectedLocation === 'room') {
@@ -442,6 +453,8 @@ export default function LostAndFoundScreen() {
         setSuccessData((prev) => ({
           ...(prev ?? { itemData: data.itemData, itemImage: data.itemImage, trackingNumber: '' }),
           trackingNumber: trackingNumberFromDb,
+          itemId: insertedId,
+          email: emailOutcome,
         }));
       }
     })();
@@ -762,6 +775,9 @@ export default function LostAndFoundScreen() {
         onClose={handleCloseSuccessModal}
         trackingNumber={successData?.trackingNumber || ''}
         itemImage={successData?.itemImage}
+        itemId={successData?.itemId}
+        notes={successData?.itemData?.notes}
+        email={successData?.email}
       />
 
       {/* Change status popover (anchored, like Tickets) */}

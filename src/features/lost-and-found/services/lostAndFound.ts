@@ -213,6 +213,23 @@ export interface CreateLostAndFoundItemResult {
    * exactly like a saved one — the item simply never appeared in the list.
    */
   error?: string;
+  /**
+   * "Send Email to Guest for reclamation?": where it was queued to, or why it
+   * was not. Absent when the box was not ticked.
+   */
+  email?: { queuedTo: string } | { error: string };
+}
+
+/**
+ * Queue the reclamation email for an item (migration 20261023120000). The
+ * server writes the message from the stored item and the `send-email`
+ * function delivers it through the configured provider. Throws with a
+ * message meant for the person holding the phone.
+ */
+export async function emailGuestAboutItem(itemId: string, email: string): Promise<void> {
+  // Cast: lf_email_guest postdates the generated types.
+  const { error } = await (supabase as any).rpc('lf_email_guest', { p_item_id: itemId, p_email: email });
+  if (error) throw new Error(error.message || 'The email could not be queued.');
 }
 
 async function uploadLostAndFoundImage(hotelId: string, imageUri: string): Promise<string | null> {
@@ -400,7 +417,18 @@ export async function createLostAndFoundItem(
     return { id: null, trackingNumber: null, error: error.message || 'The item could not be saved.' };
   }
 
-  return { id: inserted?.id ?? null, trackingNumber: inserted?.tracking_number ?? null };
+  let email: CreateLostAndFoundItemResult['email'];
+  const guestEmail = String(itemData.guestEmail ?? '').trim();
+  if (inserted?.id && itemData.sendEmailToGuest && guestEmail) {
+    try {
+      await emailGuestAboutItem(inserted.id, guestEmail);
+      email = { queuedTo: guestEmail };
+    } catch (e) {
+      email = { error: e instanceof Error ? e.message : 'The email could not be queued.' };
+    }
+  }
+
+  return { id: inserted?.id ?? null, trackingNumber: inserted?.tracking_number ?? null, email };
 }
 
 /**

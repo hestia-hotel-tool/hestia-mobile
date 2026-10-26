@@ -69,7 +69,7 @@ const L = {
 const s = (n: number) => n * scaleX;
 
 /**
- * "Founded by" / "Registered by" — Figma 733:192.
+ * "Found by" / "Registered by" — Figma 733:192.
  *
  * A popover card hanging from the field: the signed-in user, a rule, three
  * colleagues, and "see all", which opens every member of staff full-screen with

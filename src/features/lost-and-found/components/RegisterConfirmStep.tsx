@@ -150,7 +150,7 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
 
       {/* Node 4231:581 — who found it, who registered it. */}
       <View style={[styles.panel, styles.peoplePanel]}>
-        <Text style={[styles.heading, styles.peopleHeading]}>Founded by</Text>
+        <Text style={[styles.heading, styles.peopleHeading]}>Found by</Text>
         <PersonRow person={foundedBy} onEdit={onEditDetails} editLabel="Edit who found it" />
         <View style={styles.peopleRule} />
         <Text style={[styles.heading, styles.peopleHeading, styles.registeredHeading]}>

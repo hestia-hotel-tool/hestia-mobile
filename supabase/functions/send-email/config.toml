@@ -1,0 +1,3 @@
+# Called by the database (email_outbox trigger), not the app: it proves itself
+# with the shared x-push-secret header instead of a user JWT, as `notify` does.
+verify_jwt = false

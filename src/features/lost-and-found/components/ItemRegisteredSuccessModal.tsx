@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,12 +6,17 @@ import {
   StyleSheet,
   ScrollView,
   useWindowDimensions,
+  ActivityIndicator,
+  ActionSheetIOS,
+  Alert,
+  Platform,
 } from 'react-native';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import LostFoundRegistered from '@assets/illustrations/lost-found-registered.svg';
 import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
 import { ITEM_REGISTERED_SUCCESS } from '../constants/lostAndFoundStyles';
+import { printItemLabel, shareItemLabelPdf } from '../utils/itemLabelPdf';
 
 const DESIGN_WIDTH = 440;
 
@@ -20,6 +25,12 @@ interface ItemRegisteredSuccessModalProps {
   onClose: () => void;
   trackingNumber: string;
   itemImage?: string; // URI of the first uploaded picture
+  /** The saved item; Print needs it. Absent while the item is still being saved. */
+  itemId?: string | null;
+  /** Notes typed when registering; shown in place of the print instruction when present. */
+  notes?: string | null;
+  /** "Send Email to Guest": queued to an address, or why not. */
+  email?: { queuedTo: string } | { error: string };
   onPrint?: () => void; // Optional print handler
 }
 
@@ -28,18 +39,61 @@ export default function ItemRegisteredSuccessModal({
   onClose,
   trackingNumber,
   itemImage,
+  itemId,
+  notes,
+  email,
   onPrint,
 }: ItemRegisteredSuccessModalProps) {
   const { width: SCREEN_WIDTH } = useWindowDimensions();
   const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 
+  const [printing, setPrinting] = useState(false);
+  // The item is saved in the background after this sheet opens; Print waits for it.
+  const canPrint = !!onPrint || !!itemId;
+
+  /**
+   * A one-page label PDF (tracking number, item, photo, where and when found,
+   * guest, status, storage, people) to the share sheet: Save to Files, Print,
+   * AirDrop, mail. Alert, not a toast: this sheet is a modal above the toasts.
+   */
+  const run = async (how: 'print' | 'pdf') => {
+    if (!itemId || printing) return;
+    setPrinting(true);
+    try {
+      if (how === 'print') await printItemLabel(itemId);
+      else await shareItemLabelPdf(itemId);
+    } catch (e) {
+      Alert.alert(
+        how === 'print' ? 'Could not print' : 'Could not create the PDF',
+        e instanceof Error ? e.message : 'Please try again.'
+      );
+    } finally {
+      setPrinting(false);
+    }
+  };
+
+  /** Print straight to a printer, or save the label as a PDF (tester feedback). */
   const handlePrint = () => {
     if (onPrint) {
       onPrint();
-    } else {
-      // Default print behavior - could use expo-print here
-      // TODO: wire up printing.
+      return;
     }
+    if (!itemId || printing) return;
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { title: 'Item label', options: ['Print', 'Save as PDF', 'Cancel'], cancelButtonIndex: 2 },
+        (i) => {
+          if (i === 0) void run('print');
+          if (i === 1) void run('pdf');
+        }
+      );
+      return;
+    }
+    Alert.alert('Item label', undefined, [
+      { text: 'Print', onPress: () => void run('print') },
+      { text: 'Save as PDF', onPress: () => void run('pdf') },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
   };
 
   const styles = StyleSheet.create({
@@ -234,16 +288,30 @@ export default function ItemRegisteredSuccessModal({
             {trackingNumber}
           </Text>
 
-          {/* Instructions Text */}
+          {/* The notes, when some were added; otherwise the print instruction (client change). */}
           <Text style={styles.instructionsText}>
-            Print tracking number and all related info and attach it to the item
+            {notes?.trim() || 'Print tracking number and all related info and attach it to the item'}
           </Text>
+
+          {/* The guest email's outcome, when the box was ticked. */}
+          {email ? (
+            <Text
+              style={[styles.instructionsText, { marginTop: 8 * scaleX, color: 'error' in email ? '#d32f2f' : '#3a9b5c' }]}
+              accessibilityLiveRegion="polite"
+            >
+              {'error' in email ? `Email not sent: ${email.error}` : `Email to ${email.queuedTo} is on its way.`}
+            </Text>
+          ) : null}
 
           {/* Print Button */}
           <TouchableOpacity
-            style={styles.printButton}
+            style={[styles.printButton, !canPrint && { opacity: 0.6 }]}
             onPress={handlePrint}
             activeOpacity={0.7}
+            disabled={!canPrint || printing}
+            accessibilityRole="button"
+            accessibilityLabel="Print or save the item label as a PDF"
+            accessibilityState={{ disabled: !canPrint, busy: printing }}
           >
             {/*
               Not tinted white. `printer.png` was given `tintColor: '#ffffff'`,
@@ -253,12 +321,16 @@ export default function ItemRegisteredSuccessModal({
               `action-print` keeps those three white fills as real knockouts and
               tints only its strokes, so the glyph reads as a printer again.
             */}
-            <Icon
-              name="action-print"
-              size={24 * scaleX}
-              color="#5A759D"
-              style={styles.printerIcon}
-            />
+            {printing || !canPrint ? (
+              <ActivityIndicator color="#5A759D" style={styles.printerIcon} />
+            ) : (
+              <Icon
+                name="action-print"
+                size={24 * scaleX}
+                color="#5A759D"
+                style={styles.printerIcon}
+              />
+            )}
             <Text style={styles.printButtonText}>Print</Text>
           </TouchableOpacity>
 
