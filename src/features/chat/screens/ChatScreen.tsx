@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, Platform } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Platform, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -9,7 +9,9 @@ import { typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import ChatHeader from '../components/ChatHeader';
-import ChatItem, { ChatItemData } from '../components/ChatItem';
+import { ChatItemData } from '../components/ChatItem';
+import SwipeableChatItem from '../components/SwipeableChatItem';
+import { deleteChatForEveryone, deleteChatForMe, getMyRoleInChat } from '../services/chat';
 import NotificationItem, { NotificationItemData } from '../components/NotificationItem';
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
 import { NewChatFab } from '../components/NewChatFab';
@@ -92,6 +94,8 @@ export default function ChatScreen() {
           .select('id,title,body,created_at')
           .eq('user_id', userId)
           .in('type', [...types])
+          // Deleted from the inbox: not the preview either.
+          .is('dismissed_at' as 'id', null)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -217,6 +221,52 @@ export default function ChatScreen() {
     navigation.navigate('chat/[chatId]', { chatId: chat.id, chat });
   };
 
+  /**
+   * Delete a chat (swipe left or long-press). A direct chat leaves my list and
+   * my copy of its messages — the other person keeps theirs, and a new
+   * message brings it back. A group: I leave it; an admin may also delete it
+   * for everyone. The server decides (migration 20261026120000).
+   */
+  const handleDeleteChat = async (chat: ChatItemData) => {
+    const run = async (how: 'me' | 'everyone') => {
+      try {
+        if (how === 'everyone') await deleteChatForEveryone(chat.id);
+        else await deleteChatForMe(chat.id);
+        useChatStore.getState().removeChat(chat.id);
+        invalidateNotificationBadges();
+      } catch (e) {
+        Alert.alert('Chat not deleted', e instanceof Error ? e.message : 'Please try again.');
+      }
+    };
+
+    if (!chat.isGroup) {
+      Alert.alert(
+        `Delete chat with ${chat.name}?`,
+        `It is removed from your chats and your copy of the messages is deleted. ${chat.name} keeps theirs.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => void run('me') },
+        ]
+      );
+      return;
+    }
+
+    const role = await getMyRoleInChat(chat.id).catch(() => null);
+    Alert.alert(
+      `Delete "${chat.name}"?`,
+      role === 'admin'
+        ? 'Leave the group and delete it from your chats, or delete it for every member.'
+        : 'You will leave the group and it is removed from your chats.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Leave and delete', style: 'destructive', onPress: () => void run('me') },
+        ...(role === 'admin'
+          ? [{ text: 'Delete for everyone', style: 'destructive' as const, onPress: () => void run('everyone') }]
+          : []),
+      ]
+    );
+  };
+
   const handleBackPress = () => {
     navigation.goBack();
   };
@@ -305,7 +355,9 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
             data={filteredChats}
             keyExtractor={(chat) => chat.id}
-            renderItem={({ item: chat }) => <ChatItem chat={chat} onPress={() => handleChatPress(chat)} />}
+            renderItem={({ item: chat }) => (
+              <SwipeableChatItem chat={chat} onPress={() => handleChatPress(chat)} onDelete={(c) => void handleDeleteChat(c)} />
+            )}
             initialNumToRender={12}
             maxToRenderPerBatch={10}
             windowSize={7}

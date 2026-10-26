@@ -93,7 +93,9 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'guests.manage',
   'reports.view',
   'audit.view',
-  'rooms.porter.check'
+  'rooms.porter.check',
+  'rooms.notes.manage',
+  'lost_and_found.read_all'
 );
 
 -- 3. Departments.
@@ -172,7 +174,9 @@ INSERT INTO public.permissions (name, description) VALUES
   ('guests.manage', 'Create and edit guests'),
   ('reports.view', 'Open reports and dashboard charts'),
   ('audit.view', 'Open the activity log'),
-  ('rooms.porter.check', 'Mark a room checked on the porter round')
+  ('rooms.porter.check', 'Mark a room checked on the porter round'),
+  ('rooms.notes.manage', 'Delete anyone''s notes and tasks on a room'),
+  ('lost_and_found.read_all', 'See every lost & found item, not only your own from today')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- 5. Roles — one per distinct permission profile.
@@ -245,6 +249,8 @@ SELECT r.id, p.id
   ('full_access', 'reports.view'),
   ('full_access', 'audit.view'),
   ('full_access', 'rooms.porter.check'),
+  ('full_access', 'rooms.notes.manage'),
+  ('full_access', 'lost_and_found.read_all'),
   ('hk_room_attendant', 'tab.rooms.view'),
   ('hk_room_attendant', 'rooms.read'),
   ('hk_room_attendant', 'tab.chat.view'),
@@ -337,6 +343,8 @@ SELECT r.id, p.id
   ('ops_senior', 'reservations.manage'),
   ('ops_senior', 'guests.manage'),
   ('ops_senior', 'reports.view'),
+  ('ops_senior', 'rooms.notes.manage'),
+  ('ops_senior', 'lost_and_found.read_all'),
   ('fo_agent', 'tab.home.view'),
   ('fo_agent', 'tab.rooms.view'),
   ('fo_agent', 'rooms.read'),
@@ -356,6 +364,7 @@ SELECT r.id, p.id
   ('fo_agent', 'rooms.checklist.view'),
   ('fo_agent', 'rooms.checklist.complete'),
   ('fo_agent', 'rooms.rush.toggle'),
+  ('fo_agent', 'lost_and_found.read_all'),
   ('concierge_agent', 'tab.home.view'),
   ('concierge_agent', 'tab.rooms.view'),
   ('concierge_agent', 'rooms.read'),
@@ -376,6 +385,7 @@ SELECT r.id, p.id
   ('concierge_agent', 'rooms.reservation_status.view'),
   ('concierge_agent', 'rooms.rush.toggle'),
   ('concierge_agent', 'rooms.flag.toggle'),
+  ('concierge_agent', 'lost_and_found.read_all'),
   ('ird_service', 'tab.home.view'),
   ('ird_service', 'tab.rooms.view'),
   ('ird_service', 'rooms.read'),
@@ -398,6 +408,7 @@ SELECT r.id, p.id
   ('ird_service', 'rooms.reservation_status.view'),
   ('ird_service', 'rooms.rush.toggle'),
   ('ird_service', 'rooms.flag.toggle'),
+  ('ird_service', 'lost_and_found.read_all'),
   ('technical', 'tab.home.view'),
   ('technical', 'tab.rooms.view'),
   ('technical', 'rooms.read'),
@@ -420,6 +431,7 @@ SELECT r.id, p.id
   ('technical', 'rooms.reservation_status.view'),
   ('technical', 'rooms.rush.toggle'),
   ('technical', 'rooms.flag.toggle'),
+  ('technical', 'lost_and_found.read_all'),
   ('fnb_kitchen', 'tab.chat.view'),
   ('fnb_kitchen', 'chat.create'),
   ('fnb_kitchen', 'chat.groups.manage'),
@@ -430,6 +442,7 @@ SELECT r.id, p.id
   ('fnb_kitchen', 'lost_and_found.read'),
   ('fnb_kitchen', 'lost_and_found.register'),
   ('fnb_kitchen', 'tab.settings.view'),
+  ('fnb_kitchen', 'lost_and_found.read_all'),
   ('engineering', 'tab.home.view'),
   ('engineering', 'tab.chat.view'),
   ('engineering', 'chat.create'),
@@ -450,7 +463,8 @@ SELECT r.id, p.id
   ('engineering', 'rooms.reservation_status.view'),
   ('engineering', 'rooms.rush.toggle'),
   ('engineering', 'rooms.flag.toggle'),
-  ('engineering', 'rooms.read')
+  ('engineering', 'rooms.read'),
+  ('engineering', 'lost_and_found.read_all')
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
@@ -539,11 +553,11 @@ BEGIN
   IF n_titles <> 23 THEN
     RAISE EXCEPTION 'expected 23 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 45 THEN
-    RAISE EXCEPTION 'expected 45 permissions, found %', n_perms;
+  IF n_perms  <> 47 THEN
+    RAISE EXCEPTION 'expected 47 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 251 THEN
-    RAISE EXCEPTION 'expected 251 role_permissions, found %', n_grants;
+  IF n_grants <> 261 THEN
+    RAISE EXCEPTION 'expected 261 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

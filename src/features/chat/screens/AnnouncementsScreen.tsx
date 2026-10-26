@@ -1,14 +1,21 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { Icon } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';
-import { subscribeNotificationBadgeInvalidate } from '@/lib/inAppNotifications';
+import { invalidateNotificationBadges, subscribeNotificationBadgeInvalidate } from '@/lib/inAppNotifications';
+import { SwipeToDelete } from '@/components/ui/SwipeToDelete';
 import { typography } from '@/theme';
 import ChatHeader from '../components/ChatHeader';
 import { ChatFilterMenu, type FilterOption } from '../components/ChatFilterMenu';
-import { fetchAnnouncements, fetchTaskReportExtras, type Announcement } from '../services/chat';
+import {
+  dismissAllNotifications,
+  dismissNotifications,
+  fetchAnnouncements,
+  fetchTaskReportExtras,
+  type Announcement,
+} from '../services/chat';
 import { taskHeadline, taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
@@ -135,6 +142,50 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
 
   const goBack = () => router.navigate('/(tabs)/(chats)' as never);
 
+  /**
+   * Delete from my inbox (migration 20261026140000). Gone at once; if the
+   * server refuses, it comes back and says why. Swipe deletes straight away,
+   * as mail apps do; long-press asks first, being easy to do by accident.
+   */
+  const remove = async (item: Announcement) => {
+    setItems((prev) => prev.filter((a) => a.id !== item.id));
+    try {
+      await dismissNotifications([item.id]);
+      invalidateNotificationBadges();
+    } catch (e) {
+      void load();
+      Alert.alert('Not deleted', e instanceof Error ? e.message : 'Please try again.');
+    }
+  };
+  const confirmRemove = (item: Announcement) =>
+    Alert.alert(kind === 'tasks' ? 'Delete this task notification?' : 'Delete this announcement?', item.subject, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => void remove(item) },
+    ]);
+  const removeAll = () =>
+    Alert.alert(
+      kind === 'tasks' ? 'Delete all task notifications?' : 'Delete all announcements?',
+      'They are removed from your inbox. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete all',
+          style: 'destructive',
+          onPress: async () => {
+            const before = items;
+            setItems([]);
+            try {
+              await dismissAllNotifications(config.type);
+              invalidateNotificationBadges();
+            } catch (e) {
+              setItems(before);
+              Alert.alert('Not deleted', e instanceof Error ? e.message : 'Please try again.');
+            }
+          },
+        },
+      ]
+    );
+
   return (
     <View style={styles.container}>
       <FlatList
@@ -155,31 +206,42 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
           />
         }
         ListHeaderComponent={
-          kind === 'tasks' ? (
-            // Figma 4378:191 — "Tasks", bold 30 in #4a91fc.
-            <Text style={styles.tasksHeading}>Tasks</Text>
-          ) : (
-            <View style={[styles.pill, { backgroundColor: config.colour }]}>
-              <Text style={styles.pillText}>{config.pill}</Text>
-            </View>
-          )
+          <View style={styles.headerRow}>
+            {kind === 'tasks' ? (
+              // Figma 4378:191 — "Tasks", bold 30 in #4a91fc.
+              <Text style={styles.tasksHeading}>Tasks</Text>
+            ) : (
+              <View style={[styles.pill, { backgroundColor: config.colour }]}>
+                <Text style={styles.pillText}>{config.pill}</Text>
+              </View>
+            )}
+            {items.length > 0 ? (
+              <Pressable onPress={removeAll} hitSlop={10} accessibilityRole="button" style={styles.deleteAll}>
+                <Text style={styles.deleteAllText}>Delete all</Text>
+              </Pressable>
+            ) : null}
+          </View>
         }
         ListEmptyComponent={
           <Text style={styles.empty}>
             {loading ? 'Loading…' : items.length === 0 ? config.empty : 'Nothing matches your search'}
           </Text>
         }
-        renderItem={({ item, index }) =>
-          kind === 'tasks' ? (
+        renderItem={({ item, index }) => (
+          <SwipeToDelete onDelete={() => void remove(item)} accessibilityLabel={`Delete ${item.subject}`} background={CHAT_COLORS.background}>
+          {kind === 'tasks' ? (
             <TaskRow
               item={item}
               first={index === 0}
               extras={extras[item.id]}
               onPress={() => router.push(`/task/${item.id}` as never)}
+              onLongPress={() => confirmRemove(item)}
             />
           ) : (
           <Pressable
             style={[styles.row, { marginTop: (index === 0 ? N.firstRowTop : N.rowGap) * scaleX }]}
+            onLongPress={() => confirmRemove(item)}
+            delayLongPress={350}
             onPress={() => {
               // Both open their own detail screen, which is what marks them read.
               router.push((kind === 'general' ? `/announcement/${item.id}` : `/task/${item.id}`) as never);
@@ -211,8 +273,9 @@ export default function AnnouncementsScreen({ kind = 'general' }: { kind?: Kind 
             </View>
             {item.unread ? <View style={styles.unreadDot} /> : null}
           </Pressable>
-          )
-        }
+          )}
+          </SwipeToDelete>
+        )}
       />
 
       <ChatHeader
@@ -252,17 +315,22 @@ function TaskRow({
   first,
   extras,
   onPress,
+  onLongPress,
 }: {
   item: Announcement;
   first: boolean;
   extras?: { photos: number; note: boolean };
   onPress: () => void;
+  /** Delete (asks first). */
+  onLongPress?: () => void;
 }) {
   const meta = taskMeta(item.type);
   const headline = taskHeadline(item.type, item.subject, item.body);
   return (
     <Pressable
       onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
       style={({ pressed }) => [styles.taskRow, first && styles.taskRowFirst, pressed && { backgroundColor: '#f4f6fa' }]}
       accessibilityRole="button"
       accessibilityLabel={`${item.unread ? 'New. ' : ''}${headline}. ${item.body}`}
@@ -302,6 +370,9 @@ function TaskRow({
 }
 
 const styles = StyleSheet.create({
+  headerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  deleteAll: { marginRight: 22 * scaleX, marginTop: 8 * scaleX },
+  deleteAllText: { fontFamily: typography.fontFamily.primary, fontWeight: '600', fontSize: 14 * scaleX, color: '#f92424' },
   tasksHeading: {
     marginTop: 18 * scaleX,
     marginLeft: 26 * scaleX,

@@ -43,7 +43,9 @@ import { useSendBackSheet } from '../components/SendBackSheet';
 import { OVERRIDE_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
 import { PERMISSIONS } from '@/domain/rbac';
 import { useMessageModal } from '@/contexts/MessageModalContext';
-import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, type RoomStateUpdate, assignRoomToStaff } from '../services/rooms';
+import { getRoomNotes, addRoomNote, deleteRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, type RoomStateUpdate, assignRoomToStaff } from '../services/rooms';
+import { addRoomTask, deleteRoomTask, fetchRoomTasks } from '../services/roomTasks';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { formatDueTime } from '@/utils/formatting';
 import { supabase } from '@/lib/supabase';
 import { invalidateNotificationBadges, markRoomAssignmentNotificationsReadForRoom } from '@/lib/inAppNotifications';
@@ -111,6 +113,8 @@ export default function RoomDetailScreen() {
   );
   const { accessFor, canInspect: canInspectRooms } = useRoomStatusAccess();
   const { can } = usePermissions();
+  const canManageNotes = can(PERMISSIONS.ROOMS_NOTES_MANAGE);
+  const myUserId = useAuth().session?.user?.id ?? null;
   /*
    * Only holders of rooms.reassign (not room attendants) may change who a room
    * is assigned to. Without it every Reassign control is withheld, not just
@@ -247,6 +251,7 @@ export default function RoomDetailScreen() {
             text: n.text,
             staff: { name: n.staff.name, avatar: n.staff.avatar_url ?? undefined },
             createdAt: n.created_at,
+            createdById: n.created_by_id,
           }))
         );
         const assignment = full.assignedStaff[0];
@@ -500,8 +505,22 @@ export default function RoomDetailScreen() {
             id: 'default-task',
             text: getDefaultTaskText(roomType),
             createdAt: new Date().toISOString(),
+            // The room type's standing task: derived, not saved, not deletable.
+            isDefault: true,
           },
         ];
+
+  // The room's saved tasks (migration 20261026160000) — they used to live in screen state only.
+  useEffect(() => {
+    if (!room?.id || !/^[0-9a-f-]{36}$/i.test(room.id)) return;
+    let cancelled = false;
+    void fetchRoomTasks(room.id).then((loaded) => {
+      if (!cancelled) setTasks(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [room?.id]);
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -927,20 +946,56 @@ export default function RoomDetailScreen() {
     setSelectedTask(null);
   };
 
-  const handleSaveTask = (taskText: string) => {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      text: taskText,
-      createdAt: new Date().toISOString(),
-    };
-    setTasks(prev => [...prev, newTask]);
-    // TODO: persist the added task.
-    void logRoomHistoryEvent({
-      roomId: room.id,
-      type: 'task',
-      description: buildFriendlyRoomHistoryMessage({ type: 'task', taskText }),
-    });
-    void refreshHistory();
+  const handleSaveTask = async (taskText: string) => {
+    // Shown at once, then swapped for the saved row (its real id and author).
+    const tempId = `pending-${Date.now()}`;
+    setTasks((prev) => [...prev, { id: tempId, text: taskText, createdAt: new Date().toISOString(), createdById: myUserId }]);
+    try {
+      const saved = await addRoomTask(room.id, taskText);
+      setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+      void logRoomHistoryEvent({
+        roomId: room.id,
+        type: 'task',
+        description: buildFriendlyRoomHistoryMessage({ type: 'task', taskText }),
+      });
+      void refreshHistory();
+    } catch (e) {
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Task not saved' });
+    }
+  };
+
+  /*
+   * Deleting a note or task (migration 20261026160000): its author, or anyone
+   * with rooms.notes.manage. Gone at once; the server records it in History;
+   * a refusal brings it back with the reason.
+   */
+  const canDeleteItem = (item: { createdById?: string | null }) =>
+    canManageNotes || (!!myUserId && item.createdById === myUserId);
+
+  const handleDeleteNote = async (note: Note) => {
+    setNotes((prev) => prev.filter((n) => n.id !== note.id));
+    try {
+      await deleteRoomNote(note.id);
+      void useRoomsStore.getState().refreshRoomBadges(room.id);
+      void refreshHistory();
+      toast.show('Note deleted', { type: 'success' });
+    } catch (e) {
+      setNotes(await getRoomNotes(room.id));
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Note not deleted' });
+    }
+  };
+
+  const handleDeleteTask = async (task: Task) => {
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    try {
+      await deleteRoomTask(task.id);
+      void refreshHistory();
+      toast.show('Task deleted', { type: 'success' });
+    } catch (e) {
+      setTasks(await fetchRoomTasks(room.id));
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Task not deleted' });
+    }
   };
 
   /*
@@ -1215,6 +1270,9 @@ export default function RoomDetailScreen() {
         onAddNote={handleAddNote}
         onAddTask={handleAddTask}
         onSeeMoreTask={handleSeeMoreTask}
+        canDeleteItem={canDeleteItem}
+        onDeleteNote={(n) => void handleDeleteNote(n)}
+        onDeleteTask={(t) => void handleDeleteTask(t)}
         onAddLostAndFoundItem={handleAddPhotos}
         onOpenLostAndFound={() => router.navigate('/(tabs)/(lost_and_found)')}
         // Pushed over the room, so Back comes straight back here.

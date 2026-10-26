@@ -825,6 +825,8 @@ export interface RoomNote {
   text: string;
   staff: { name: string; avatar?: unknown };
   createdAt: string;
+  /** The author: they may delete it, as may rooms.notes.manage. */
+  createdById?: string | null;
 }
 
 /**
@@ -836,7 +838,7 @@ export async function getRoomNotes(roomId: string): Promise<RoomNote[]> {
   const { data, error } = await supabase
     .from('room_notes')
     // Be explicit about the author FK to avoid incorrect/ambiguous joins.
-    .select('id, text, created_at, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
+    .select('id, text, created_at, created_by_id, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
     .eq('room_id', roomId)
     .order('created_at', { ascending: false });
 
@@ -851,6 +853,7 @@ export async function getRoomNotes(roomId: string): Promise<RoomNote[]> {
       avatar: row.users?.avatar_url ?? undefined,
     },
     createdAt: row.created_at,
+    createdById: row.created_by_id,
   }));
 }
 
@@ -911,7 +914,7 @@ export async function addRoomNote(roomId: string, text: string): Promise<RoomNot
   const { data: full, error: fetchError } = await supabase
     .from('room_notes')
     // Be explicit about the author FK to avoid incorrect/ambiguous joins.
-    .select('id, text, created_at, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
+    .select('id, text, created_at, created_by_id, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
     .eq('id', inserted.id)
     .single();
 
@@ -925,7 +928,17 @@ export async function addRoomNote(roomId: string, text: string): Promise<RoomNot
       avatar: row.users?.avatar_url ?? undefined,
     },
     createdAt: row.created_at,
+    createdById: row.created_by_id,
   };
+}
+
+/**
+ * Delete a room note (migration 20261026160000): its author, or anyone with
+ * rooms.notes.manage. Recorded in the room's History. Throws a readable message.
+ */
+export async function deleteRoomNote(noteId: string): Promise<void> {
+  const { error } = await supabase.rpc('room_note_delete' as never, { p_note_id: noteId } as never);
+  if (error) throw new Error((error as { message?: string }).message || 'The note could not be deleted.');
 }
 
 /**
@@ -1329,6 +1342,8 @@ export interface RoomNoteDetail {
   text: string;
   created_at: string;
   staff: { name: string; avatar_url: string | null };
+  /** The author: they may delete it, as may rooms.notes.manage. */
+  created_by_id: string | null;
 }
 
 export interface AssignedStaffDetail {
@@ -1629,7 +1644,7 @@ export async function getFullRoomDetails(
     }),
     supabase
       .from('room_notes')
-      .select('id, room_id, text, created_at, users(full_name, avatar_url)')
+      .select('id, room_id, text, created_at, created_by_id, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
       .in('room_id', roomIds)
       .order('created_at', { ascending: false }),
     supabase
@@ -1699,7 +1714,7 @@ export async function getFullRoomDetails(
     resWithGuestsByRoom.set(rid, list);
   }
 
-  type NoteRow = { id: string; room_id: string; text: string; created_at: string; users: { full_name: string | null; avatar_url: string | null } | null };
+  type NoteRow = { id: string; room_id: string; text: string; created_at: string; created_by_id: string | null; users: { full_name: string | null; avatar_url: string | null } | null };
   const notesRows = (notesRes.data ?? []) as NoteRow[];
   const notesByRoom = new Map<string, RoomNoteDetail[]>();
   for (const rid of roomIds) {
@@ -1710,6 +1725,7 @@ export async function getFullRoomDetails(
         text: n.text,
         created_at: n.created_at,
         staff: { name: n.users?.full_name ?? 'Staff', avatar_url: n.users?.avatar_url ?? null },
+        created_by_id: n.created_by_id,
       }));
     notesByRoom.set(rid, roomNotes);
   }

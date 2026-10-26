@@ -41,12 +41,18 @@ export interface Note {
     avatar?: any;
   };
   createdAt: string;
+  /** The author: they may delete it, as may rooms.notes.manage. */
+  createdById?: string | null;
 }
 
 export interface Task {
   id: string;
   text: string;
   createdAt: string;
+  /** The author; absent for the room type's standing task, which is not deletable. */
+  createdById?: string | null;
+  /** The standing task a room type shows when it has none — derived, not saved. */
+  isDefault?: boolean;
 }
 
 export interface RoomDetailData extends Omit<RoomCardData, 'notes'> {
@@ -161,6 +167,10 @@ export interface RoomDetailScreenProps {
   onAddTask?: () => void;
   /** Opens a task in full — wired to ViewTaskModal. */
   onSeeMoreTask?: (task: Task) => void;
+  /** Whether this person may delete a note or task: its author, or rooms.notes.manage. */
+  canDeleteItem?: (item: { createdById?: string | null }) => boolean;
+  onDeleteNote?: (note: Note) => void;
+  onDeleteTask?: (task: Task) => void;
   onAddLostAndFoundItem?: () => void;
   /** Open the Lost & Found screen (the section title, or its item). */
   onOpenLostAndFound?: () => void;

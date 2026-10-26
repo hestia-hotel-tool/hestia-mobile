@@ -181,6 +181,14 @@
     {
       "key": "rooms.porter.check",
       "description": "Mark a room checked on the porter round"
+    },
+    {
+      "key": "rooms.notes.manage",
+      "description": "Delete anyone's notes and tasks on a room"
+    },
+    {
+      "key": "lost_and_found.read_all",
+      "description": "See every lost & found item, not only your own from today"
     }
   ],
   "rights": [
@@ -379,6 +387,20 @@
     "rooms.porter.check": [
       "hk_houseman",
       "full_access"
+    ],
+    "rooms.notes.manage": [
+      "full_access",
+      "ops_senior"
+    ],
+    "lost_and_found.read_all": [
+      "full_access",
+      "ops_senior",
+      "fo_agent",
+      "concierge_agent",
+      "ird_service",
+      "technical",
+      "fnb_kitchen",
+      "engineering"
     ]
   },
   "departments": [

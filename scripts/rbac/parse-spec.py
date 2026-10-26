@@ -107,6 +107,17 @@ EXTRA_GRANTS = {
     # separate from cleaning status (migration 20261019130000). Leadership may
     # correct a porter's mark.
     "rooms.porter.check": ["hk_houseman", "full_access"],
+    # Delete anyone's room notes and tasks (an author may always delete their
+    # own) — supervisors and managers keep the room's instructions correct.
+    "rooms.notes.manage": ["full_access", "ops_senior"],
+    # See every lost & found item. Housekeeping line staff (attendants, porters,
+    # laundry, public area) are left out: they see only what they registered or
+    # found, today (migration 20261026240000). Everyone handling returns —
+    # Front Office, Concierge — and every leader keeps the full list.
+    "lost_and_found.read_all": [
+        "full_access", "ops_senior", "fo_agent", "concierge_agent",
+        "ird_service", "technical", "fnb_kitchen", "engineering",
+    ],
 }
 
 PERMISSION_DESCRIPTIONS = {
@@ -117,6 +128,8 @@ PERMISSION_DESCRIPTIONS = {
     "reports.view": "Open reports and dashboard charts",
     "audit.view": "Open the activity log",
     "rooms.porter.check": "Mark a room checked on the porter round",
+    "rooms.notes.manage": "Delete anyone's notes and tasks on a room",
+    "lost_and_found.read_all": "See every lost & found item, not only your own from today",
     "tab.home.view": "See the Home (Dashboard) tab",
     "tab.rooms.view": "See the Rooms tab",
     "tab.chat.view": "See the Chat tab",

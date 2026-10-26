@@ -129,7 +129,11 @@ function NotificationExperience() {
     void syncAppIconBadge();
     const unsubscribe = subscribeNotificationBadgeInvalidate(() => void syncAppIconBadge());
     const appState = AppState.addEventListener('change', (state) => {
-      if (state === 'active') void syncAppIconBadge();
+      if (state !== 'active') return;
+      void syncAppIconBadge();
+      // Keep this phone registered for push while signed in, whatever the
+      // shift (throttled inside; heals a token the server dropped).
+      void registerAndSyncPushToken();
     });
     return () => {
       unsubscribe();

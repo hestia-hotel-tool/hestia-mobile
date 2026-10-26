@@ -17,7 +17,6 @@ import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from '@/c
 import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
-import { getUsersByDepartmentId } from '@features/account/services/user';
 import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
@@ -29,7 +28,7 @@ import {
   DEPARTMENT_CHIP,
 } from '@/lib/departments';
 import { Icon, type IconName } from '@/components/Icon';
-import { usePickerShift } from '../hooks/usePickerShift';
+import { fetchAssignableTicketStaff } from '../services/ticketAccess';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -133,8 +132,6 @@ export default function TicketForm({
   const [description, setDescription] = useState('');
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [departmentStaff, setDepartmentStaff] = useState<User[]>([]);
-  // Only the target shift's staff; AM / PM tabs for those who work both.
-  const pickerShift = usePickerShift();
   const [loadingStaff, setLoadingStaff] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const descriptionInputRef = useRef<TextInput>(null);
@@ -189,14 +186,14 @@ export default function TicketForm({
 
   // Load department staff
   useEffect(() => {
-    const shift = pickerShift.shift;
-    if (!selectedDepartmentId || !shift) return;
+    if (!selectedDepartmentId) return;
     let cancelled = false;
     setLoadingStaff(true);
-    getUsersByDepartmentId(selectedDepartmentId, { limit: 200, excludeSelf: true, shift })
-      .then((response) => {
+    // On shift right now and signed in to the app (migration 20261026200000).
+    fetchAssignableTicketStaff(selectedDepartmentId, { excludeSelf: true })
+      .then((staff) => {
         if (cancelled) return;
-        setDepartmentStaff(response.data);
+        setDepartmentStaff(staff);
         setLoadingStaff(false);
       })
       .catch((error) => {
@@ -208,7 +205,7 @@ export default function TicketForm({
     return () => {
       cancelled = true;
     };
-  }, [selectedDepartmentId, pickerShift.shift]);
+  }, [selectedDepartmentId]);
 
   const handleFrequentCaseSelect = (caseItem: string) => {
     setTicketName(caseItem);
@@ -659,8 +656,7 @@ export default function TicketForm({
         }}
         departmentName={selectedDepartmentName || departmentName || 'Department'}
         loading={loadingStaff}
-        shift={pickerShift.shift ?? undefined}
-        onShiftChange={pickerShift.canSwitch ? pickerShift.setShift : undefined}
+        assignableOnly
       />
     </View>
   );

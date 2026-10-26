@@ -34,6 +34,7 @@ import {
   updateLostAndFoundStatus,
   setLostAndFoundShipped,
 } from '../services/lostAndFound';
+import { PERMISSIONS, usePermissions } from '@/domain/rbac';
 
 type MainTabsParamList = {
   '(home)/index': undefined;
@@ -98,6 +99,8 @@ export default function LostAndFoundScreen() {
     if (roomId) router.push({ pathname: '/room/[roomId]', params: { roomId } });
   };
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
+  // Housekeeping line staff see only their own items from today (migration 20261026240000).
+  const ownTodayOnly = !usePermissions().can(PERMISSIONS.LOST_AND_FOUND_READ_ALL);
   /** Search: the bar under the tabs, opened by the magnifier. Filters the current tab. */
   const [searchOpen, setSearchOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -740,11 +743,15 @@ export default function LostAndFoundScreen() {
                   )}
                 </View>
               ) : (
-                <EmptyLostAndFoundState selectedTab={selectedTab} />
+                <EmptyLostAndFoundState selectedTab={selectedTab} ownTodayOnly={ownTodayOnly} />
               )
             ) : null
           ) : (
-            filteredItems.map((item) => (
+            <>
+            {ownTodayOnly ? (
+              <Text style={styles.scopeNote}>Showing items you registered or found today.</Text>
+            ) : null}
+            {filteredItems.map((item) => (
               <LostAndFoundItemCard
                 key={item.id}
                 item={item}
@@ -752,7 +759,8 @@ export default function LostAndFoundScreen() {
                 onStatusPress={(anchor) => handleStatusPress(item, anchor)}
                 statusUpdating={statusUpdating && statusUpdatingItemId === item.id}
               />
-            ))
+            ))}
+            </>
           )}
         </ScrollView>
 
@@ -810,6 +818,7 @@ export default function LostAndFoundScreen() {
 }
 
 const styles = StyleSheet.create({
+  scopeNote: { marginBottom: 10, marginHorizontal: 4, fontSize: 13, color: '#6b7a90' },
   container: {
     flex: 1,
     backgroundColor: LOST_AND_FOUND_COLORS.background,

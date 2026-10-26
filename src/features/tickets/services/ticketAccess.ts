@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import type { User } from '@/types';
 
 /**
  * Who may resolve and reassign which ticket (migration 20261026090000).
@@ -79,4 +80,32 @@ export function canReassignTicket(access: TicketAccess, ticket: TicketRef): bool
   if (access.hotelWide) return true;
   if (!ticket.departmentId) return access.canManage || (!!access.userId && ticket.createdById === access.userId);
   return access.isLead && !!access.departmentId && access.departmentId === ticket.departmentId;
+}
+
+/**
+ * Who a ticket can be assigned to right now: the department's staff who are
+ * on shift (roster + shift hours, hotel time) and signed in to the app
+ * (migration 20261026200000). The server refuses anyone else.
+ */
+export async function fetchAssignableTicketStaff(
+  departmentId: string,
+  opts?: { excludeSelf?: boolean }
+): Promise<User[]> {
+  // Cast: ticket_assignable_staff postdates the generated types.
+  const { data, error } = await (supabase as any).rpc('ticket_assignable_staff', {
+    p_department_id: departmentId,
+    p_exclude_self: opts?.excludeSelf === true,
+  });
+  if (error) throw new Error(error.message || 'Could not load staff.');
+  return ((data ?? []) as { id: string; full_name: string | null; avatar_url: string | null; job_title: string | null; department: string | null }[]).map(
+    (r) => ({
+      id: r.id,
+      name: r.full_name ?? 'Staff',
+      email: '',
+      jobTitle: r.job_title ?? undefined,
+      role: r.job_title ?? '',
+      department: r.department ?? undefined,
+      avatar: r.avatar_url ?? undefined,
+    })
+  );
 }

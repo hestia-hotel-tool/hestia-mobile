@@ -31,7 +31,6 @@ import {
 import { dashboardService } from '@features/rooms/services/dashboard';
 import { updateTicketStatus, updateTicketDueAt, updateTicketPriority, updateTicketAssignee } from '../services/tickets';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
-import { getUsersByDepartment } from '@features/account/services/user';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { useUserStore } from '@features/account/store/useUserStore';
 import type { User } from '@/types';
@@ -46,7 +45,7 @@ import StatusPopover from '@features/rooms/components/StatusPopover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { useTicketAccess } from '../hooks/useTicketAccess';
-import { usePickerShift } from '../hooks/usePickerShift';
+import { fetchAssignableTicketStaff } from '../services/ticketAccess';
 
 /** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
 const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed'];
@@ -101,7 +100,6 @@ export default function TicketsScreen() {
   const toast = useToast();
   // Resolve: the ticket's department. Reassign: its leads. (migration 20261026090000)
   const { canResolve, canReassign } = useTicketAccess();
-  const pickerShift = usePickerShift();
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
@@ -234,21 +232,21 @@ export default function TicketsScreen() {
   };
 
   const handleAssigneePress = (ticket: TicketData) => {
-    if (!ticket.category) return;
+    if (!ticket.departmentId) return;
     setAssigneeModalTicket(ticket);
   };
 
   // The picker's staff: the ticket's department, the target shift only (client
   // RBAC update) — reloaded when the AM / PM tab changes.
-  const assigneeDept = assigneeModalTicket?.category ?? null;
+  // On shift right now and signed in to the app (migration 20261026200000).
+  const assigneeDept = assigneeModalTicket?.departmentId ?? null;
   useEffect(() => {
-    const shift = pickerShift.shift;
-    if (!assigneeDept || !shift) return;
+    if (!assigneeDept) return;
     let cancelled = false;
     setAssigneeStaffLoading(true);
-    getUsersByDepartment(assigneeDept, { limit: 100, shift })
-      .then((res) => {
-        if (!cancelled) setDepartmentStaff(res.data);
+    fetchAssignableTicketStaff(assigneeDept)
+      .then((staff) => {
+        if (!cancelled) setDepartmentStaff(staff);
       })
       .catch((e) => {
         console.warn('[TicketsScreen] Failed to load staff for department', assigneeDept, e);
@@ -260,7 +258,7 @@ export default function TicketsScreen() {
     return () => {
       cancelled = true;
     };
-  }, [assigneeDept, pickerShift.shift]);
+  }, [assigneeDept]);
 
   const handleAssigneeSelect = async (staffIds: string[]) => {
     const ticket = assigneeModalTicket;
@@ -687,8 +685,7 @@ export default function TicketsScreen() {
         selectedStaffIds={assigneeModalTicket?.assignedToId ? [assigneeModalTicket.assignedToId] : []}
         departmentName={assigneeModalTicket?.category ?? ''}
         loading={assigneeStaffLoading}
-        shift={pickerShift.shift ?? undefined}
-        onShiftChange={pickerShift.canSwitch ? pickerShift.setShift : undefined}
+        assignableOnly
       />
 
       {/* Header - Fixed at top */}

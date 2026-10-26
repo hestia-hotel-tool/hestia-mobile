@@ -7,6 +7,8 @@ import type { LostAndFoundTab } from '../types/lostAndFound.types';
 
 interface EmptyLostAndFoundStateProps {
   selectedTab: LostAndFoundTab;
+  /** Housekeeping line staff see only their own items from today (migration 20261026240000). */
+  ownTodayOnly?: boolean;
 }
 
 /**
@@ -39,8 +41,17 @@ const MESSAGES: Record<LostAndFoundTab, { title: string; subtitle: string }> = {
   },
 };
 
-export default function EmptyLostAndFoundState({ selectedTab }: EmptyLostAndFoundStateProps) {
-  const message = MESSAGES[selectedTab];
+export default function EmptyLostAndFoundState({ selectedTab, ownTodayOnly = false }: EmptyLostAndFoundStateProps) {
+  const base = MESSAGES[selectedTab];
+  const message = ownTodayOnly
+    ? {
+        title: base.title,
+        subtitle:
+          selectedTab === 'created'
+            ? 'You have not registered any items today. Tap Register when you find one.'
+            : 'None of the items you registered today are here.',
+      }
+    : base;
 
   return (
     <View style={styles.container}>

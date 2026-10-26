@@ -9,6 +9,9 @@ import type { Note } from '../../types/roomDetail.types';
 interface NotesSectionProps {
   notes: Note[];
   onAddPress?: () => void;
+  /** Whether this person may delete a note (its author, or rooms.notes.manage). */
+  canDeleteNote?: (note: Note) => boolean;
+  onDeleteNote?: (note: Note) => void;
 }
 
 /**
@@ -20,7 +23,7 @@ interface NotesSectionProps {
  * draws no Add control; one is kept, as a small pill like Reassign's, so a
  * note can still be written here.
  */
-export default function NotesSection({ notes, onAddPress }: NotesSectionProps) {
+export default function NotesSection({ notes, onAddPress, canDeleteNote, onDeleteNote }: NotesSectionProps) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -50,7 +53,7 @@ export default function NotesSection({ notes, onAddPress }: NotesSectionProps) {
 
       {notes.length === 0 ? <Text style={styles.empty}>No notes on this room yet.</Text> : null}
       {notes.map((note) => (
-        <NoteItem key={note.id} note={note} />
+        <NoteItem key={note.id} note={note} onDelete={onDeleteNote && canDeleteNote?.(note) ? onDeleteNote : undefined} />
       ))}
     </View>
   );

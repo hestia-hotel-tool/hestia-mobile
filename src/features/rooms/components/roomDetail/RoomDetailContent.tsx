@@ -71,6 +71,9 @@ export default function RoomDetailContent({
   onAddNote,
   onAddTask,
   onSeeMoreTask,
+  canDeleteItem,
+  onDeleteNote,
+  onDeleteTask,
   onAddLostAndFoundItem,
   onOpenLostAndFound,
   onOpenLostAndFoundItem,
@@ -231,7 +234,7 @@ export default function RoomDetailContent({
 
                     {/* Figma 1772-104: the notes, straight under the assignee. */}
                     <View style={styles.cardDivider} />
-                    <NotesSection notes={notes} onAddPress={onAddNote} />
+                    <NotesSection notes={notes} onAddPress={onAddNote} canDeleteNote={canDeleteItem} onDeleteNote={onDeleteNote} />
 
                     {tasks.length > 0 ? <View style={styles.cardDivider} /> : null}
 
@@ -240,6 +243,8 @@ export default function RoomDetailContent({
                         tasks={tasks}
                         onAddPress={onAddTask}
                         onSeeMorePress={onSeeMoreTask}
+                        canDeleteTask={canDeleteItem}
+                        onDeleteTask={onDeleteTask}
                       />
                     ) : null}
                   </View>

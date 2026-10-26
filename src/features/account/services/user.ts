@@ -174,11 +174,6 @@ export interface GetUsersParams {
   search?: string;
   /** Filter users by department (UUID from departments.id). */
   departmentId?: string;
-  /**
-   * Only people rostered on this shift (`users.shift_id`). Pickers that assign
-   * work pass the shift being worked, so an AM assignment offers AM staff only.
-   */
-  shift?: 'AM' | 'PM';
 }
 
 export interface GetUsersResponse {
@@ -252,19 +247,14 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
   // If an environment has auth users created before the sync trigger, staff lists will be empty.
   await ensureCurrentUserProfileOnce();
 
-  // `!inner` drops the row when the shift filter does not match, rather than nulling the embed.
-  const shiftEmbed = params?.shift ? ', shifts!inner(name)' : '';
   let query = supabase
     .from('users')
-    .select(`id, full_name, avatar_url, roles(name), departments(name), job_titles(name)${shiftEmbed}`, {
+    .select('id, full_name, avatar_url, roles(name), departments(name), job_titles(name)', {
       count: 'exact',
     })
     .range(from, to)
     .order('full_name', { ascending: true });
 
-  if (params?.shift) {
-    query = query.ilike('shifts.name', params.shift);
-  }
 
   if (params?.search?.trim()) {
     query = query.ilike('full_name', `%${params.search.trim()}%`);

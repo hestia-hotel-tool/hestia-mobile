@@ -77,13 +77,3 @@ export function nextShiftStart(shift: ShiftType, now: Date = new Date()): Date {
   if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
   return at;
 }
-
-/**
- * The shift on now, once the hotel's shift times are loaded — for screens with
- * no AM/PM toggle of their own (tickets), whose staff pickers offer only the
- * people working now.
- */
-export async function currentShiftLoaded(now: Date = new Date()): Promise<ShiftType> {
-  await ensureHotelShifts().catch(() => {});
-  return currentShiftNow(now);
-}

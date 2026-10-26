@@ -68,6 +68,8 @@ export const PERMISSIONS = {
   ROOMS_MANAGE: 'rooms.manage',
   /** Mark a room checked on the porter round */
   ROOMS_PORTER_CHECK: 'rooms.porter.check',
+  /** Delete anyone's notes and tasks on a room */
+  ROOMS_NOTES_MANAGE: 'rooms.notes.manage',
 
   // Chat
   /** Start a direct chat */
@@ -94,6 +96,8 @@ export const PERMISSIONS = {
   LOST_AND_FOUND_REGISTER: 'lost_and_found.register',
   /** Edit and resolve lost & found items */
   LOST_AND_FOUND_MANAGE: 'lost_and_found.manage',
+  /** See every lost & found item, not only your own from today */
+  LOST_AND_FOUND_READ_ALL: 'lost_and_found.read_all',
 
   // Staff
   /** View staff lists and workloads */

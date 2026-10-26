@@ -1,16 +1,19 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
+import { View, Text, StyleSheet, LayoutChangeEvent, Pressable } from 'react-native';
 // expo-image: cached in memory and on disk, unlike react-native's Image.
 import { Image } from 'expo-image';
 import { scaleX, NOTES_SECTION } from '../../constants/roomDetailStyles';
 import type { Note } from '../../types/roomDetail.types';
+import { ItemMoreButton, openDeleteMenu } from './ItemDeleteMenu';
 
 interface NoteItemProps {
   note: Note;
   onHeightMeasured?: (height: number) => void;
+  /** Set when this person may delete the note: its author, or rooms.notes.manage. */
+  onDelete?: (note: Note) => void;
 }
 
-export default function NoteItem({ note, onHeightMeasured }: NoteItemProps) {
+export default function NoteItem({ note, onHeightMeasured, onDelete }: NoteItemProps) {
   const onLayout = useCallback(
     (e: LayoutChangeEvent) => {
       onHeightMeasured?.(e.nativeEvent.layout.height);
@@ -31,9 +34,14 @@ export default function NoteItem({ note, onHeightMeasured }: NoteItemProps) {
     .map((p) => p[0]?.toUpperCase())
     .join('') || '?';
 
+  const menu = onDelete ? () => openDeleteMenu({ what: 'note', preview: note.text, onDelete: () => onDelete(note) }) : undefined;
+
   return (
-    <View style={styles.wrap} onLayout={onLayout}>
-      <Text style={styles.noteText}>{note.text}</Text>
+    <Pressable style={styles.wrap} onLayout={onLayout} onLongPress={menu} delayLongPress={350} disabled={!menu}>
+      <View style={styles.textRow}>
+        <Text style={[styles.noteText, styles.textFlex]}>{note.text}</Text>
+        {menu ? <ItemMoreButton onPress={menu} label="Note options" /> : null}
+      </View>
       <View style={styles.footerRow}>
         {hasAvatar ? (
           <Image
@@ -54,7 +62,7 @@ export default function NoteItem({ note, onHeightMeasured }: NoteItemProps) {
         )}
         <Text style={styles.staffName}>{note.staff.name}</Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
@@ -65,6 +73,8 @@ const PROFILE_SIZE_PX = 25;
 const PROFILE_MARGIN_RIGHT_PX = 8;
 
 const styles = StyleSheet.create({
+  textRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 * scaleX },
+  textFlex: { flex: 1 },
   wrap: {
     width: '100%',
     marginBottom: 20 * scaleX,

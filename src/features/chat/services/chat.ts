@@ -230,18 +230,23 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
     return [];
   }
 
+  // `cleared_at` / `hidden_at`: chats this person deleted (migration 20261026120000).
   const { data: participantRows, error: partError } = await supabase
     .from('chat_participants')
-    .select('chat_id')
+    .select('chat_id, cleared_at, hidden_at' as 'chat_id')
     .eq('user_id', userId);
 
   if (partError) {
     console.warn('[Chat] getChatsForUser: chat_participants error', partError.message, partError.code);
     return [];
   }
-  if (!participantRows?.length) return [];
+  const mine = (participantRows ?? []) as unknown as { chat_id: string; cleared_at: string | null; hidden_at: string | null }[];
+  // Deleted for me and nothing new since: not in my list.
+  const visible = mine.filter((p) => !p.hidden_at);
+  if (!visible.length) return [];
 
-  const chatIds = participantRows.map((p) => p.chat_id);
+  const chatIds = visible.map((p) => p.chat_id);
+  const clearedAtByChat = new Map(visible.filter((p) => p.cleared_at).map((p) => [p.chat_id, p.cleared_at as string]));
 
   // Independent once the chat ids are known: one parallel wave, not four in a row.
   const [chatsRes, unreadByChatId, latestRes, participantsRes] = await Promise.all([
@@ -297,7 +302,10 @@ export async function getChatsForUser(): Promise<ChatItemData[]> {
 
   const result: (ChatItemData & { lastMessageAt: string })[] = [];
   for (const chat of chats as unknown as ChatRow[]) {
-    const lastMsg = lastByChatId.get(chat.id);
+    const latest = lastByChatId.get(chat.id);
+    // A message from before I deleted the chat is not mine to preview.
+    const clearedAt = clearedAtByChat.get(chat.id);
+    const lastMsg = latest && clearedAt && (latest.created_at ?? '') <= clearedAt ? undefined : latest;
     const lastMessageText = lastMsg?.content ?? '';
     const lastMessageAt = lastMsg?.created_at ?? '';
     const lastMessageSender =
@@ -391,12 +399,30 @@ export async function updateGroupChat(chatId: string, updates: { name: string })
  * Returns true on success.
  */
 export async function deleteGroupChat(chatId: string): Promise<boolean> {
-  const userId = await getCurrentUserId();
-  if (!userId || !isValidUUID(chatId)) return false;
-  const row = await getChatById(chatId);
-  if (!row || row.type !== 'group' || row.created_by_id !== userId) return false;
-  const { error } = await supabase.from('chats').delete().eq('id', chatId).eq('created_by_id', userId);
-  return !error;
+  if (!isValidUUID(chatId)) return false;
+  try {
+    await deleteChatForEveryone(chatId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Delete a chat for me (migration 20261026120000): a direct chat leaves my
+ * list and my copy of its history (a new message brings it back, showing only
+ * what follows); a group, I leave. Throws with a message for the person.
+ */
+export async function deleteChatForMe(chatId: string): Promise<'hidden' | 'left' | 'deleted'> {
+  const { data, error } = await supabase.rpc('chat_delete_for_me' as never, { p_chat_id: chatId } as never);
+  if (error) throw new Error((error as { message?: string }).message || 'The chat could not be deleted.');
+  return data as unknown as 'hidden' | 'left' | 'deleted';
+}
+
+/** Delete a group for every member — group admins (and its creator) only. */
+export async function deleteChatForEveryone(chatId: string): Promise<void> {
+  const { error } = await supabase.rpc('chat_delete_for_everyone' as never, { p_chat_id: chatId } as never);
+  if (error) throw new Error((error as { message?: string }).message || 'The group could not be deleted.');
 }
 
 export type GroupParticipant = {
@@ -469,10 +495,21 @@ export async function getMessages(chatId: string): Promise<ChatMessage[]> {
     return [];
   }
 
-  const { data, error } = await supabase
+  // Messages from before I deleted this chat stay deleted for me.
+  const { data: me } = await supabase
+    .from('chat_participants')
+    .select('cleared_at' as 'chat_id')
+    .eq('chat_id', chatId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  const clearedAt = (me as unknown as { cleared_at?: string | null } | null)?.cleared_at ?? null;
+
+  let query = supabase
     .from('messages')
     .select('id, chat_id, sender_id, type, content, created_at, reply_to_id, tagged_user_id, users!sender_id(full_name, avatar_url)')
-    .eq('chat_id', chatId)
+    .eq('chat_id', chatId);
+  if (clearedAt) query = query.gt('created_at', clearedAt);
+  const { data, error } = await query
     // The newest MESSAGE_PAGE, not the whole history; shown oldest-first.
     .order('created_at', { ascending: false })
     .limit(MESSAGE_PAGE);
@@ -920,6 +957,8 @@ export async function fetchAnnouncements(type: InboxType = 'general', limit = 50
     .select(ANNOUNCEMENT_COLUMNS)
     .eq('user_id', userId)
     .in('type', type === 'tasks' ? [...TASK_NOTIFICATION_TYPES] : ['general'])
+    // Deleted from the inbox (migration 20261026140000).
+    .is('dismissed_at' as 'id', null)
     .order('created_at', { ascending: false })
     .limit(limit);
   if (error) {
@@ -1036,4 +1075,22 @@ export async function fetchTaskContext(item: Announcement): Promise<TaskContext>
         }
       : undefined,
   };
+}
+
+/**
+ * Delete General / Task notifications from my inbox (migration
+ * 20261026140000). A dismiss: the row stays for the back office's statistics,
+ * but I no longer see it, and it counts as read.
+ */
+export async function dismissNotifications(ids: string[]): Promise<void> {
+  if (ids.length === 0) return;
+  const { error } = await supabase.rpc('notifications_dismiss' as never, { p_ids: ids } as never);
+  if (error) throw new Error((error as { message?: string }).message || 'Could not delete.');
+}
+
+/** Delete every General announcement, or every Task, from my inbox. */
+export async function dismissAllNotifications(type: InboxType): Promise<void> {
+  const types = type === 'tasks' ? [...TASK_NOTIFICATION_TYPES] : ['general'];
+  const { error } = await supabase.rpc('notifications_dismiss' as never, { p_types: types } as never);
+  if (error) throw new Error((error as { message?: string }).message || 'Could not delete.');
 }

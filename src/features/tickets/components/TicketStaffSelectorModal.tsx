@@ -34,6 +34,11 @@ interface TicketStaffSelectorModalProps {
    */
   shift?: 'AM' | 'PM';
   onShiftChange?: (shift: 'AM' | 'PM') => void;
+  /**
+   * The list is only people who can take a ticket now — on shift and signed in
+   * to the app (migration 20261026200000). Says so in the heading and when empty.
+   */
+  assignableOnly?: boolean;
 }
 
 /**
@@ -60,6 +65,7 @@ export default function TicketStaffSelectorModal({
   loading = false,
   shift,
   onShiftChange,
+  assignableOnly = false,
 }: TicketStaffSelectorModalProps) {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,7 +120,11 @@ export default function TicketStaffSelectorModal({
             <View style={styles.headerText}>
               <Text style={styles.title}>Tag staff</Text>
               <Text style={styles.subtitle} numberOfLines={1}>
-                {shift ? `${departmentName} · ${shift} shift` : departmentName}
+                {assignableOnly
+                  ? `${departmentName} · on shift · signed in`
+                  : shift
+                    ? `${departmentName} · ${shift} shift`
+                    : departmentName}
               </Text>
             </View>
             {/*
@@ -176,10 +186,16 @@ export default function TicketStaffSelectorModal({
                   <Icon name="nav-staff" size={30} color={colors.text.accent} />
                 </View>
                 <Text style={styles.emptyTitle}>
-                  {shift ? `No ${departmentName} staff on the ${shift} shift` : `No staff in ${departmentName}`}
+                  {assignableOnly
+                    ? `Nobody in ${departmentName} is available`
+                    : shift
+                      ? `No ${departmentName} staff on the ${shift} shift`
+                      : `No staff in ${departmentName}`}
                 </Text>
                 <Text style={styles.emptyBody}>
-                  {shift
+                  {assignableOnly
+                    ? `A ticket can only go to someone on shift right now and signed in to the app, and nobody in ${departmentName} is. You can still create the ticket — it will go to the department itself.`
+                    : shift
                     ? `Nobody in ${departmentName} is rostered on the ${shift} shift.${onShiftChange ? ' Try the other shift, or' : ''} You can still create the ticket — it will go to the department itself.`
                     : 'Nobody is assigned to this department yet, so there is no one to tag. You can still create the ticket — it will go to the department itself.'}
                 </Text>
