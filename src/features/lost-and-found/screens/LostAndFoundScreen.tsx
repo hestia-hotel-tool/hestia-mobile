@@ -35,6 +35,7 @@ import {
   setLostAndFoundShipped,
 } from '../services/lostAndFound';
 import { PERMISSIONS, usePermissions } from '@/domain/rbac';
+import { useStorageLocations } from '../hooks/useStorageLocations';
 
 type MainTabsParamList = {
   '(home)/index': undefined;
@@ -99,6 +100,8 @@ export default function LostAndFoundScreen() {
     if (roomId) router.push({ pathname: '/room/[roomId]', params: { roomId } });
   };
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
+  // Loads the hotel's storage-location names, so cards show them (and re-render once they arrive).
+  useStorageLocations();
   // Housekeeping line staff see only their own items from today (migration 20261026240000).
   const ownTodayOnly = !usePermissions().can(PERMISSIONS.LOST_AND_FOUND_READ_ALL);
   /** Search: the bar under the tabs, opened by the magnifier. Filters the current tab. */

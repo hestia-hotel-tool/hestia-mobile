@@ -21,7 +21,8 @@ import { RoomsHeader } from '../components/allRooms/RoomsHeader';
 import { useUser } from '@features/account/hooks/useUser';
 import RoomCard from '../components/allRooms/RoomCard';
 import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
-import { RoomListCard } from '../components/roomsList';
+import { RoomListCard, ROOM_CARD } from '../components/roomsList';
+import { cardPx } from '../components/roomsList/roomCardLayout';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import StatusChangeModal, {
   STATUS_MODAL_SPACING,
@@ -55,7 +56,7 @@ import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../
 import { scrollTargetOf, trackRef, type ScrollTarget } from '../utils/scrollTarget';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
-import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
+import { GroupedRoomsList, type TrayPlacement } from '../components/allRooms/GroupedRoomsList';
 import { RoomRow } from '../components/allRooms/RoomRow';
 import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { usePermissions } from '@/domain/rbac/usePermissions';
@@ -1180,11 +1181,12 @@ export default function AllRoomsScreen() {
             // A room attendant off the shift that is on now: say so, and when theirs is.
             if (shiftLock.offShift) return <OffShiftNotice info={shiftLock.offShift} onDark={displayData.selectedShift === 'PM'} />;
 
-            const renderRoomCard = (room: RoomCardData) => (
+            const renderRoomCard = (room: RoomCardData, tray?: TrayPlacement) => (
               <RoomRow
                 key={room.id}
                 room={room}
                 rebuilt={chrome.rebuiltCard}
+                frontOffice={chrome.frontOffice}
                 selectedShift={displayData.selectedShift}
                 canChangeStatus={canChangeStatus}
                 isChangingStatus={changingStatusRoomId === room.id || (isPorter && porterChecks.busyRoomId === room.id)}
@@ -1199,7 +1201,7 @@ export default function AllRoomsScreen() {
                 registerPillRef={registerPillRef}
                 RebuiltCard={RoomListCard}
                 LegacyCard={RoomCard}
-                slotStyle={styles.roomCardSlot}
+                slotStyle={tray ? (tray.last ? styles.trayLastSlot : styles.traySlot) : styles.roomCardSlot}
               />
             );
 
@@ -1231,6 +1233,7 @@ export default function AllRoomsScreen() {
                   groups={roomGroups}
                   renderRoom={renderRoomCard}
                   stickyInProgress={chrome.stickyInProgress}
+                  trayBands={chrome.frontOffice}
                   scrollProps={scrollProps}
                   scrollRef={scrollViewRef}
                 />
@@ -1437,9 +1440,17 @@ function buildAllRoomsStyles(scaleX: number) {
     // The design insets cards 9px and stacks them 16px apart. The card this
     // replaces carried its own marginHorizontal/marginBottom; the new one is
     // `w-full` and lets the list own the gutter.
-    paddingHorizontal: 9,
+    paddingHorizontal: ROOM_CARD.listGutter,
     paddingBottom: 16,
   },
+  /**
+   * A card inside Front Office's band tray (GroupedRoomsList): the tray owns
+   * the gutter and its 18 top and bottom, cards are 15 apart (3859:2479).
+   */
+  traySlot: {
+    paddingBottom: cardPx(15),
+  },
+  trayLastSlot: {},
   emptyStateCard: {
     width: CARD_DIMENSIONS.width * scaleX,
     alignSelf: 'center',

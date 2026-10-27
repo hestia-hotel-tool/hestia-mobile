@@ -63,6 +63,8 @@ export type RoomsFilterSheetProps = {
    * so the choice is not silent to a screen reader.
    */
   resultCount?: number;
+  /** What the list holds, for the confirm button: "See Rooms" by default, "See Tickets" on Tickets. */
+  noun?: { one: string; many: string };
 };
 
 /**
@@ -81,7 +83,9 @@ export function RoomsFilterSheet({
   onSeeRooms,
   title = 'Rooms Filter',
   resultCount,
+  noun = { one: 'room', many: 'rooms' },
 }: RoomsFilterSheetProps) {
+  const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const toggleSection = useCallback((key: string) => {
@@ -163,13 +167,13 @@ export function RoomsFilterSheet({
           accessibilityRole="button"
           accessibilityLabel={
             resultCount === undefined
-              ? 'See rooms'
-              : `See ${resultCount} ${resultCount === 1 ? 'room' : 'rooms'}`
+              ? `See ${noun.many}`
+              : `See ${resultCount} ${resultCount === 1 ? noun.one : noun.many}`
           }
           className="h-[66px] w-[231px] items-center justify-center rounded-full bg-primary"
         >
           <Text className="font-hestia-secondary text-hestia-3xl font-medium text-ink-white">
-            See Rooms
+            See {cap(noun.many)}
           </Text>
         </Pressable>
       </View>

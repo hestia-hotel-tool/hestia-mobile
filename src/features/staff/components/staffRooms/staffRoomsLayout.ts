@@ -44,6 +44,18 @@ export const STAFF_ROOMS_LAYOUT = {
      * sizes the band, which stays the frame's 133.
      */
     actionPill: { width: 151, height: 70, radius: 45, fontSize: 19, color: '#eef2f7', paddingLeft: 16, right: 31, liftAboveRow: 27 },
+    /**
+     * Node 4360:4647 — the band with the Action menu open, 440x133 #eef2f7.
+     * The identity row (chevron 27,63; avatar 67,64) starts 1 below a Pro
+     * Max's 62 inset and ends 34 above the band's bottom. The pill
+     * (4360:4649) is 134x70 at (275,49): 14 above the row, 31 from the edge;
+     * "Action" 19 in, then 10 to a 21x10 chevron, then 24 to its end.
+     */
+    open: {
+      rowTop: 1,
+      rowBottom: 34,
+      pill: { minWidth: 134, liftAboveRow: 14, paddingLeft: 19, paddingRight: 24, gap: 10, chevronWidth: 21, chevronHeight: 10 },
+    },
   },
 
   /** Node 3820:75 — "Rooms", 99x33 at (30,161). */

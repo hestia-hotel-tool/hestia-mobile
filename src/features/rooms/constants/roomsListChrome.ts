@@ -34,16 +34,27 @@ export type RoomsListChrome = {
    * the single difference between `leadership` and `supervisor`.
    */
   stickyInProgress: boolean;
+  /**
+   * Front Office's dress for the banded list (Figma 3859:1919): a coloured
+   * status cap on Paused and In Progress cards, the other bands' cards in a
+   * tray, minutes in place of credits, and pills without the menu chevron.
+   */
+  frontOffice: boolean;
 };
 
 export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
-  /** Everyone outside housekeeping operations: a flat list of every room. */
+  /**
+   * Everyone outside housekeeping operations: a flat list of every room, drawn
+   * with the same Figma 3883:5570 card as Housekeeping (client feedback,
+   * 2026-10-27: the legacy card's sizes, icons and weights did not match).
+   */
   default: {
     profileHeader: false,
     banded: false,
     assignedOnly: false,
-    rebuiltCard: false,
+    rebuiltCard: true,
     stickyInProgress: false,
+    frontOffice: false,
   },
   /** Housekeeping leadership — Figma 3883:5570. */
   leadership: {
@@ -52,6 +63,7 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     assignedOnly: false,
     rebuiltCard: true,
     stickyInProgress: false,
+    frontOffice: false,
   },
   /**
    * Supervisors — Figma 3838:1117. The same screen as `leadership` bar one
@@ -63,6 +75,7 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     assignedOnly: false,
     rebuiltCard: true,
     stickyInProgress: true,
+    frontOffice: false,
   },
   /**
    * The attendant titles — Room Attendant, Porter/Houseman, Laundry and Public
@@ -79,6 +92,19 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     assignedOnly: true,
     rebuiltCard: true,
     stickyInProgress: false,
+    frontOffice: false,
+  },
+  /**
+   * The whole Front Office department — Figma 3859:1919. Leadership's banded
+   * list of every room, dressed as `frontOffice` describes.
+   */
+  front_office: {
+    profileHeader: true,
+    banded: true,
+    assignedOnly: false,
+    rebuiltCard: true,
+    stickyInProgress: false,
+    frontOffice: true,
   },
 };
 

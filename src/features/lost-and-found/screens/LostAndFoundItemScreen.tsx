@@ -29,6 +29,7 @@ import {
 import type { LostAndFoundStatus } from '../types/lostAndFound.types';
 import { storedLocationLabel } from '../utils/storedLocations';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+import { useStorageLocations } from '../hooks/useStorageLocations';
 
 const C = {
   header: '#e4eefe',
@@ -63,6 +64,8 @@ export default function LostAndFoundItemScreen() {
   const refreshRoomBadges = useRoomsStore((s) => s.refreshRoomBadges);
 
   const [item, setItem] = useState<LostAndFoundItemDetail | null>(null);
+  // Loads the hotel's storage-location names, so cards show them (and re-render once they arrive).
+  useStorageLocations();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [missing, setMissing] = useState(false);

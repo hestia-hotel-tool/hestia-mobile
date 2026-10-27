@@ -16,6 +16,7 @@
 import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
 import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
 import ActionAnnouncement from '@assets/icons/actions/action-announcement.svg';
+import ActionAssignRooms from '@assets/icons/actions/action-assign-rooms.svg';
 import ActionCheckBold from '@assets/icons/actions/action-check-bold.svg';
 import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
@@ -28,6 +29,7 @@ import ActionFilter from '@assets/icons/actions/action-filter.svg';
 import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionGroup from '@assets/icons/actions/action-group.svg';
+import ActionInProgress from '@assets/icons/actions/action-in-progress.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionNewChat from '@assets/icons/actions/action-new-chat.svg';
 import ActionPauseCleaning from '@assets/icons/actions/action-pause-cleaning.svg';
@@ -36,6 +38,7 @@ import ActionPlus from '@assets/icons/actions/action-plus.svg';
 import ActionPrint from '@assets/icons/actions/action-print.svg';
 import ActionPriority from '@assets/icons/actions/action-priority.svg';
 import ActionPromisedTime from '@assets/icons/actions/action-promised-time.svg';
+import ActionReassignRooms from '@assets/icons/actions/action-reassign-rooms.svg';
 import ActionRefuseService from '@assets/icons/actions/action-refuse-service.svg';
 import ActionReturnLater from '@assets/icons/actions/action-return-later.svg';
 import ActionSearch from '@assets/icons/actions/action-search.svg';
@@ -44,6 +47,7 @@ import ActionThumbsDown from '@assets/icons/actions/action-thumbs-down.svg';
 import ActionThumbsUpSolid from '@assets/icons/actions/action-thumbs-up-solid.svg';
 import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
 import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
+import ActionUnassignRooms from '@assets/icons/actions/action-unassign-rooms.svg';
 // departments
 import DeptConcierge from '@assets/icons/departments/dept-concierge.svg';
 import DeptEngineering from '@assets/icons/departments/dept-engineering.svg';
@@ -93,6 +97,8 @@ import StatusCleaned from '@assets/icons/room-status/status-cleaned.svg';
 import StatusDirty from '@assets/icons/room-status/status-dirty.svg';
 import StatusInProgress from '@assets/icons/room-status/status-in-progress.svg';
 import StatusInspected from '@assets/icons/room-status/status-inspected.svg';
+import StatusPauseCircleSmall from '@assets/icons/room-status/status-pause-circle-small.svg';
+import StatusPauseCircle from '@assets/icons/room-status/status-pause-circle.svg';
 import StatusPausedVacuum from '@assets/icons/room-status/status-paused-vacuum.svg';
 import StatusVacuum from '@assets/icons/room-status/status-vacuum.svg';
 
@@ -101,6 +107,7 @@ export const icons = {
   'action-add-note': ActionAddNote,
   'action-add-photo': ActionAddPhoto,
   'action-announcement': ActionAnnouncement,
+  'action-assign-rooms': ActionAssignRooms,
   'action-check-bold': ActionCheckBold,
   'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
@@ -113,6 +120,7 @@ export const icons = {
   'action-flag-outline': ActionFlagOutline,
   'action-flag': ActionFlag,
   'action-group': ActionGroup,
+  'action-in-progress': ActionInProgress,
   'action-mic': ActionMic,
   'action-new-chat': ActionNewChat,
   'action-pause-cleaning': ActionPauseCleaning,
@@ -121,6 +129,7 @@ export const icons = {
   'action-print': ActionPrint,
   'action-priority': ActionPriority,
   'action-promised-time': ActionPromisedTime,
+  'action-reassign-rooms': ActionReassignRooms,
   'action-refuse-service': ActionRefuseService,
   'action-return-later': ActionReturnLater,
   'action-search': ActionSearch,
@@ -129,6 +138,7 @@ export const icons = {
   'action-thumbs-up-solid': ActionThumbsUpSolid,
   'action-thumbs-up': ActionThumbsUp,
   'action-tooltip-tail': ActionTooltipTail,
+  'action-unassign-rooms': ActionUnassignRooms,
   // departments
   'dept-concierge': DeptConcierge,
   'dept-engineering': DeptEngineering,
@@ -178,6 +188,8 @@ export const icons = {
   'status-dirty': StatusDirty,
   'status-in-progress': StatusInProgress,
   'status-inspected': StatusInspected,
+  'status-pause-circle-small': StatusPauseCircleSmall,
+  'status-pause-circle': StatusPauseCircle,
   'status-paused-vacuum': StatusPausedVacuum,
   'status-vacuum': StatusVacuum,
 } as const;
@@ -194,6 +206,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-add-note': 1,
   'action-add-photo': 1.0162,
   'action-announcement': 1.037,
+  'action-assign-rooms': 1,
   'action-check-bold': 1.0714,
   'action-check': 1.1798,
   'action-checkbox-checked': 1,
@@ -206,6 +219,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-flag-outline': 0.7179,
   'action-flag': 1.1833,
   'action-group': 1.1154,
+  'action-in-progress': 1,
   'action-mic': 0.7727,
   'action-new-chat': 1,
   'action-pause-cleaning': 0.9677,
@@ -214,6 +228,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-print': 1,
   'action-priority': 1.1833,
   'action-promised-time': 0.7398,
+  'action-reassign-rooms': 1.1154,
   'action-refuse-service': 1,
   'action-return-later': 0.8655,
   'action-search': 1,
@@ -222,6 +237,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-thumbs-up-solid': 1.1265,
   'action-thumbs-up': 1.1265,
   'action-tooltip-tail': 2.5831,
+  'action-unassign-rooms': 1.1111,
   'dept-concierge': 0.6403,
   'dept-engineering': 1.0357,
   'dept-housekeeping': 0.9581,
@@ -266,6 +282,8 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'status-dirty': 1.1075,
   'status-in-progress': 0.958,
   'status-inspected': 1.1265,
+  'status-pause-circle-small': 1,
+  'status-pause-circle': 1,
   'status-paused-vacuum': 0.9388,
   'status-vacuum': 0.958,
 };
@@ -277,6 +295,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-add-note',
   'action-announcement',
+  'action-assign-rooms',
   'action-check-bold',
   'action-check',
   'action-checkbox-checked',
@@ -289,6 +308,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-flag-outline',
   'action-flag',
   'action-group',
+  'action-in-progress',
   'action-mic',
   'action-new-chat',
   'action-phone',
@@ -296,12 +316,14 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-print',
   'action-priority',
   'action-promised-time',
+  'action-reassign-rooms',
   'action-refuse-service',
   'action-return-later',
   'action-search',
   'action-thumbs-down-solid',
   'action-thumbs-up-solid',
   'action-tooltip-tail',
+  'action-unassign-rooms',
   'dept-concierge',
   'dept-engineering',
   'dept-housekeeping',
@@ -341,6 +363,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'status-dirty',
   'status-in-progress',
   'status-inspected',
+  'status-pause-circle-small',
+  'status-pause-circle',
   'status-paused-vacuum',
   'status-vacuum',
 ]);

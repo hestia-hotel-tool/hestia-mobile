@@ -6,12 +6,14 @@ import {
   StyleSheet,
   Dimensions,
   Pressable,
+  ScrollView,
 } from 'react-native';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 
-export type StoredLocationOption = 'hskOffice' | 'frontDesk' | 'securityOffice' | 'lostAndFoundRoom';
+/** A storage location's key — the hotel's own list (migration 20261026300000). */
+export type StoredLocationOption = string;
 
 interface StoredLocationDropdownProps {
   visible: boolean;
@@ -19,14 +21,9 @@ interface StoredLocationDropdownProps {
   onSelect: (location: StoredLocationOption) => void;
   selectedLocation: StoredLocationOption;
   inputFieldPosition?: { x: number; y: number; width: number; height: number } | null;
+  /** The hotel's active locations, in order. */
+  options: { value: StoredLocationOption; label: string }[];
 }
-
-const locationOptions: { value: StoredLocationOption; label: string }[] = [
-  { value: 'hskOffice', label: 'Office' },
-  { value: 'frontDesk', label: 'Front Desk' },
-  { value: 'securityOffice', label: 'Security Office' },
-  { value: 'lostAndFoundRoom', label: 'Lost & Found Room' },
-];
 
 const getStyles = (inputFieldPosition?: { x: number; y: number; width: number; height: number } | null) => {
   const screenHeight = Dimensions.get('window').height;
@@ -129,6 +126,7 @@ export default function StoredLocationDropdown({
   onSelect,
   selectedLocation,
   inputFieldPosition,
+  options,
 }: StoredLocationDropdownProps) {
   const handleSelect = (location: StoredLocationOption) => {
     onSelect(location);
@@ -157,7 +155,9 @@ export default function StoredLocationDropdown({
             onPress={() => {}}
             onStartShouldSetResponder={() => true}
           >
-            {locationOptions.map((option) => (
+            {/* Scrolls: a hotel can have more locations than the box is tall. */}
+            <ScrollView bounces={false} showsVerticalScrollIndicator={options.length > 5}>
+            {options.map((option) => (
             <TouchableOpacity
               key={option.value}
               style={dynamicStyles.item}
@@ -170,6 +170,7 @@ export default function StoredLocationDropdown({
               )}
             </TouchableOpacity>
             ))}
+            </ScrollView>
           </Pressable>
           {/* Triangle Pointer - positioned at bottom pointing down to input field */}
           <View style={dynamicStyles.trianglePointer} />

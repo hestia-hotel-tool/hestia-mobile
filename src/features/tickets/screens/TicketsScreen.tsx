@@ -39,13 +39,17 @@ import {
   markAllTicketTagNotificationsRead,
   invalidateNotificationBadges,
 } from '@/lib/inAppNotifications';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { useToast } from '@/contexts/ToastContext';
 import StatusPopover from '@features/rooms/components/StatusPopover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { useTicketAccess } from '../hooks/useTicketAccess';
 import { fetchAssignableTicketStaff } from '../services/ticketAccess';
+import { departmentIconName, sortDepartmentsByDisplayOrder } from '@/lib/departments';
+import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
+import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
+import { FilterModalOverlay, RoomsFilterSheet } from '@/components/filters';
 
 /** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
 const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed'];
@@ -103,6 +107,20 @@ export default function TicketsScreen() {
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
+  /*
+   * Search and filter, as on Home and Rooms (client request, 2026-10-26): a
+   * search field with the filter glyph, a filter sheet (Department, Priority)
+   * and the "Filtered: … — Clear" bar. `filters` is applied; the sheet edits
+   * `pending` until See Tickets.
+   */
+  type TicketFilters = { departments: string[]; priorities: string[] };
+  const NO_FILTERS: TicketFilters = { departments: [], priorities: [] };
+  const [search, setSearch] = useState('');
+  const [filters, setFilters] = useState<TicketFilters>(NO_FILTERS);
+  const [pending, setPending] = useState<TicketFilters>(NO_FILTERS);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [filterAnchor, setFilterAnchor] = useState<{ top: number; bottom: number } | null>(null);
+  const searchBarRef = React.useRef<View>(null);
   const [ticketsData, setTicketsData] = useState<TicketsScreenData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -415,7 +433,9 @@ export default function TicketsScreen() {
             </View>
           ) : null}
         </View>
-        <Text style={styles.statusGridLabel}>{label}</Text>
+        <Text style={styles.statusGridLabel} numberOfLines={1}>
+          {label}
+        </Text>
       </TouchableOpacity>
     );
   };
@@ -435,7 +455,8 @@ export default function TicketsScreen() {
   const currentUserId = session?.user?.id;
 
   // Filter tickets based on selected tab
-  const filteredTickets = tickets.filter((ticket) => {
+  // The tab's own rules (and any filter Home passed in), before the department filter.
+  const passesTab = (ticket: TicketData) => {
     const params = (route as any).params as
       | {
           assignedToMeOnly?: boolean;
@@ -458,7 +479,10 @@ export default function TicketsScreen() {
       if (statusFilter === 'priority') {
         if (ticket.priority !== 'urgent') return false;
       } else {
-        if (ticket.status !== statusFilter) return false;
+        // "Unsolved" from a dashboard counts In Progress too (getTicketCountsForDepartment).
+        const matches =
+          ticket.status === statusFilter || (statusFilter === 'unsolved' && ticket.status === 'inProgress');
+        if (!matches) return false;
       }
     }
 
@@ -466,12 +490,88 @@ export default function TicketsScreen() {
       if (!currentUserId) return false;
       return ticket.assignedToId === currentUserId;
     } else if (selectedTab === 'open') {
-      return ticket.status === 'unsolved' || ticket.status === 'ofo';
+      return ticket.status === 'unsolved' || ticket.status === 'inProgress' || ticket.status === 'ofo';
     } else if (selectedTab === 'closed') {
       return ticket.status === 'done';
     }
     return true; // 'all' shows all tickets
-  });
+  };
+
+  const tabTickets = tickets.filter(passesTab);
+  const deptOf = (t: TicketData) => (t.category ?? '').trim() || 'No department';
+  const PRIORITY_LABEL: Record<string, string> = { urgent: 'Urgent', medium: 'Medium', notUrgent: 'Not urgent' };
+  const matchesSearch = (t: TicketData) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [t.title, t.description, t.locationText, t.roomNumber, deptOf(t), t.assignedTo?.name, t.createdBy?.name]
+      .some((v) => String(v ?? '').toLowerCase().includes(q));
+  };
+  const matchesFilters = (t: TicketData, f: TicketFilters) =>
+    (f.departments.length === 0 || f.departments.includes(deptOf(t))) &&
+    (f.priorities.length === 0 || f.priorities.includes(t.priority ?? 'notUrgent'));
+  const filteredTickets = tabTickets.filter((t) => matchesSearch(t) && matchesFilters(t, filters));
+  const activeDept = filters.departments.length ? filters.departments.join(', ') : null;
+  const activeFilterParts = [
+    ...filters.departments,
+    ...filters.priorities.map((p) => PRIORITY_LABEL[p] ?? p),
+  ];
+
+  // The sheet's sections, counted on the tab's tickets (and the search).
+  const searched = tabTickets.filter(matchesSearch);
+  const filterSections = (() => {
+    const deptCounts = new Map<string, number>();
+    const prioCounts = new Map<string, number>();
+    for (const t of searched) {
+      deptCounts.set(deptOf(t), (deptCounts.get(deptOf(t)) ?? 0) + 1);
+      const p = t.priority ?? 'notUrgent';
+      prioCounts.set(p, (prioCounts.get(p) ?? 0) + 1);
+    }
+    const toggle = (key: keyof TicketFilters) => (id: string) =>
+      setPending((prev) => ({
+        ...prev,
+        [key]: prev[key].includes(id) ? prev[key].filter((x) => x !== id) : [...prev[key], id],
+      }));
+    return [
+      {
+        key: 'department',
+        title: 'Department',
+        countFormat: 'number' as const,
+        onToggle: toggle('departments'),
+        options: sortDepartmentsByDisplayOrder(Array.from(deptCounts, ([name, count]) => ({ name, count }))).map((d) => {
+          const icon = departmentIconName(d.name);
+          return {
+            id: d.name,
+            label: d.name,
+            count: d.count,
+            selected: pending.departments.includes(d.name),
+            indicator: icon ? { kind: 'icon' as const, name: icon, color: '#5a759d' } : { kind: 'dot' as const, color: '#9aa7bd' },
+          };
+        }),
+      },
+      {
+        key: 'priority',
+        title: 'Priority',
+        countFormat: 'number' as const,
+        onToggle: toggle('priorities'),
+        options: (['urgent', 'medium', 'notUrgent'] as const).map((p) => ({
+          id: p,
+          label: PRIORITY_LABEL[p],
+          count: prioCounts.get(p) ?? 0,
+          selected: pending.priorities.includes(p),
+          indicator: { kind: 'dot' as const, color: p === 'urgent' ? '#f92424' : p === 'medium' ? '#f0be1b' : '#9aa7bd' },
+        })),
+      },
+    ];
+  })();
+  const pendingCount = searched.filter((t) => matchesFilters(t, pending)).length;
+
+  const openFilter = () => {
+    setPending(filters);
+    searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+      setFilterAnchor({ top: y, bottom: y + h });
+      setFilterOpen(true);
+    });
+  };
 
   /** What this list shows, for the assistant (see screenContext.ts). */
   const TAB_NAMES: Record<TicketTab, string> = { myTickets: 'My Tickets', all: 'All', open: 'Open', closed: 'Closed' };
@@ -479,6 +579,7 @@ export default function TicketsScreen() {
   const assistantFacts = React.useMemo<ScreenFact[]>(
     () => [
       { label: 'Tab', value: TAB_NAMES[selectedTab] },
+      ...(activeDept ? [{ label: 'Department filter', value: activeDept }] : []),
       { label: 'Tickets listed', value: filteredTickets.length },
       ...filteredTickets.slice(0, 30).map((t) => ({
         label: `Ticket "${t.title}"`,
@@ -488,7 +589,7 @@ export default function TicketsScreen() {
       })),
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [selectedTab, assistantKey]
+    [selectedTab, assistantKey, activeDept]
   );
   useAssistantScreen('Tickets', assistantFacts);
 
@@ -509,10 +610,46 @@ export default function TicketsScreen() {
             <TicketCard
               ticket={ticket}
               onPress={() => handleTicketPress(ticket)}
-              onStatusPress={canResolve(ticket) ? (anchor) => handleStatusPress(ticket, anchor) : undefined}
+              // Always a button: a pill that ignored the tap let it fall through
+              // to the card, which opened the details instead (tester feedback,
+              // 2026-10-27). Outside the ticket's department it says who can.
+              onStatusPress={(anchor) =>
+                canResolve(ticket)
+                  ? handleStatusPress(ticket, anchor)
+                  : toast.show(
+                      `Only ${ticket.assignedTo?.departmentName ?? "the ticket's department"} can change this ticket's status.`,
+                      { type: 'info', title: 'Status locked' }
+                    )
+              }
               onAssigneePress={canReassign(ticket) ? () => handleAssigneePress(ticket) : undefined}
             />
           )}
+          ListHeaderComponent={
+            // Only when the tab has tickets to search or filter.
+            tabTickets.length === 0 ? null : (
+            <View style={styles.searchWrap}>
+              <View ref={searchBarRef} collapsable={false}>
+                {/* `medium`: Rooms' 68px pill was too heavy under the tabs. */}
+                <SearchAndFilterBar
+                  size="medium"
+                  value={search}
+                  onChangeText={setSearch}
+                  onFilterPress={openFilter}
+                  placeholderLead="Search"
+                  placeholderRest="Tickets, rooms, people"
+                />
+              </View>
+              {activeFilterParts.length > 0 ? (
+                <ActiveFiltersBar
+                  parts={activeFilterParts}
+                  resultCount={filteredTickets.length}
+                  onClear={() => setFilters(NO_FILTERS)}
+                  scaleX={scaleX}
+                />
+              ) : null}
+            </View>
+            )
+          }
           ListEmptyComponent={<EmptyTicketsState selectedTab={selectedTab} />}
           initialNumToRender={8}
           maxToRenderPerBatch={8}
@@ -566,29 +703,36 @@ export default function TicketsScreen() {
                     await updateTicketPriority(statusMenuTicket.id, next);
                   })
               )}
-              {renderStatusOption(
-                'unsolved',
-                'Unsolved',
-                <View style={[styles.statusCircle, styles.statusCircleUnsolved]}>
-                  <Icon name="action-thumbs-down-solid" size={24 * scaleX} color="#ffffff" />
-                </View>,
-                () => handleStatusSelect('unsolved')
-              )}
-              {renderStatusOption(
-                'done',
-                'Solved',
-                <View style={[styles.statusCircle, styles.statusCircleSolved]}>
-                  <Icon name="action-thumbs-up-solid" size={24 * scaleX} color="#ffffff" />
-                </View>,
-                () => handleStatusSelect('done')
-              )}
-              {renderStatusOption(
-                'ofo',
-                'OFO',
-                <View style={styles.statusCircleOfoOuter}>
-                  <View style={styles.statusCircleOfoInner} />
-                </View>,
-                () => handleStatusSelect('ofo')
+              {/*
+                Every state but the one the ticket is in — offering the current
+                state is a no-op (client feedback, 2026-10-27). With Priority
+                that keeps the row at four: an Unsolved ticket offers In
+                Progress, Solved and OFO.
+              */}
+              {STATUS_MENU_ORDER.filter((key) => key !== statusMenuTicket?.status).map((key) =>
+                renderStatusOption(
+                  key,
+                  STATUS_MENU_LABEL[key],
+                  key === 'ofo' ? (
+                    <View style={styles.statusCircleOfoOuter}>
+                      <View style={styles.statusCircleOfoInner} />
+                    </View>
+                  ) : (
+                    <View
+                      style={[
+                        styles.statusCircle,
+                        key === 'inProgress'
+                          ? styles.statusCircleInProgress
+                          : key === 'done'
+                            ? styles.statusCircleSolved
+                            : styles.statusCircleUnsolved,
+                      ]}
+                    >
+                      <Icon name={STATUS_MENU_ICON[key]} size={(key === 'inProgress' ? 26 : 24) * scaleX} color="#ffffff" />
+                    </View>
+                  ),
+                  () => handleStatusSelect(key)
+                )
               )}
             </View>
 
@@ -688,6 +832,26 @@ export default function TicketsScreen() {
         assignableOnly
       />
 
+      <FilterModalOverlay
+        visible={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        blurTop={filterAnchor?.top ?? 0}
+        sheetTop={(filterAnchor?.bottom ?? 0) + 10 * scaleX}
+        sheetBottom={40 * scaleX}
+        maxWidth={400 * scaleX}
+      >
+        <RoomsFilterSheet
+          title="Tickets Filter"
+          sections={filterSections}
+          resultCount={pendingCount}
+          noun={{ one: 'ticket', many: 'tickets' }}
+          onSeeRooms={() => {
+            setFilters(pending);
+            setFilterOpen(false);
+          }}
+        />
+      </FilterModalOverlay>
+
       {/* Header - Fixed at top */}
       <TicketsHeader
         onBackPress={handleBackPress}
@@ -719,7 +883,22 @@ export default function TicketsScreen() {
   );
 }
 
+/** The Change Status row after Priority, in order. */
+const STATUS_MENU_ORDER: TicketStatus[] = ['inProgress', 'unsolved', 'done', 'ofo'];
+const STATUS_MENU_LABEL: Record<TicketStatus, string> = {
+  inProgress: 'In Progress',
+  unsolved: 'Unsolved',
+  done: 'Solved',
+  ofo: 'OFO',
+};
+const STATUS_MENU_ICON: Record<Exclude<TicketStatus, 'ofo'>, IconName> = {
+  inProgress: 'action-in-progress',
+  unsolved: 'action-thumbs-down-solid',
+  done: 'action-thumbs-up-solid',
+};
+
 const styles = StyleSheet.create({
+  searchWrap: { marginBottom: 12, gap: 8 },
   container: {
     flex: 1,
     backgroundColor: TICKETS_COLORS.background,
@@ -792,6 +971,9 @@ const styles = StyleSheet.create({
   statusCircleSolved: {
     backgroundColor: '#41d541',
   },
+  statusCircleInProgress: {
+    backgroundColor: '#f0be1b',
+  },
   /** Thick grey ring + white center (Figma OFO), not a thin outline. */
   statusCircleOfoOuter: {
     width: 44 * scaleX,
@@ -816,6 +998,9 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
+    // Wider than the 64 item, centred on it, so "In Progress" stays on one
+    // line; the row's space-between leaves the room either side.
+    width: 84 * scaleX,
   },
   statusDivider: {
     height: 1,

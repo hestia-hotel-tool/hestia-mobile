@@ -17,13 +17,17 @@ export type SearchAndFilterBarProps = {
    * 11px placeholder. `large` is the Rooms tab (node 3883:5740): a 68px pill, a
    * 24px glyph and a 15px placeholder. The two are genuinely different in the
    * file, so this is a variant rather than one of them being wrong.
+   *
+   * `medium` is Tickets: a 52px pill between the two — the list sits right
+   * under its tabs, where 68px read as too heavy and 44px as too slight.
    */
-  size?: 'default' | 'large';
+  size?: 'default' | 'medium' | 'large';
   className?: string;
 };
 
 const SIZES = {
   default: { field: 'h-[44px]', glyph: 14, placeholder: 'text-hestia-xs' },
+  medium: { field: 'h-[52px]', glyph: 18, placeholder: 'text-hestia-base' },
   large: { field: 'h-[68px]', glyph: 24, placeholder: 'text-hestia-lg' },
 } as const;
 

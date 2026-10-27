@@ -26,6 +26,8 @@ export type RoomCardShellProps = {
    * out of the native tree and `measureInWindow` then reports zeros.
    */
   measureRef?: React.Ref<RNView>;
+  /** Front Office's coloured status band, drawn inside the card above everything else (StatusCap). */
+  cap?: React.ReactNode;
 };
 
 /**
@@ -34,11 +36,12 @@ export type RoomCardShellProps = {
  * Its ground, hairline and radius come from the card's spec: #f9fafc with a
  * blue-grey hairline at 12 for the 422 cards, white or #f9fafc with #e3e3e3
  * at 9 for the 392 ones, which also sit 15 further in from the list's edge.
- * No coloured cap: every state shows by its status pill alone.
+ * No coloured cap for housekeeping: every state shows by its status pill
+ * alone. Front Office caps Paused and In Progress (`cap`, Figma 3859:1919).
  *
  * `overflow-hidden` keeps children inside the rounded corners on Android.
  */
-export function RoomCardShell({ children, spec, framed, onPress, onLayout, measureRef }: RoomCardShellProps) {
+export function RoomCardShell({ children, spec, framed, onPress, onLayout, measureRef, cap }: RoomCardShellProps) {
   const Container = onPress ? Pressable : View;
 
   const card = (
@@ -51,6 +54,7 @@ export function RoomCardShell({ children, spec, framed, onPress, onLayout, measu
         borderColor: spec.border ?? undefined,
       }}
     >
+      {cap}
       {children}
     </View>
   );

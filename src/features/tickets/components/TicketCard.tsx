@@ -60,6 +60,8 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
 
   const isDone = ticket.status === 'done';
   const isOfo = ticket.status === 'ofo';
+  // Someone is on it: the rooms' In Progress amber, solid like Solved.
+  const isInProgress = ticket.status === 'inProgress';
   const hasImages = !!ticket.images?.length;
 
   return (
@@ -81,7 +83,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
               title still degrades to an ellipsis instead of becoming unreadable.
             */}
             <Text
-              style={[styles.title, isDone ? styles.titleDone : isOfo ? styles.titleOfo : styles.titleOpen]}
+              style={[styles.title, isDone ? styles.titleDone : isOfo ? styles.titleOfo : isInProgress ? styles.titleInProgress : styles.titleOpen]}
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.55}
@@ -128,7 +130,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
         <View
           ref={statusPillRef}
           collapsable={false}
-          style={[styles.statusPill, isDone ? styles.statusPillDone : isOfo ? styles.statusPillOfo : styles.statusPillOpen]}
+          style={[styles.statusPill, isDone ? styles.statusPillDone : isOfo ? styles.statusPillOfo : isInProgress ? styles.statusPillInProgress : styles.statusPillOpen]}
         >
           {/*
             The glyphs are *children* of the touchable, not siblings painted over
@@ -165,15 +167,15 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
                 two-tone, so it cannot be tinted into this.
               */}
               <Icon
-                name={ticket.status === 'done' ? 'action-thumbs-up-solid' : 'action-thumbs-down-solid'}
-                size={17 * scaleX}
-                color={ticket.status === 'done' ? '#ffffff' : '#f92424'}
+                name={isInProgress ? 'action-in-progress' : isDone ? 'action-thumbs-up-solid' : 'action-thumbs-down-solid'}
+                size={(isInProgress ? 18 : 17) * scaleX}
+                color={isDone || isInProgress ? '#ffffff' : '#f92424'}
               />
               <View style={styles.statusChevron}>
                 <Icon
                   name="action-chevron"
                   size={10 * scaleX}
-                  color={isDone ? '#ffffff' : '#f92424'}
+                  color={isDone || isInProgress ? '#ffffff' : '#f92424'}
                 />
               </View>
             </>
@@ -339,6 +341,10 @@ const styles = StyleSheet.create({
   titleDone: {
     color: '#7ae07c',
   },
+  /** In Progress — a deeper amber than the pill, so the title still reads on white. */
+  titleInProgress: {
+    color: '#e0a800',
+  },
   /** Figma 3147:114 — OFO / OFT ticket title */
   titleOfo: {
     color: '#c6c5c5',
@@ -436,6 +442,9 @@ const styles = StyleSheet.create({
   /** Figma 3147:79 — solved status control */
   statusPillDone: {
     backgroundColor: '#41d541',
+  },
+  statusPillInProgress: {
+    backgroundColor: '#f0be1b',
   },
   /** Figma 3147:147 — OFT pill (grey) */
   statusPillOfo: {

@@ -297,14 +297,15 @@ export default function HomeScreen() {
           const status: TicketActivityKey =
             /status to\s+solved|status to\s+done/i.test(action) ? 'solved' :
             /out of order|status to\s+ofo/i.test(action) ? 'outOfOrder' :
-            /status to\s+unsolved/i.test(action) ? 'unsolved' :
+            /status to\s+(unsolved|in_progress)/i.test(action) ? 'unsolved' :
             'neutral';
 
           return {
             id: l.id,
             roomId: l.room_id ?? undefined,
             roomLabel: roomNum ? `Room ${roomNum}` : 'Room',
-            message: `${staffName} ${action.charAt(0).toLowerCase()}${action.slice(1)}`,
+            // The column stores `in_progress`; the feed says it in words.
+            message: `${staffName} ${action.charAt(0).toLowerCase()}${action.slice(1).replace(/\bin_progress\b/gi, 'In Progress')}`,
             timeLabel,
             status,
           };

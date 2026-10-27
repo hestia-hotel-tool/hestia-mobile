@@ -9,6 +9,7 @@ import { clearCachedHotelId } from '@/lib/tenant';
 import { clearBottomTabBadgeCounts } from '@/store/bottomTabBadgeCounts';
 import { clearMyShiftCache } from '@features/account/services/myShift';
 import { clearTicketAccessCache } from '@features/tickets/services/ticketAccess';
+import { clearStorageLocationsCache } from '@features/lost-and-found/services/storageLocations';
 
 /**
  * Clear all cached client state that must never bleed across tenants/users.
@@ -40,6 +41,7 @@ export function resetTenantScopedStores() {
   // A room attendant's rostered shift (they cannot toggle AM/PM).
   clearMyShiftCache();
   clearTicketAccessCache();
+  clearStorageLocationsCache();
 
   useRoomsStore.setState(
     {

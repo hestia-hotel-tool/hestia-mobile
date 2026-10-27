@@ -308,22 +308,23 @@ ROOMS_VARIANTS = {
     # They keep no Home tab, which is a right (`dashboard`) and independent of
     # this.
     "housekeeping_porter_houseman": "leadership",
-    # The whole Front Office department reads the same banded screen as
-    # housekeeping leadership — Figma 3859:1919, which is the executive
-    # housekeeper's frame (3883:5570) duplicated with the header text changed,
-    # down to its duplicated "Paused" heading.
+    # The whole Front Office department reads the banded screen housekeeping
+    # leadership does, in its own dress — Figma 3859:1919: a coloured status cap
+    # on Paused / In Progress cards, the finished bands gathered in a tray,
+    # minutes rather than credits, and pills without the menu chevron. Its own
+    # variant (`front_office`) so those differences stay out of housekeeping's.
     #
     # All the titles in the department, not just the front desk: they share two
     # roles and one department, so splitting them would be arbitrary. Reading
     # the banded list is not the same as being allowed to act on it — none of
     # them holds `rooms.status.update`, and the status pill is gated on that
     # permission in AllRoomsScreen rather than on the variant.
-    "director_of_rooms": "leadership",
-    "front_office_manager": "leadership",
-    "front_office_supervisor": "leadership",
-    "front_office_agent": "leadership",
-    "night_manager": "leadership",
-    "night_agent": "leadership",
+    "director_of_rooms": "front_office",
+    "front_office_manager": "front_office",
+    "front_office_supervisor": "front_office",
+    "front_office_agent": "front_office",
+    "night_manager": "front_office",
+    "night_agent": "front_office",
 }
 
 # Rights we knowingly set differently from the signed-off PDF.

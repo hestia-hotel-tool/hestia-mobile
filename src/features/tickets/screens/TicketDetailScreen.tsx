@@ -36,10 +36,11 @@ const C = {
 /** The ticket card's colours (TicketCard), plus a label per status. */
 const STATUS: Record<TicketStatus, { label: string; color: string }> = {
   unsolved: { label: 'Unsolved', color: '#f92424' },
+  inProgress: { label: 'In Progress', color: '#e0a800' },
   done: { label: 'Solved', color: '#41d541' },
   ofo: { label: 'Out of Order', color: '#a3a2a2' },
 };
-const STATUS_ORDER: TicketStatus[] = ['unsolved', 'done', 'ofo'];
+const STATUS_ORDER: TicketStatus[] = ['unsolved', 'inProgress', 'done', 'ofo'];
 
 const PRIORITY: Record<NonNullable<TicketDetail['priority']>, { label: string; color: string }> = {
   urgent: { label: 'High priority', color: '#f92424' },

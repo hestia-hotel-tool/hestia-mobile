@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Pressable } from '@/tw';
 import { ActivityIndicator, View as RNView } from 'react-native';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { colors } from '@/theme';
 import { STATUS_CONFIGS, type RoomDisplayStatus } from '../../types/allRooms.types';
 import { ROOM_CARD, cardPx } from './roomCardLayout';
@@ -23,6 +23,12 @@ export type RoomStatusPillProps = {
   loading?: boolean;
   /** Measured by the screen to anchor the status popover. See RoomCardShell. */
   measureRef?: React.Ref<RNView>;
+  /**
+   * Front Office's pill (Figma 3859:1919): never the menu chevron — the pill
+   * still opens the menu when `onPress` is given — and its own marks for Dirty
+   * and Paused (FRONT_OFFICE_GLYPHS).
+   */
+  frontOffice?: boolean;
 };
 
 /**
@@ -43,6 +49,7 @@ export function RoomStatusPill({
   tone = 'solid',
   loading = false,
   measureRef,
+  frontOffice = false,
 }: RoomStatusPillProps) {
   const config = STATUS_CONFIGS[status];
   if (!config) return null;
@@ -65,7 +72,8 @@ export function RoomStatusPill({
    * attention rather than offering the next status — which is what this
    * component's own prop doc already claimed while the markup did the opposite.
    */
-  const showChevron = !!onPress && !isPriority;
+  const showChevron = !!onPress && !isPriority && !frontOffice;
+  const glyph = (frontOffice && FRONT_OFFICE_GLYPHS[status]) || { icon: config.iconName, height: config.glyphHeight ?? 25.4 };
 
   return (
     <RNView
@@ -105,9 +113,14 @@ export function RoomStatusPill({
             {/* Where the frame draws each mark: its centre across the pill. */}
             <View
               className="absolute items-center justify-center"
-              style={{ left: cardPx(GLYPH_CENTRE[status] ?? 38) - GLYPH_BOX / 2, width: GLYPH_BOX, top: 0, bottom: 0 }}
+              style={{
+                left: cardPx(GLYPH_CENTRE[status] ?? 38) - GLYPH_BOX / 2,
+                width: GLYPH_BOX,
+                top: cardPx(GLYPH_MIDDLE[status] ?? 35) - GLYPH_BOX / 2,
+                height: GLYPH_BOX,
+              }}
             >
-              <Icon name={config.iconName} size={cardPx(config.glyphHeight ?? 25.4)} color={glyphColor} />
+              <Icon name={glyph.icon} size={cardPx(glyph.height)} color={glyphColor} />
             </View>
             {/* 3883:6421: 25x12 at x81, centred down the pill. The registered
                 chevron points right, so it is turned -90deg inside a box
@@ -123,9 +136,9 @@ export function RoomStatusPill({
           </>
         ) : (
           <Icon
-            name={isPriority ? 'action-flag' : config.iconName}
+            name={isPriority ? 'action-flag' : glyph.icon}
             // The rush figure: 33.8 x 28.6 in 3883:5795, centred.
-            size={cardPx(isPriority ? 28.6 : (config.glyphHeight ?? 25.4))}
+            size={cardPx(isPriority ? 28.6 : glyph.height)}
             color={glyphColor}
           />
         )}
@@ -150,6 +163,21 @@ const GLYPH_CENTRE: Partial<Record<RoomDisplayStatus, number>> = {
   DoNotDisturb: 40.5,
 };
 /** Wide enough for the widest mark (the paused vacuum, 46). */
+/**
+ * Front Office draws Dirty with the vacuum (3883:5047, 25.4) rather than the
+ * dust cloud, and Paused as a pause ring (3859:2921: 36.8, 39 with its stroke)
+ * rather than the paused vacuum. Every other mark is housekeeping's.
+ */
+const FRONT_OFFICE_GLYPHS: Partial<Record<RoomDisplayStatus, { icon: IconName; height: number }>> = {
+  Dirty: { icon: 'status-vacuum', height: 25.4 },
+  Paused: { icon: 'status-pause-circle', height: 39 },
+};
+
+/** Its centre down the pill, where the frame draws it off the 35 middle. */
+const GLYPH_MIDDLE: Partial<Record<RoomDisplayStatus, number>> = {
+  Paused: 31.4,
+  Inspected: 32.5,
+};
 const GLYPH_BOX = cardPx(50);
 const CHEVRON_LEFT = cardPx(81);
 const CHEVRON = cardPx(26);

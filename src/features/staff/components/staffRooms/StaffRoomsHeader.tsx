@@ -41,23 +41,23 @@ export default function StaffRoomsHeader({
 }: StaffRoomsHeaderProps) {
   const insets = useSafeAreaInsets();
   const s = (n: number) => n * scaleX;
+  const O = L.header.open;
 
   return (
     <View
-      className="flex-row items-center"
+      className="flex-row items-start"
       style={{
         backgroundColor: C.headerBackground,
-        paddingTop: insets.top + s(L.header.safeAreaGap),
-        paddingBottom: s(L.header.paddingBottom),
+        paddingTop: insets.top + s(O.rowTop),
+        paddingBottom: s(O.rowBottom),
         paddingLeft: s(L.gutter),
         // Clear of the pill, which is positioned over the band's right side.
         paddingRight: onActionPress ? s(L.header.actionPill.right + L.header.actionPill.width + 12) : s(L.gutter),
         gap: s(L.header.chevronToIdentity),
         // The pill sets the band's height, and keeps setting it once hidden;
         // see `header.contentMinHeight`.
-        minHeight:
-          insets.top +
-          s(L.header.safeAreaGap + L.header.reassign.height + L.header.paddingBottom),
+        // 36: the identity row, the taller of it and the 28 chevron.
+        minHeight: insets.top + s(O.rowTop + 36 + O.rowBottom),
       }}
     >
       <Pressable
@@ -91,14 +91,17 @@ export default function StaffRoomsHeader({
           onPress={onActionPress}
           accessibilityRole="button"
           accessibilityLabel={`${actionLabel}, open actions`}
-          className="absolute flex-row items-center justify-center"
+          className="absolute flex-row items-center"
           style={{
-            // 4361:6082 — hangs from the band, its top 27 above the row.
-            top: Math.max(4, insets.top + s(L.header.safeAreaGap - L.header.actionPill.liftAboveRow)),
+            // 4360:4649 — hangs from the band, its top 14 above the row.
+            top: Math.max(4, insets.top + s(O.rowTop - O.pill.liftAboveRow)),
             right: s(L.header.actionPill.right),
-            width: s(L.header.actionPill.width),
+            // 134 around "Action"; grows to fit "Reassign" / "Unassign".
+            minWidth: s(O.pill.minWidth),
             height: s(L.header.actionPill.height),
-            gap: s(12),
+            paddingLeft: s(O.pill.paddingLeft),
+            paddingRight: s(O.pill.paddingRight),
+            gap: s(O.pill.gap),
             borderRadius: s(L.header.actionPill.radius),
             backgroundColor: '#5a759d',
           }}
@@ -114,9 +117,10 @@ export default function StaffRoomsHeader({
           >
             {actionLabel}
           </Text>
-          <View style={{ width: s(16), height: s(8), alignItems: 'center', justifyContent: 'center' }}>
+          {/* 4360:4652 — 21x10: the left-pointing chevron, 21 tall, turned down. */}
+          <View style={{ width: s(O.pill.chevronWidth), height: s(O.pill.chevronHeight), alignItems: 'center', justifyContent: 'center' }}>
             <View style={{ transform: [{ rotate: '-90deg' }] }}>
-              <Icon name="action-chevron" size={s(16)} color={L.header.actionPill.color} />
+              <Icon name="action-chevron" size={s(O.pill.chevronWidth)} color={L.header.actionPill.color} />
             </View>
           </View>
         </Pressable>

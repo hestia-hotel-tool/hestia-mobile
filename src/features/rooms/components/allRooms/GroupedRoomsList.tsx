@@ -9,7 +9,8 @@ import {
 import { View } from '@/tw';
 import type { RoomCardData } from '../../types/allRooms.types';
 import { RoomGroupHeader } from './RoomGroupHeader';
-import { GROUP_ORDER, type RoomGroup } from '../../utils/roomGroups';
+import { GROUP_ORDER, type RoomGroup, type RoomGroupKey } from '../../utils/roomGroups';
+import { ROOM_CARD, cardPx } from '../roomsList/roomCardLayout';
 import { scrollTargetOf, type ScrollTarget } from '../../utils/scrollTarget';
 
 /**
@@ -34,10 +35,33 @@ import { scrollTargetOf, type ScrollTarget } from '../../utils/scrollTarget';
  */
 const PINNED_MAX_FRACTION = 0.4;
 
+/** Bands whose cards Front Office gathers in a tray — the 392 cards' bands. */
+const TRAY_BANDS: ReadonlySet<RoomGroupKey> = new Set(['dirty', 'cleaned', 'inspected']);
+
+/** Where a card sits in its band's tray, for the screen to size its slot. */
+export type TrayPlacement = { last: boolean };
+
+/**
+ * Front Office's tray — Figma 3859:2479 / 3859:2478: a 422 #f9fafc panel with
+ * the 422 cards' blue-grey hairline at radius 12, its cards 15 in from each
+ * side, 18 from its top and bottom edges.
+ */
+const TRAY = {
+  fill: '#f9fafc',
+  border: 'rgba(90, 117, 157, 0.23)',
+  radius: cardPx(12),
+  padY: cardPx(18),
+} as const;
+
 export type GroupedRoomsListProps = {
   groups: RoomGroup[];
-  /** The screen owns card refs and handlers, so it draws the cards. */
-  renderRoom: (room: RoomCardData) => React.ReactNode;
+  /**
+   * The screen owns card refs and handlers, so it draws the cards. `tray` is
+   * set for a card inside a band's tray, whose slot the tray already insets.
+   */
+  renderRoom: (room: RoomCardData, tray?: TrayPlacement) => React.ReactNode;
+  /** Gather the Dirty, Cleaned and Inspected bands in trays — Front Office (3859:1919). */
+  trayBands?: boolean;
   /**
    * Float the In Progress band once it scrolls off the top. Supervisors only —
    * see `ROOMS_LIST_CHROME`.
@@ -88,6 +112,7 @@ export function GroupedRoomsList({
   groups,
   renderRoom,
   stickyInProgress = false,
+  trayBands = false,
   scrollProps,
   scrollRef,
 }: GroupedRoomsListProps) {
@@ -168,7 +193,37 @@ export function GroupedRoomsList({
         sections={sections}
         keyExtractor={(room) => room.id}
         renderSectionHeader={({ section }) => <RoomGroupHeader label={section.label} color={section.color} />}
-        renderItem={({ item }) => <>{renderRoom(item)}</>}
+        renderItem={({ item, index, section }) => {
+          if (!trayBands || !TRAY_BANDS.has(section.key)) return <>{renderRoom(item)}</>;
+          const first = index === 0;
+          const last = index === section.data.length - 1;
+          // One tray drawn a card at a time: each card carries the tray's sides,
+          // the first its top and the last its bottom, so the list still
+          // virtualises card by card.
+          return (
+            <View
+              style={{
+                marginHorizontal: ROOM_CARD.listGutter,
+                marginBottom: last ? cardPx(16) : 0,
+                paddingTop: first ? TRAY.padY - 1 : 0,
+                paddingBottom: last ? TRAY.padY - 1 : 0,
+                backgroundColor: TRAY.fill,
+                borderColor: TRAY.border,
+                borderLeftWidth: 1,
+                borderRightWidth: 1,
+                borderTopWidth: first ? 1 : 0,
+                borderBottomWidth: last ? 1 : 0,
+                borderTopLeftRadius: first ? TRAY.radius : 0,
+                borderTopRightRadius: first ? TRAY.radius : 0,
+                borderBottomLeftRadius: last ? TRAY.radius : 0,
+                borderBottomRightRadius: last ? TRAY.radius : 0,
+              }}
+            >
+              {/* -1 each side: the cards sit 15 from the tray's outer edge, hairline included. */}
+              <View style={{ marginHorizontal: -1 }}>{renderRoom(item, { last })}</View>
+            </View>
+          );
+        }}
         stickySectionHeadersEnabled={false}
         initialNumToRender={6}
         maxToRenderPerBatch={6}

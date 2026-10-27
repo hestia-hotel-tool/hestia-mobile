@@ -236,6 +236,7 @@ export default function RootLayout() {
             <Stack.Screen name="settings/shifts/[id]" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
             <Stack.Screen name="settings/hotel" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
             <Stack.Screen name="settings/credits" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
+            <Stack.Screen name="settings/storage-locations" options={{ headerShown: true, headerBackButtonDisplayMode: 'minimal' }} />
             <Stack.Screen name="select-ticket-location" />
             <Stack.Screen name="create-ticket-form" />
           </Stack>

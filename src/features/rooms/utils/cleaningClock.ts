@@ -94,7 +94,15 @@ const creditsUsed = (elapsedMs: number) => Math.max(0, Math.round(elapsedMs / 60
  *  - Cleaned / Inspected: "Credits: 33", light 10 in the status colour (blue,
  *    green); bold red when it took longer than the credit.
  */
-export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
+/**
+ * The line under the assignee's name.
+ *
+ * `minutes` is Front Office's wording (Figma 3859:1919): "Started: N mins"
+ * while the room is being cleaned and "Time: N mins" once it is done, in light
+ * 12 — housekeeping's credits are a housekeeping measure. The number is the
+ * same either way (a credit is a minute); an overdue room still turns red.
+ */
+export function assigneeStatus(room: ClockRoom, now: number, { minutes = false }: { minutes?: boolean } = {}): AssigneeStatus {
   if (room.dndAt) {
     const next = room.dndNextCheckAt ? Date.parse(room.dndNextCheckAt) : NaN;
     if (!Number.isFinite(next)) return line('Do Not Disturb', 12, 'light');
@@ -118,12 +126,14 @@ export function assigneeStatus(room: ClockRoom, now: number): AssigneeStatus {
   switch (room.houseKeepingStatus) {
     case 'InProgress': {
       const over = !!clock?.overdue;
+      if (minutes) return line(`Started: ${creditsUsed(clock?.elapsedMs ?? 0)} mins`, 12, 'light', over ? ALERT : INK, over);
       return line(`Credits: ${creditsUsed(clock?.elapsedMs ?? 0)}`, 13, 'bold', over ? ALERT : INK, over);
     }
     case 'Cleaned':
     case 'Inspected': {
       const colour = room.houseKeepingStatus === 'Cleaned' ? '#4a91fc' : '#41d541';
-      if (!clock) return line(room.houseKeepingStatus, 10, 'light', colour);
+      if (!clock) return line(room.houseKeepingStatus, minutes ? 12 : 10, 'light', minutes ? INK : colour);
+      if (minutes) return line(`Time: ${creditsUsed(clock.elapsedMs)} mins`, 12, 'light', clock.overdue ? ALERT : INK, clock.overdue);
       return clock.overdue
         ? line(`Credits: ${creditsUsed(clock.elapsedMs)}`, 10, 'bold', ALERT, true)
         : line(`Credits: ${creditsUsed(clock.elapsedMs)}`, 10, 'light', colour);

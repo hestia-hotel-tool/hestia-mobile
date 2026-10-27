@@ -482,7 +482,7 @@ export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
   Inspected: {
     color: '#41d541',
     iconName: 'status-approved',
-    glyphHeight: 26,
+    glyphHeight: 25,
     label: 'Inspected',
   },
   /**

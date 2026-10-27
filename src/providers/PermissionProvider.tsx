@@ -55,6 +55,7 @@ const ROOMS_VARIANTS: ReadonlySet<string> = new Set<RoomsVariant>([
   'leadership',
   'supervisor',
   'attendant',
+  'front_office',
 ]);
 
 /**

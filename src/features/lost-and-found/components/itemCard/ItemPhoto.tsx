@@ -3,6 +3,9 @@ import { Animated } from 'react-native';
 import { View } from '@/tw';
 import { Image } from '@/tw/image';
 import { scaleX } from '@/utils/responsive';
+import { Text } from '@/tw';
+import { Icon } from '@/components/Icon';
+import { typography } from '@/theme';
 import { LOST_AND_FOUND_CARD_LAYOUT as L } from './lostAndFoundCardLayout';
 
 export type ItemPhotoProps = {
@@ -50,13 +53,24 @@ export function ItemPhoto({ source }: ItemPhotoProps) {
     return () => animation.stop();
   }, [loading, pulse]);
 
-  if (!source) return null;
-
   const box = {
     width: L.photo.width * scaleX,
     height: L.photo.height * scaleX,
     borderRadius: L.photo.radius * scaleX,
   };
+
+  // Registered with a description and no photo (a photo is no longer
+  // required): a placeholder the photo's size, so every card lines up.
+  if (!source) {
+    return (
+      <View className="items-center justify-center bg-surface-secondary" style={box} accessibilityLabel="No photo">
+        <Icon name="nav-lost-found" size={34 * scaleX} color="#9aa9bf" />
+        <Text style={{ marginTop: 6 * scaleX, fontSize: 11 * scaleX, color: '#8a97ad', fontFamily: typography.fontFamily.primary }}>
+          No photo
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View className="overflow-hidden bg-surface-secondary" style={box}>

@@ -53,6 +53,8 @@ export type RoomRowProps = {
   slotStyle?: any;
   /** The porter's view: the porter check pill (always tappable) and Guest in / Out. */
   porter?: { status: import('../../utils/porter').PorterStatus; guestIn: boolean };
+  /** `chrome.frontOffice` — the rebuilt card in Front Office's dress. */
+  frontOffice?: boolean;
 };
 
 function RoomRowInner({
@@ -71,6 +73,7 @@ function RoomRowInner({
   LegacyCard,
   slotStyle,
   porter,
+  frontOffice,
 }: RoomRowProps) {
   const handlePress = useCallback(() => onPress(room), [onPress, room]);
   const handleStatusPress = useCallback(() => onStatusPress(room), [onStatusPress, room]);
@@ -98,6 +101,7 @@ function RoomRowInner({
           onStatusPress={canChangeStatus || porter ? handleStatusPress : undefined}
           onAssignPress={onAssignPress ? handleAssignPress : undefined}
           porter={porter}
+          frontOffice={frontOffice}
           isChangingStatus={isChangingStatus}
           measureRef={measureRef}
           statusPillRef={pillRef}

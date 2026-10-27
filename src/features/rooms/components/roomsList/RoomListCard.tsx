@@ -18,6 +18,8 @@ export type RoomListCardProps = {
   statusPillRef?: React.Ref<RNView>;
   /** The porter's view — see SingleGuestRoomCard. */
   porter?: { status: import('../../utils/porter').PorterStatus; guestIn: boolean };
+  /** Front Office's dress — Figma 3859:1919. */
+  frontOffice?: boolean;
 };
 
 /**

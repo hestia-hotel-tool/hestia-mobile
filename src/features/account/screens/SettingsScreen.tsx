@@ -57,6 +57,7 @@ export default function SettingsScreen() {
   const canManageStaff = can(PERMISSIONS.STAFF_MANAGE);
   const canManageHotel = can(PERMISSIONS.SETTINGS_MANAGE);
   const canManageCredits = can(PERMISSIONS.ROOMS_CREDITS_MANAGE);
+  const canManageStorage = can(PERMISSIONS.LOST_AND_FOUND_MANAGE);
   const now = useNow();
 
   const [account, setAccount] = useState<MyAccount | null>(null);
@@ -214,7 +215,7 @@ export default function SettingsScreen() {
           />
         ) : null}
 
-        {canManageStaff || canManageHotel || canManageCredits ? (
+        {canManageStaff || canManageHotel || canManageCredits || canManageStorage ? (
           <SettingsSection title="Management">
             {canManageStaff ? (
               <SettingsRow
@@ -230,6 +231,14 @@ export default function SettingsScreen() {
                 label="Cleaning credits"
                 detail="How long each room type takes to clean"
                 onPress={() => router.push('/settings/credits')}
+              />
+            ) : null}
+            {canManageStorage ? (
+              <SettingsRow
+                icon="archive-outline"
+                label="Lost & Found storage"
+                detail="Where found items are kept"
+                onPress={() => router.push('/settings/storage-locations')}
               />
             ) : null}
             {canManageHotel ? (

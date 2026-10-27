@@ -59,6 +59,7 @@ export const ROUTE_PERMISSIONS: Record<string, Permission> = {
   'settings/shifts': PERMISSIONS.STAFF_MANAGE,
   'settings/hotel': PERMISSIONS.SETTINGS_MANAGE,
   'settings/credits': PERMISSIONS.ROOMS_CREDITS_MANAGE,
+  'settings/storage-locations': PERMISSIONS.LOST_AND_FOUND_MANAGE,
 
   // Tickets. The detail needs the Tickets tab; the edit sheet tickets.update —
   // the screen and the database narrow it to the ticket's author and managers.

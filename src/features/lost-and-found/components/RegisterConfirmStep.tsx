@@ -34,6 +34,8 @@ export type RegisterConfirmStepProps = {
   onEditLocation: () => void;
   /** Back to step 2 — people, status and storage. */
   onEditDetails: () => void;
+  /** Line staff register as themselves: no editing who found / registered it. */
+  peopleLocked?: boolean;
   onAddPhoto: () => void;
 };
 
@@ -79,6 +81,7 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
     pictures,
     onEditLocation,
     onEditDetails,
+    peopleLocked = false,
     onAddPhoto,
   } = props;
   const isRoom = location === 'room';
@@ -151,12 +154,12 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
       {/* Node 4231:581 — who found it, who registered it. */}
       <View style={[styles.panel, styles.peoplePanel]}>
         <Text style={[styles.heading, styles.peopleHeading]}>Found by</Text>
-        <PersonRow person={foundedBy} onEdit={onEditDetails} editLabel="Edit who found it" />
+        <PersonRow person={foundedBy} onEdit={peopleLocked ? undefined : onEditDetails} editLabel="Edit who found it" />
         <View style={styles.peopleRule} />
         <Text style={[styles.heading, styles.peopleHeading, styles.registeredHeading]}>
           Registered by
         </Text>
-        <PersonRow person={registeredBy} onEdit={onEditDetails} editLabel="Edit who registered it" />
+        <PersonRow person={registeredBy} onEdit={peopleLocked ? undefined : onEditDetails} editLabel="Edit who registered it" />
       </View>
 
       {/* Node 1102:3280 */}
@@ -259,7 +262,7 @@ function PersonRow({
   editLabel,
 }: {
   person: ConfirmPerson;
-  onEdit: () => void;
+  onEdit?: () => void;
   editLabel: string;
 }) {
   return (
@@ -271,7 +274,7 @@ function PersonRow({
         </Text>
         {person.department ? <Text style={styles.personDept}>{person.department}</Text> : null}
       </View>
-      <EditButton onPress={onEdit} label={editLabel} />
+      {onEdit ? <EditButton onPress={onEdit} label={editLabel} /> : null}
     </View>
   );
 }

@@ -184,7 +184,7 @@ function mapRowToTicketData(
 
   /** Relative “mins” line is superseded by calendar due line on the card when `due_at` is set. */
   const dueTimeDisplay =
-    (status === 'unsolved' || status === 'ofo') && !dueAtIso && Number.isFinite(createdAtMs)
+    (status === 'unsolved' || status === 'inProgress' || status === 'ofo') && !dueAtIso && Number.isFinite(createdAtMs)
       ? formatElapsed((nowMs - createdAtMs) / 60000)
       : undefined;
 
@@ -230,8 +230,19 @@ function mapStatus(raw: string | null | undefined): TicketStatus {
   if (value === 'ofo' || value === 'out_of_order' || value === 'oof' || value === 'oft') {
     return 'ofo';
   }
+  if (value === 'in_progress' || value === 'inprogress') {
+    return 'inProgress';
+  }
   return 'unsolved';
 }
+
+/** The `tickets.status` value written for each state. */
+const STATUS_COLUMN: Record<TicketStatus, string> = {
+  done: 'done',
+  unsolved: 'unsolved',
+  inProgress: 'in_progress',
+  ofo: 'ofo',
+};
 
 /** Closed tickets the list keeps showing; open ones always show. */
 const TICKET_WINDOW_DAYS = 30;
@@ -271,7 +282,8 @@ export async function getTicketCountsForDepartment(departmentName: string): Prom
   for (const r of rows) {
     const status = mapStatus(r.status);
     if ((r.priority ?? '').toLowerCase() === 'urgent') counts.priority += 1;
-    if (status === 'unsolved') counts.unsolved += 1;
+    // In Progress is not solved yet: the dashboards' four circles count it unsolved.
+    if (status === 'unsolved' || status === 'inProgress') counts.unsolved += 1;
     else if (status === 'done') counts.solved += 1;
     else if (status === 'ofo') counts.outOfOrder += 1;
   }
@@ -529,7 +541,7 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
   if (!isSupabaseConfigured) return;
   const { error } = await supabase
     .from('tickets')
-    .update({ status })
+    .update({ status: STATUS_COLUMN[status] })
     .eq('id', ticketId);
 
   if (error) {

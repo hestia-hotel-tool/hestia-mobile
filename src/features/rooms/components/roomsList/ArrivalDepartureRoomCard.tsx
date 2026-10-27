@@ -14,6 +14,7 @@ import { GuestRow } from './GuestRow';
 import { RoomStatusPill } from './RoomStatusPill';
 import { RoomPromiseRow } from './RoomPromiseRow';
 import { RoomAssigneeBlock } from './RoomAssigneeBlock';
+import { StatusCap, hasStatusCap } from './StatusCap';
 import { isActivePriority } from '../../utils/roomGroups';
 import { roomBadges } from './RoomBadgeTile';
 import { PorterStatusPill, GuestPresence } from './PorterStatusPill';
@@ -36,6 +37,8 @@ export type ArrivalDepartureRoomCardProps = {
    * room status pill, and Guest in / Guest Out replaces the assignee.
    */
   porter?: { status: PorterStatus; guestIn: boolean };
+  /** Front Office's dress — Figma 3859:1919 (see ROOMS_LIST_CHROME.front_office). */
+  frontOffice?: boolean;
 };
 
 /**
@@ -58,11 +61,12 @@ export function ArrivalDepartureRoomCard({
   measureRef,
   statusPillRef,
   porter,
+  frontOffice = false,
 }: ArrivalDepartureRoomCardProps) {
   // Live: "Credits", "Return at" and the promise move with the clock.
   // Only cards with a running clock follow the tick (see roomHasLiveClock).
   const now = useNow(roomHasLiveClock(room));
-  const status = assigneeStatus(room, now);
+  const status = assigneeStatus(room, now, { minutes: frontOffice });
   const promise = promiseLine(room, now);
   const displayStatus = getRoomCardStatus(room);
   // The red frame and rush pill are for a priority room still to be started
@@ -73,6 +77,8 @@ export function ArrivalDepartureRoomCard({
     : isActivePriority(room) && displayStatus === 'Dirty';
   // A porter's card is styled by the porter check, not the cleaning status.
   const specStatus = porter ? PORTER_SPEC_STATUS[porter.status] : displayStatus;
+  // Front Office caps a Paused or In Progress card (3859:2876 / 3859:2426).
+  const capped = frontOffice && !porter && !priority && hasStatusCap(displayStatus);
   const spec = ROOM_CARD_SPECS[roomCardSpecName(specStatus, true, priority)];
   const staff = room.roomAttendantAssigned;
 
@@ -97,7 +103,14 @@ export function ArrivalDepartureRoomCard({
   };
 
   return (
-    <RoomCardShell spec={spec} framed={priority} onPress={onPress} onLayout={onLayout} measureRef={measureRef}>
+    <RoomCardShell
+      spec={spec}
+      framed={priority}
+      onPress={onPress}
+      onLayout={onLayout}
+      measureRef={measureRef}
+      cap={capped ? <StatusCap status={displayStatus} /> : undefined}
+    >
       <RoomCardHeader
         spec={spec}
         roomNumber={room.roomNumber}
@@ -138,6 +151,7 @@ export function ArrivalDepartureRoomCard({
           <RoomStatusPill
             status={displayStatus}
             tone={priority ? 'priority' : 'solid'}
+            frontOffice={frontOffice}
             onPress={onStatusPress}
             loading={isChangingStatus}
             measureRef={statusPillRef}

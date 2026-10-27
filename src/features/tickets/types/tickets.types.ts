@@ -1,7 +1,11 @@
 export type TicketTab = 'myTickets' | 'all' | 'open' | 'closed';
 
-/** `ofo` = out-of-order / OFT pill (Figma 3147:87). */
-export type TicketStatus = 'done' | 'unsolved' | 'ofo';
+/**
+ * `ofo` = out-of-order / OFT pill (Figma 3147:87). `inProgress` is someone
+ * working on it (client feedback, 2026-10-27) — still open, stored as
+ * `in_progress`.
+ */
+export type TicketStatus = 'done' | 'unsolved' | 'inProgress' | 'ofo';
 
 export interface TicketData {
   id: string;

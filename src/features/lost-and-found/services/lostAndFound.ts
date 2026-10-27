@@ -394,7 +394,8 @@ export async function createLostAndFoundItem(
       status,
       storage_location: storedLocation,
       found_at: foundAt,
-      found_by_id: userId,
+      // The form's "Found by" — it used to be ignored and always set to the registrant.
+      found_by_id: (itemData.foundedBy as string | undefined) || userId,
       registered_by_id: registeredByIdFromForm ?? userId,
       found_location: foundLocation,
       room_id: selectedLocation === 'room' && selectedRoom ? selectedRoom.id ?? null : null,
