@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "431390828427",
+    "project_id": "hestia-tool-7a092",
+    "storage_bucket": "hestia-tool-7a092.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:431390828427:android:c777854fe4ac2a4a9bb18e",
+        "android_client_info": {
+          "package_name": "com.hestiahotels.app.preview"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAKJmfr8pxpQg1WIbx8oPMIkf6blvCbLbc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

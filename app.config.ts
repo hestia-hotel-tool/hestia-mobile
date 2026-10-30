@@ -1,3 +1,4 @@
+import { existsSync } from "fs";
 import { ConfigContext, ExpoConfig } from "expo/config";
 
 const EAS_PROJECT_ID = "1ac5a146-2c0d-497b-b6c6-ddebcaed2b38";
@@ -11,6 +12,16 @@ const PACKAGE_NAME = "com.hestiahotels.app";
 const ICON = "./assets/app/icon.png";
 const ADAPTIVE_ICON = "./assets/app/adaptive-icon.png";
 const SCHEME = "hestia";
+
+/*
+ * Firebase config for Android push (FCM). Expo's push service delivers to
+ * Android through FCM, so without it `getExpoPushTokenAsync` fails on Android.
+ * One file covers all three package names (prod, .preview, .dev) once each is
+ * registered in the Firebase project. On EAS it can come from a file
+ * environment variable instead (GOOGLE_SERVICES_JSON). Left out when absent,
+ * so a checkout without it still builds — just without Android push.
+ */
+const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   console.log("⚙️ Building app for environment:", process.env.APP_ENV);
@@ -58,6 +69,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       package: packageName,
       softwareKeyboardLayoutMode: "resize",
+      ...(existsSync(GOOGLE_SERVICES_FILE) ? { googleServicesFile: GOOGLE_SERVICES_FILE } : {}),
     },
     web: {
       favicon: "./assets/app/favicon.png",

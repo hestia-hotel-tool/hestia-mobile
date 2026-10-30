@@ -3,6 +3,7 @@ import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { typography } from '@/theme';
 import { ROOM_CARD, cardPx } from './roomCardLayout';
+import { useCompactAssignee } from './RoomCardHeader';
 import { AssignRoomButton } from '../allRooms/AssignRoomButton';
 import type { AssigneeStatus } from '../../utils/cleaningClock';
 
@@ -31,6 +32,8 @@ const STATUS_GAP = cardPx(17.5 - 14.9);
  * a tap target for the room.
  */
 export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssigneeBlockProps) {
+  // The header is short of room for its badge tiles: the pill gives way, not them.
+  const compact = useCompactAssignee();
   const statusText = status ? (
     <Text
       style={{
@@ -55,7 +58,7 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
     // Right-aligned in the column, against the card's edge; any line under it follows.
     return (
       <View className="items-end gap-xs" style={{ marginRight: cardPx(12) }}>
-        <AssignRoomButton onPress={onPress} />
+        <AssignRoomButton onPress={onPress} compact={compact} />
         {statusText}
       </View>
     );

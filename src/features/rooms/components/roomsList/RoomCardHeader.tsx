@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { createContext, useContext, useState } from 'react';
 import { View, Text } from '@/tw';
 import { colors, typography } from '@/theme';
 import { ROOM_CARD, cardPx, type RoomCardSpec } from './roomCardLayout';
@@ -25,6 +25,14 @@ export type RoomCardHeaderProps = {
 };
 
 const INK = '#334866';
+
+/**
+ * True when the header needs the assignee column narrower than its content, so
+ * the badge tiles keep their full size: the "Assign room" pill drops to its
+ * "+" disc (RoomAssigneeBlock).
+ */
+const CompactAssigneeContext = createContext(false);
+export const useCompactAssignee = () => useContext(CompactAssigneeContext);
 const NUMBER_LINE = cardPx(31);
 
 /**
@@ -139,7 +147,7 @@ export function RoomCardHeader({
           marginTop: spec.avatarTop - spec.ruleTop,
         }}
       >
-        {assignee}
+        <CompactAssigneeContext.Provider value={layout?.compact ?? false}>{assignee}</CompactAssigneeContext.Provider>
       </View>
 
       {/* An invisible, unconstrained copy of the assignee, measured so its
@@ -175,7 +183,13 @@ const TIGHT_AVATAR_GAP = cardPx(8);
 /** Clear space after the name, so it never touches the card's edge. */
 const TRAILING = cardPx(4);
 
-type HeaderLayout = { rightColumn: number; tile: number; gap: number; avatarGap: number };
+/**
+ * The narrowest the column goes once compact: a photo, its gap and a few
+ * letters of a name — more than the "+" disc and its edge margin need.
+ */
+const COMPACT_ASSIGNEE = cardPx(35 + 8 + 40);
+
+type HeaderLayout = { rightColumn: number; tile: number; gap: number; avatarGap: number; compact: boolean };
 
 /**
  * Place the badge tiles beside the text, without overlapping it and without
@@ -183,10 +197,12 @@ type HeaderLayout = { rightColumn: number; tile: number; gap: number; avatarGap:
  *
  * Tiles are the design's 38 x 34.4, 4 apart — one, two or three look the
  * same. When they do not fit at the card's right column, the column gives up
- * the width they need, but never below the assignee's own width (photo, name,
- * status), with the gap before the photo tightened to 8. Only if even that is
- * not enough — a long type label and three badges on a small phone — do the
- * tiles shrink, all together, to fit.
+ * the width they need, first down to the assignee's own width (photo, name,
+ * status), with the gap before the photo tightened to 8. If that is still not
+ * enough — "Arrival/Departure", three badges and the "Assign room" pill — the
+ * assignee goes compact (the pill becomes its "+" disc, a name truncates) so
+ * the tiles still keep their size. Only on a phone too narrow even for that
+ * do the tiles shrink, all together, to fit.
  */
 function headerLayout(
   spec: RoomCardSpec,
@@ -200,13 +216,18 @@ function headerLayout(
 
   const atDesign = spaceWith(spec.rightColumn);
   if (atDesign >= ideal) {
-    return { rightColumn: spec.rightColumn, tile: BADGE_TILE.width, gap: TILE_GAP, avatarGap: spec.avatarGap };
+    return { rightColumn: spec.rightColumn, tile: BADGE_TILE.width, gap: TILE_GAP, avatarGap: spec.avatarGap, compact: false };
   }
   const avatarGap = Math.min(spec.avatarGap, TIGHT_AVATAR_GAP);
+  const wanted = spec.rightColumn - (ideal - atDesign);
   // 1 for the spacer where the rule was.
   const floor = Math.min(spec.rightColumn, 1 + avatarGap + assigneeWidth + TRAILING);
-  const rightColumn = Math.max(floor, spec.rightColumn - (ideal - atDesign));
+  if (wanted >= floor) {
+    return { rightColumn: wanted, tile: BADGE_TILE.width, gap: TILE_GAP, avatarGap, compact: false };
+  }
+  const compactFloor = Math.min(floor, 1 + avatarGap + COMPACT_ASSIGNEE);
+  const rightColumn = Math.max(compactFloor, wanted);
   const space = spaceWith(rightColumn);
   const tile = Math.min(BADGE_TILE.width, (space - TILE_GAP * (count - 1)) / count);
-  return { rightColumn, tile, gap: TILE_GAP, avatarGap };
+  return { rightColumn, tile, gap: TILE_GAP, avatarGap, compact: true };
 }
