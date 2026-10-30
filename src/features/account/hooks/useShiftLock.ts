@@ -43,8 +43,11 @@ const REFRESH_MS = 5 * 60_000;
  */
 export function useShiftLock(): ShiftLock {
   const { roomsVariant, homeVariant } = usePermissions();
-  // Attendants, and porters ("everything the same as the room attendant").
-  const locked = roomsVariant === 'attendant' || homeVariant === 'hsk_portier';
+  // Attendants, porters ("everything the same as the room attendant") and
+  // laundry, who read the shift that is on now.
+  const locked = roomsVariant === 'attendant' || roomsVariant === 'laundry' || homeVariant === 'hsk_portier';
+  /** Never assigned rooms: only a rostered shift says when they work. */
+  const neverAssigned = roomsVariant === 'laundry' || homeVariant === 'hsk_portier';
 
   // Ticks every 15s: the shift boundary is picked up within that.
   const nowMs = useNow(locked);
@@ -80,10 +83,13 @@ export function useShiftLock(): ShiftLock {
   useLiveRoomChanges(() => void load(), { enabled: locked });
 
   let offShift: OffShift | null = null;
-  // A porter is never assigned rooms, so only a rostered shift says when they
-  // work; one with none is treated as on every shift rather than locked out.
-  const porterUnrostered = homeVariant === 'hsk_portier' && mine != null && mine.rostered == null;
-  if (locked && mine && !porterUnrostered) {
+  // A porter or laundry attendant is never assigned rooms, so only a rostered
+  // shift says when they work; one with none is treated as on every shift
+  // rather than locked out.
+  const unrostered = neverAssigned && mine != null && mine.rostered == null;
+  // Laundry reads every room on the shift that is on now, whatever their own
+  // roster says: the linen runs whenever rooms are being turned.
+  if (locked && mine && !unrostered && roomsVariant !== 'laundry') {
     const works = (s: ShiftType) => mine.assigned.has(s) || mine.rostered === s;
     if (!works(shift)) {
       const now = new Date(nowMs);

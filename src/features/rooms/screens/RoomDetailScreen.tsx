@@ -111,7 +111,7 @@ export default function RoomDetailScreen() {
       data: st.data,
     }))
   );
-  const { accessFor, canInspect: canInspectRooms } = useRoomStatusAccess();
+  const { accessFor, canChangeAnyStatus, canInspect: canInspectRooms } = useRoomStatusAccess();
   const { can } = usePermissions();
   const canManageNotes = can(PERMISSIONS.ROOMS_NOTES_MANAGE);
   const myUserId = useAuth().session?.user?.id ?? null;
@@ -121,6 +121,14 @@ export default function RoomDetailScreen() {
    * disabled, so the attendant sees who has the room and nothing to tap.
    */
   const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
+  /*
+   * The same rule as the Rooms list: the status row opens the sheet only for
+   * someone who can do something in it — a status step, priority or the flag.
+   * Without a handler the row draws as mark and label alone, no chevron
+   * (RoomHeaderStatusButton), which is what Laundry reads.
+   */
+  const canOpenStatusSheet =
+    canChangeAnyStatus || can(PERMISSIONS.ROOMS_RUSH_TOGGLE) || can(PERMISSIONS.ROOMS_FLAG_TOGGLE);
   const messageModal = useMessageModal();
   const shift = roomsData?.selectedShift ?? 'AM';
 
@@ -1265,7 +1273,7 @@ export default function RoomDetailScreen() {
         lostAndFoundItems={lostAndFoundItems}
         historyEvents={historyEvents}
         onBackPress={handleBackPress}
-        onStatusPress={handleStatusPress}
+        onStatusPress={canOpenStatusSheet ? handleStatusPress : undefined}
         onReassign={canReassign ? handleReassign : undefined}
         onAddNote={handleAddNote}
         onAddTask={handleAddTask}

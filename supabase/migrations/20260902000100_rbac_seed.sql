@@ -476,7 +476,7 @@ SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
     ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('housekeeping_room_attendant', 'Housekeeping Room Attendant', 'housekeeping', 'hk_room_attendant', 'default', 'attendant'),
     ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier', 'leadership'),
-    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'attendant'),
+    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'laundry'),
     ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default', 'attendant'),
     ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default', 'front_office'),
     ('front_office_manager', 'Front Office Manager', 'front_office', 'ops_senior', 'default', 'front_office'),

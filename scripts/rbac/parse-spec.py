@@ -296,7 +296,10 @@ ROOMS_VARIANTS = {
     "supervisor": "supervisor",
     # Attendants get the same banded list, over their own rooms only.
     "housekeeping_room_attendant": "attendant",
-    "housekeeping_laundry_attendant": "attendant",
+    # Laundry is never assigned rooms: they read every room on the shift that
+    # is on now, read-only, with the shift's linen workload above the list
+    # (`laundry`). An assigned-only list would always be empty for them.
+    "housekeeping_laundry_attendant": "laundry",
     "housekeeping_public_area_attendant": "attendant",
     # The porter is the exception among the attendant titles: they work the
     # whole floor rather than a room list of their own, so they read every room.

@@ -56,6 +56,7 @@ const ROOMS_VARIANTS: ReadonlySet<string> = new Set<RoomsVariant>([
   'supervisor',
   'attendant',
   'front_office',
+  'laundry',
 ]);
 
 /**
@@ -111,6 +112,20 @@ function asHomeVariant(value: unknown): HomeVariant {
     console.warn(`[PermissionProvider] unknown home variant "${String(value)}"; using default.`);
   }
   return 'default';
+}
+
+/**
+ * An attendant title that cannot change a room's status reads every room,
+ * view only (`laundry`), not the assigned-only list.
+ *
+ * Rooms are only ever assigned to Room Attendants (`fetchRoomAttendants`), and
+ * they are the attendants who hold `rooms.status.update`. Any other attendant
+ * title on the `attendant` layout would open an empty list, which is what the
+ * Laundry Attendant got until 20261030090000_rooms_variant_laundry.sql — and
+ * still gets on a database that has not run it.
+ */
+function readOnlyAttendant(variant: RoomsVariant, keys: readonly string[]): RoomsVariant {
+  return variant === 'attendant' && !keys.includes('rooms.status.update') ? 'laundry' : variant;
 }
 
 const PermissionContext = createContext<PermissionContextValue>({
@@ -185,7 +200,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       const keys = (permissionsResult.data ?? []) as Permission[];
       setPermissions(new Set(keys));
       setHomeVariant(asHomeVariant(variantResult.data));
-      setRoomsVariant(asRoomsVariant(roomsVariantResult.data));
+      setRoomsVariant(readOnlyAttendant(asRoomsVariant(roomsVariantResult.data), keys));
       setFailState({ user: forUser, n: 0 });
       setError(
         keys.length === 0

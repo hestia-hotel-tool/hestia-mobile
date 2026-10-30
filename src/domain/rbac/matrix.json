@@ -793,7 +793,7 @@
       "department": "housekeeping",
       "role": "hk_laundry",
       "homeVariant": "default",
-      "roomsVariant": "attendant"
+      "roomsVariant": "laundry"
     },
     {
       "key": "housekeeping_public_area_attendant",

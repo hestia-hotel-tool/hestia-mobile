@@ -18,6 +18,7 @@ import {
 } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
+import { LINEN_FOCI, LinenSummary, ViewOnlyChip, type LinenFocus } from '../components/allRooms/LinenSummary';
 import { useUser } from '@features/account/hooks/useUser';
 import RoomCard from '../components/allRooms/RoomCard';
 import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
@@ -52,7 +53,7 @@ import { groupRoomsForPorter, isGuestIn, type PorterAction } from '../utils/port
 import PorterStatusModal from '../components/PorterStatusModal';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
-import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
+import { activeFilterGroups, applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
 import { scrollTargetOf, trackRef, type ScrollTarget } from '../utils/scrollTarget';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
@@ -621,6 +622,33 @@ export default function AllRoomsScreen() {
     });
   }, [navigation]);
 
+  /**
+   * The linen tile whose filter is on: exactly that one guest filter and
+   * nothing else, so a selection made in the filter sheet never lights a tile.
+   */
+  const linenFocus = useMemo<LinenFocus | null>(() => {
+    if (!chrome.linenSummary || !activeFilters) return null;
+    const groups = activeFilterGroups(activeFilters);
+    if (groups.roomStates || groups.reservations || groups.floors) return null;
+    const on = Object.entries(activeFilters.guests).filter(([, v]) => v).map(([k]) => k);
+    return on.length === 1 && LINEN_FOCI.includes(on[0] as LinenFocus) ? (on[0] as LinenFocus) : null;
+  }, [chrome.linenSummary, activeFilters]);
+
+  /** A linen tile: show only its rooms, or every room again when it is already on. */
+  const handleLinenSelect = useCallback(
+    (focus: LinenFocus) => {
+      if (linenFocus === focus) {
+        clearAllFilters();
+        return;
+      }
+      setLocalFilters({
+        roomStates: { dirty: false, inProgress: false, cleaned: false, inspected: false, priority: false },
+        guests: { arrivals: false, departures: false, turnDown: false, stayOver: false, [focus]: true },
+      });
+    },
+    [linenFocus, clearAllFilters]
+  );
+
   const handleApplyFilters = (appliedFilters: FilterState) => {
     setShowFilterModal(false);
     // Applying an empty selection (Reset, then apply) means "all rooms".
@@ -1106,6 +1134,20 @@ export default function AllRoomsScreen() {
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}
               progress={attendantProgress}
+              titleAccessory={chrome.linenSummary ? <ViewOnlyChip onDark={displayData.selectedShift === 'PM'} /> : undefined}
+              summary={
+                chrome.linenSummary ? (
+                  <LinenSummary
+                    counts={{
+                      departures: filterCounts.guests.departures,
+                      stayOverWithLinen: filterCounts.guests.stayOverWithLinen ?? 0,
+                      arrivals: filterCounts.guests.arrivals,
+                    }}
+                    selected={linenFocus}
+                    onSelect={handleLinenSelect}
+                  />
+                ) : undefined
+              }
               titleHidden={statusOverlayActive}
             />
           </View>

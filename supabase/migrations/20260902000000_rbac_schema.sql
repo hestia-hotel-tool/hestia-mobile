@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS public.job_titles (
   -- fresh database has the column before the seed populates it; existing
   -- databases pick it up from 20260907000000_rooms_variant.sql instead.
   rooms_variant text NOT NULL DEFAULT 'default'
-                CHECK (rooms_variant IN ('default', 'leadership', 'supervisor', 'attendant', 'front_office')),
+                CHECK (rooms_variant IN ('default', 'leadership', 'supervisor', 'attendant', 'front_office', 'laundry')),
   created_at    timestamp with time zone DEFAULT now(),
   updated_at    timestamp with time zone DEFAULT now()
 );

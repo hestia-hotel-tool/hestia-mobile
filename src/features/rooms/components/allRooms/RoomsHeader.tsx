@@ -21,6 +21,10 @@ export type RoomsHeaderProps = {
    * omit it and no pill is drawn.
    */
   progress?: { finished: number; total: number };
+  /** Beside the title, after any progress pill — e.g. laundry's "View only" chip. */
+  titleAccessory?: React.ReactNode;
+  /** Under the title row — e.g. laundry's linen workload (LinenSummary). */
+  summary?: React.ReactNode;
   /**
    * Drop the "Rooms" title while an anchored overlay is open.
    *
@@ -61,6 +65,8 @@ export function RoomsHeader({
   onSearch,
   onFilterPress,
   progress,
+  titleAccessory,
+  summary,
   titleHidden = false,
 }: RoomsHeaderProps) {
   return (
@@ -102,8 +108,10 @@ export function RoomsHeader({
               Rooms
             </Text>
             {progress && <RoomsProgressPill finished={progress.finished} total={progress.total} />}
+            {titleAccessory}
           </View>
         )}
+        {!titleHidden && summary ? <View className="pb-lg">{summary}</View> : null}
       </View>
     </View>
   );
