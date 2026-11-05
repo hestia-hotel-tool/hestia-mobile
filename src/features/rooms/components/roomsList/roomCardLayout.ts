@@ -64,7 +64,7 @@ export const ROOM_CARD = scaled({
  * Every number is the design's, relative to the card's own top-left.
  */
 export type RoomCardSpec = {
-  /** Extra side margin beyond the list's 9: 0 for a 422 card, 15 for a 392 one. */
+  /** Extra side margin beyond the list's 9. 0 on every card: all are the priority frame's 422. */
   inset: number;
   background: string;
   border: string | null;
@@ -119,7 +119,12 @@ type DividerBody = {
 };
 
 const WHITE_HEADER = {
-  inset: 15,
+  /*
+   * The frame draws these 392 wide, 15 in from a priority room's 422 frame.
+   * Side by side in one list that read as two widths, so every card now takes
+   * the frame's full 422 (client feedback, 2026-11-05).
+   */
+  inset: 0,
   background: '#ffffff',
   border: '#e3e3e3',
   radius: 9,
