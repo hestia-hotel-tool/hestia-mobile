@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { View, FlatList, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, Platform } from 'react-native';
+import { View, FlatList, StyleSheet, RefreshControl, useWindowDimensions, Text, Platform } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -53,7 +53,7 @@ import { groupRoomsForPorter, isGuestIn, type PorterAction } from '../utils/port
 import PorterStatusModal from '../components/PorterStatusModal';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
-import { activeFilterGroups, applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
+import { activeFilterGroups, applyRoomFilters, describeActiveFilters, hasAnyActiveFilter, roomVipTiers } from '../utils/roomFilters';
 import { scrollTargetOf, trackRef, type ScrollTarget } from '../utils/scrollTarget';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
@@ -70,9 +70,12 @@ import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
 import { useKeepRoomVisible } from '../hooks/useKeepRoomVisible';
+import { useCollapsingHeader } from '../hooks/useCollapsingHeader';
+import { useRevealBelow } from '../hooks/useRevealBelow';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { ROOMS_LIST_CHROME } from '../constants/roomsListChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from '@/components/Icon';
 
 /** When user taps a status badge or priority badge on Home. */
 export type CategoryFilterParam = {
@@ -474,8 +477,27 @@ export default function AllRoomsScreen() {
     setSearchQuery(text);
   };
 
+  /** The profile header's wrapper, measured to hang the filter sheet under it. */
+  const headerWrapRef = useRef<View>(null);
+  const [filterAnchorTop, setFilterAnchorTop] = useState<number | undefined>(undefined);
+
+  /*
+   * The profile header stays on screen under the filter sheet, so the sheet
+   * hangs from wherever the header ends right now — open or collapsed, with
+   * or without its filters row. Measured at the tap; if the measure fails the
+   * last layout height stands in, the header being flush with the top.
+   */
   const handleFilterPress = () => {
-    setShowFilterModal(true);
+    const header = headerWrapRef.current;
+    if (!useProfileHeader || !header) {
+      setShowFilterModal(true);
+      return;
+    }
+    header.measureInWindow((_x, y, _width, height) => {
+      const bottom = Number.isFinite(y + height) && height > 0 ? y + height : (profileHeaderHeight ?? undefined);
+      setFilterAnchorTop(bottom);
+      setShowFilterModal(true);
+    });
   };
 
   // `useCallback` because every card holds this: a fresh identity re-renders
@@ -547,8 +569,13 @@ export default function AllRoomsScreen() {
       vacant: 0,
     };
     const totalRooms = sourceRooms.length;
+    // Rooms with a guest in each VIP tier ('1'–'5'); a room counts once per tier.
+    const vip: Record<string, number> = {};
 
     sourceRooms.forEach((room) => {
+      roomVipTiers(room).forEach((tier) => {
+        vip[String(tier)] = (vip[String(tier)] ?? 0) + 1;
+      });
       // Room state counts
       if (room.houseKeepingStatus === 'Dirty') roomStates.dirty++;
       if (room.houseKeepingStatus === 'InProgress') roomStates.inProgress++;
@@ -603,7 +630,7 @@ export default function AllRoomsScreen() {
       ...Object.fromEntries(Object.entries(floorCounts).map(([k, v]) => [k, v])),
     };
 
-    return { roomStates, guests, reservations, floors, totalRooms };
+    return { roomStates, guests, reservations, floors, vip, totalRooms };
   }, [displayData.rooms, displayData.roomsPM, uiShift]);
 
   /**
@@ -725,6 +752,30 @@ export default function AllRoomsScreen() {
   const statusButtonPosition = statusPopover.anchor;
   const statusBlurTop = statusPopover.blurTop;
   const statusOverlayActive = statusPopover.overlayActive;
+  /**
+   * The profile band folds away as the list scrolls and comes back on a flick
+   * up (RoomsHeader). Frozen while the status popover is up: it scrolls the
+   * list itself to place the card, and a header changing height then would
+   * move the card out from under its anchor.
+   */
+  /*
+   * The VIP popover opens downward from a card's VIP disc, always: this makes
+   * the room (pads the list's end, scrolls just enough). Its window ends where
+   * the tab bar starts, as for keepRoomVisible below.
+   */
+  const vipReveal = useRevealBelow({
+    scrollRef: scrollViewRef,
+    scrollOffsetRef: currentScrollYRef,
+    bottomBound: SCREEN_HEIGHT - insets.bottom - 152 * scaleX,
+    // The profile header is flush with the top, so its height is its bottom
+    // edge in the window; the VIP popover leaves it unblurred.
+    headerBottom: useProfileHeader ? (profileHeaderHeight ?? 0) : 0,
+  });
+  const collapsingHeader = useCollapsingHeader({
+    // Also frozen while the VIP popover places itself: a header changing
+    // height would move the disc out from under its tail.
+    enabled: !statusOverlayActive && !showFilterModal && !vipReveal.active,
+  });
   const handleStatusPress = statusPopover.open;
 
   /** The status menu's remove button on a room's promise time. */
@@ -1122,8 +1173,15 @@ export default function AllRoomsScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {useProfileHeader && !showFilterModal && (
-          <View onLayout={(e) => setProfileHeaderHeight(e.nativeEvent.layout.height)}>
+        {useProfileHeader && (
+          // zIndex here, on the list's sibling: the collapsed header's shadow falls on the cards.
+          // Stays mounted under the filter sheet, which hangs from its bottom edge.
+          <View
+            ref={headerWrapRef}
+            collapsable={false}
+            style={{ zIndex: 2 }}
+            onLayout={(e) => setProfileHeaderHeight(e.nativeEvent.layout.height)}
+          >
             <RoomsHeader
               name={profile?.name}
               role={profile?.role}
@@ -1133,8 +1191,11 @@ export default function AllRoomsScreen() {
               searchQuery={searchQuery}
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}
-              progress={attendantProgress}
-              titleAccessory={chrome.linenSummary ? <ViewOnlyChip onDark={displayData.selectedShift === 'PM'} /> : undefined}
+              filterOpen={showFilterModal}
+              filtersApplied={activeFilterParts.length > 0}
+              progress={collapsingHeader.progress}
+              progressPill={attendantProgress}
+              accessory={chrome.linenSummary ? <ViewOnlyChip onDark={displayData.selectedShift === 'PM'} /> : undefined}
               summary={
                 chrome.linenSummary ? (
                   <LinenSummary
@@ -1148,21 +1209,21 @@ export default function AllRoomsScreen() {
                   />
                 ) : undefined
               }
-              titleHidden={statusOverlayActive}
+              footer={
+                !statusOverlayActive && activeFilterParts.length > 0 ? (
+                  <View style={{ paddingBottom: 8 * scaleX }}>
+                    <ActiveFiltersBar
+                      parts={activeFilterParts}
+                      resultCount={filteredRooms.length}
+                      onClear={clearAllFilters}
+                      scaleX={scaleX}
+                    />
+                  </View>
+                ) : undefined
+              }
             />
           </View>
         )}
-
-        {useProfileHeader && !statusOverlayActive && activeFilterParts.length > 0 ? (
-          <View style={{ paddingTop: 4 * scaleX, paddingBottom: 8 * scaleX }}>
-            <ActiveFiltersBar
-              parts={activeFilterParts}
-              resultCount={filteredRooms.length}
-              onClear={clearAllFilters}
-              scaleX={scaleX}
-            />
-          </View>
-        ) : null}
 
         {/* Scrollable Content with conditional blur */}
         <View
@@ -1201,6 +1262,8 @@ export default function AllRoomsScreen() {
                  * scroll up by the menu's height. Only while it is opening/open.
                  */
                 statusOverlayActive && { paddingBottom: (172 + statusSheetDesignHeight) * scaleX },
+                // Room for the VIP popover under the last cards (useRevealBelow).
+                vipReveal.active && { paddingBottom: 172 * scaleX + vipReveal.extraBottom },
               ],
               showsVerticalScrollIndicator: false,
               scrollEnabled: !showStatusModal,
@@ -1213,6 +1276,7 @@ export default function AllRoomsScreen() {
               keyboardShouldPersistTaps: 'handled' as const,
               onScroll: (event: any) => {
                 currentScrollYRef.current = event.nativeEvent.contentOffset.y;
+                if (useProfileHeader) collapsingHeader.onScroll(event);
               },
               scrollEventThrottle: 16,
               refreshControl: (
@@ -1229,6 +1293,8 @@ export default function AllRoomsScreen() {
                 room={room}
                 rebuilt={chrome.rebuiltCard}
                 frontOffice={chrome.frontOffice}
+                revealVip={vipReveal.reveal}
+                endVipReveal={vipReveal.end}
                 selectedShift={displayData.selectedShift}
                 canChangeStatus={canChangeStatus}
                 isChangingStatus={changingStatusRoomId === room.id || (isPorter && porterChecks.busyRoomId === room.id)}
@@ -1251,12 +1317,8 @@ export default function AllRoomsScreen() {
               <View style={styles.emptyStateCard}>
                 <View style={styles.emptyStateIconContainer}>
                   <View style={styles.emptyStateIconCircle}>
-                    <Image
-                      source={require('../../../../assets/icons/menu-icon.png')}
-                      style={styles.emptyStateIcon}
-                      resizeMode="contain"
-                      tintColor="#5a759d"
-                    />
+                    {/* SVG, not the old menu-icon.png: sharp at any scale. */}
+                    <Icon name="action-filter" size={20 * scaleX} color="#5a759d" />
                   </View>
                 </View>
                 <Text style={styles.emptyStateTitle}>No rooms found</Text>
@@ -1440,6 +1502,7 @@ export default function AllRoomsScreen() {
         filterCounts={filterCounts}
         onFilterIconPress={() => setShowFilterModal(false)}
         countMatching={countMatching}
+        anchorTop={useProfileHeader ? filterAnchorTop : undefined}
       />
 
     </View>
@@ -1530,10 +1593,6 @@ function buildAllRoomsStyles(scaleX: number) {
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
-  },
-  emptyStateIcon: {
-    width: 40 * scaleX,
-    height: 40 * scaleX,
   },
   emptyStateTitle: {
     fontSize: 22 * scaleX,

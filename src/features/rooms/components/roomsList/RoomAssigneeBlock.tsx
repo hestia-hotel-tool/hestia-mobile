@@ -3,12 +3,11 @@ import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { typography } from '@/theme';
 import { ROOM_CARD, cardPx } from './roomCardLayout';
-import { AssignRoomButton } from '../allRooms/AssignRoomButton';
 import type { AssigneeStatus } from '../../utils/cleaningClock';
 
 export type RoomAssigneeBlockProps = {
-  /** Null when nobody is on this room yet. */
-  name?: string | null;
+  /** Who is on the room. An unassigned room shows AssignRoomPill instead of this block. */
+  name: string;
   avatarUrl?: string | null;
   /** The line under the name, already styled for its state — see `assigneeStatus`. */
   status?: AssigneeStatus | null;
@@ -24,8 +23,8 @@ const STATUS_GAP = cardPx(17.5 - 14.9);
  * Who is working the room — Figma 4553:893 (first drawn in 3883:6158).
  *
  * A 35px photo, 8 to the name (Helvetica bold 13, #1e1e1e), and one line of
- * assignment state under it. When nobody is assigned it becomes the "Assign
- * room" button (Figma 2702:7771).
+ * assignment state under it. An unassigned room shows AssignRoomPill
+ * (Figma 4577:228) in its place.
  *
  * Deliberately no chevron: the design has none, and the whole card is already
  * a tap target for the room.
@@ -47,19 +46,6 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
       {status.text}
     </Text>
   ) : null;
-
-  if (!name) {
-    // Figma 2702:7771: an empty circle where the photo will go, and an "Assign room" pill.
-    // A room can be In Progress before anyone is assigned — its line still
-    // belongs on the card, under the button.
-    // In the footer's left slot, under "Room Attendant"; any line under it follows.
-    return (
-      <View className="items-start gap-xs">
-        <AssignRoomButton onPress={onPress} />
-        {statusText}
-      </View>
-    );
-  }
 
   const Container = onPress ? Pressable : View;
 

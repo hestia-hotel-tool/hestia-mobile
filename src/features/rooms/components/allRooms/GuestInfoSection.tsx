@@ -6,7 +6,7 @@ import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestPro
 
 interface GuestInfoSectionProps {
   guest: GuestInfo;
-  vipCode?: number;
+  vipCode?: string;
   isPriority?: boolean;
   isFirstGuest?: boolean;
   isSecondGuest?: boolean;

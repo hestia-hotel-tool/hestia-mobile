@@ -1,6 +1,6 @@
+import { Icon } from '@/components/Icon';
 import React from 'react';
 import { View, Text, Pressable } from '@/tw';
-import { Ionicons } from '@expo/vector-icons';
 import { colors, typography } from '@/theme';
 import { GuestKindDisc, type GuestRowKind } from '../roomsList/GuestRow';
 import { scaleX } from '../../constants/allRoomsStyles';
@@ -131,7 +131,7 @@ export function ViewOnlyChip({ onDark = false }: { onDark?: boolean }) {
       }}
       accessibilityLabel="View only: you can read rooms but not change them"
     >
-      <Ionicons name="eye-outline" size={14 * scaleX} color={color} />
+      <Icon name="action-eye" size={9.5 * scaleX} color={color} />
       <Text style={{ fontFamily: typography.fontFamily.primary, fontSize: 12 * scaleX, fontWeight: '700', color }}>
         View only
       </Text>

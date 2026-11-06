@@ -3,6 +3,8 @@ import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { isRoomPaused } from '../types/allRooms.types';
 import type { RoomCardData } from '../types/allRooms.types';
 import { getStayoverWithLinen } from './stayoverLinen';
+import { vipTierFor, vipTierLabel } from '@/domain/vip';
+import { getVipTiers } from '@/store/vipTiers';
 
 /**
  * Which filter groups the user has actually ticked something in.
@@ -16,6 +18,7 @@ export function activeFilterGroups(filters: FilterState | undefined) {
     guests: Object.values(filters?.guests ?? {}).some(Boolean),
     reservations: Object.values(filters?.reservations ?? {}).some(Boolean),
     floors: Object.values(filters?.floors ?? {}).some(Boolean),
+    vip: Object.values(filters?.vip ?? {}).some(Boolean),
   };
 }
 
@@ -90,7 +93,23 @@ export function roomMatchesFilters(room: RoomCardData, filters: FilterState | un
     if (!matches) return false;
   }
 
+  if (active.vip) {
+    const tiers = roomVipTiers(room);
+    if (!tiers.some((tier) => filters.vip?.[String(tier)])) return false;
+  }
+
   return true;
+}
+
+/** The VIP tiers (1–5) of a room's guests, each once; empty when nobody is a VIP. */
+export function roomVipTiers(room: RoomCardData): number[] {
+  const tiers = getVipTiers();
+  const found = new Set<number>();
+  for (const guest of room.guests ?? []) {
+    const tier = vipTierFor(guest.vipCode, tiers);
+    if (tier) found.add(tier.tier);
+  }
+  return [...found];
 }
 
 /** `roomMatchesFilters` over a list. */
@@ -145,6 +164,10 @@ export function describeActiveFilters(filters: FilterState | undefined, category
   });
   if (filters?.reservations?.occupied) parts.push('Occupied');
   if (filters?.reservations?.vacant) parts.push('Vacant');
+  Object.entries(filters?.vip ?? {})
+    .filter(([, on]) => on)
+    .sort(([a], [b]) => Number(a) - Number(b))
+    .forEach(([k]) => parts.push(`VIP ${vipTierLabel(Number(k) as 1 | 2 | 3 | 4 | 5)}`));
   const floors = Object.entries(filters?.floors ?? {}).filter(([k, on]) => on && k !== 'all');
   if (floors.length === 1) parts.push(`Floor ${floors[0][0]}`);
   else if (floors.length > 1) parts.push(`${floors.length} floors`);

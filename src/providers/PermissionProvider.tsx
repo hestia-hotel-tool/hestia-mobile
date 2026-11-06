@@ -196,6 +196,11 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       if (requestFor.current !== forUser) return; // superseded
 
       if (permissionsResult.error) throw permissionsResult.error;
+      // A failed variant lookup is a failed load too. Read as "default" it
+      // gave the user the wrong Home and Rooms layout until they signed in
+      // again; thrown, the back-off below retries it.
+      if (variantResult.error) throw variantResult.error;
+      if (roomsVariantResult.error) throw roomsVariantResult.error;
 
       const keys = (permissionsResult.data ?? []) as Permission[];
       setPermissions(new Set(keys));

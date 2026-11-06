@@ -55,6 +55,9 @@ export type RoomRowProps = {
   porter?: { status: import('../../utils/porter').PorterStatus; guestIn: boolean };
   /** `chrome.frontOffice` — the rebuilt card in Front Office's dress. */
   frontOffice?: boolean;
+  /** Room under a VIP disc before its popover opens — useRevealBelow (stable callbacks from the screen). */
+  revealVip?: import('../../hooks/useRevealBelow').RevealBelow;
+  endVipReveal?: () => void;
 };
 
 function RoomRowInner({
@@ -74,6 +77,8 @@ function RoomRowInner({
   slotStyle,
   porter,
   frontOffice,
+  revealVip,
+  endVipReveal,
 }: RoomRowProps) {
   const handlePress = useCallback(() => onPress(room), [onPress, room]);
   const handleStatusPress = useCallback(() => onStatusPress(room), [onStatusPress, room]);
@@ -102,6 +107,8 @@ function RoomRowInner({
           onAssignPress={onAssignPress ? handleAssignPress : undefined}
           porter={porter}
           frontOffice={frontOffice}
+          revealVip={revealVip}
+          endVipReveal={endVipReveal}
           isChangingStatus={isChangingStatus}
           measureRef={measureRef}
           statusPillRef={pillRef}

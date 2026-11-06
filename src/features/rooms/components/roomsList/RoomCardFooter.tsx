@@ -10,6 +10,10 @@ export type RoomCardFooterProps = {
   left: React.ReactNode;
   /** The status pill. */
   pill: React.ReactNode;
+  /** Centre the left side on the pill — the Assign Room pill (4577:228). Otherwise both start at the pill's top. */
+  centered?: boolean;
+  /** Two guests above: the pill sits 12 under the panel instead of 20, and 14 above the card's bottom (4577:72). */
+  tight?: boolean;
 };
 
 /**
@@ -19,16 +23,16 @@ export type RoomCardFooterProps = {
  * 207 status pill, 20 below the guest panel, 7 in from the card's edge and 13
  * above its bottom. Both start at the pill's top.
  */
-export function RoomCardFooter({ label, left, pill }: RoomCardFooterProps) {
+export function RoomCardFooter({ label, left, pill, centered = false, tight = false }: RoomCardFooterProps) {
   const { footer } = ROOM_CARD;
   return (
     <View
-      className="flex-row items-start"
+      className={centered ? 'flex-row items-center' : 'flex-row items-start'}
       style={{
-        marginTop: footer.top,
+        marginTop: tight ? footer.topTwoGuests : footer.top,
         paddingLeft: footer.left,
         paddingRight: footer.right,
-        paddingBottom: footer.bottom,
+        paddingBottom: tight ? footer.bottomTwoGuests : footer.bottom,
       }}
     >
       <View className="flex-1" style={{ marginRight: footer.left }}>

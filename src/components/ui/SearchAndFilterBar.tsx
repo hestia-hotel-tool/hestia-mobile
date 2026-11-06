@@ -7,6 +7,10 @@ export type SearchAndFilterBarProps = {
   value: string;
   onChangeText: (text: string) => void;
   onFilterPress?: () => void;
+  /** The filter sheet is open: the button shows pressed, in a tinted disc. */
+  filterOpen?: boolean;
+  /** Filters are applied to the list: a dot on the button says so even when the sheet is closed. */
+  filtersApplied?: boolean;
   /** Leading word, rendered semibold. Figma node 2702:3322. */
   placeholderLead?: string;
   placeholderRest?: string;
@@ -47,6 +51,8 @@ export function SearchAndFilterBar({
   value,
   onChangeText,
   onFilterPress,
+  filterOpen = false,
+  filtersApplied = false,
   placeholderLead = 'Search',
   placeholderRest = 'Rooms, Guests, Floors etc',
   size = 'default',
@@ -94,11 +100,27 @@ export function SearchAndFilterBar({
         <Pressable
           onPress={onFilterPress}
           accessibilityRole="button"
-          accessibilityLabel="Filter"
+          accessibilityLabel={filtersApplied ? 'Filter, filters applied' : 'Filter'}
+          accessibilityState={{ expanded: filterOpen }}
           hitSlop={12}
           className="p-xs"
         >
+          {/* Drawn behind, not padded in, so the button keeps its footprint on every screen. */}
+          {filterOpen ? (
+            <View
+              pointerEvents="none"
+              className="absolute rounded-full bg-surface-tertiary"
+              style={{ width: 40, height: 40, left: '50%', top: '50%', marginLeft: -20, marginTop: -20 }}
+            />
+          ) : null}
           <Icon name="action-filter" size={12} color={colors.primary.main} />
+          {filtersApplied ? (
+            <View
+              pointerEvents="none"
+              className="absolute h-[8px] w-[8px] rounded-full bg-primary"
+              style={{ right: -2, top: -2, borderWidth: 1.5, borderColor: colors.background.primary }}
+            />
+          ) : null}
         </Pressable>
       )}
     </View>

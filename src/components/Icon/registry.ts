@@ -21,11 +21,13 @@ import ActionCheckBold from '@assets/icons/actions/action-check-bold.svg';
 import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
+import ActionClose from '@assets/icons/actions/action-close.svg';
 import ActionCopy from '@assets/icons/actions/action-copy.svg';
 import ActionDnd from '@assets/icons/actions/action-dnd.svg';
 import ActionEyeOff from '@assets/icons/actions/action-eye-off.svg';
 import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
+import ActionFlagOutlineThin from '@assets/icons/actions/action-flag-outline-thin.svg';
 import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionGroup from '@assets/icons/actions/action-group.svg';
@@ -114,11 +116,13 @@ export const icons = {
   'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
   'action-chevron': ActionChevron,
+  'action-close': ActionClose,
   'action-copy': ActionCopy,
   'action-dnd': ActionDnd,
   'action-eye-off': ActionEyeOff,
   'action-eye': ActionEye,
   'action-filter': ActionFilter,
+  'action-flag-outline-thin': ActionFlagOutlineThin,
   'action-flag-outline': ActionFlagOutline,
   'action-flag': ActionFlag,
   'action-group': ActionGroup,
@@ -215,11 +219,13 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-check': 1.1798,
   'action-checkbox-checked': 1,
   'action-chevron': 0.5,
+  'action-close': 1,
   'action-copy': 1,
   'action-dnd': 0.7,
   'action-eye-off': 1.2,
   'action-eye': 1.5,
   'action-filter': 2,
+  'action-flag-outline-thin': 0.7118,
   'action-flag-outline': 0.7179,
   'action-flag': 1.1833,
   'action-group': 1.1154,
@@ -263,8 +269,8 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'guest-vacant': 1,
   'ai-assistant-mark': 0.9778,
   'area-public': 0.9615,
-  'badge-bell': 1,
-  'badge-lost-found': 0.9018,
+  'badge-bell': 1.0373,
+  'badge-lost-found': 0.9098,
   'checklist-bed': 2,
   'checklist-curtains': 1.931,
   'checklist-dust': 1,
@@ -306,11 +312,13 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-check',
   'action-checkbox-checked',
   'action-chevron',
+  'action-close',
   'action-copy',
   'action-dnd',
   'action-eye-off',
   'action-eye',
   'action-filter',
+  'action-flag-outline-thin',
   'action-flag-outline',
   'action-flag',
   'action-group',

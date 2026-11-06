@@ -15,9 +15,8 @@ export type RoomStatusPillProps = {
    */
   onPress?: () => void;
   /**
-   * `priority` is the pale variant on a priority card — Figma 3883:5794: an
-   * #ffebeb ground with a red rush glyph and no chevron, because the card is
-   * flagging attention rather than offering the next status.
+   * `priority` is the pill on a priority card: solid red with the running
+   * figure and "Priority" (4577:170, see PRIORITY below).
    */
   tone?: 'solid' | 'priority';
   loading?: boolean;
@@ -53,21 +52,22 @@ export function RoomStatusPill({
   if (!config) return null;
 
   const isPriority = tone === 'priority';
-  const glyphColor = isPriority ? colors.status.dirty : (config.foreground ?? colors.text.white);
-  const label = PILL_LABEL[status] ?? config.label ?? status;
+  const glyphColor = isPriority ? colors.text.white : (config.foreground ?? colors.text.white);
+  const label = isPriority ? 'Priority' : (PILL_LABEL[status] ?? config.label ?? status);
 
   /*
    * The chevron means "this opens the status menu", so it appears only where
    * the pill actually does. Front Office's pill (3859:1919) is a status badge:
-   * never a chevron, and its own marks for Dirty and Paused. The priority pill
-   * flags attention rather than offering the next status: centred, no chevron.
+   * never a chevron, and its own marks for Dirty and Paused.
    */
-  const showChevron = !!onPress && !isPriority && !frontOffice;
-  const glyph = (frontOffice && FRONT_OFFICE_GLYPHS[status]) || {
-    icon: config.iconName,
-    height: PILL_GLYPH_HEIGHT[status] ?? config.glyphHeight ?? 25.4,
-  };
-  const at = GLYPH[status] ?? DEFAULT_GLYPH;
+  const showChevron = !!onPress && !frontOffice;
+  const glyph = isPriority
+    ? PRIORITY.glyph
+    : (frontOffice && FRONT_OFFICE_GLYPHS[status]) || {
+        icon: config.iconName,
+        height: PILL_GLYPH_HEIGHT[status] ?? config.glyphHeight ?? 25.4,
+      };
+  const at = isPriority ? PRIORITY.at : (GLYPH[status] ?? DEFAULT_GLYPH);
 
   return (
     <RNView
@@ -89,18 +89,15 @@ export function RoomStatusPill({
         disabled={loading || !onPress}
         accessibilityRole={showChevron ? 'button' : 'image'}
         accessibilityLabel={isPriority ? 'Priority room' : `Status: ${label}`}
-        className={isPriority || loading ? 'flex-row items-center justify-center rounded-7xl' : 'rounded-7xl'}
+        className={loading ? 'flex-row items-center justify-center overflow-hidden rounded-7xl' : 'overflow-hidden rounded-7xl'}
         style={{
           width: ROOM_CARD.pill.width,
           height: ROOM_CARD.pill.height,
-          backgroundColor: isPriority ? colors.badge.priority : config.color,
+          backgroundColor: isPriority ? PRIORITY.color : config.color,
         }}
       >
         {loading ? (
           <ActivityIndicator color={glyphColor} />
-        ) : isPriority ? (
-          // The rush figure: 33.8 x 28.6 in 3883:5795, centred.
-          <Icon name="action-flag" size={cardPx(28.6)} color={glyphColor} />
         ) : (
           <>
             <View
@@ -150,6 +147,17 @@ export function RoomStatusPill({
     </RNView>
   );
 }
+
+/**
+ * A priority room still to be started — Figma 4577:170: solid #f92424, the
+ * running figure (39.2 x 33.2, centred at 38.6, 34.6), "Priority" and the
+ * white chevron, the same layout as every other pill.
+ */
+const PRIORITY = {
+  color: '#f92424',
+  glyph: { icon: 'action-priority' as IconName, height: 33.2 },
+  at: { x: 38.6, y: 34.6 },
+};
 
 /** The pill's words where they differ from the status's own label (4553:1370, 4553:1652). */
 const PILL_LABEL: Partial<Record<RoomDisplayStatus, string>> = {

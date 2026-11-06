@@ -1,49 +1,45 @@
-# Handoff — Rooms list: room card redesign (Figma 4553:262)
+# Handoff — Rooms list: card, header, VIP codes
 
-Branch `wallice-dev`. The card redesign is **uncommitted** (the user approves every commit). Earlier work (laundry view, card sizing) is committed in `e3c2239`, `9934302`, `ecc2875`; nothing has been pushed by Claude.
+Branch `wallice-dev`. The card redesign (Figma 4553:262) is committed as `85f6135` by the user. The header, filter and priority-pill work is **staged by the user**; the VIP work below is **unstaged**. The user approves every commit. Nothing has been pushed by Claude.
 
-## What the card is now
+## Room card (committed)
 
-One card for every state (it replaces the seven per-state styles of 3883:5570): white, `#e3e3e3` hairline, radius 9.
+One card for every state: number + type chips + badge tiles; a tinted guest panel (name / "EDT 12:00  2 Adults, 2 Kids" / "07 Oct - 15 Oct", VIP disc with ⓘ); footer with "Room Attendant" + assignee and a 207×70 pill. Built from `roomsList/roomCardLayout.ts` (`ROOM_CARD`) and `RoomListCard.tsx` (the only card). The Priority pill is a red gradient with a glow (it vanished on the tinted priority frame).
 
-- **Header:** room number (bold 33), coloured type chips (Arrival/Departure = two chips, out of order = a grey chip), badge tiles 32.6×29.5 on the right.
-- **Guest panel:** tinted, 84 tall for one guest and 160 for two. Lines: name / "EDT: 12:00  2 Adults, 2 Kids" / "07 Oct - 15 Oct". VIP code in a 35 disc with an ⓘ mark. Turndown disc is purple with a yellow moon; stayover disc is 25.
-- **Footer:** "Room Attendant" + assignee on the left, a 207×70 pill on the right (glyph + label + chevron; "No Service", "DND").
-- Priority rooms keep the red frame. Front Office keeps its status cap; porter cards show Guest in/out where the attendant would be.
+Figma update (4577:72, 2026-11-06): a priority room is one card (`#feefef`, 1pt `#f92424`, white panel; `PRIORITY_CARD`), not a red frame; its pill is solid red with the running figure (`action-priority`). Unassigned rooms show `AssignRoomPill` (169.6×62, person-plus SVG, "Assign Room"; read-only: "Unassigned") centred on the pill, no "Room Attendant" label. Two-guest cards: pill 12 under the panel, 14 above the bottom (316 tall). Cards are 427 wide (gutter 6.5) and every offset counts from the outer edge, border included (`RoomCardShell`). The Rooms screen uses SVG only (no Ionicons, no PNG). Open question: Figma prints "V2" in one VIP disc; the app prints the code.
 
-## Decisions (user, 2026-11-06)
+Header badge icons are Figma's 1pt-stroke glyphs (4553:856): `badge-bell` and `badge-lost-found` replaced in place, the flag added as `action-flag-outline-thin` (chat task cards keep the 2pt `action-flag-outline`).
 
-- Category/credit ("ST2K - 1.4") is dropped, to match the design.
-- Dates read "07 Oct - 15 Oct" (the design's "07 Oct -15 Oct" was treated as a typo).
-- The ⓘ is tappable: `RoomListCard.onGuestInfoPress(guest)` exists but **nothing passes it yet**; the user will supply the UI it opens.
-- New copy stays inline (Rooms is not on i18n yet).
+## Rooms header (staged)
 
-## Files
+- No "Rooms" title. Attendants get "Rooms finished" + the 3/8 pill; laundry gets "View only" + the linen summary.
+- `hooks/useCollapsingHeader.ts`: scrolling down folds the profile band away and pins the search; a flick up or reaching the top brings it back. It stays in the layout (not an overlay) because `GroupedRoomsList` floats the In Progress band at the list's top. Frozen while the status popover or filter sheet is open.
+- Filter sheet hangs from the header's measured bottom (`AllRoomsFilterModal.anchorTop`, `FilterModalOverlay.windowCoordinates`). The filter button shows open (disc) and applied (dot).
 
-- `src/features/rooms/components/roomsList/`: `roomCardLayout.ts` (one `ROOM_CARD` spec, all measures from 4553:262), `RoomListCard.tsx` (now the only card; `SingleGuestRoomCard` and `ArrivalDepartureRoomCard` were merged in and deleted), `RoomCardHeader`, `RoomCardBody`, `RoomCardShell`, `GuestRow`, `RoomStatusPill`, `RoomBadgeTile`, `RoomAssigneeBlock`, `PorterStatusPill`, new `RoomCardFooter.tsx` and `RoomTypeChip.tsx`
-- `allRooms/AssignRoomButton.tsx`: `compact` mode removed (the header no longer competes with it)
-- `src/utils/formatting.ts`: added `formatDatesOfStayShort` and `formatGuestCountWords`; removed `formatDatesOfStayCompact`
-- `src/features/rooms/utils/porter.ts`: removed `PORTER_SPEC_STATUS`
-- New icons: `assets/icons/actions/action-info.svg`, `assets/icons/guest-status/guest-turndown-moon.svg` (registry regenerated)
+## VIP codes (unstaged, user-approved phase 1, 2026-11-06)
+
+- Hotel codes are **1–10** (1 = most important); no code = regular guest (no disc). They're grouped into tiers per hotel: V1 = 1–2, V2 = 3–4, V3 = 5–6, V4 = 7–8, V5 = 9–10. **Drawn neutral everywhere** (`VIP_NEUTRAL`: Figma's grey disc, code `#334866`). Colour is kept for status (client, 2026-11-06); tier colours stay in `vip_tiers`, unused.
+- Migration `20261106120000_vip_tiers.sql`: a `vip_tiers` table (RLS read per hotel, seeded for every hotel + a trigger for new ones). `guests.vip_code` limited to 1–10; other values are **cleared** (data change). `_guest_vip` (used by `upsert_guest`) enforces the same rule.
+- Client: `src/domain/vip` (pure: `vipTierFor`, `normalizeVipCode`, defaults = the seed), `src/store/vipTiers.ts` (loads the hotel's tiers, defaults until then, cleared on tenant reset), `components/ui/VipCode.tsx` (inline tag). `vipCode` is now text (the `parseInt` is gone).
+- Shown on: the room card disc, the room picker, the Lost & Found confirm step. The Rooms filter has a "VIP" section (V1–V5, room counts); the filter bar says "VIP V1".
+- Tapping a VIP disc (code or ⓘ) opens `roomsList/VipInfoPopover.tsx` (user screenshot, 2026-11-06): a card-wide popover that always opens downward from the ⓘ (the list scrolls to make room first: `hooks/useRevealBelow.ts`, which also pads the list's end and freezes the collapsing header), everything blurred but the tapped card's strip: "Code: V3" (tier), "VIP GUEST", "Use {room credits} credits…", "Need Assistance?" and a button that opens the assistant already asking "What are the VIP guest requirements?" (`useAIChatOverlay().open(question)`). Built from a screenshot, so measures are approximate; no Figma node yet.
+- Phase 2 (not built): special-attention flags, operational rules (inspection / auto-priority for VIP arrivals), Mews/Cloudbeds mapping, back-office tier editing.
 
 ## Status
 
-- Typecheck clean; touched files lint clean. iOS and Android exports both succeed and contain the new strings and classes.
-- **Not checked on a device.** The user tests on iOS; Android is unverified visually.
-- Room Detail and the older `allRooms/RoomCard.tsx` were not touched.
+- Typecheck and lint clean; iOS and Android exports succeed and contain the changes. **Nothing checked on a device.** VIP migration applied to `nkawubpnwkhzvwqkxhaz` on 2026-11-06 (both hotels seeded; codes 11 and 22 cleared, so 2 guests are now regular).
+- Filter counts don't recompute when a hotel's own tiers load after the rooms; only matters once a hotel's tiers differ from the defaults.
 
 ## Open problems
 
-1. Migration `20261030090000` (laundry variant) still not applied to `nkawubpnwkhzvwqkxhaz`; the client fallback covers it.
-2. `supabase db push` is blocked: remote has `20260929000600`, which isn't in git. Don't `migration repair` it blind.
-3. "Maximum update depth exceeded" (RouteGuard › TabLayout) was never reproduced. Its first suspect, the header's measure-and-relayout logic, has been removed. If it recurs, capture the full Metro trace.
-4. Public Area Attendants get the laundry view through the fallback; this is unconfirmed.
-5. Front-office labels come from `reservations.front_office_status`, so after the +29-day data shift some chips don't match their ETA/EDT dates.
-6. A comment in `lost-and-found/.../lostAndFoundCardLayout.ts:40` still mentions the removed `ROOM_CARD.rightColumn`.
+1. Migration `20261030090000` (laundry) is still not applied to `nkawubpnwkhzvwqkxhaz`; the client fallback covers it.
+2. `supabase db push` is blocked: the remote has `20260929000600`, which isn't in git. Don't `migration repair` it blind.
+3. "Maximum update depth exceeded" was never reproduced; its first suspect (the old header measuring) is gone.
+4. Public Area Attendants get the laundry view through the fallback (unconfirmed).
+5. Front-office chips come from `reservations.front_office_status`; after the +29-day data shift some don't match their dates.
+6. Lost & Found's item card accepts `guestVipCode` but never shows it. The confirm step still draws a red arrow on any VIP's photo.
 
 ## Next steps
 
-1. User checks the cards on iOS (and Android if possible) against 4553:262: one guest, Arrival/Departure, turndown, stayover, unassigned, priority, Front Office, porter, laundry (read-only pill: no chevron).
+1. Check on iOS/Android: VIP discs and colours, the VIP filter, a guest without a code (no disc), the room picker.
 2. Commit after approval.
-3. Wire `onGuestInfoPress` once the user sends the guest-info UI.
-4. Then the backend items above: apply the migration, then investigate `20260929000600`.

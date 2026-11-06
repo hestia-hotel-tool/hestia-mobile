@@ -10,6 +10,7 @@ import { clearBottomTabBadgeCounts } from '@/store/bottomTabBadgeCounts';
 import { clearMyShiftCache } from '@features/account/services/myShift';
 import { clearTicketAccessCache } from '@features/tickets/services/ticketAccess';
 import { clearStorageLocationsCache } from '@features/lost-and-found/services/storageLocations';
+import { clearVipTiers } from '@/store/vipTiers';
 
 /**
  * Clear all cached client state that must never bleed across tenants/users.
@@ -42,6 +43,8 @@ export function resetTenantScopedStores() {
   clearMyShiftCache();
   clearTicketAccessCache();
   clearStorageLocationsCache();
+  // The hotel's VIP tiers.
+  clearVipTiers();
 
   useRoomsStore.setState(
     {

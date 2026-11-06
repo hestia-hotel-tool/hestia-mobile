@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
 import { scaleX } from '../constants/lostAndFoundStyles';
 import { StaffAvatar } from './StaffAvatar';
+import { VipCode } from '@/components/ui/VipCode';
 
 const s = (n: number) => n * scaleX;
 
@@ -239,7 +240,7 @@ function GuestBlock({ room }: { room: RoomPickerRoom | null }) {
           <Text style={styles.guestName} numberOfLines={1}>
             {guest?.fullName ?? '—'}
           </Text>
-          {guest?.vipCode ? <Text style={styles.vipCode}>{guest.vipCode}</Text> : null}
+          <VipCode code={guest?.vipCode} fontSize={s(12)} style={styles.vipCode} />
         </View>
         <View style={styles.guestMeta}>
           {dates ? <Text style={styles.guestDates}>{dates}</Text> : null}
@@ -391,13 +392,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000000',
   },
-  // Node 2961:163 — Light 12, #334866.
+  // Node 2961:163's spot; the pill (VipCode) draws the code in its tier colour.
   vipCode: {
     marginLeft: s(6),
-    fontSize: s(12),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#334866',
   },
   guestMeta: { flexDirection: 'row', alignItems: 'center', marginTop: s(4), gap: s(6) },
   guestDates: {

@@ -6,6 +6,7 @@
 import { supabase } from '@/lib/supabase';
 import { getMyHotelId } from '@/lib/tenant';
 import { formatClockTime } from '@/utils/formatting';
+import { normalizeVipCode } from '@/domain/vip';
 import type {
   AllRoomsScreenData,
   RoomCardData,
@@ -333,7 +334,8 @@ function mapToGuestInfo(
     time: time === 'N/A' || !time ? 'N/A' : time,
     timeLabel: timeLabel as 'ETA' | 'EDT' | 'N/A',
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
-    vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
+    // Text, 1–10: anything else is a regular guest (no parseInt — it dropped non-numbers silently).
+    vipCode: normalizeVipCode(guest?.vip_code) ?? undefined,
     arrivalDate: res.arrival_date,
     // Ensure every guest has an image on cards (fallback to deterministic placeholder).
     imageUrl: guest?.image_url ?? undefined, // no stock photo: the row draws its own placeholder
@@ -1446,7 +1448,8 @@ function mapReservationDetailToGuestInfo(
     time: time === 'N/A' || !time ? 'N/A' : time,
     timeLabel: timeLabel as 'ETA' | 'EDT' | 'N/A',
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
-    vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
+    // Text, 1–10: anything else is a regular guest (no parseInt — it dropped non-numbers silently).
+    vipCode: normalizeVipCode(guest?.vip_code) ?? undefined,
     arrivalDate: res.arrival_date,
     imageUrl: guest?.image_url ?? undefined, // no stock photo: the row draws its own placeholder
     isVacant: isVacant || undefined,

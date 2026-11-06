@@ -15,6 +15,11 @@ export type BlurBackdropProps = {
    * keep reading past.
    */
   intensity?: number;
+  /**
+   * Android's stand-in for the blur (it cannot blur behind a modal): how
+   * opaque the wash is. 0.88 by default; lower for a lighter backdrop.
+   */
+  androidScrimOpacity?: number;
   /** Tapping the backdrop — the usual dismiss. Omit to make it inert. */
   onPress?: () => void;
   /** Announced on the dismiss target. */
@@ -37,6 +42,7 @@ export type BlurBackdropProps = {
 export function BlurBackdrop({
   top = 0,
   intensity = 80,
+  androidScrimOpacity = 0.88,
   onPress,
   accessibilityLabel = 'Dismiss',
   children,
@@ -69,8 +75,11 @@ export function BlurBackdrop({
    *
    * So Android gets an opaque-enough scrim instead of a broken blur.
    */
+  // Android's stand-in for the blur, not a design token: with no blur beneath
+  // it the design's 10% veil would be invisible. 0.88 keeps content behind
+  // muted but still legible as context; `androidScrimOpacity` lightens it.
   if (Platform.OS !== 'ios') {
-    return <View style={[layer, styles.androidScrim]}>{contents}</View>;
+    return <View style={[layer, { backgroundColor: `rgba(238, 240, 246, ${androidScrimOpacity})` }]}>{contents}</View>;
   }
 
   return (
@@ -93,12 +102,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFill,
     // Figma node 2582:735 — a 10% wash, which only reads on top of a real blur.
     backgroundColor: colors.background.overlay,
-  },
-  androidScrim: {
-    // Android's stand-in for the blur, not a design token: with no blur beneath
-    // it the design's 10% veil would be invisible. Tuned so content behind is
-    // muted but still legible as context.
-    backgroundColor: 'rgba(238, 240, 246, 0.88)',
   },
 });
 

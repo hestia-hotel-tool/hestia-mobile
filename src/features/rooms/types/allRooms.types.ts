@@ -66,7 +66,8 @@ export interface GuestInfo {
   /** ETA = Arrival (check-in); EDT = Departure (check-out); N/A = Stayover, Turndown, No Task, Vacant */
   timeLabel: 'ETA' | 'EDT' | 'N/A';
   guestCount: GuestCount; // Display: adults/kids (e.g. 2/2)
-  vipCode?: number; // VIP code badge (e.g., 11 for first guest, 22 for second in Arrival/Departure)
+  /** The hotel's VIP code, "1"–"10" (1 most important); absent for a regular guest. See `@/domain/vip`. */
+  vipCode?: string;
   isVacant?: boolean; // For turndown vacant state
   /** ISO date string (YYYY-MM-DD) of guest arrival; used for Stayover linen calculation (every 2nd day = linen change) */
   arrivalDate?: string;

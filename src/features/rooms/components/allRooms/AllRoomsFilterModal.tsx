@@ -9,6 +9,8 @@ import {
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import { HOME_HEADER_HEIGHT_DESIGN_PX } from '@features/home/constants/homeLayout';
 import { useHomeFilters } from '@features/home/hooks/useHomeFilters';
+import { VIP_NEUTRAL, vipTierLabel } from '@/domain/vip';
+import { useVipTiers } from '@/store/vipTiers';
 
 const DESIGN_WIDTH = 440;
 
@@ -37,6 +39,14 @@ export type AllRoomsFilterModalProps = {
    * not with what is applied, so the confirm button describes where it leads.
    */
   countMatching?: (filters: FilterState) => number;
+  /**
+   * Window y of the screen header's bottom edge (`measureInWindow`), for a
+   * header that stays on screen while the sheet is open (RoomsHeader). The
+   * header then stays crisp with its own filter button, and the blur and the
+   * sheet start just under it. Omit for the legacy header, which shrinks to
+   * the Home header's height while the sheet is open.
+   */
+  anchorTop?: number;
 };
 
 /**
@@ -54,12 +64,14 @@ export default function AllRoomsFilterModal({
   filterCounts,
   onFilterIconPress,
   countMatching,
+  anchorTop,
 }: AllRoomsFilterModalProps) {
   const { width } = useWindowDimensions();
   const scaleX = width / DESIGN_WIDTH;
 
-  const { filters, setFilters, toggleRoomState, toggleGuest, toggleReservation, resetFilters } =
+  const { filters, setFilters, toggleRoomState, toggleGuest, toggleReservation, toggleVip, resetFilters } =
     useHomeFilters(initialFilters);
+  const vipTiers = useVipTiers();
 
   /*
    * Re-seed from the applied filters every time the sheet opens.
@@ -259,8 +271,22 @@ export default function AllRoomsFilterModal({
           },
         ],
       },
+      {
+        // The hotel's VIP tiers (migration 20261106120000): rooms with a guest in the tier.
+        key: 'vip',
+        title: 'VIP',
+        countFormat: 'rooms',
+        onToggle: (id) => toggleVip(id),
+        options: vipTiers.map((tier) => ({
+          id: String(tier.tier),
+          label: `${vipTierLabel(tier.tier)} · ${tier.name}`,
+          indicator: { kind: 'dot' as const, color: VIP_NEUTRAL.accent },
+          count: counts.vip?.[String(tier.tier)] ?? 0,
+          selected: !!filters.vip?.[String(tier.tier)],
+        })),
+      },
     ];
-  }, [filters, counts, toggleRoomState, toggleGuest, toggleReservation]);
+  }, [filters, counts, vipTiers, toggleRoomState, toggleGuest, toggleReservation, toggleVip]);
 
   // Recounted only when the selection actually changes — it walks the room list.
   const resultCount = useMemo(() => countMatching?.(filters), [countMatching, filters]);
@@ -270,18 +296,28 @@ export default function AllRoomsFilterModal({
     onClose();
   };
 
+  const sheetBottom = SHEET_BOTTOM * scaleX;
+  const anchored = anchorTop != null;
+  // Legacy: the header shrinks to the Home header's height and this draws the
+  // filter glyph back over the blur, under it.
   const headerHeight = HOME_HEADER_HEIGHT_DESIGN_PX * scaleX;
   const filterIconTop = headerHeight + FILTER_ICON_GAP * scaleX;
+  const placement = anchored
+    ? { blurTop: anchorTop, sheetTop: anchorTop + SHEET_GAP * scaleX }
+    : {
+        blurTop: headerHeight,
+        filterIconTop,
+        onFilterIconPress,
+        sheetTop: filterIconTop + (FILTER_ICON_HEIGHT + SHEET_GAP) * scaleX,
+      };
 
   return (
     <FilterModalOverlay
       visible={visible}
       onClose={onClose}
-      blurTop={headerHeight}
-      filterIconTop={filterIconTop}
-      onFilterIconPress={onFilterIconPress}
-      sheetTop={filterIconTop + (FILTER_ICON_HEIGHT + SHEET_GAP) * scaleX}
-      sheetBottom={SHEET_BOTTOM * scaleX}
+      {...placement}
+      sheetBottom={sheetBottom}
+      windowCoordinates={anchored}
     >
       <RoomsFilterSheet
         sections={sections}

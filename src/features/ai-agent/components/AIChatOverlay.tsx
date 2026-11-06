@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Platform,
   // The `src/tw` ScrollView does not forward refs, and the transcript needs
@@ -22,6 +22,9 @@ import AssistantComposer from './AssistantComposer';
 interface AIChatOverlayProps {
   visible: boolean;
   onClose: () => void;
+  /** Asked as soon as the overlay is visible, once — see `useAIChatOverlay().open(question)`. */
+  initialQuestion?: string | null;
+  onInitialQuestionSent?: () => void;
 }
 
 /**
@@ -57,7 +60,7 @@ const SUGGESTIONS = [
  * title — so it still reads as the same component; what changes is that it is
  * now a full sheet. A stated deviation, not an oversight.
  */
-export default function AIChatOverlay({ visible, onClose }: AIChatOverlayProps) {
+export default function AIChatOverlay({ visible, onClose, initialQuestion, onInitialQuestionSent }: AIChatOverlayProps) {
   const { scaleX } = useDesignScale();
   const insets = useSafeAreaInsets();
   const s = useCallback((n: number) => n * scaleX, [scaleX]);
@@ -93,6 +96,14 @@ export default function AIChatOverlay({ visible, onClose }: AIChatOverlayProps) 
     setDraft('');
     scrollToEnd();
   }, [draft, send, scrollToEnd]);
+
+  // A question handed in by whoever opened the overlay: sent once, then cleared.
+  useEffect(() => {
+    if (!visible || !initialQuestion) return;
+    send(initialQuestion);
+    onInitialQuestionSent?.();
+    scrollToEnd();
+  }, [visible, initialQuestion, send, onInitialQuestionSent, scrollToEnd]);
 
   const hasConversation = messages.length > 0;
 

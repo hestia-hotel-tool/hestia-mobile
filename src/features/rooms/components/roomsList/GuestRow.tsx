@@ -1,9 +1,12 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { Pressable as RNPressable, View as RNView } from 'react-native';
 import { View, Text, Pressable } from '@/tw';
 import { Image } from '@/tw/image';
 import { Icon, type IconName } from '@/components/Icon';
 import { colors, typography } from '@/theme';
-import { INK, ROOM_CARD, cardPx } from './roomCardLayout';
+import { ROOM_CARD, cardPx } from './roomCardLayout';
+import { VIP_NEUTRAL, vipTierLabel, type VipTier } from '@/domain/vip';
+import type { MeasureAnchor } from '../../hooks/useRevealBelow';
 
 /**
  * Which mark sits on the guest photo's corner. Derived from the reservation,
@@ -89,11 +92,15 @@ export type GuestRowProps = {
   timeLabel?: string;
   kind: GuestRowKind;
   imageUrl?: string | null;
-  /** The guest's VIP code ("VIP", "22"), drawn in the disc at the row's right. */
-  marker?: string;
+  /** The guest's VIP code and its tier — the disc at the row's right. Absent for a regular guest. */
+  vip?: { code: string; tier: VipTier };
   onImagePress?: () => void;
-  /** The info mark on the marker disc. Without it the mark is drawn but not a control. */
-  onInfoPress?: () => void;
+  /**
+   * The VIP disc or its ⓘ was tapped. Hands over a way to measure the ⓘ, not
+   * one reading of it: the list may scroll before the popover opens, and the
+   * tail must point where the ⓘ ends up. Without it the disc is not a control.
+   */
+  onInfoPress?: (measure: MeasureAnchor) => void;
 };
 
 /**
@@ -101,8 +108,8 @@ export type GuestRowProps = {
  *
  * A 49 photo with its kind disc on the corner, then three lines of Helvetica
  * 14, 20 apart: the name (bold), the ETA/EDT with the guests in words, and the
- * stay. The VIP code sits in a 35 disc at the row's right, the info mark on
- * its top-right corner.
+ * stay. A VIP's level ("V2") sits in a grey 35 disc at the row's right, the
+ * info mark on its top-right corner. A regular guest has no disc.
  *
  * A flex row: a wrapped name pushes the row (and the panel) taller instead of
  * running into the next guest.
@@ -114,7 +121,7 @@ export function GuestRow({
   timeLabel,
   kind,
   imageUrl,
-  marker,
+  vip,
   onImagePress,
   onInfoPress,
 }: GuestRowProps) {
@@ -157,43 +164,78 @@ export function GuestRow({
         {!!dates && <Text style={[LINE, { fontWeight: '300' }]}>{dates}</Text>}
       </View>
 
-      {!!marker && <GuestMarker marker={marker} name={name} onInfoPress={onInfoPress} />}
+      {vip ? <VipDisc code={vip.code} tier={vip.tier} name={name} onInfoPress={onInfoPress} /> : null}
     </View>
   );
 }
 
 /**
- * 4553:1674 — the VIP code in a 35 disc (#b0b4b0 at 17%), bold 12 #334866,
- * with the 14 info mark on its top-right corner, 2 above the disc.
+ * 4553:1674 — the VIP code in a 35 disc with the 14 info mark on its
+ * top-right corner, 2 above the disc.
+ *
+ * Exactly the design: the grey disc of 4553:805 and the code in 4553:842's
+ * Helvetica Bold 12, #334866 (VIP_NEUTRAL). The tier is in the accessibility
+ * label and the guest's VIP card, not in colour.
  */
-function GuestMarker({ marker, name, onInfoPress }: { marker: string; name: string; onInfoPress?: () => void }) {
+function VipDisc({
+  code,
+  tier,
+  name,
+  onInfoPress,
+}: {
+  code: string;
+  tier: VipTier;
+  name: string;
+  onInfoPress?: (measure: MeasureAnchor) => void;
+}) {
   const { marker: m } = ROOM_CARD;
-  const info = <Icon name="action-info" size={m.info} color="#000000" />;
-  return (
+  // A plain RN View: measured with measureInWindow, so it must stay in the native tree.
+  const infoRef = useRef<RNView>(null);
+
+  const measure: MeasureAnchor = () =>
+    new Promise((resolve) => {
+      const node = infoRef.current;
+      if (!node) return resolve(null);
+      node.measureInWindow((x, y, width, height) =>
+        resolve([x, y, width, height].every(Number.isFinite) && height > 0 ? { x, y, width, height } : null)
+      );
+    });
+  const open = () => onInfoPress?.(measure);
+
+  const disc = (
     // Wide enough for the info mark, which hangs off the disc's right edge.
-    <View style={{ marginLeft: m.gap, marginTop: m.top, width: m.size + m.info, height: m.size }}>
+    <View style={{ width: m.size + m.info, height: m.size }}>
       <View
         className="items-center justify-center rounded-full"
-        style={{ width: m.size, height: m.size, backgroundColor: 'rgba(176, 180, 176, 0.17)' }}
+        style={{ width: m.size, height: m.size, backgroundColor: VIP_NEUTRAL.disc }}
       >
-        <Text style={{ fontFamily: typography.fontFamily.primary, fontSize: m.fontSize, fontWeight: '700', color: INK }}>
-          {marker}
+        {/* The level, not the hotel's code: "V2", as 4577:156 draws it. */}
+        <Text style={{ fontFamily: typography.fontFamily.primary, fontSize: m.fontSize, fontWeight: '700', color: VIP_NEUTRAL.ink }}>
+          {vipTierLabel(tier.tier)}
         </Text>
       </View>
-      <View className="absolute" style={{ left: m.size, top: m.infoTop }}>
-        {onInfoPress ? (
-          <Pressable
-            onPress={onInfoPress}
-            hitSlop={14}
-            accessibilityRole="button"
-            accessibilityLabel={`About ${name}`}
-          >
-            {info}
-          </Pressable>
-        ) : (
-          info
-        )}
-      </View>
+      <RNView ref={infoRef} collapsable={false} style={{ position: 'absolute', left: m.size, top: m.infoTop }}>
+        <Icon name="action-info" size={m.info} color="#000000" />
+      </RNView>
+    </View>
+  );
+
+  const label = `VIP ${vipTierLabel(tier.tier)}, ${tier.name} (code ${code})`;
+  // The code and the ⓘ are one target: either opens the VIP popover.
+  return onInfoPress ? (
+    <RNPressable
+      onPress={open}
+      hitSlop={10}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityHint={`What being a VIP means for ${name}`}
+      style={({ pressed }) => ({ marginLeft: m.gap, marginTop: m.top, opacity: pressed ? 0.6 : 1 })}
+    >
+      {disc}
+    </RNPressable>
+  ) : (
+    <View style={{ marginLeft: m.gap, marginTop: m.top }} accessible accessibilityLabel={label}>
+      {disc}
     </View>
   );
 }

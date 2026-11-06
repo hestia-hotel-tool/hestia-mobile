@@ -7,6 +7,7 @@ import { getInitialsFromFullName } from '@/utils/formatting';
 import type { RoomPickerRoom } from '../../types/roomPicker.types';
 import { ROOM_PICKER_LAYOUT as L } from './roomPickerLayout';
 import { GuestKindDisc } from '../roomsList/GuestRow';
+import { VipCode } from '@/components/ui/VipCode';
 
 /** "2026-10-07" -> "07/10". Blank for anything unparseable. */
 function formatDayMonth(value?: string | null): string {
@@ -115,7 +116,7 @@ export default function RoomPickerCard({
                   <Text style={styles.guestName} numberOfLines={1}>
                     {guestName}
                   </Text>
-                  {guest?.vipCode ? <Text style={styles.vipCode}>{guest.vipCode}</Text> : null}
+                  <VipCode code={guest?.vipCode} fontSize={L.guest.code.fontSize * scaleX} style={styles.vipCode} />
                 </View>
                 <View style={styles.guestMetaRow}>
                   <Text style={styles.guestDates}>{dates}</Text>
@@ -317,13 +318,9 @@ function buildRoomPickerCardStyles(scaleX: number) {
       flexShrink: 1,
       ...androidText,
     },
+    // The pill (VipCode) draws the code in its tier colour; only the gap is the card's.
     vipCode: {
-      fontSize: L.guest.code.fontSize * scaleX,
-      fontFamily: typography.fontFamily.primary,
-      fontWeight: '300',
-      color: '#334866',
       marginLeft: L.guest.code.marginLeft * scaleX,
-      ...androidText,
     },
     guestMetaRow: {
       flexDirection: 'row',

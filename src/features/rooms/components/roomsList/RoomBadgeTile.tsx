@@ -31,27 +31,27 @@ export function roomBadges(room: {
 }): RoomBadge[] {
   const badges: RoomBadge[] = [];
   if (room.flagged) {
-    // 4553:859 — the flag outline, 14.6 tall.
+    // 4553:867 — the flag, 1pt stroke, 15.8 tall as drawn.
     badges.push({
       key: 'flag',
-      icon: 'action-flag-outline',
+      icon: 'action-flag-outline-thin',
       label: room.flagReason ? `Flagged: ${room.flagReason}` : 'Flagged room',
-      glyph: 14.6,
+      glyph: 15.8,
     });
   }
   const notes = room.notes?.count ?? 0;
   if (notes > 0) {
-    // 4553:867 — the bell, 13.8 tall.
+    // 4553:859 — the bell, 1pt stroke, 14.8 tall as drawn.
     badges.push({
       key: 'notes',
       icon: 'badge-bell',
       label: notes === 1 ? '1 note' : `${notes} notes`,
-      glyph: 13.8,
+      glyph: 14.8,
     });
   }
   const lostAndFound = room.lostAndFoundCount ?? 0;
   if (lostAndFound > 0) {
-    // 4553:873 — the box, 16.3 x 17.9.
+    // 4553:873 — the box, 16.3 x 17.9, Figma's own glyph.
     badges.push({
       key: 'lostAndFound',
       icon: 'badge-lost-found',

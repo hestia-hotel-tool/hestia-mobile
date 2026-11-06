@@ -1,11 +1,11 @@
 import React from 'react';
 import { View } from '@/tw';
-import { PANEL_FILL, PRIORITY_FRAME, ROOM_CARD } from './roomCardLayout';
+import { PANEL_FILL, PRIORITY_CARD, ROOM_CARD } from './roomCardLayout';
 
 export type RoomCardBodyProps = {
   /** One or two GuestRows. */
   guests: React.ReactNode[];
-  /** Inside a priority frame the panel is solid white: the translucent tint would pick up the red. */
+  /** On a priority card the panel is solid white (4577:111): the translucent tint would pick up the red. */
   priority?: boolean;
 };
 
@@ -31,7 +31,7 @@ export function RoomCardBody({ guests, priority = false }: RoomCardBodyProps) {
         paddingRight: panel.paddingRight - ROOM_CARD.marker.info,
         gap: panel.guestGap,
         borderRadius: panel.radius,
-        backgroundColor: priority ? PRIORITY_FRAME.panelFill : PANEL_FILL,
+        backgroundColor: priority ? PRIORITY_CARD.panelFill : PANEL_FILL,
       }}
     >
       {guests}

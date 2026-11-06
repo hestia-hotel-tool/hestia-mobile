@@ -33,8 +33,11 @@ function scaled<T>(value: T): T {
 export const ROOM_CARD = scaled({
   /** 4553:854 — white, #e3e3e3 hairline, radius 9. */
   radius: 9,
-  /** Slot padding the list gives every card (AllRoomsScreen `roomCardSlot`). */
-  listGutter: 9,
+  /**
+   * Slot padding the list gives every card (AllRoomsScreen `roomCardSlot`):
+   * 427-wide cards on the 440 frame (4577:73), 6.5 from each edge.
+   */
+  listGutter: 6.5,
 
   header: {
     /** Room number (4553:855): bold 33, its line starting 12 down, 13 in. */
@@ -93,11 +96,14 @@ export const ROOM_CARD = scaled({
 
   /** 4553:893 / 4553:901 — the footer row. */
   footer: {
-    /** Pill's top below the panel (164 - 144). */
+    /** Pill's top below the panel: 20 under one guest (164 - 144), 12 under two (232 - 220, 4577:72). */
     top: 20,
+    topTwoGuests: 12,
     left: 13,
     right: 7,
+    /** Under the pill: 13 on a one-guest card (247 tall), 14 on a two-guest one (316, 4577:73). */
     bottom: 13,
+    bottomTwoGuests: 14,
     /** "Room Attendant", light 10. */
     labelSize: 10,
     labelLine: 11.5,
@@ -108,6 +114,13 @@ export const ROOM_CARD = scaled({
   /** 4553:902 — 207 x 70, glyph, label and chevron. */
   pill: { width: 207, height: 70 },
 
+  /**
+   * 4577:228 — "Assign Room" on an unassigned room: 169.6 x 62, radius 45,
+   * 9 in from the card (4 left of an assignee's photo), centred on the pill.
+   * The 23 person-plus sits 21 in; the label starts 57 in, Regular 15.
+   */
+  assign: { width: 169.6, height: 62, left: 9, icon: 23, iconLeft: 21, labelLeft: 57, fontSize: 15 },
+
   /** 4553:896 — the assignee's photo, 8 from the name. */
   assigneeAvatar: 35,
   assigneeGap: 8,
@@ -116,29 +129,24 @@ export const ROOM_CARD = scaled({
 /** The panel's tint — 4553:892, #dfe6f0 at 40%. */
 export const PANEL_FILL = 'rgba(223, 230, 240, 0.4)';
 export const CARD_BORDER = '#e3e3e3';
+/**
+ * The card's hairline, 1pt on every phone (not scaled). Every measure above is
+ * from the card's outer edge, border included, as Figma measures them —
+ * RoomCardShell lays the content out from there.
+ */
+export const CARD_BORDER_WIDTH = 1;
 export const INK = '#334866';
 
 /**
- * 3883:5765 — a priority room: a 422 frame, tinted red with a red hairline at
- * radius 12, holding the card 15 in from each side, 22 from the top and 15
- * from the bottom. The card inside is clear so the tint shows; only its guest
- * panel stays white (a translucent panel would pick up the red).
+ * 4577:72 — a priority room still to be started: the same card, tinted
+ * #feefef with a 1pt #f92424 border, its guest panel solid white. It replaced
+ * the red frame that held a clear card 15 in (4488:72).
  */
-export const PRIORITY_FRAME = {
-  ...scaled({
-    /**
-     * 4488:72 — #f92424 at 8%, flattened over the #f9fafc page. Solid, not the
-     * literal alpha: the translucent version let PM mode's dark slate through
-     * and the card's dark header text disappeared (client feedback, 2026-10-26).
-     */
-    background: '#F9E9EB',
-    border: '#f92424',
-    radius: 12,
-    paddingX: 15,
-    paddingTop: 22,
-    paddingBottom: 15,
-  } as const),
-  /** Not scaled: a 1pt line like every other card's. */
-  borderWidth: 1,
+export const PRIORITY_CARD = {
+  background: '#feefef',
+  border: '#f92424',
   panelFill: '#ffffff',
-};
+} as const;
+
+/** The Assign Room pill's fill — 4577:231, white on every card. */
+export const ASSIGN_FILL = '#ffffff';

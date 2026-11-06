@@ -63,10 +63,33 @@ function isConnectionLost(err: unknown): boolean {
  * DELETE are never retried: a dropped connection cannot tell us whether the
  * server processed the request, and a replayed POST creates a second note,
  * ticket or assignment.
+ *
+ * The one POST exception: PostgREST calls every database function with POST,
+ * read-only ones included. The functions in READ_ONLY_RPCS are declared
+ * STABLE, so Postgres itself forbids them from writing, and replaying them is
+ * as harmless as a GET. They are the app's start-up lookups: without the retry
+ * a dropped connection at launch failed all three at once.
  */
-function isReplaySafe(init?: RequestInit): boolean {
+const READ_ONLY_RPCS = new Set(['get_my_permissions', 'get_my_home_variant', 'get_my_rooms_variant']);
+
+function isReplaySafe(url: string, init?: RequestInit): boolean {
   const method = (init?.method ?? 'GET').toUpperCase();
-  return method === 'GET' || method === 'HEAD' || method === 'PATCH' || method === 'PUT';
+  if (method === 'GET' || method === 'HEAD' || method === 'PATCH' || method === 'PUT') return true;
+  const rpc = /\/rest\/v1\/rpc\/([a-z0-9_]+)/i.exec(url)?.[1];
+  return method === 'POST' && !!rpc && READ_ONLY_RPCS.has(rpc);
+}
+
+/**
+ * A lost connection is the network, not the app: callers already handle the
+ * rejection (PermissionProvider retries with back-off, lists show their error
+ * state), so it is a warning. In development `console.error` raises the red
+ * LogBox over the screen, which made a Wi-Fi blip look like a crash. Every
+ * other failure — timeouts included — still logs as an error.
+ */
+function logFetchFailure(label: string, url: string, err: unknown): void {
+  const details = { url, message: err instanceof Error ? err.message : String(err) };
+  if (isConnectionLost(err)) console.warn(label, details);
+  else console.error(label, details);
 }
 
 function createTimeoutFetch(defaultTimeoutMs: number) {
@@ -93,19 +116,16 @@ function createTimeoutFetch(defaultTimeoutMs: number) {
     try {
       return await attempt();
     } catch (err) {
-      if (isConnectionLost(err) && isReplaySafe(init)) {
+      if (isConnectionLost(err) && isReplaySafe(url, init)) {
         console.warn('[SupabaseFetch] connection lost, retrying once', { url });
         try {
           return await attempt();
         } catch (retryErr) {
-          console.error('[SupabaseFetch] failed after retry', {
-            url,
-            message: retryErr instanceof Error ? retryErr.message : String(retryErr),
-          });
+          logFetchFailure('[SupabaseFetch] failed after retry', url, retryErr);
           throw retryErr;
         }
       }
-      console.error('[SupabaseFetch] failed', { url, message: err instanceof Error ? err.message : String(err) });
+      logFetchFailure('[SupabaseFetch] failed', url, err);
       throw err;
     }
   };
