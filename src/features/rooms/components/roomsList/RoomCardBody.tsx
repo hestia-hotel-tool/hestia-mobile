@@ -1,84 +1,41 @@
 import React from 'react';
 import { View } from '@/tw';
-import { ROOM_CARD, type RoomCardSpec } from './roomCardLayout';
+import { PANEL_FILL, PRIORITY_FRAME, ROOM_CARD } from './roomCardLayout';
 
 export type RoomCardBodyProps = {
-  spec: RoomCardSpec;
   /** One or two GuestRows. */
   guests: React.ReactNode[];
-  /** The status pill. */
-  action?: React.ReactNode;
+  /** Inside a priority frame the panel is solid white: the translucent tint would pick up the red. */
+  priority?: boolean;
 };
 
-/** The panel's tint — Figma 3883:6141, #dfe6f0 at 40%, radius 10. */
-const PANEL_FILL = 'rgba(223, 230, 240, 0.4)';
-
 /**
- * The guests and the status pill, below the header — Figma 3883:5570.
+ * The guest panel under the header — Figma 4553:892 / 4553:796.
  *
- * Either inside a tinted panel inset from the card (`panel`), or on the card
- * itself under a full-width #e3e3e3 rule (`divider`), as the card's spec says.
- *
- * Guest rows are at least the photo's 49 tall and 24 apart — 73 photo to
- * photo, as drawn — and grow when their text wraps, so nothing overlaps. The
- * pill is centred on the guests. The panel's vertical padding is what makes a
- * one-guest panel the frame's 101 with the 70 pill in it; the guests start at
- * the frame's photo top within that.
+ * #dfe6f0 at 40%, radius 10, 9 in from the card's left and 7 from its right:
+ * 84 tall with one guest, 160 with two (their photos 82 apart). Rows grow
+ * when their text wraps, and the panel with them.
  */
-export function RoomCardBody({ spec, guests, action }: RoomCardBodyProps) {
-  const { body } = spec;
-  const headerBottom = spec.ruleTop + ROOM_CARD.headerRule;
-  const pill = ROOM_CARD.pill.height;
-
-  const row = (padTop: number) => (
-    // Guests from the top, at the frame's photo top; the pill centred on
-    // whichever is taller, the guests or itself.
-    <View className="flex-row items-start">
-      <View className="flex-1" style={{ gap: ROOM_CARD.guestGap, marginTop: padTop }}>
-        {guests}
-      </View>
-      {!!action && (
-        <View style={{ alignSelf: 'center', marginLeft: ROOM_CARD.textToPill, marginRight: body.pillRight }}>{action}</View>
-      )}
-    </View>
-  );
-
-  if (body.kind === 'panel') {
-    const padV = Math.min(body.photoTop, (body.minHeight - pill) / 2);
-    return (
-      <View
-        className="overflow-hidden"
-        style={{
-          marginTop: body.top - headerBottom,
-          marginLeft: body.left,
-          marginRight: body.right,
-          marginBottom: body.bottom,
-          minHeight: body.minHeight,
-          paddingLeft: body.photoLeft,
-          paddingVertical: padV,
-          borderRadius: ROOM_CARD.panelRadius,
-          backgroundColor: body.fill ?? PANEL_FILL,
-        }}
-      >
-        {row(body.photoTop - padV)}
-      </View>
-    );
-  }
-
+export function RoomCardBody({ guests, priority = false }: RoomCardBodyProps) {
+  const { panel } = ROOM_CARD;
   return (
-    <>
-      <View style={{ marginTop: body.top - headerBottom, height: 1, backgroundColor: '#e3e3e3' }} />
-      <View
-        style={{
-          minHeight: guests.length > 1 ? body.minHeightTwo : body.minHeight,
-          paddingLeft: body.photoLeft,
-          paddingTop: body.photoTop,
-          paddingBottom: body.photoTop,
-        }}
-      >
-        {row(0)}
-      </View>
-    </>
+    <View
+      style={{
+        marginTop: panel.top,
+        marginLeft: panel.left,
+        marginRight: panel.right,
+        minHeight: panel.minHeight,
+        paddingTop: panel.paddingTop,
+        paddingBottom: panel.paddingBottom,
+        paddingLeft: panel.paddingLeft,
+        paddingRight: panel.paddingRight - ROOM_CARD.marker.info,
+        gap: panel.guestGap,
+        borderRadius: panel.radius,
+        backgroundColor: priority ? PRIORITY_FRAME.panelFill : PANEL_FILL,
+      }}
+    >
+      {guests}
+    </View>
   );
 }
 

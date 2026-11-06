@@ -1,16 +1,14 @@
 import React from 'react';
 import { View as RNView } from 'react-native';
 import { View, Pressable } from '@/tw';
-import { PRIORITY_FRAME, type RoomCardSpec } from './roomCardLayout';
+import { CARD_BORDER, PRIORITY_FRAME, ROOM_CARD } from './roomCardLayout';
 
 export type RoomCardShellProps = {
   children: React.ReactNode;
-  /** The card's ground, border and radius, and how far it sits in from the list. */
-  spec: RoomCardSpec;
   /**
-   * Priority rooms sit in a red frame — Figma 4488:72: a 422 card tinted
-   * #f92424 at 8% with a #f92424 hairline at radius 12, holding the card 15
-   * in, 22 down.
+   * Priority rooms sit in a red frame — Figma 4488:72: tinted #f92424 at 8%
+   * with a #f92424 hairline at radius 12, holding the card 15 in, 22 down.
+   * The card inside is then clear, so the tint is its ground.
    */
   framed?: boolean;
   onPress?: () => void;
@@ -31,28 +29,22 @@ export type RoomCardShellProps = {
 };
 
 /**
- * The frame every room card sits in — Figma 3883:5570.
- *
- * Its ground, hairline and radius come from the card's spec: #f9fafc with a
- * blue-grey hairline at 12 for the 422 cards, white or #f9fafc with #e3e3e3
- * at 9 for the 392 ones, which also sit 15 further in from the list's edge.
- * No coloured cap for housekeeping: every state shows by its status pill
- * alone. Front Office caps Paused and In Progress (`cap`, Figma 3859:1919).
+ * The frame every room card sits in — Figma 4553:854: white, a #e3e3e3
+ * hairline, radius 9, the same for every state.
  *
  * `overflow-hidden` keeps children inside the rounded corners on Android.
  */
-export function RoomCardShell({ children, spec, framed, onPress, onLayout, measureRef, cap }: RoomCardShellProps) {
+export function RoomCardShell({ children, framed, onPress, onLayout, measureRef, cap }: RoomCardShellProps) {
   const Container = onPress ? Pressable : View;
 
   const card = (
     <View
       className="w-full overflow-hidden"
-      style={{
-        backgroundColor: spec.background,
-        borderRadius: spec.radius,
-        borderWidth: spec.border ? 1 : 0,
-        borderColor: spec.border ?? undefined,
-      }}
+      style={
+        framed
+          ? { borderRadius: ROOM_CARD.radius }
+          : { backgroundColor: '#ffffff', borderRadius: ROOM_CARD.radius, borderWidth: 1, borderColor: CARD_BORDER }
+      }
     >
       {cap}
       {children}
@@ -74,7 +66,7 @@ export function RoomCardShell({ children, spec, framed, onPress, onLayout, measu
                 paddingTop: PRIORITY_FRAME.paddingTop,
                 paddingBottom: PRIORITY_FRAME.paddingBottom,
               }
-            : { marginHorizontal: spec.inset }
+            : undefined
         }
       >
         {card}

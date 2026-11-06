@@ -1,14 +1,18 @@
 /**
- * The Rooms card's dimensions, measured from Figma 3883:5570.
+ * The Rooms card's dimensions, measured from Figma 4553:262.
  *
  * The frame is 440 wide. On a narrower phone every measure — sizes, insets
  * and type — shrinks by the same factor (`CARD_SCALE`, never above 1), so the
  * card keeps the design's proportions instead of squeezing the guest column
  * until its text overlaps. Numbers below are the design's; `cardPx` and the
  * exported objects are already scaled.
+ *
+ * Every state draws the same card (4553:262 replaced the seven per-state
+ * styles of 3883:5570): a header, a tinted guest panel, and a footer with the
+ * attendant on the left and the status pill on the right. Every number is
+ * relative to the card's own top-left.
  */
 import { Dimensions } from 'react-native';
-import type { RoomDisplayStatus } from '../../types/allRooms.types';
 
 const DESIGN_WIDTH = 440;
 export const CARD_SCALE = Math.min(1, Dimensions.get('window').width / DESIGN_WIDTH);
@@ -27,223 +31,105 @@ function scaled<T>(value: T): T {
 }
 
 export const ROOM_CARD = scaled({
-  /** Node 3883:6417. Radius comes from design-system.json button.status. */
-  pill: { width: 134, height: 70 },
-  /** Node 3883:6159 — the assignee's photo. */
-  assigneeAvatar: 35,
-  /** Name to the photo's left edge: 43 (a 35 photo and an 8 gap), every card. */
-  assigneeGap: 8,
-  /** Node 3883:6143 (photo, radius 5) and 3883:6144 (the arrow disc on its corner). */
-  guest: { photo: 49, photoRadius: 5, badge: 20, badgeRight: -2, badgeBottom: -6, textGap: 12 },
-  /** Two guests on one card: their photos are 73 apart (3883:5881), no rule between. */
-  guestGap: 24,
-  /** Least room between the guest text and the pill (3883:6008 ends 24 before 4349:2876). */
-  textToPill: 16,
-  /** The guest panel's corners (3883:6141). */
-  panelRadius: 10,
-  /** The header's vertical rule, 50.5 tall on every card. */
-  headerRule: 50.5,
+  /** 4553:854 — white, #e3e3e3 hairline, radius 9. */
+  radius: 9,
   /** Slot padding the list gives every card (AllRoomsScreen `roomCardSlot`). */
   listGutter: 9,
+
+  header: {
+    /** Room number (4553:855): bold 33, its line starting 12 down, 13 in. */
+    top: 12,
+    left: 13,
+    /** Badges end 17 before the card's right edge (4553:856). */
+    right: 17,
+    /** Header row height; the panel starts at 60 (12 + 36 + 12). */
+    height: 36,
+    numberSize: 33,
+    /** Number to the first chip: the chip starts at 74, "201" ends at ~68. */
+    numberToChip: 6,
+  },
+
+  /** 4553:897 — the front-office type chip: 87 x 28 (wider for longer text), radius 9, bold 12. */
+  chip: { minWidth: 87, height: 28, radius: 9, paddingX: 10, gap: 4, top: 4, fontSize: 12 },
+
+  /** 4553:856 — badge tiles, 32.6 x 29.5, radius 10, 5.1 apart, 6 below the number's top. */
+  badge: { width: 32.6, height: 29.5, radius: 10, gap: 5.1, top: 6 },
+
+  /** 4553:892 — the guest panel. */
+  panel: {
+    /** Below the header row. */
+    top: 12,
+    left: 9,
+    right: 7,
+    radius: 10,
+    /** One guest: 84 tall (4553:892). Two: 160 (4553:796). */
+    minHeight: 84,
+    paddingTop: 7,
+    paddingBottom: 11,
+    /** Photo's left edge. */
+    paddingLeft: 22,
+    /** The marker disc ends 48 before the panel's right edge (4553:899). */
+    paddingRight: 48,
+    /** Second guest's photo is 82 below the first (4553:828). */
+    guestGap: 22,
+  },
+
+  guest: {
+    /** 4553:913 — photo 49, radius 5, 5 below the text's line box. */
+    photo: 49,
+    photoRadius: 5,
+    photoTop: 5,
+    /** Photo to the text column (98 - 39 - 49). */
+    textGap: 10,
+    /** Helvetica 14, lines 20 apart (4553:900 / 921 / 919). */
+    fontSize: 14,
+    line: 20,
+    /** "EDT: 12:00" to "2 Adults, 2 Kids" (4553:921 → 922). */
+    timeToCount: 8,
+  },
+
+  /** 4553:1674 — the VIP / code disc beside each guest, with the info mark on its corner. */
+  marker: { size: 35, top: 12, gap: 8, fontSize: 12, info: 14, infoTop: -2 },
+
+  /** 4553:893 / 4553:901 — the footer row. */
+  footer: {
+    /** Pill's top below the panel (164 - 144). */
+    top: 20,
+    left: 13,
+    right: 7,
+    bottom: 13,
+    /** "Room Attendant", light 10. */
+    labelSize: 10,
+    labelLine: 11.5,
+    /** Label's line to the avatar's top (186 - 163 - 11.5). */
+    labelToAvatar: 11.5,
+  },
+
+  /** 4553:902 — 207 x 70, glyph, label and chevron. */
+  pill: { width: 207, height: 70 },
+
+  /** 4553:896 — the assignee's photo, 8 from the name. */
+  assigneeAvatar: 35,
+  assigneeGap: 8,
 } as const);
 
-/**
- * The design draws four kinds of card, by state (Figma 3883:5570):
- *
- * - `grey`: 422 wide, #f9fafc, radius 12, a blue-grey hairline, the guest in a
- *   tinted panel — Paused (3883:5974) and In Progress with one guest (3883:6122).
- * - `whitePanel`: 392 wide, white, radius 9, #e3e3e3, a panel — In Progress
- *   Arrival/Departure (4349:2226), Cleaned (4349:2227) and Inspected (4349:2302).
- * - `offWhitePanel`: 392, #f9fafc, #e3e3e3, a panel — Dirty with one guest (3883:5803).
- * - `whiteDivider`: 392, white, a full-width rule under the header and the
- *   guests on the card itself — Dirty Arrival/Departure (3883:5881), Refused
- *   (4349:2537), Return Later (4349:2581) and Do Not Disturb (4349:2631).
- *
- * A priority room is the off-white card inside a red frame (3883:5765).
- *
- * Every number is the design's, relative to the card's own top-left.
- */
-export type RoomCardSpec = {
-  /** Extra side margin beyond the list's 9. 0 on every card: all are the priority frame's 422. */
-  inset: number;
-  background: string;
-  border: string | null;
-  radius: number;
-  /** Room number's left edge and top. */
-  numberLeft: number;
-  numberTop: number;
-  /** Space between the number and the category ("ST2K - 1.4"). */
-  categoryGap: number;
-  /** Category's top below the number's. */
-  categoryDrop: number;
-  /** Type label's ("Departure") top below the number's. */
-  typeDrop: number;
-  /** The header rule's top, and the card width to its right (rule included). */
-  ruleTop: number;
-  rightColumn: number;
-  /** Photo's left edge after the rule, and its top. */
-  avatarGap: number;
-  avatarTop: number;
-  body: PanelBody | DividerBody;
-};
-
-type PanelBody = {
-  kind: 'panel';
-  /** Panel's top, and its left and right insets from the card. */
-  top: number;
-  left: number;
-  right: number;
-  /** Card below the panel. */
-  bottom: number;
-  /** Panel height with one guest. */
-  minHeight: number;
-  /** Guest photo inside the panel, and the pill's inset from its right edge. */
-  photoLeft: number;
-  photoTop: number;
-  pillRight: number;
-  /** Panel fill; the translucent #dfe6f0 at 40% when absent (RoomCardBody). */
-  fill?: string;
-};
-
-type DividerBody = {
-  kind: 'divider';
-  /** The full-width rule's top. */
-  top: number;
-  photoLeft: number;
-  /** Photo's top below the rule. */
-  photoTop: number;
-  pillRight: number;
-  /** Body height under the rule with one guest, and with two. */
-  minHeight: number;
-  minHeightTwo: number;
-};
-
-const WHITE_HEADER = {
-  /*
-   * The frame draws these 392 wide, 15 in from a priority room's 422 frame.
-   * Side by side in one list that read as two widths, so every card now takes
-   * the frame's full 422 (client feedback, 2026-11-05).
-   */
-  inset: 0,
-  background: '#ffffff',
-  border: '#e3e3e3',
-  radius: 9,
-  numberLeft: 14,
-  numberTop: 11,
-  categoryGap: 7,
-  categoryDrop: 9,
-  typeDrop: 30,
-  ruleTop: 11,
-  rightColumn: 165,
-  avatarGap: 9,
-  avatarTop: 22,
-} as const;
-
-const GREY_HEADER = {
-  inset: 0,
-  background: '#f9fafc',
-  border: 'rgba(90, 117, 157, 0.23)',
-  radius: 12,
-  numberLeft: 33,
-  categoryGap: 11,
-  categoryDrop: 8,
-  typeDrop: 28,
-  rightColumn: 193,
-  avatarGap: 10,
-} as const;
-
-const DESIGN_SPECS = {
-  /** 3883:5974 — Paused. */
-  greyPaused: {
-    ...GREY_HEADER,
-    numberTop: 11.5,
-    ruleTop: 9,
-    avatarTop: 13,
-    body: { kind: 'panel', top: 68, left: 16, right: 14, bottom: 21, minHeight: 101, photoLeft: 15, photoTop: 19.5, pillRight: 31 },
-  },
-  /** 3883:6122 — In Progress, one guest. The same card 8 lower inside. */
-  greyInProgress: {
-    ...GREY_HEADER,
-    numberTop: 19.5,
-    ruleTop: 17,
-    avatarTop: 21,
-    body: { kind: 'panel', top: 76, left: 16, right: 14, bottom: 21, minHeight: 101, photoLeft: 15, photoTop: 19.5, pillRight: 31 },
-  },
-  /** 4349:2226 — In Progress, Arrival/Departure. */
-  whitePanel: {
-    ...WHITE_HEADER,
-    body: { kind: 'panel', top: 75, left: 8, right: 9, bottom: 14, minHeight: 101, photoLeft: 14, photoTop: 15, pillRight: 11 },
-  },
-  /** 4349:2227 / 4349:2302 — Cleaned and Inspected: the rule sits at 215, not 227. */
-  whitePanelDone: {
-    ...WHITE_HEADER,
-    rightColumn: 177,
-    body: { kind: 'panel', top: 75, left: 8, right: 9, bottom: 14, minHeight: 101, photoLeft: 14, photoTop: 15, pillRight: 11 },
-  },
-  /** 3883:5803 — Dirty, one guest. */
-  offWhitePanel: {
-    ...WHITE_HEADER,
-    background: '#f9fafc',
-    numberLeft: 17,
-    numberTop: 14,
-    categoryGap: 11,
-    categoryDrop: 8,
-    typeDrop: 28,
-    ruleTop: 11.5,
-    rightColumn: 179,
-    avatarGap: 10,
-    avatarTop: 20,
-    body: { kind: 'panel', top: 70, left: 9, right: 11, bottom: 6, minHeight: 101, photoLeft: 6, photoTop: 20, pillRight: 16 },
-  },
-  /**
-   * 3883:5765 — the card inside a priority room's red frame (see
-   * PRIORITY_FRAME). Clear, so the frame's red tint is the card's ground
-   * (4488:72); only the guest panel stays white.
-   */
-  priority: {
-    ...WHITE_HEADER,
-    inset: 0,
-    background: 'transparent',
-    border: null,
-    numberLeft: 18,
-    numberTop: 14,
-    categoryGap: 11,
-    categoryDrop: 8,
-    typeDrop: 28,
-    ruleTop: 11.5,
-    rightColumn: 178,
-    avatarGap: 16,
-    avatarTop: 19,
-    // 3883:5772 — solid white: the translucent default would pick up the red tint.
-    body: { kind: 'panel', top: 70, left: 10, right: 10, bottom: 6, minHeight: 101, photoLeft: 6, photoTop: 20, pillRight: 20, fill: '#ffffff' },
-  },
-  /** 3883:5881 / 4349:2537 — the rule-and-no-panel card. */
-  whiteDivider: {
-    ...WHITE_HEADER,
-    body: { kind: 'divider', top: 75, photoLeft: 13, photoTop: 15, pillRight: 29, minHeight: 104, minHeightTwo: 166 },
-  },
-} satisfies Record<string, RoomCardSpec>;
-
-export type RoomCardSpecName = keyof typeof DESIGN_SPECS;
-
-export const ROOM_CARD_SPECS: Record<RoomCardSpecName, RoomCardSpec> = scaled(DESIGN_SPECS);
+/** The panel's tint — 4553:892, #dfe6f0 at 40%. */
+export const PANEL_FILL = 'rgba(223, 230, 240, 0.4)';
+export const CARD_BORDER = '#e3e3e3';
+export const INK = '#334866';
 
 /**
- * 3883:5765 — a priority room: a 422 frame, #f9fafc with a red hairline at
+ * 3883:5765 — a priority room: a 422 frame, tinted red with a red hairline at
  * radius 12, holding the card 15 in from each side, 22 from the top and 15
- * from the bottom.
+ * from the bottom. The card inside is clear so the tint shows; only its guest
+ * panel stays white (a translucent panel would pick up the red).
  */
 export const PRIORITY_FRAME = {
   ...scaled({
     /**
-     * 4488:72 — the frame is tinted, #f92424 at 8%, with a 1pt hairline. The
-     * tint, not a heavy border, is what makes a priority room stand out (it
-     * replaced an interim 3pt border); the card inside is clear so it shows.
-     *
-     * Solid, not the literal 8% alpha: #F9E9EB *is* #f92424 at 8% over the
-     * card ground #f9fafc, so on the light page it looks the same — but the
-     * translucent version let PM mode's dark slate through and the card's dark
-     * header text disappeared (client feedback, 2026-10-26).
+     * 4488:72 — #f92424 at 8%, flattened over the #f9fafc page. Solid, not the
+     * literal alpha: the translucent version let PM mode's dark slate through
+     * and the card's dark header text disappeared (client feedback, 2026-10-26).
      */
     background: '#F9E9EB',
     border: '#f92424',
@@ -252,29 +138,7 @@ export const PRIORITY_FRAME = {
     paddingTop: 22,
     paddingBottom: 15,
   } as const),
-  /** Not scaled: a 1pt line like every other card's (RoomCardShell). */
+  /** Not scaled: a 1pt line like every other card's. */
   borderWidth: 1,
+  panelFill: '#ffffff',
 };
-
-/** Which of the design's cards a room gets. */
-export function roomCardSpecName(
-  status: RoomDisplayStatus,
-  arrivalDeparture: boolean,
-  priority: boolean
-): RoomCardSpecName {
-  if (priority) return 'priority';
-  switch (status) {
-    case 'Paused':
-      return 'greyPaused';
-    case 'InProgress':
-      return arrivalDeparture ? 'whitePanel' : 'greyInProgress';
-    case 'Cleaned':
-    case 'Inspected':
-      return 'whitePanelDone';
-    case 'Dirty':
-      return arrivalDeparture ? 'whiteDivider' : 'offWhitePanel';
-    default:
-      // Refused, Return Later, Do Not Disturb.
-      return 'whiteDivider';
-  }
-}

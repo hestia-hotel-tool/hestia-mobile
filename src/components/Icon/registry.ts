@@ -30,6 +30,7 @@ import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionGroup from '@assets/icons/actions/action-group.svg';
 import ActionInProgress from '@assets/icons/actions/action-in-progress.svg';
+import ActionInfo from '@assets/icons/actions/action-info.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionNewChat from '@assets/icons/actions/action-new-chat.svg';
 import ActionPauseCleaning from '@assets/icons/actions/action-pause-cleaning.svg';
@@ -65,6 +66,7 @@ import GuestOccupied from '@assets/icons/guest-status/guest-occupied.svg';
 import GuestStayoverBed from '@assets/icons/guest-status/guest-stayover-bed.svg';
 import GuestStayoverLinen from '@assets/icons/guest-status/guest-stayover-linen.svg';
 import GuestStayoverNoLinen from '@assets/icons/guest-status/guest-stayover-no-linen.svg';
+import GuestTurndownMoon from '@assets/icons/guest-status/guest-turndown-moon.svg';
 import GuestTurndown from '@assets/icons/guest-status/guest-turndown.svg';
 import GuestVacant from '@assets/icons/guest-status/guest-vacant.svg';
 // misc
@@ -121,6 +123,7 @@ export const icons = {
   'action-flag': ActionFlag,
   'action-group': ActionGroup,
   'action-in-progress': ActionInProgress,
+  'action-info': ActionInfo,
   'action-mic': ActionMic,
   'action-new-chat': ActionNewChat,
   'action-pause-cleaning': ActionPauseCleaning,
@@ -156,6 +159,7 @@ export const icons = {
   'guest-stayover-bed': GuestStayoverBed,
   'guest-stayover-linen': GuestStayoverLinen,
   'guest-stayover-no-linen': GuestStayoverNoLinen,
+  'guest-turndown-moon': GuestTurndownMoon,
   'guest-turndown': GuestTurndown,
   'guest-vacant': GuestVacant,
   // misc
@@ -220,6 +224,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-flag': 1.1833,
   'action-group': 1.1154,
   'action-in-progress': 1,
+  'action-info': 1,
   'action-mic': 0.7727,
   'action-new-chat': 1,
   'action-pause-cleaning': 0.9677,
@@ -253,6 +258,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'guest-stayover-bed': 1.8929,
   'guest-stayover-linen': 1,
   'guest-stayover-no-linen': 1,
+  'guest-turndown-moon': 1,
   'guest-turndown': 1,
   'guest-vacant': 1,
   'ai-assistant-mark': 0.9778,
@@ -309,6 +315,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-flag',
   'action-group',
   'action-in-progress',
+  'action-info',
   'action-mic',
   'action-new-chat',
   'action-phone',
@@ -337,6 +344,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'guest-stayover-bed',
   'guest-stayover-linen',
   'guest-stayover-no-linen',
+  'guest-turndown-moon',
   'guest-turndown',
   'guest-vacant',
   'area-public',

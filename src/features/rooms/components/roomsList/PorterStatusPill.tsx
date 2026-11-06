@@ -8,7 +8,7 @@ import { PORTER_STATUS_UI, type PorterStatus } from '../../utils/porter';
 /**
  * The porter's status pill — Figma 3859:1041 (nodes 4470:440 / 4470:489):
  * the label and a chevron, white on the status colour. Same footprint as the
- * room status pill, so the two lists line up.
+ * room status pill (207 x 70 since 4553:262), so the two lists line up.
  */
 export function PorterStatusPill({
   status,
@@ -78,17 +78,13 @@ export function PorterStatusPill({
 export function GuestPresence({ guestIn }: { guestIn: boolean }) {
   return (
     <View
-      // Right-aligned in the header's right column, inset from the card edge
-      // as Figma 3859:1041 draws it (the column is laid out for an avatar,
-      // which starts on the left).
+      // In the footer's left slot, where the attendant's card shows its
+      // assignee, centred on the pill's height.
       style={{
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-end',
-        alignSelf: 'stretch',
         gap: cardPx(6),
-        paddingRight: cardPx(16),
-        marginTop: cardPx(12),
+        height: ROOM_CARD.pill.height,
       }}
       accessible
       accessibilityLabel={guestIn ? 'Guest in the room' : 'Guest out'}

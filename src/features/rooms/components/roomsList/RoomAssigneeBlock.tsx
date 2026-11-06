@@ -3,7 +3,6 @@ import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { typography } from '@/theme';
 import { ROOM_CARD, cardPx } from './roomCardLayout';
-import { useCompactAssignee } from './RoomCardHeader';
 import { AssignRoomButton } from '../allRooms/AssignRoomButton';
 import type { AssigneeStatus } from '../../utils/cleaningClock';
 
@@ -22,7 +21,7 @@ const STATUS_LINE_HEIGHT = { 10: cardPx(11.5), 12: cardPx(13.8), 13: cardPx(14.9
 const STATUS_GAP = cardPx(17.5 - 14.9);
 
 /**
- * Who is working the room — Figma 3883:6158.
+ * Who is working the room — Figma 4553:893 (first drawn in 3883:6158).
  *
  * A 35px photo, 8 to the name (Helvetica bold 13, #1e1e1e), and one line of
  * assignment state under it. When nobody is assigned it becomes the "Assign
@@ -32,8 +31,6 @@ const STATUS_GAP = cardPx(17.5 - 14.9);
  * a tap target for the room.
  */
 export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssigneeBlockProps) {
-  // The header is short of room for its badge tiles: the pill gives way, not them.
-  const compact = useCompactAssignee();
   const statusText = status ? (
     <Text
       style={{
@@ -55,10 +52,10 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
     // Figma 2702:7771: an empty circle where the photo will go, and an "Assign room" pill.
     // A room can be In Progress before anyone is assigned — its line still
     // belongs on the card, under the button.
-    // Right-aligned in the column, against the card's edge; any line under it follows.
+    // In the footer's left slot, under "Room Attendant"; any line under it follows.
     return (
-      <View className="items-end gap-xs" style={{ marginRight: cardPx(12) }}>
-        <AssignRoomButton onPress={onPress} compact={compact} />
+      <View className="items-start gap-xs">
+        <AssignRoomButton onPress={onPress} />
         {statusText}
       </View>
     );
@@ -75,7 +72,6 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
       style={{ gap: ROOM_CARD.assigneeGap }}
     >
       <Avatar uri={avatarUrl} name={name} size={ROOM_CARD.assigneeAvatar} />
-      {/* Shrinks rather than grows, so the block has a natural width the header can measure. */}
       <View style={{ flexShrink: 1 }}>
         <Text
           style={{

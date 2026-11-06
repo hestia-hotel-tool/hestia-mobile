@@ -14,8 +14,6 @@ type Props = {
   top?: number;
   roomNumber?: string;
   loading?: boolean;
-  /** Just the "+" disc (or the person glyph), when the card header is short of room. */
-  compact?: boolean;
   onPress?: () => void;
 };
 
@@ -48,12 +46,9 @@ const B = {
  *   non-interactive "Unassigned" chip in the same slot, so the card does not
  *   change shape by role.
  *
- * - `compact`: the label goes and the pill becomes a circle, so the header's
- *   badge tiles keep their size beside a long type label (RoomCardHeader).
- *
- * Content-sized, so the header can measure it (RoomCardHeader).
+ * Content-sized, left-aligned in the room card's footer (RoomAssigneeBlock).
  */
-export function AssignRoomButton({ left, top, roomNumber, loading = false, compact = false, onPress }: Props) {
+export function AssignRoomButton({ left, top, roomNumber, loading = false, onPress }: Props) {
   // Created once; state rather than a ref so it is not read off a ref during render.
   const [scale] = useState(() => new Animated.Value(1));
   const placement = left != null && top != null ? [styles.absolute, { left: left * scaleX, top: top * scaleX }] : null;
@@ -61,15 +56,13 @@ export function AssignRoomButton({ left, top, roomNumber, loading = false, compa
   if (!onPress) {
     return (
       <View
-        style={[styles.pill, styles.pillReadOnly, compact && styles.pillCompact, placement]}
+        style={[styles.pill, styles.pillReadOnly, placement]}
         accessibilityLabel={roomNumber ? `Room ${roomNumber} is not assigned` : 'Not assigned'}
       >
         <Ionicons name="person-outline" size={14 * scaleX} color="#8a94a6" />
-        {compact ? null : (
-          <Text style={[styles.label, styles.labelReadOnly]} numberOfLines={1}>
-            Unassigned
-          </Text>
-        )}
+        <Text style={[styles.label, styles.labelReadOnly]} numberOfLines={1}>
+          Unassigned
+        </Text>
       </View>
     );
   }
@@ -91,7 +84,7 @@ export function AssignRoomButton({ left, top, roomNumber, loading = false, compa
       style={placement}
     >
       {({ pressed }) => (
-        <Animated.View style={[styles.pill, compact && styles.pillCompact, pressed && styles.pillPressed, { transform: [{ scale }] }]}>
+        <Animated.View style={[styles.pill, pressed && styles.pillPressed, { transform: [{ scale }] }]}>
           <View style={styles.disc}>
             {loading ? (
               <ActivityIndicator size="small" color="#ffffff" style={styles.spinner} />
@@ -99,11 +92,9 @@ export function AssignRoomButton({ left, top, roomNumber, loading = false, compa
               <Icon name="action-plus" size={9 * scaleX} color="#ffffff" />
             )}
           </View>
-          {compact ? null : (
-            <Text style={styles.label} numberOfLines={1}>
-              {loading ? 'Assigning…' : 'Assign room'}
-            </Text>
-          )}
+          <Text style={styles.label} numberOfLines={1}>
+            {loading ? 'Assigning…' : 'Assign room'}
+          </Text>
         </Animated.View>
       )}
     </Pressable>
@@ -124,12 +115,6 @@ const styles = StyleSheet.create({
     paddingRight: B.paddingRight * scaleX,
     borderRadius: (B.height / 2) * scaleX,
     backgroundColor: 'rgba(90, 117, 157, 0.12)',
-  },
-  pillCompact: {
-    width: B.height * scaleX,
-    paddingLeft: 0,
-    paddingRight: 0,
-    justifyContent: 'center',
   },
   pillPressed: {
     backgroundColor: 'rgba(90, 117, 157, 0.22)',

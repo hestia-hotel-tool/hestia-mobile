@@ -1,5 +1,5 @@
 import { colors } from '@/theme';
-import type { RoomCardData, RoomDisplayStatus } from '../types/allRooms.types';
+import type { RoomCardData } from '../types/allRooms.types';
 import type { RoomGroup } from './roomGroups';
 
 /**
@@ -111,11 +111,3 @@ export function groupRoomsForPorter(
   }
   return bands.filter((b) => b.rooms.length > 0);
 }
-
-/** The card style a porter status borrows: done, being done, stopped, to do. */
-export const PORTER_SPEC_STATUS: Record<PorterStatus, RoomDisplayStatus> = {
-  checked: 'Cleaned',
-  in_progress: 'InProgress',
-  paused: 'Paused',
-  unchecked: 'Dirty',
-};

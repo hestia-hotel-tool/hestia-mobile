@@ -1,22 +1,21 @@
 import React from 'react';
 import { View } from '@/tw';
 import { Icon, type IconName } from '@/components/Icon';
-import { cardPx } from './roomCardLayout';
+import { ROOM_CARD, cardPx } from './roomCardLayout';
 
 /**
- * The card header's badge tile — Figma 4349:2631 (Rectangle 169): 38 x 34.4,
- * radius 10, #f8f8f8, holding one red glyph. The same size whether a room
- * shows one, two or all three. On a white
- * card the tile shows; on the off-white ones it all but disappears, as drawn.
+ * The card header's badge tile — Figma 4553:856: 32.6 x 29.5, radius 10,
+ * #f8f8f8, holding one red glyph. The same size whether a room shows one, two
+ * or all three.
  */
-export const BADGE_TILE = { width: cardPx(38), height: cardPx(34.4), radius: cardPx(10), fill: '#f8f8f8' } as const;
+const TILE_FILL = '#f8f8f8';
 const RED = '#f92424';
 
 export type RoomBadge = {
   key: string;
   icon: IconName;
   label: string;
-  /** Glyph height in the full-size tile, as drawn. */
+  /** Glyph height in the tile, as drawn. */
   glyph: number;
 };
 
@@ -32,52 +31,51 @@ export function roomBadges(room: {
 }): RoomBadge[] {
   const badges: RoomBadge[] = [];
   if (room.flagged) {
-    // 4349:2674 — the flag outline, 12 x 17.
+    // 4553:859 — the flag outline, 14.6 tall.
     badges.push({
       key: 'flag',
       icon: 'action-flag-outline',
       label: room.flagReason ? `Flagged: ${room.flagReason}` : 'Flagged room',
-      glyph: 17,
+      glyph: 14.6,
     });
   }
   const notes = room.notes?.count ?? 0;
   if (notes > 0) {
-    // 4349:2667 — the bell, 16.7 x 16.1 in an 18 frame.
+    // 4553:867 — the bell, 13.8 tall.
     badges.push({
       key: 'notes',
       icon: 'badge-bell',
       label: notes === 1 ? '1 note' : `${notes} notes`,
-      glyph: 16.1,
+      glyph: 13.8,
     });
   }
   const lostAndFound = room.lostAndFoundCount ?? 0;
   if (lostAndFound > 0) {
-    // 4349:2680 — the box, 19 x 21.
+    // 4553:873 — the box, 16.3 x 17.9.
     badges.push({
       key: 'lostAndFound',
       icon: 'badge-lost-found',
       label: lostAndFound === 1 ? '1 lost & found item' : `${lostAndFound} lost & found items`,
-      glyph: 21,
+      glyph: 17.9,
     });
   }
   return badges;
 }
 
-/** One badge tile. The glyph keeps its share of the tile if the row ever has to shrink. */
-export function RoomBadgeTile({ badge, width, height }: { badge: RoomBadge; width: number; height: number }) {
-  const scale = height / BADGE_TILE.height;
+/** One badge tile. */
+export function RoomBadgeTile({ badge }: { badge: RoomBadge }) {
   return (
     <View
       className="items-center justify-center"
       style={{
-        width,
-        height,
-        borderRadius: BADGE_TILE.radius * scale,
-        backgroundColor: BADGE_TILE.fill,
+        width: ROOM_CARD.badge.width,
+        height: ROOM_CARD.badge.height,
+        borderRadius: ROOM_CARD.badge.radius,
+        backgroundColor: TILE_FILL,
       }}
       accessibilityLabel={badge.label}
     >
-      <Icon name={badge.icon} size={cardPx(badge.glyph) * scale} color={RED} />
+      <Icon name={badge.icon} size={cardPx(badge.glyph)} color={RED} />
     </View>
   );
 }
