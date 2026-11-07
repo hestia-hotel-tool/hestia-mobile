@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { View, FlatList, StyleSheet, RefreshControl, useWindowDimensions, Text, Platform } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Platform } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -76,6 +76,7 @@ import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenCo
 import { ROOMS_LIST_CHROME } from '../constants/roomsListChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
+import { RoomListSkeleton } from '../components/roomsList/RoomCardSkeleton';
 
 /** When user taps a status badge or priority badge on Home. */
 export type CategoryFilterParam = {
@@ -129,11 +130,12 @@ export default function AllRoomsScreen() {
   const initialShift = shiftLock.locked ? shiftLock.shift : routeShift || getShiftFromTime();
   // Only the fields this screen uses: a whole-store subscription re-rendered it
   // on every change, including the per-update "saving" flag.
-  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
+  const { data: allRoomsData, loading, refreshing, lastFetchedShift, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
     useShallow((st) => ({
       data: st.data,
       loading: st.loading,
       refreshing: st.refreshing,
+      lastFetchedShift: st.lastFetchedShift,
       fetchRooms: st.fetchRooms,
       updateRoom: st.updateRoom,
       runRoomAction: st.runRoomAction,
@@ -156,6 +158,16 @@ export default function AllRoomsScreen() {
   // UI shift follows the selected shift. Do not coerce PM->AM during AM hours; that breaks
   // assignment-based navigation (HSK Portier) and can lead to empty results.
   const uiShift: ShiftType = (displayData.selectedShift ?? initialShift) as ShiftType;
+  /*
+   * The AM/PM toggle has switched shift and that shift's rooms are on their
+   * way: until they land the store still holds the other shift's list, and
+   * painting it in the new shift's colours, then swapping it out, read as a
+   * glitch. The list shows skeleton cards instead (RoomListSkeleton) and the
+   * pull-to-refresh spinner stays hidden. If the fetch fails, `refreshing`
+   * drops and the list falls back to what it has, as before.
+   */
+  const switchingShift =
+    !!allRoomsData && lastFetchedShift != null && lastFetchedShift !== uiShift && (refreshing || loading);
 
   React.useEffect(() => {
     fetchRooms(initialShift);
@@ -1194,6 +1206,9 @@ export default function AllRoomsScreen() {
               filterOpen={showFilterModal}
               filtersApplied={activeFilterParts.length > 0}
               progress={collapsingHeader.progress}
+              // A banded list opens with its band heading, which brings its own
+              // 32 above: the field leaves 8, not 40, so the two do not stack.
+              listGap={isGroupedRooms ? 8 : undefined}
               progressPill={attendantProgress}
               accessory={chrome.linenSummary ? <ViewOnlyChip onDark={displayData.selectedShift === 'PM'} /> : undefined}
               summary={
@@ -1280,12 +1295,21 @@ export default function AllRoomsScreen() {
               },
               scrollEventThrottle: 16,
               refreshControl: (
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                <RefreshControl refreshing={refreshing && !switchingShift} onRefresh={onRefresh} />
               ),
             };
 
             // A room attendant off the shift that is on now: say so, and when theirs is.
             if (shiftLock.offShift) return <OffShiftNotice info={shiftLock.offShift} onDark={displayData.selectedShift === 'PM'} />;
+
+            // Shift just switched: the card outlines until its rooms arrive.
+            if (switchingShift) {
+              return (
+                <ScrollView {...scrollProps}>
+                  <RoomListSkeleton slotStyle={styles.roomCardSlot} />
+                </ScrollView>
+              );
+            }
 
             const renderRoomCard = (room: RoomCardData, tray?: TrayPlacement) => (
               <RoomRow

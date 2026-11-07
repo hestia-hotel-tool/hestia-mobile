@@ -1,12 +1,16 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, Image, StyleSheet, TouchableOpacity } from 'react-native';
 import { GUEST_INFO as ROOM_DETAIL_GUEST_INFO, scaleX } from '../../constants/roomDetailStyles';
-import { GUEST_INFO } from '../../constants/allRoomsStyles';
-import { formatGuestCount, formatDatesOfStay } from '@/utils/formatting';
+import { formatDatesOfStayShort, formatGuestCountWords } from '@/utils/formatting';
 import { colors } from '@/theme';
+import { vipTierFor } from '@/domain/vip';
+import { useVipTiers } from '@/store/vipTiers';
+import { useAIChatOverlay } from '@features/ai-agent';
 import GuestProfileImageModal, { type GuestImageAnchorLayout } from '@features/rooms/components/GuestProfileImageModal';
 import type { GuestInfo } from '../../types/allRooms.types';
-import type { GuestRowKind } from '../roomsList/GuestRow';
+import { GuestKindDisc, VipDisc, type GuestRowKind } from '../roomsList/GuestRow';
+import { VipInfoPopover, VIP_POPOVER_SPACE, VIP_ASSISTANT_QUESTION, type VipAnchor } from '../roomsList/VipInfoPopover';
+import type { MeasureAnchor, RevealBelow } from '../../hooks/useRevealBelow';
 import { guestTimeLabelForKind } from '../../utils/roomCardProps';
 
 export type GuestInfoCardCategory = 'Arrival' | 'Departure' | 'Stayover' | 'Turndown';
@@ -30,14 +34,22 @@ interface GuestInfoCardProps {
   guest: GuestInfo;
   /** Room-detail guest row type — drives label color, avatar badge, and icon fallback. */
   category: GuestInfoCardCategory;
-  numberBadge?: string;
   /** Shown below the guest row when present (Arrival / Stayover / Turndown; not Departure). */
   specialInstructions?: string;
+  /** The room's cleaning credits, for the VIP popover's "Use 80 credits…". */
+  credits?: number;
+  /** Scrolls the screen so the VIP popover fits under the disc (useRevealBelow). */
+  revealVip?: RevealBelow;
+  /** The VIP popover closed: drop the reveal's padding. */
+  endVipReveal?: () => void;
 }
 
 const AVATAR_SIZE = 73;
 const ROW_HORIZONTAL_INSET = 20;
 const AVATAR_TEXT_GAP = 20;
+/** The VIP disc's top below the photo's (357 - 331.5, Figma 2333:312), and its gap from the text. */
+const VIP_DISC_TOP = 25.5;
+const VIP_DISC_GAP = 8;
 
 /**
  * The word and the avatar badge, per guest category.
@@ -65,38 +77,59 @@ function categoryColors(cat: GuestInfoCardCategory): { label: string; badgeBg: s
   }
 }
 
-function fallbackIconSource(cat: GuestInfoCardCategory) {
-  switch (cat) {
-    case 'Departure':
-      return require('../../../../../assets/icons/guest-departure-icon.png');
-    case 'Stayover':
-      return require('../../../../../assets/icons/stayover-guest_icon.png');
-    case 'Turndown':
-      return require('../../../../../assets/icons/moon.png');
-    default:
-      return require('../../../../../assets/icons/guest-arrival-icon.png');
-  }
-}
-
-function badgeIconSource(cat: GuestInfoCardCategory, _guest: GuestInfo) {
-  if (cat === 'Arrival') return require('../../../../../assets/icons/arrow-forward.png');
-  if (cat === 'Departure') return require('../../../../../assets/icons/departure-spear.png');
-  if (cat === 'Stayover') return require('../../../../../assets/icons/stayover-guest_icon.png');
-  return require('../../../../../assets/icons/moon.png');
-}
-
 export default function GuestInfoCard({
   guest,
   category,
-  numberBadge,
   specialInstructions,
+  credits = 0,
+  revealVip,
+  endVipReveal,
 }: GuestInfoCardProps) {
   const [isImageModalVisible, setIsImageModalVisible] = useState(false);
   const [imageModalAnchorLayout, setImageModalAnchorLayout] = useState<GuestImageAnchorLayout | null>(null);
   const guestImageWrapRef = useRef<View>(null);
-  const { label: labelColor, badgeBg } = categoryColors(category);
+  const { label: labelColor } = categoryColors(category);
+  const kind = GUEST_KIND_BY_CATEGORY[category];
   const hasGuestImage = !!guest.imageUrl;
-  const timeLine = guestTimeLabelForKind(GUEST_KIND_BY_CATEGORY[category], guest);
+  const timeLine = guestTimeLabelForKind(kind, guest);
+  const occupancy = formatGuestCountWords(guest.guestCount);
+  const dates = formatDatesOfStayShort(guest.datesOfStay);
+  // The room card's second line: "ETA: 09:00  2 Adults".
+  const detail = [timeLine, occupancy].filter(Boolean) as string[];
+
+  // This guest's own VIP level — never the slot's inherited badge.
+  const vipTiers = useVipTiers();
+  const tier = guest.vipCode ? vipTierFor(guest.vipCode, vipTiers) : null;
+  const assistant = useAIChatOverlay();
+  // Kept after closing so the modal fades out (see RoomListCard).
+  const [vipCard, setVipCard] = useState<{
+    anchor: VipAnchor;
+    cropTop: number;
+    clearAbove: number;
+    open: boolean;
+  } | null>(null);
+  const blockRef = useRef<View>(null);
+  const measureBlockTop = () =>
+    new Promise<number | null>((resolve) => {
+      const node = blockRef.current;
+      if (!node) return resolve(null);
+      node.measureInWindow((_x, y, _w, h) => resolve(Number.isFinite(y) && h > 0 ? y : null));
+    });
+  const openVip = async (measure: MeasureAnchor) => {
+    const revealed = revealVip
+      ? await revealVip(measure, VIP_POPOVER_SPACE)
+      : await measure().then((rect) => (rect ? { rect, clearAbove: 0 } : null));
+    if (!revealed) {
+      endVipReveal?.();
+      return;
+    }
+    const cropTop = (await measureBlockTop()) ?? revealed.rect.y;
+    setVipCard({ anchor: revealed.rect, cropTop, clearAbove: revealed.clearAbove, open: true });
+  };
+  const closeVip = () => {
+    setVipCard((v) => (v ? { ...v, open: false } : v));
+    endVipReveal?.();
+  };
 
   const openGuestImageModal = () => {
     guestImageWrapRef.current?.measureInWindow((x, y, width, height) => {
@@ -106,74 +139,66 @@ export default function GuestInfoCard({
   };
 
   return (
-    <View style={styles.block}>
+    <View ref={blockRef} collapsable={false} style={styles.block}>
       <View style={styles.mainRow}>
-        {/* Avatar / icon */}
+        {/* Photo with the guest-kind disc on its corner — the room card's
+            SVG disc (GuestKindDisc), not the old PNG arrows. Without a photo,
+            the card's grey placeholder. */}
         <View style={styles.avatarColumn}>
-          {hasGuestImage ? (
-            <View ref={guestImageWrapRef} collapsable={false} style={styles.avatarWrap}>
+          <View ref={guestImageWrapRef} collapsable={false} style={styles.avatarWrap}>
+            {hasGuestImage ? (
               <TouchableOpacity
                 activeOpacity={0.7}
                 onPress={openGuestImageModal}
                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Image
-                  source={{ uri: guest.imageUrl }}
-                  style={styles.guestImage}
-                  resizeMode="cover"
-                />
+                <Image source={{ uri: guest.imageUrl }} style={styles.guestImage} resizeMode="cover" />
               </TouchableOpacity>
-              <View style={[styles.imageBadge, { backgroundColor: badgeBg }]}>
-                <Image
-                  source={badgeIconSource(category, guest)}
-                  style={category === 'Turndown' ? styles.imageBadgeIconNoTint : styles.imageBadgeIcon}
-                  resizeMode="contain"
-                />
-              </View>
+            ) : (
+              <View style={[styles.guestImage, styles.guestImagePlaceholder]} />
+            )}
+            <View style={styles.imageBadge}>
+              <GuestKindDisc kind={kind} size={22 * scaleX} />
             </View>
-          ) : (
-            <View>
-              <Image
-                source={fallbackIconSource(category)}
-                style={[styles.guestIcon, category === 'Turndown' ? styles.guestIconNoTint : null]}
-                resizeMode="contain"
-              />
-            </View>
-          )}
+          </View>
         </View>
 
         <View style={styles.infoColumn}>
           <Text style={[styles.categoryLabel, { color: labelColor }]}>{category}</Text>
 
-          <View style={styles.nameRow}>
-            <Text style={styles.guestName} numberOfLines={2}>
-              {guest.name}
-            </Text>
-            {numberBadge ? <Text style={styles.numberBadge}>{numberBadge}</Text> : null}
-          </View>
+          <Text style={styles.guestName} numberOfLines={2}>
+            {guest.name}
+          </Text>
 
-          <View style={styles.detailsRow}>
-            {guest.datesOfStay ? (
-              <Text style={styles.dateRange}>{formatDatesOfStay(guest.datesOfStay)}</Text>
-            ) : null}
-            {guest.guestCount?.adults !== undefined ? (
-              <>
-                <Image
-                  source={require('../../../../../assets/icons/people-icon.png')}
-                  style={styles.countIcon}
-                  resizeMode="contain"
-                />
-                <Text style={styles.countText}>{formatGuestCount(guest.guestCount)}</Text>
-              </>
-            ) : null}
-            {/* From `category` — the slot role this block was given — not from
-                `guest.timeLabel`. The two are separate derivations of the same
-                fact and they disagreed: an Arrival/Departure room drew a red
-                "Departure" badge above the words "ETA: 12:00". See
-                `guestTimeLabelForKind`. */}
-            {timeLine ? <Text style={styles.timeText}>{timeLine}</Text> : null}
-          </View>
+          {/* The room card's lines (GuestRow): the arrival or departure time
+              with the guests in words, then the stay. The time comes from
+              `category` — this block's role — not `guest.timeLabel`, which
+              disagreed with it on Arrival/Departure rooms; see
+              `guestTimeLabelForKind`. */}
+          {detail.length > 0 ? (
+            <View style={styles.detailsRow}>
+              {detail.map((d) => (
+                <Text key={d} style={styles.detailText}>
+                  {d}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+          {dates ? <Text style={styles.detailText}>{dates}</Text> : null}
         </View>
+
+        {/* Figma 2333:312: the room card's VIP disc (grey 35, "V3", ⓘ on its
+            corner) at the row's right, level with the name's second line.
+            A tap on either opens the VIP popover, as on the card. */}
+        {tier && guest.vipCode ? (
+          <VipDisc
+            code={guest.vipCode}
+            tier={tier}
+            name={guest.name}
+            onInfoPress={openVip}
+            offset={{ left: VIP_DISC_GAP * scaleX, top: VIP_DISC_TOP * scaleX }}
+          />
+        ) : null}
       </View>
 
       {specialInstructions ? (
@@ -181,6 +206,23 @@ export default function GuestInfoCard({
           <Text style={styles.specialTitle}>Special Instructions</Text>
           <Text style={styles.specialText}>{specialInstructions}</Text>
         </View>
+      ) : null}
+
+      {tier ? (
+        <VipInfoPopover
+          visible={!!vipCard?.open}
+          onClose={closeVip}
+          anchor={vipCard?.anchor ?? null}
+          cropTop={vipCard?.cropTop ?? 0}
+          clearAbove={vipCard?.clearAbove ?? 0}
+          tier={tier}
+          credits={credits}
+          onAskAssistant={() => {
+            // Close first: iOS presents one modal at a time.
+            closeVip();
+            assistant.open(VIP_ASSISTANT_QUESTION);
+          }}
+        />
       ) : null}
 
       <GuestProfileImageModal
@@ -220,33 +262,13 @@ const styles = StyleSheet.create({
     height: AVATAR_SIZE * scaleX,
     borderRadius: 5 * scaleX,
   },
-  guestIcon: {
-    width: 28.371 * scaleX,
-    height: 29.919 * scaleX,
-    marginTop: 4 * scaleX,
-  },
-  guestIconNoTint: {
-    tintColor: '#FFEA80',
-  },
-  imageBadgeIcon: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    tintColor: '#ffffff',
-  },
-  imageBadgeIconNoTint: {
-    width: 12 * scaleX,
-    height: 12 * scaleX,
-    tintColor: '#FFEA80',
+  guestImagePlaceholder: {
+    backgroundColor: colors.background.secondary,
   },
   imageBadge: {
     position: 'absolute',
-    bottom: -2 * scaleX,
-    right: -2 * scaleX,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
+    bottom: -4 * scaleX,
+    right: -4 * scaleX,
     zIndex: 10,
   },
   infoColumn: {
@@ -259,60 +281,26 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 4 * scaleX,
   },
-  nameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    gap: 8 * scaleX,
-    marginBottom: 8 * scaleX,
-  },
   guestName: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.name.fontSize * scaleX,
     fontFamily: 'Helvetica',
     fontWeight: '700',
     color: ROOM_DETAIL_GUEST_INFO.arrival.name.color,
     lineHeight: 21 * scaleX,
-    flexShrink: 1,
-    maxWidth: '85%',
-  },
-  numberBadge: {
-    fontSize: ROOM_DETAIL_GUEST_INFO.arrival.numberBadge.fontSize * scaleX,
-    fontFamily: 'Helvetica',
-    fontWeight: '300',
-    color: ROOM_DETAIL_GUEST_INFO.arrival.numberBadge.color,
+    marginBottom: 8 * scaleX,
   },
   detailsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     flexWrap: 'wrap',
-    rowGap: 4 * scaleX,
-    columnGap: 12 * scaleX,
+    columnGap: 8 * scaleX,
   },
-  dateRange: {
+  /** Helvetica light, the room card's guest lines (GuestRow), at this screen's size. */
+  detailText: {
     fontSize: ROOM_DETAIL_GUEST_INFO.arrival.dates.fontSize * scaleX,
     fontFamily: 'Helvetica',
     fontWeight: '300',
-    color: ROOM_DETAIL_GUEST_INFO.arrival.dates.color,
-    lineHeight: 17 * scaleX,
-  },
-  countIcon: {
-    width: GUEST_INFO.guestCount.icon.width * scaleX,
-    height: GUEST_INFO.guestCount.icon.height * scaleX,
-    tintColor: '#334866',
-  },
-  countText: {
-    fontSize: ROOM_DETAIL_GUEST_INFO.arrival.occupancy.fontSize * scaleX,
-    fontFamily: 'Helvetica',
-    fontWeight: '300',
-    color: ROOM_DETAIL_GUEST_INFO.arrival.occupancy.color,
-    lineHeight: 17 * scaleX,
-  },
-  timeText: {
-    fontSize: ROOM_DETAIL_GUEST_INFO.arrival.eta.fontSize * scaleX,
-    fontFamily: 'Helvetica',
-    fontWeight: '400',
-    color: ROOM_DETAIL_GUEST_INFO.arrival.eta.color,
-    lineHeight: 17 * scaleX,
+    color: '#000000',
+    lineHeight: 22 * scaleX,
   },
   specialBlock: {
     marginTop: 22 * scaleX,

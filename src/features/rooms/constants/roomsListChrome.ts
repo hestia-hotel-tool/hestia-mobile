@@ -50,19 +50,24 @@ export type RoomsListChrome = {
 
 export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
   /**
-   * Everyone outside housekeeping operations: a flat list of every room, drawn
-   * with the same Figma 3883:5570 card as Housekeeping (client feedback,
-   * 2026-10-27: the legacy card's sizes, icons and weights did not match).
+   * Everyone outside housekeeping operations — bellboys, concierge,
+   * engineering, IT, In Room Dining, the Hotel Manager: leadership's screen
+   * (Figma 4553:262), the profile header, collapsing search and banded list of
+   * every room. It was the legacy header (back arrow, "All Rooms") over a flat
+   * list until 2026-11-06 (client: "the updated UI applies to every other
+   * staff, not the old one"). What each can do still comes from their
+   * permissions, not from this row.
    */
   default: {
-    profileHeader: false,
-    banded: false,
+    profileHeader: true,
+    banded: true,
     assignedOnly: false,
     rebuiltCard: true,
     stickyInProgress: false,
     frontOffice: false,
     linenSummary: false,
   },
+
   /** Housekeeping leadership — Figma 3883:5570. */
   leadership: {
     profileHeader: true,

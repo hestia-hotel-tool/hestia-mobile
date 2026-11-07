@@ -12,8 +12,11 @@ Header badge icons are Figma's 1pt-stroke glyphs (4553:856): `badge-bell` and `b
 
 ## Rooms header (staged)
 
+- Every Rooms variant now uses the new screen: `default` (bellboys, concierge, engineering, IT, IRD, Hotel Manager) moved off the legacy header and flat list on 2026-11-06. `AllRoomsHeader` and the legacy `allRooms/RoomCard` are now unreachable from AllRoomsScreen (dead code, not yet deleted).
+
 - No "Rooms" title. Attendants get "Rooms finished" + the 3/8 pill; laundry gets "View only" + the linen summary.
 - `hooks/useCollapsingHeader.ts`: scrolling down folds the profile band away and pins the search; a flick up or reaching the top brings it back. It stays in the layout (not an overlay) because `GroupedRoomsList` floats the In Progress band at the list's top. Frozen while the status popover or filter sheet is open.
+- AM/PM switch: until the new shift's rooms arrive the store still holds the other shift's (a fetch fills both `rooms` and `roomsPM` with one shift), so the list shows `RoomListSkeleton` instead and hides the refresh spinner (`switchingShift` in AllRoomsScreen). A banded list gets an 8pt gap under the search (`listGap`), since its band heading brings 32.
 - Filter sheet hangs from the header's measured bottom (`AllRoomsFilterModal.anchorTop`, `FilterModalOverlay.windowCoordinates`). The filter button shows open (disc) and applied (dot).
 
 ## VIP codes (unstaged, user-approved phase 1, 2026-11-06)
@@ -21,7 +24,7 @@ Header badge icons are Figma's 1pt-stroke glyphs (4553:856): `badge-bell` and `b
 - Hotel codes are **1–10** (1 = most important); no code = regular guest (no disc). They're grouped into tiers per hotel: V1 = 1–2, V2 = 3–4, V3 = 5–6, V4 = 7–8, V5 = 9–10. **Drawn neutral everywhere** (`VIP_NEUTRAL`: Figma's grey disc, code `#334866`). Colour is kept for status (client, 2026-11-06); tier colours stay in `vip_tiers`, unused.
 - Migration `20261106120000_vip_tiers.sql`: a `vip_tiers` table (RLS read per hotel, seeded for every hotel + a trigger for new ones). `guests.vip_code` limited to 1–10; other values are **cleared** (data change). `_guest_vip` (used by `upsert_guest`) enforces the same rule.
 - Client: `src/domain/vip` (pure: `vipTierFor`, `normalizeVipCode`, defaults = the seed), `src/store/vipTiers.ts` (loads the hotel's tiers, defaults until then, cleared on tenant reset), `components/ui/VipCode.tsx` (inline tag). `vipCode` is now text (the `parseInt` is gone).
-- Shown on: the room card disc, the room picker, the Lost & Found confirm step. The Rooms filter has a "VIP" section (V1–V5, room counts); the filter bar says "VIP V1".
+- Shown on: the room card disc, Room Detail's guest rows (the same `VipDisc` at the row's right, Figma 2333:312; tapping opens the same popover, `useRevealBelow` on the Overview ScrollView; each guest's own code, no inherited `numberBadge`), the room picker, the Lost & Found confirm step. The Rooms filter has a "VIP" section (V1–V5, room counts); the filter bar says "VIP V1".
 - Tapping a VIP disc (code or ⓘ) opens `roomsList/VipInfoPopover.tsx` (user screenshot, 2026-11-06): a card-wide popover that always opens downward from the ⓘ (the list scrolls to make room first: `hooks/useRevealBelow.ts`, which also pads the list's end and freezes the collapsing header), everything blurred but the tapped card's strip: "Code: V3" (tier), "VIP GUEST", "Use {room credits} credits…", "Need Assistance?" and a button that opens the assistant already asking "What are the VIP guest requirements?" (`useAIChatOverlay().open(question)`). Built from a screenshot, so measures are approximate; no Figma node yet.
 - Phase 2 (not built): special-attention flags, operational rules (inspection / auto-priority for VIP arrivals), Mews/Cloudbeds mapping, back-office tier editing.
 

@@ -39,6 +39,8 @@ export type RoomsHeaderProps = {
   summary?: React.ReactNode;
   /** Pinned under the search field, e.g. the active filters. Never collapses. */
   footer?: React.ReactNode;
+  /** The gap under the search field while open; 40 by default (Figma 4553:262). Smaller when the list opens with its own spacing. */
+  listGap?: number;
 };
 
 /** Gaps around the search field, open and collapsed (Figma 4553:262: 40 above and below). */
@@ -76,6 +78,7 @@ export function RoomsHeader({
   accessory,
   summary,
   footer,
+  listGap = SEARCH_GAP_OPEN,
 }: RoomsHeaderProps) {
   const insets = useSafeAreaInsets();
   const pm = pmSurface(shift);
@@ -94,7 +97,7 @@ export function RoomsHeader({
     paddingBottom: interpolate(
       progress.value,
       [0, 1],
-      [SEARCH_GAP_TIGHT, hasMeta ? SEARCH_GAP_TO_META : SEARCH_GAP_OPEN]
+      [Math.min(SEARCH_GAP_TIGHT, listGap), hasMeta ? Math.min(SEARCH_GAP_TO_META, listGap) : listGap]
     ),
   }));
 

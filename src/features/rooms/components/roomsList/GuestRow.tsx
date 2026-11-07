@@ -177,18 +177,22 @@ export function GuestRow({
  * Helvetica Bold 12, #334866 (VIP_NEUTRAL). The tier is in the accessibility
  * label and the guest's VIP card, not in colour.
  */
-function VipDisc({
+export function VipDisc({
   code,
   tier,
   name,
   onInfoPress,
+  offset,
 }: {
   code: string;
   tier: VipTier;
   name: string;
   onInfoPress?: (measure: MeasureAnchor) => void;
+  /** Where the disc sits in its row; the card's (8 left, 12 down) by default. Room Detail places it its own way. */
+  offset?: { left: number; top: number };
 }) {
   const { marker: m } = ROOM_CARD;
+  const place = { marginLeft: offset?.left ?? m.gap, marginTop: offset?.top ?? m.top };
   // A plain RN View: measured with measureInWindow, so it must stay in the native tree.
   const infoRef = useRef<RNView>(null);
 
@@ -229,12 +233,12 @@ function VipDisc({
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityHint={`What being a VIP means for ${name}`}
-      style={({ pressed }) => ({ marginLeft: m.gap, marginTop: m.top, opacity: pressed ? 0.6 : 1 })}
+      style={({ pressed }) => ({ ...place, opacity: pressed ? 0.6 : 1 })}
     >
       {disc}
     </RNPressable>
   ) : (
-    <View style={{ marginLeft: m.gap, marginTop: m.top }} accessible accessibilityLabel={label}>
+    <View style={place} accessible accessibilityLabel={label}>
       {disc}
     </View>
   );
