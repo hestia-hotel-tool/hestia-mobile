@@ -45,25 +45,6 @@ type StaffScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(st
 const CLEANING_DEPARTMENTS = new Set(['hsk portier', 'laundry', 'housekeeping', 'hsk']);
 
 /**
- * Departments the roster does not show.
- *
- * "Executive and Administration" is general management, not a shift-working
- * team — it has no rooms, no shifts and nothing for this screen to group, and
- * the frame never drew it.
- *
- * **Hidden here, not deleted, and not hidden globally.** The row has three real
- * users attached (including the account owner), so removing it from the
- * database would orphan them or fail on the foreign key. `getDepartments` is
- * also shared with the ticket department picker, where routing a ticket to
- * management is legitimate — filtering inside that helper would take it away
- * from Tickets too.
- *
- * The cost, stated: those three people are no longer reachable from this
- * screen. Delete this constant to bring the department back.
- */
-const HIDDEN_DEPARTMENTS = new Set(['executive and administration']);
-
-/**
  * The Staff roster — Figma 3240:561.
  *
  * ## What this replaces
@@ -156,10 +137,7 @@ export default function StaffScreen() {
     getDepartments()
       .then((res) => {
         if (cancelled) return;
-        const visible = (res.data ?? []).filter(
-          (d) => !HIDDEN_DEPARTMENTS.has((d.name ?? '').trim().toLowerCase()),
-        );
-        const sorted = sortDepartmentsByDisplayOrder(visible);
+        const sorted = sortDepartmentsByDisplayOrder(res.data ?? []);
         setDepartments(sorted);
         setActiveDepartmentId((prev) => prev ?? sorted[0]?.id ?? null);
       })

@@ -16,7 +16,7 @@ import { Icon } from '@/components/Icon';
 import CreateTicketButton from '../components/CreateTicketButton';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
-import { RoomNumberSelector } from '@features/rooms/components/roomPicker';
+import { RoomSearchField } from '@features/rooms/components/roomPicker';
 import { useRoomPickerRooms } from '@features/rooms/hooks/useRoomPickerRooms';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
 import {
@@ -180,7 +180,8 @@ export default function SelectTicketLocationScreen() {
         {locationType === 'room' && (
           <>
             <Text style={styles.inputLabel}>Enter Room Number</Text>
-            <RoomNumberSelector
+            {/* Type the number; matches pop up under it (Figma 1085:2628). */}
+            <RoomSearchField
               rooms={rooms}
               loading={loading}
               value={selectedRoom}
@@ -355,7 +356,9 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     color: '#5a759d',
   },
   /** Spacing to whatever follows the picker; the control owns its own height. */
+  // Figma 1085:2628: the label's top 478, the card's 521 (label 19 tall).
   roomSelector: {
+    marginTop: 12 * scaleX,
     marginBottom: 16 * scaleX,
   },
   inputLabel: {

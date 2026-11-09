@@ -60,7 +60,6 @@ const users = [
 function generateTenantUsers(hotelName) {
   const domain = 'palmhavenhotel.com';
   const templates = [
-    { full_name: 'Amina Diallo', job_title_key: 'hotel_manager' },
     { full_name: 'Jonas Fischer', job_title_key: 'front_office_manager' },
     { full_name: 'Sofia Mendes', job_title_key: 'executive_housekeeper' },
   ];

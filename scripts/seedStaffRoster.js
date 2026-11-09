@@ -3,11 +3,10 @@
  * as the client asked for it per department (2026-10-19):
  *
  *   Housekeeping  Executive Housekeeper ×3, Supervisor ×1, Room Attendant ×4,
- *                 Porter / Houseman ×2, Laundry Attendant ×2,
- *                 Public Area Attendant ×2
+ *                 Porter / Houseman ×2, Public Area Attendant ×2
+ *   Laundry       Laundry Attendant ×2 (moved out of Housekeeping 2026-11-09)
  *   Engineering   Director of Engineering ×1, Shift Engineer ×4
  *   IT            Director Of Information Technology ×1
- *   Executive     Hotel Manager ×1
  *   In Room Dining  Manager ×1, Supervisor ×1, Waiter/Waitress ×1
  *
  * Every group of two or more is split across AM and PM so both shifts are covered.
@@ -60,9 +59,6 @@ const STAFF = [
 
   // IT
   { full_name: 'Brian Osei', email: 'brian@hestia.ch', job: 'director_of_information_technology', shift: 'AM' },
-
-  // Executive and Administration
-  { full_name: 'Elena Hofmann', email: 'elena@hestia.ch', job: 'hotel_manager', shift: 'AM' },
 
   // In Room Dining
   { full_name: 'Marta Silva', email: 'marta@hestia.ch', job: 'in_room_dining_manager', shift: 'AM' },

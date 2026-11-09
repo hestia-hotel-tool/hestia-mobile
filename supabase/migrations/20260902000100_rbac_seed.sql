@@ -4,7 +4,7 @@
 -- Do not edit by hand — run `npm run rbac:generate` instead.
 --
 -- Source spec: hestia-roles-2026-01-03.pdf
--- 23 job titles across 7 departments,
+-- 22 job titles across 7 departments,
 -- collapsing to 12 distinct permission profiles.
 --
 -- Idempotent: safe to re-run. Reference data is upserted by key, and
@@ -111,7 +111,7 @@ UPDATE public.departments d
     ('in_room_dining', 'In Room Dining'),
     ('engineering', 'Engineering'),
     ('it', 'IT'),
-    ('executive', 'Executive and Administration')
+    ('laundry', 'Laundry')
   ) AS v(key, name)
  WHERE d.name = v.name
    AND d.key IS NULL
@@ -124,7 +124,7 @@ INSERT INTO public.departments (key, name, description) VALUES
   ('in_room_dining', 'In Room Dining', 'Room service and in-suite dining'),
   ('engineering', 'Engineering', 'Maintenance, repairs and facility operations'),
   ('it', 'IT', 'Information technology and technical support'),
-  ('executive', 'Executive and Administration', 'General management and hotel administration')
+  ('laundry', 'Laundry', 'Linen, uniforms and guest laundry')
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
@@ -181,7 +181,7 @@ ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- 5. Roles — one per distinct permission profile.
 INSERT INTO public.roles (key, name, description) VALUES
-  ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.'),  -- 3 titles
+  ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.'),  -- 2 titles
   ('hk_room_attendant', 'Room Attendant', 'Cleans rooms: status changes, notes, checklist and history.'),  -- 1 title
   ('hk_houseman', 'Porter / Houseman', 'Support role: rooms, notes and history, no status changes.'),  -- 1 title
   ('hk_laundry', 'Laundry Attendant', 'Linen duties. No chat.'),  -- 1 title
@@ -476,7 +476,7 @@ SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
     ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('housekeeping_room_attendant', 'Housekeeping Room Attendant', 'housekeeping', 'hk_room_attendant', 'default', 'attendant'),
     ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier', 'leadership'),
-    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'laundry'),
+    ('housekeeping_laundry_attendant', 'Laundry Attendant', 'laundry', 'hk_laundry', 'default', 'laundry'),
     ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default', 'attendant'),
     ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default', 'front_office'),
     ('front_office_manager', 'Front Office Manager', 'front_office', 'ops_senior', 'default', 'front_office'),
@@ -493,8 +493,7 @@ SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
     ('in_room_dining_waiter_waitress', 'In Room Dining Waiter/Waitress', 'in_room_dining', 'ops_senior', 'dining', 'default'),
     ('director_of_engineering', 'Director of Engineering', 'engineering', 'engineering', 'engineering', 'default'),
     ('shift_engineer', 'Shift Engineer', 'engineering', 'engineering', 'engineering', 'default'),
-    ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default'),
-    ('hotel_manager', 'Hotel Manager', 'executive', 'full_access', 'default', 'default')
+    ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default')
   ) AS v(key, name, department_key, role_key, home_variant, rooms_variant)
   JOIN public.departments d ON d.key = v.department_key
   JOIN public.roles r       ON r.key = v.role_key
@@ -550,8 +549,8 @@ BEGIN
   IF n_roles  <> 12 THEN
     RAISE EXCEPTION 'expected 12 roles, found %', n_roles;
   END IF;
-  IF n_titles <> 23 THEN
-    RAISE EXCEPTION 'expected 23 job titles, found %', n_titles;
+  IF n_titles <> 22 THEN
+    RAISE EXCEPTION 'expected 22 job titles, found %', n_titles;
   END IF;
   IF n_perms  <> 47 THEN
     RAISE EXCEPTION 'expected 47 permissions, found %', n_perms;

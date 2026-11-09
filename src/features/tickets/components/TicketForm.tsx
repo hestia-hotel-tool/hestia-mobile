@@ -6,26 +6,23 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  ScrollView,
   Dimensions,
   ActivityIndicator,
   FlatList,
 } from 'react-native';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
-import { Ionicons } from '@expo/vector-icons';
 import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from '@/components/media/photoPicker';
-import Svg, { Defs, LinearGradient as SvgLinearGradient, Stop, Text as SvgText } from 'react-native-svg';
+import { GradientText } from '@/components/ui/GradientText';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
 import { createTicket } from '../services/tickets';
-import type { RootStackParamList } from '@/types/navigation';
 import {
   getDepartments,
   departmentIconName,
   departmentGlyphHeight,
-  DEPARTMENT_CHIP,
+  sortDepartmentsByDisplayOrder,
 } from '@/lib/departments';
 import { Icon, type IconName } from '@/components/Icon';
 import { fetchAssignableTicketStaff } from '../services/ticketAccess';
@@ -56,77 +53,29 @@ interface TicketFormProps {
   roomNumber: string;
   roomId?: string;
   departmentName?: string;
+  /** A public area instead of a room: the ticket is filed against it, with no room. */
+  publicAreaName?: string | null;
   onSubmitSuccess?: () => void;
-}
-
-function GradientText({
-  text,
-  textStyle,
-  gradientColors = ['#ff46a3', '#4a91fc'],
-}: {
-  text: string;
-  textStyle: any;
-  gradientColors?: [string, string];
-}) {
-  const [width, setWidth] = useState(0);
-  const gradId = useMemo(() => `grad_${Math.random().toString(16).slice(2)}`, []);
-
-  const fontSize =
-    typeof textStyle?.fontSize === 'number' ? (textStyle.fontSize as number) : 16;
-  const fontFamily = textStyle?.fontFamily;
-  const fontWeight = textStyle?.fontWeight;
-
-  return (
-    <View
-      style={{ alignItems: 'center' }}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-    >
-      {width > 0 ? (
-        <>
-          <Svg width={width} height={fontSize * 1.5}>
-            <Defs>
-              <SvgLinearGradient id={gradId} x1="0" y1="0" x2="1" y2="1">
-                <Stop offset="0" stopColor={gradientColors[0]} />
-                <Stop offset="1" stopColor={gradientColors[1]} />
-              </SvgLinearGradient>
-            </Defs>
-            <SvgText
-              x={width / 2}
-              y={fontSize * 1.2}
-              textAnchor="middle"
-              fontSize={fontSize}
-              fontFamily={fontFamily}
-              fontWeight={fontWeight}
-              fill={`url(#${gradId})`}
-            >
-              {text}
-            </SvgText>
-          </Svg>
-        </>
-      ) : (
-        <Text style={textStyle}>{text}</Text>
-      )}
-    </View>
-  );
 }
 
 export default function TicketForm({
   roomNumber,
   roomId,
   departmentName = 'Engineering',
+  publicAreaName,
   onSubmitSuccess,
 }: TicketFormProps) {
+  const isPublicArea = publicAreaName != null;
   const toast = useToast();
 
   // Form state
   const [ticketName, setTicketName] = useState('');
-  const [showFrequentCasesDropdown, setShowFrequentCasesDropdown] = useState(false);
+  const [showDepartmentList, setShowDepartmentList] = useState(false);
   const [departments, setDepartments] = useState<DepartmentUiItem[]>([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [assignedStaff, setAssignedStaff] = useState<string[]>([]);
   const [priority, setPriority] = useState<Priority>('high');
-  const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [pictures, setPictures] = useState<string[]>([]);
   const [photoGridWidth, setPhotoGridWidth] = useState<number | null>(null);
   const [description, setDescription] = useState('');
@@ -149,7 +98,7 @@ export default function TicketForm({
       .then((res) => {
         if (cancelled) return;
         const db = res.data ?? [];
-        const mapped: DepartmentUiItem[] = db
+        const mapped: DepartmentUiItem[] = sortDepartmentsByDisplayOrder(db)
           .filter((d) => d && (d as any).id && (d as any).name)
           .map((d) => {
             const name = String((d as any).name ?? '').trim();
@@ -207,10 +156,7 @@ export default function TicketForm({
     };
   }, [selectedDepartmentId]);
 
-  const handleFrequentCaseSelect = (caseItem: string) => {
-    setTicketName(caseItem);
-    setShowFrequentCasesDropdown(false);
-  };
+  const handleFrequentCaseSelect = (caseItem: string) => setTicketName(caseItem);
 
   // The camera, or several at once from the library — up to MAX_PHOTOS in all.
   const handleAddPicture = () => choosePhotoSource((source) => void addPictures(source));
@@ -271,8 +217,9 @@ export default function TicketForm({
         departmentName: selectedDepartmentName,
         assignedToId,
         taggedStaffIds: assignedStaff,
-        roomId: roomId ?? null,
-        locationType: 'room',
+        roomId: isPublicArea ? null : (roomId ?? null),
+        locationType: isPublicArea ? 'publicArea' : 'room',
+        publicAreaName: isPublicArea ? publicAreaName : null,
         pictures,
       });
 
@@ -304,348 +251,274 @@ export default function TicketForm({
     }
   };
 
+  const selectedDepartment = departments.find((d) => d.id === selectedDepartmentId) ?? null;
+  const otherDepartments = departments.filter((d) => d.id !== selectedDepartmentId);
+  const taggedStaff = departmentStaff.filter((staff) => assignedStaff.includes(staff.id));
+
   return (
     <View style={styles.formContainer}>
-      {/* Create a ticket heading */}
-      <Text style={styles.heading}>Create a ticket</Text>
-        <Text style={styles.selectDepartmentLabel}>Select Department</Text>
+      {/* Department — a dropdown: the chosen one large in a pink frame, the
+          rest listed under it while open (Figma 589:514, 4600:609). */}
+      <Text style={styles.selectDepartmentLabel}>Select Department</Text>
+      <TouchableOpacity
+        style={styles.departmentBox}
+        onPress={() => setShowDepartmentList((open) => !open)}
+        activeOpacity={0.7}
+        disabled={departmentsLoading || departments.length === 0}
+        accessibilityRole="button"
+        accessibilityLabel={`Department: ${selectedDepartment?.name ?? 'none'}`}
+        accessibilityHint="Choose the department this ticket is for"
+        accessibilityState={{ expanded: showDepartmentList }}
+      >
+        <View style={styles.departmentBoxGlyph}>
+          {selectedDepartment?.iconName ? (
+            <Icon
+              name={selectedDepartment.iconName}
+              size={Math.min(departmentGlyphHeight(selectedDepartment.iconName) * BOX_GLYPH_SCALE, BOX_GLYPH_MAX) * scaleX}
+              color={INK}
+            />
+          ) : null}
+        </View>
+        {departmentsLoading ? (
+          <ActivityIndicator color={INK} style={styles.departmentBoxName} />
+        ) : (
+          <Text style={styles.departmentBoxName} numberOfLines={1}>
+            {selectedDepartment?.name ?? 'Select'}
+          </Text>
+        )}
+        <View style={showDepartmentList ? styles.chevronOpen : undefined}>
+          <Icon name="action-chevron-down-wide" width={30 * scaleX} height={14 * scaleX} color={INK} />
+        </View>
+      </TouchableOpacity>
 
-        {/* Department Icons Row */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.departmentScrollView}
-          contentContainerStyle={styles.departmentIconsContainer}
-        >
-          {(departmentsLoading ? [] : departments).map((dept) => {
-            const isSelected = dept.id === selectedDepartmentId;
-            return (
-              <TouchableOpacity
-                key={dept.id}
-                style={styles.departmentItem}
-                onPress={() => setSelectedDepartmentId(dept.id)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.departmentIconContainer, isSelected && styles.departmentIconSelected]}>
-                  {dept.iconName && (
-                    <Icon
-                      name={dept.iconName}
-                      size={departmentGlyphHeight(dept.iconName) * scaleX}
-                      color={isSelected ? DEPARTMENT_CHIP.glyph.selected : DEPARTMENT_CHIP.glyph.unselected}
-                    />
-                  )}
-                </View>
-                <Text
-                  style={[styles.departmentLabel, isSelected && styles.departmentLabelSelected]}
-                  numberOfLines={1}
-                >
-                  {dept.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
+      {showDepartmentList ? (
+        <View style={styles.departmentList}>
+          {otherDepartments.map((dept) => (
+            <TouchableOpacity
+              key={dept.id}
+              style={styles.departmentRow}
+              onPress={() => {
+                setSelectedDepartmentId(dept.id);
+                setShowDepartmentList(false);
+              }}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={dept.name}
+            >
+              <View style={styles.departmentRowGlyph}>
+                {dept.iconName ? (
+                  <Icon name={dept.iconName} size={departmentGlyphHeight(dept.iconName) * scaleX} color={INK} />
+                ) : null}
+              </View>
+              <Text style={styles.departmentRowLabel} numberOfLines={1}>
+                {dept.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      ) : null}
 
-        {/* Ticket Name with Frequent Cases Dropdown */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ticket Name</Text>
-          <View style={styles.inputWrapper}>
-            <View style={styles.inputContainer}>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Broken Shower"
-                placeholderTextColor="#5a759d"
-                value={ticketName}
-                onChangeText={setTicketName}
-              />
-              <TouchableOpacity
-                onPress={() => setShowFrequentCasesDropdown(!showFrequentCasesDropdown)}
-                activeOpacity={0.7}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Image
-                  source={require('../../../../assets/icons/dropdown-arrow.png')}
-                  style={[styles.dropdownArrow, showFrequentCasesDropdown && styles.dropdownArrowOpen]}
-                  resizeMode="contain"
-                />
-              </TouchableOpacity>
+      <View style={[styles.fullBleedRule, showDepartmentList && styles.fullBleedRuleAfterList]} />
+
+      {/* Name — "Name Engineering Ticket", the field, then the frequent cases. */}
+      <Text style={styles.nameHeading}>Name {selectedDepartmentName} Ticket</Text>
+      <View style={styles.pinkBox}>
+        <TextInput
+          style={styles.nameInput}
+          placeholder="Broken Shower"
+          placeholderTextColor={PLACEHOLDER}
+          value={ticketName}
+          onChangeText={setTicketName}
+          accessibilityLabel="Ticket name"
+        />
+      </View>
+
+      <Text style={styles.frequentCasesTitle}>Frequent Cases</Text>
+      <View style={styles.frequentCases}>
+        {FREQUENT_CASES.map((caseItem) => {
+          const isSelected = ticketName === caseItem;
+          return (
+            <TouchableOpacity
+              key={caseItem}
+              style={styles.caseRow}
+              onPress={() => handleFrequentCaseSelect(caseItem)}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={caseItem}
+              accessibilityState={{ selected: isSelected }}
+            >
+              <Icon name="action-flag-priority" width={FLAG.width} height={FLAG.height} color={CASE_FLAG} />
+              <Text style={styles.caseLabel}>{caseItem}</Text>
+              {isSelected ? <Icon name="action-check" width={CHECK.width} height={CHECK.height} color={INK} /> : null}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Priority — the choice in a pink frame, the three options under it. */}
+      <Text style={styles.priorityTitle}>Priority</Text>
+      <View style={[styles.pinkBox, styles.priorityBox]}>
+        <PriorityFlags priority={priority} />
+        <Text style={styles.priorityBoxLabel}>{PRIORITY[priority].label}</Text>
+      </View>
+      <View style={styles.priorityOptions}>
+        {PRIORITY_ORDER.map((p) => (
+          <TouchableOpacity
+            key={p}
+            style={[styles.priorityRow, { backgroundColor: PRIORITY[p].tint }]}
+            onPress={() => setPriority(p)}
+            activeOpacity={0.7}
+            accessibilityRole="radio"
+            accessibilityLabel={PRIORITY[p].label}
+            accessibilityState={{ selected: priority === p }}
+          >
+            <PriorityFlags priority={p} />
+            <Text style={styles.priorityRowLabel}>{PRIORITY[p].label}</Text>
+            {priority === p ? (
+              <Icon name="action-check" width={CHECK.width} height={CHECK.height} color={INK} />
+            ) : null}
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      {/* Add Photo */}
+      <View style={styles.card}>
+        {pictures.length === 0 ? (
+          <TouchableOpacity
+            style={styles.addPhotoEmpty}
+            onPress={handleAddPicture}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Add photo"
+          >
+            <AddPhotoMark />
+            <View style={styles.addPhotoTitle}>
+              <GradientText text="Add Photo" textStyle={styles.addPhotoTitleText} direction="vertical" />
             </View>
-
-            {/* Frequent Cases Dropdown */}
-            {showFrequentCasesDropdown && (
-              <View style={styles.frequentCasesDropdown}>
-                <Text style={styles.frequentCasesTitle}>Frequent Cases</Text>
-                {FREQUENT_CASES.map((caseItem) => {
-                  const isSelected = ticketName === caseItem;
+            <Text style={styles.addPhotoSubtitle}>Add photos of the item and our AI will do the rest</Text>
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.photosGridContainer} onLayout={(e) => setPhotoGridWidth(e.nativeEvent.layout.width)}>
+            <FlatList
+              data={[...pictures, '__ADD__'] as const}
+              keyExtractor={(item, index) => (item === '__ADD__' ? '__ADD__' : `${item}-${index}`)}
+              numColumns={2}
+              scrollEnabled={false}
+              showsVerticalScrollIndicator={false}
+              columnWrapperStyle={styles.photosGridRow}
+              renderItem={({ item, index }) => {
+                if (item === '__ADD__') {
+                  if (pictures.length >= MAX_PHOTOS) return null;
                   return (
                     <TouchableOpacity
-                      key={caseItem}
-                      style={styles.dropdownItem}
-                      onPress={() => handleFrequentCaseSelect(caseItem)}
+                      style={[styles.addPhotoGridItem, { width: photoItemSize, height: photoItemSize }]}
+                      onPress={handleAddPicture}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Add another photo"
                     >
-                      <Text style={styles.dropdownItemText}>{caseItem}</Text>
-                      {isSelected && <Text style={styles.dropdownCheckmark}>✓</Text>}
+                      <Icon name="action-add-photo-frame" size={30 * scaleX} color="#000000" />
+                      <GradientText text="Add Photo" textStyle={styles.addPhotoGridTitle} direction="vertical" />
                     </TouchableOpacity>
                   );
-                })}
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* Tag Staff */}
-        <View style={styles.section}>
-          <View style={styles.tagStaffFrame}>
-            <View style={styles.tagStaffHeader}>
-              <Text style={styles.sectionTitle}>Tag Staff</Text>
-              <Text style={styles.sectionSubtitle}>Tag people to the ticket</Text>
-            </View>
-            <View style={styles.tagStaffDivider} />
-            <View style={styles.tagStaffContainer}>
-              <View style={styles.taggedStaffRow}>
-                {assignedStaff.length > 0 ? (
-                  <>
-                    {departmentStaff
-                      .filter((staff) => assignedStaff.includes(staff.id))
-                      .map((staff, index) => (
-                        <View
-                          key={staff.id}
-                          style={[styles.staffAvatarItem, { marginLeft: index > 0 ? 16 : 0 }]}
-                        >
-                          <View style={styles.staffAvatarCircle}>
-                            {staff.avatar ? (
-                              <Image source={{ uri: staff.avatar }} style={styles.avatarImage} />
-                            ) : (
-                              <View style={styles.avatarPlaceholder}>
-                                <Text style={styles.avatarInitials}>
-                                  {staff.name
-                                    .split(' ')
-                                    .map((n) => n[0])
-                                    .join('')
-                                    .slice(0, 2)
-                                    .toUpperCase()}
-                                </Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={styles.staffName}>{staff.name}</Text>
-                        </View>
-                      ))}
-                  </>
-                ) : null}
-
-                <TouchableOpacity
-                  style={[
-                    styles.addStaffButton,
-                    { marginLeft: assignedStaff.length > 0 ? 16 * scaleX : 0 },
-                  ]}
-                  onPress={handleOpenStaffModal}
-                  activeOpacity={0.7}
-                >
-                  <Text style={styles.addStaffText}>+</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Priority */}
-        <View style={styles.section}>
-          <Text style={styles.priorityTitle}>Priority</Text>
-          <TouchableOpacity
-            style={styles.prioritySelectContainer}
-            onPress={() => setShowPriorityDropdown(!showPriorityDropdown)}
-            activeOpacity={0.7}
-          >
-            <View style={styles.priorityContent}>
-              <Text style={[
-                styles.priorityIcon,
-                priority === 'high' && styles.priorityIconHigh,
-                priority === 'medium' && styles.priorityIconMedium,
-                priority === 'low' && styles.priorityIconLow,
-              ]}>
-                {priority === 'high' ? 'PPP' : priority === 'medium' ? 'PP' : 'P'}
-              </Text>
-              <Text style={styles.priorityLabel}>
-                {priority === 'high' ? 'High Priority' : priority === 'medium' ? 'Medium Priority' : 'Low Priority'}
-              </Text>
-            </View>
-            <Image
-              source={require('../../../../assets/icons/dropdown-arrow.png')}
-              style={[styles.dropdownArrow, showPriorityDropdown && styles.dropdownArrowOpen]}
-              resizeMode="contain"
-            />
-          </TouchableOpacity>
-
-          {showPriorityDropdown && (
-            <View style={styles.priorityDropdown}>
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setPriority('high');
-                  setShowPriorityDropdown(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.priorityContent}>
-                  <Text style={[styles.priorityIcon, styles.priorityIconHigh]}>PPP</Text>
-                  <Text style={styles.dropdownItemText}>High Priority</Text>
-                </View>
-                {priority === 'high' && <Text style={styles.dropdownCheckmark}>✓</Text>}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setPriority('medium');
-                  setShowPriorityDropdown(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.priorityContent}>
-                  <Text style={[styles.priorityIcon, styles.priorityIconMedium]}>PP</Text>
-                  <Text style={styles.dropdownItemText}>Medium Priority</Text>
-                </View>
-                {priority === 'medium' && <Text style={styles.dropdownCheckmark}>✓</Text>}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.dropdownItem}
-                onPress={() => {
-                  setPriority('low');
-                  setShowPriorityDropdown(false);
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.priorityContent}>
-                  <Text style={[styles.priorityIcon, styles.priorityIconLow]}>P</Text>
-                  <Text style={styles.dropdownItemText}>Low Priority</Text>
-                </View>
-                {priority === 'low' && <Text style={styles.dropdownCheckmark}>✓</Text>}
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-
-        {/* Add Photo */}
-        <View style={styles.section}>
-          {pictures.length === 0 ? (
-            <TouchableOpacity style={styles.addPhotoContainer} onPress={handleAddPicture} activeOpacity={0.7}>
-              <Image source={require('../../../../assets/icons/add-photos.png')} style={styles.addPhotoIcon} resizeMode="contain" />
-              <GradientText text="Add Photo" textStyle={styles.addPhotoTitle} />
-              <Text style={styles.addPhotoSubtitle}>Add photos of the item and our AI will do the rest</Text>
-            </TouchableOpacity>
-          ) : (
-            <View
-              style={styles.photosGridContainer}
-              onLayout={(e) => setPhotoGridWidth(e.nativeEvent.layout.width)}
-            >
-              <FlatList
-                data={[...pictures, '__ADD__'] as const}
-                keyExtractor={(item, index) =>
-                  item === '__ADD__' ? '__ADD__' : `${item}-${index}`
                 }
-                numColumns={2}
-                scrollEnabled={false}
-                showsVerticalScrollIndicator={false}
-                columnWrapperStyle={styles.photosGridRow}
-                renderItem={({ item, index }) => {
-                  if (item === '__ADD__') {
-                    return (
-                      <TouchableOpacity
-                        style={[styles.addPhotoGridItem, { width: photoItemSize, height: photoItemSize }]}
-                        onPress={handleAddPicture}
-                        activeOpacity={0.7}
-                      >
-                        <Image
-                          source={require('../../../../assets/icons/add-photos.png')}
-                          style={styles.addPhotoGridIcon}
-                          resizeMode="contain"
-                        />
-                        <GradientText text="Add Photo" textStyle={styles.addPhotoGridTitle} />
-                      </TouchableOpacity>
-                    );
-                  }
+                return (
+                  <View style={[styles.photoItem, { width: photoItemSize, height: photoItemSize }]}>
+                    <Image source={{ uri: item }} style={styles.photoImage} />
+                    <TouchableOpacity
+                      style={styles.removePhotoButton}
+                      onPress={() => handleRemovePicture(index)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityLabel="Remove photo"
+                    >
+                      <Text style={styles.removePhotoText}>×</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              }}
+            />
+          </View>
+        )}
+      </View>
 
-                  return (
-                    <View style={[styles.photoItem, { width: photoItemSize, height: photoItemSize }]}>
-                      <Image source={{ uri: item }} style={styles.photoImage} />
-                      <TouchableOpacity
-                        style={styles.removePhotoButton}
-                        onPress={() => handleRemovePicture(index)}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.removePhotoText}>×</Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                }}
-              />
-            </View>
-          )}
+      {/* Tag Staff */}
+      <View style={[styles.card, styles.tagStaffCard]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.tagStaffTitle}>Tag Staff</Text>
+          <Text style={styles.tagStaffSubtitle}>Tag people to the ticket</Text>
         </View>
-
-        {/* Description — Figma card + inner field + edit control */}
-        <View style={styles.section}>
-          <View style={styles.descriptionCard}>
-            <View style={styles.descriptionHeaderRow}>
-              <Text style={styles.descriptionLabel}>Description</Text>
-              <View style={styles.descriptionAIBadgeCircle}>
-                <GradientText
-                  text="AI"
-                  textStyle={{
-                    fontSize: 12 * scaleX,
-                    fontFamily: typography.fontFamily.primary,
-                    fontWeight: '700',
-                  }}
-                />
+        <View style={styles.cardRule} />
+        <View style={styles.taggedStaffRow}>
+          <View style={styles.taggedStaffList}>
+            {taggedStaff.map((staff) => (
+              <View key={staff.id} style={styles.staffChip}>
+                <View style={styles.staffAvatar}>
+                  {staff.avatar ? (
+                    <Image source={{ uri: staff.avatar }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarInitials}>{initials(staff.name)}</Text>
+                  )}
+                </View>
+                <Text style={styles.staffName} numberOfLines={1}>
+                  {shortName(staff.name)}
+                </Text>
               </View>
-            </View>
-            <View style={styles.descriptionInnerField}>
-              <TextInput
-                ref={descriptionInputRef}
-                style={styles.descriptionInput}
-                placeholder="Room 201 – Broken shower head reported. Guest unable to use shower normally."
-                placeholderTextColor="#999999"
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
-                numberOfLines={5}
-                textAlignVertical="top"
-                underlineColorAndroid="transparent"
-              />
-              <KeyboardDoneBar />
-              <TouchableOpacity
-                style={styles.descriptionEditButton}
-                onPress={() => descriptionInputRef.current?.focus()}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                accessibilityRole="button"
-                accessibilityLabel="Edit description"
-                activeOpacity={0.7}
-              >
-                <Ionicons name="pencil-outline" size={16 * scaleX} color="#5a759d" />
-              </TouchableOpacity>
-            </View>
+            ))}
+          </View>
+          <TouchableOpacity
+            style={styles.addStaffButton}
+            onPress={handleOpenStaffModal}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Tag staff"
+          >
+            <Text style={styles.addStaffText}>+</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Description — the whole text area is the field. */}
+      <View style={[styles.card, styles.descriptionCard]}>
+        <View style={styles.cardHeader}>
+          <Text style={styles.descriptionLabel}>Description</Text>
+        </View>
+        <View style={styles.cardRule} />
+        <View style={styles.descriptionBody}>
+          <TextInput
+            ref={descriptionInputRef}
+            style={styles.descriptionInput}
+            placeholder={`${roomNumber ? `Room ${roomNumber}` : (publicAreaName ?? 'Room')} – Broken shower head reported. Guest unable to use shower normally.`}
+            placeholderTextColor={PLACEHOLDER}
+            value={description}
+            onChangeText={setDescription}
+            multiline
+            inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
+            textAlignVertical="top"
+            underlineColorAndroid="transparent"
+            accessibilityLabel="Description"
+          />
+          <KeyboardDoneBar />
+          <View style={styles.descriptionAIBadge}>
+            <GradientText
+              text="AI"
+              textStyle={{ fontSize: 12 * scaleX, fontFamily: typography.fontFamily.primary, fontWeight: '700' }}
+              direction="vertical"
+            />
           </View>
         </View>
+      </View>
 
-        {/* Submit Button */}
-        <TouchableOpacity
-          style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
-          onPress={handleSubmit}
-          disabled={submitting}
-          activeOpacity={0.7}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#ffffff" />
-          ) : (
-            <Text style={styles.submitButtonText}>Submit Ticket</Text>
-          )}
-        </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.submitButton, submitting && styles.submitButtonDisabled]}
+        onPress={handleSubmit}
+        disabled={submitting}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+      >
+        {submitting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.submitButtonText}>Submit Ticket</Text>}
+      </TouchableOpacity>
 
-      {/* Staff Selector Modal */}
       <TicketStaffSelectorModal
         visible={showStaffModal}
         onClose={() => setShowStaffModal(false)}
@@ -662,318 +535,301 @@ export default function TicketForm({
   );
 }
 
+/** One, two or three flags in the priority's colour, in a slot wide enough for three. */
+function PriorityFlags({ priority }: { priority: Priority }) {
+  const { flags, color } = PRIORITY[priority];
+  return (
+    <View style={styles.flagSlot}>
+      {Array.from({ length: flags }, (_, i) => (
+        <Icon key={i} name="action-flag-priority" width={FLAG.width} height={FLAG.height} color={color} />
+      ))}
+    </View>
+  );
+}
+
+/** Figma 2186:2044: the photo frame, the gradient "+" on its top-right corner. */
+function AddPhotoMark() {
+  return (
+    <View style={styles.addPhotoMark}>
+      <Icon name="action-add-photo-frame" width={55.4 * scaleX} height={47 * scaleX} color="#000000" />
+      <View style={styles.addPhotoPlus} pointerEvents="none">
+        <GradientText text="+" textStyle={styles.addPhotoPlusText} direction="vertical" />
+      </View>
+    </View>
+  );
+}
+
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/** "Dimotia Mavros" -> "Dimotia. M", as Figma 2385:996 labels a tagged person. */
+function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return parts[0] ?? '';
+  return `${parts[0]}. ${parts[parts.length - 1][0].toUpperCase()}`;
+}
+
+/** Figma 589:514 measures, in design px. */
+const INK = '#5a759d';
+const PINK = '#ff4dd8';
+const PLACEHOLDER = 'rgba(90, 117, 157, 0.5)';
+const CASE_FLAG = '#c9c9d0';
+const FLAG = { width: 14 * scaleX, height: 19 * scaleX };
+const CHECK = { width: 15.5 * scaleX, height: 13.1 * scaleX };
+/** The chosen department's glyph is drawn larger than in the list: the wrench is 40 tall there, 31 in a chip. */
+const BOX_GLYPH_SCALE = 40 / 31.07;
+/** ...but never taller than that wrench: the tall marks (Laundry 37, Reception 37) would otherwise reach 48. */
+const BOX_GLYPH_MAX = 40;
+const GUTTER = 26;
+
+const PRIORITY: Record<Priority, { label: string; flags: number; color: string; tint: string }> = {
+  // The row tints are Figma's fills at its 20% layer opacity, flattened.
+  high: { label: 'High Priority', flags: 3, color: '#f92424', tint: 'rgba(249, 36, 36, 0.056)' },
+  medium: { label: 'Medium Priority', flags: 2, color: '#f0be1b', tint: 'rgba(240, 190, 27, 0.072)' },
+  low: { label: 'Low Priority', flags: 1, color: '#9797a3', tint: 'rgba(217, 217, 217, 0.2)' },
+};
+const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low'];
+
+const card = {
+  backgroundColor: '#f9fafc',
+  borderWidth: 1,
+  borderColor: 'rgba(90, 117, 157, 0.23)',
+  borderRadius: 12 * scaleX,
+} as const;
+
 const styles = StyleSheet.create({
   formContainer: {
-    paddingHorizontal: 24 * scaleX,
-    paddingTop: 24 * scaleX,
+    paddingHorizontal: GUTTER * scaleX,
+    paddingTop: 28 * scaleX,
     paddingBottom: 100 * scaleX,
     width: '100%',
   },
-  heading: {
-    fontSize: 20 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#607aa1',
-    marginBottom: 24 * scaleX,
-  },
+
+  // Department
   selectDepartmentLabel: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#5a759d',
-    marginBottom: 16 * scaleX,
-  },
-  departmentScrollView: {
-    marginBottom: 24 * scaleX,
-  },
-  departmentIconsContainer: {
-    flexDirection: 'row',
-    paddingVertical: 8 * scaleX,
-  },
-  // Figma 589-514: each item hugs its label — "Laundry" is 63 wide where
-  // "In Room Dining" is 119.65 — so nothing here may pin a width. The strip
-  // scrolls horizontally, which is what pays for the long ones.
-  departmentItem: {
-    alignItems: 'center',
-    marginRight: 32 * scaleX,
-  },
-  // Figma 589-514 (node 2589:3291): a plain tinted disc, no border. The old
-  // white-disc-with-grey-ring was not in any frame.
-  departmentIconContainer: {
-    width: 56 * scaleX,
-    height: 56 * scaleX,
-    borderRadius: 28 * scaleX,
-    backgroundColor: DEPARTMENT_CHIP.disc.unselected,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Chip bottom 58.482 -> label top 73 (nodes 2589:3291 / 2589:3293).
-    marginBottom: 14.5 * scaleX,
-  },
-  departmentIconSelected: {
-    backgroundColor: DEPARTMENT_CHIP.disc.selected,
-  },
-  // Inter 14 Light / Semi Bold (2589:3293, 2365:504). Single line, no width cap.
-  departmentLabel: {
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000000',
-    textAlign: 'center',
+    marginBottom: 20 * scaleX,
   },
-  departmentLabelSelected: {
-    fontWeight: '600',
-    color: '#f92424',
+  departmentBox: {
+    height: 118 * scaleX,
+    borderWidth: 1,
+    borderColor: PINK,
+    borderRadius: 8 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 30 * scaleX,
+    paddingRight: 33 * scaleX,
   },
-  section: {
-    marginBottom: 24 * scaleX,
-    width: '100%',
+  departmentBoxGlyph: {
+    width: 42 * scaleX,
+    alignItems: 'center',
   },
-  sectionTitle: {
+  departmentBoxName: {
+    flex: 1,
+    marginLeft: 28 * scaleX,
+    fontSize: 23 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '400',
+    color: INK,
+  },
+  chevronOpen: {
+    transform: [{ rotate: '180deg' }],
+  },
+  departmentList: {
+    marginTop: 4 * scaleX,
+  },
+  departmentRow: {
+    height: 70 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  departmentRowGlyph: {
+    width: 44 * scaleX,
+    marginLeft: 18 * scaleX,
+    alignItems: 'center',
+  },
+  departmentRowLabel: {
+    marginLeft: 34 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.secondary,
+    fontWeight: '300',
+    color: '#000000',
+  },
+  fullBleedRule: {
+    height: 1,
+    backgroundColor: '#e4e4e4',
+    marginHorizontal: -GUTTER * scaleX,
+    marginTop: 24 * scaleX,
+  },
+  fullBleedRuleAfterList: {
+    marginTop: 14 * scaleX,
+  },
+
+  // Name
+  nameHeading: {
+    marginTop: 23 * scaleX,
     fontSize: 20 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#607aa1',
-    marginBottom: 8 * scaleX,
   },
-  sectionSubtitle: {
-    fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#494747',
-    marginBottom: 12 * scaleX,
-  },
-  inputWrapper: {
-    position: 'relative',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  pinkBox: {
+    height: 68 * scaleX,
+    marginTop: 16 * scaleX,
     borderWidth: 1,
-    borderColor: '#ff4dd8',
+    borderColor: PINK,
     borderRadius: 8 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    paddingVertical: 12 * scaleX,
+    justifyContent: 'center',
     backgroundColor: '#ffffff',
-    width: '100%',
   },
-  textInput: {
-    flex: 1,
+  nameInput: {
+    height: '100%',
+    paddingHorizontal: 16 * scaleX,
     fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '400',
-    color: '#1e1e1e',
-  },
-  dropdownArrow: {
-    width: 16 * scaleX,
-    height: 16 * scaleX,
-    tintColor: '#5a759d',
-  },
-  dropdownArrowOpen: {
-    transform: [{ rotate: '180deg' }],
-  },
-  frequentCasesDropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e3e3e3',
-    borderRadius: 8 * scaleX,
-    marginTop: 4 * scaleX,
-    paddingVertical: 8 * scaleX,
-    zIndex: 1000,
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    color: INK,
   },
   frequentCasesTitle: {
+    marginTop: 19 * scaleX,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#000000',
-    paddingHorizontal: 16 * scaleX,
-    paddingVertical: 8 * scaleX,
   },
-  dropdownItem: {
+  frequentCases: {
+    marginTop: 7 * scaleX,
+  },
+  caseRow: {
+    height: 46 * scaleX,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16 * scaleX,
-    paddingVertical: 12 * scaleX,
+    paddingRight: 40 * scaleX,
   },
-  dropdownItemText: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
+  caseLabel: {
     flex: 1,
-  },
-  dropdownCheckmark: {
-    fontSize: 18 * scaleX,
-    color: '#5a759d',
-    fontWeight: '700',
-  },
-  tagStaffContainer: {
-    paddingVertical: 12 * scaleX,
-  },
-  taggedStaffRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  },
-  staffAvatarItem: {
-    alignItems: 'center',
-  },
-  staffAvatarCircle: {
-    width: 48 * scaleX,
-    height: 48 * scaleX,
-    borderRadius: 24 * scaleX,
-    overflow: 'hidden',
-    marginBottom: 4 * scaleX,
-  },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
-  avatarPlaceholder: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: '#5a759d',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarInitials: {
-    fontSize: 16 * scaleX,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  staffName: {
-    fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#5a759d',
-    textAlign: 'center',
-  },
-  addStaffButton: {
-    width: 48 * scaleX,
-    height: 48 * scaleX,
-    borderRadius: 24 * scaleX,
-    backgroundColor: '#ffffff',
-    borderWidth: 2,
-    borderColor: '#5a759d',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tagStaffFrame: {
-    borderWidth: 1,
-    borderColor: '#e3e3e3',
-    backgroundColor: '#ffffff',
-    borderRadius: 8 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    paddingTop: 14 * scaleX,
-    paddingBottom: 8 * scaleX,
-  },
-  tagStaffHeader: {
-    // Keep title/subtitle inside the frame (Figma shows header + divider)
-  },
-  tagStaffDivider: {
-    height: 1 * scaleX,
-    backgroundColor: '#e3e3e3',
-    marginTop: 10 * scaleX,
-    marginBottom: 10 * scaleX,
-  },
-  addStaffText: {
-    fontSize: 24 * scaleX,
-    color: '#5a759d',
-    fontWeight: '300',
-  },
-  prioritySelectContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#ff4dd8',
-    borderRadius: 8 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-    paddingVertical: 12 * scaleX,
-    backgroundColor: '#ffffff',
-    width: '100%',
-  },
-  priorityContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  priorityIcon: {
+    marginLeft: 10 * scaleX,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    marginRight: 12 * scaleX,
+    fontWeight: '300',
+    color: '#000000',
   },
-  priorityIconHigh: {
-    color: '#F92424',
+
+  // Priority
+  priorityTitle: {
+    marginTop: 20 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '400',
+    color: INK,
   },
-  priorityIconMedium: {
-    color: '#ffc107',
+  priorityBox: {
+    marginTop: 9 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingLeft: 15 * scaleX,
   },
-  priorityIconLow: {
-    color: '#999999',
-  },
-  priorityLabel: {
+  priorityBoxLabel: {
+    marginLeft: 22 * scaleX,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#000000',
   },
-  priorityDropdown: {
-    marginTop: 4 * scaleX,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e3e3e3',
-    borderRadius: 8 * scaleX,
-    paddingVertical: 8 * scaleX,
+  priorityOptions: {
+    marginTop: 19 * scaleX,
+    gap: 8 * scaleX,
   },
-  addPhotoContainer: {
+  priorityRow: {
+    height: 46 * scaleX,
+    borderRadius: 5 * scaleX,
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 48 * scaleX,
-    borderWidth: 2,
-    borderColor: '#e3e3e3',
-    borderRadius: 12 * scaleX,
-    borderStyle: 'dashed',
+    paddingLeft: 14 * scaleX,
+    paddingRight: 20 * scaleX,
+  },
+  priorityRowLabel: {
+    flex: 1,
+    marginLeft: 22 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+  },
+  flagSlot: {
+    width: 54 * scaleX,
+    flexDirection: 'row',
+    gap: 6 * scaleX,
+  },
+
+  // Cards
+  card: {
+    ...card,
+    marginTop: 21 * scaleX,
     width: '100%',
   },
-  addPhotoIcon: {
-    width: 48 * scaleX,
-    height: 48 * scaleX,
-    marginBottom: 16 * scaleX,
+  cardHeader: {
+    paddingHorizontal: 12 * scaleX,
+  },
+  cardRule: {
+    height: 1,
+    marginHorizontal: 2.75 * scaleX,
+    backgroundColor: 'rgba(90, 117, 157, 0.09)',
+  },
+
+  // Add Photo
+  addPhotoEmpty: {
+    minHeight: 229 * scaleX,
+    alignItems: 'center',
+    paddingTop: 56 * scaleX,
+    paddingBottom: 24 * scaleX,
+  },
+  addPhotoMark: {
+    width: 55.4 * scaleX,
+    height: 47 * scaleX,
+  },
+  // Figma 2186:2050: the "+" box starts 38 right of the frame and its
+  // baseline lands ~6 below the frame's top; GradientText draws the baseline
+  // at 1.2 x the font size (50.4) below its own top.
+  addPhotoPlus: {
+    position: 'absolute',
+    left: 38 * scaleX,
+    top: -44 * scaleX,
+  },
+  addPhotoPlusText: {
+    fontSize: 42 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
   },
   addPhotoTitle: {
+    marginTop: 10 * scaleX,
+  },
+  addPhotoTitleText: {
     fontSize: 19 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#ff46a3',
-    marginBottom: 8 * scaleX,
-  },
-  priorityTitle: {
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '400',
-    color: '#5a759d',
-    marginBottom: 8 * scaleX,
   },
   addPhotoSubtitle: {
+    marginTop: 2 * scaleX,
+    width: 160 * scaleX,
     fontSize: 13 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
-    maxWidth: 280 * scaleX,
   },
   photosGridContainer: {
-    width: '100%',
+    padding: 16 * scaleX,
   },
   photosGridRow: {
     justifyContent: 'space-between',
@@ -982,7 +838,6 @@ const styles = StyleSheet.create({
   photoItem: {
     borderRadius: 8 * scaleX,
     overflow: 'hidden',
-    position: 'relative',
   },
   photoImage: {
     width: '100%',
@@ -1006,45 +861,135 @@ const styles = StyleSheet.create({
   },
   addPhotoGridItem: {
     borderRadius: 8 * scaleX,
-    borderWidth: 2,
-    borderColor: '#e3e3e3',
-    borderStyle: 'dashed',
+    borderWidth: 1,
+    borderColor: 'rgba(90, 117, 157, 0.23)',
+    backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  addPhotoGridIcon: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
-    marginBottom: 4 * scaleX,
+    gap: 4 * scaleX,
   },
   addPhotoGridTitle: {
     fontSize: 12 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#ff46a3',
   },
-  descriptionCard: {
-    backgroundColor: '#f5f6f8',
-    borderWidth: 1,
-    borderColor: '#e8eaee',
-    borderRadius: 14 * scaleX,
-    padding: 16 * scaleX,
-    width: '100%',
+
+  // Tag Staff (Figma 2385:987: 183 tall, rule at 65)
+  tagStaffCard: {
+    minHeight: 183 * scaleX,
+    paddingTop: 13 * scaleX,
   },
-  descriptionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12 * scaleX,
-  },
-  descriptionLabel: {
-    fontSize: 14 * scaleX,
+  tagStaffTitle: {
+    fontSize: 19 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#1e1e1e',
   },
-  descriptionAIBadgeCircle: {
+  tagStaffSubtitle: {
+    marginTop: 7 * scaleX,
+    marginBottom: 10 * scaleX,
+    fontSize: 12 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#494747',
+  },
+  taggedStaffRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 14 * scaleX,
+    paddingRight: 28 * scaleX,
+    paddingTop: 22 * scaleX,
+    paddingBottom: 24 * scaleX,
+  },
+  taggedStaffList: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 20 * scaleX,
+    rowGap: 10 * scaleX,
+  },
+  staffChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 9 * scaleX,
+    maxWidth: '100%',
+  },
+  staffAvatar: {
     width: 30 * scaleX,
+    height: 30 * scaleX,
+    borderRadius: 15 * scaleX,
+    overflow: 'hidden',
+    backgroundColor: INK,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+  },
+  avatarInitials: {
+    fontSize: 11 * scaleX,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  staffName: {
+    flexShrink: 1,
+    fontSize: 18 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: INK,
+  },
+  addStaffButton: {
+    width: 53 * scaleX,
+    height: 49 * scaleX,
+    borderRadius: 41 * scaleX,
+    backgroundColor: '#f1f6fc',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 12 * scaleX,
+  },
+  addStaffText: {
+    fontSize: 29 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '400',
+    color: INK,
+  },
+
+  // Description (Figma 2373:524: 150 tall, rule at 54)
+  descriptionCard: {
+    marginTop: 26 * scaleX,
+    minHeight: 150 * scaleX,
+    paddingTop: 20 * scaleX,
+  },
+  descriptionLabel: {
+    paddingLeft: 12 * scaleX,
+    marginBottom: 17 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  descriptionBody: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingLeft: 24 * scaleX,
+    paddingRight: 17 * scaleX,
+    paddingTop: 18 * scaleX,
+    paddingBottom: 14 * scaleX,
+  },
+  descriptionInput: {
+    flex: 1,
+    minHeight: 60 * scaleX,
+    maxWidth: 290 * scaleX,
+    padding: 0,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+    lineHeight: 18 * scaleX,
+  },
+  descriptionAIBadge: {
+    width: 29 * scaleX,
     height: 30 * scaleX,
     borderRadius: 15 * scaleX,
     backgroundColor: '#ffffff',
@@ -1053,40 +998,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+    marginLeft: 'auto',
   },
-  descriptionInnerField: {
-    position: 'relative',
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#e0e0e0',
-    borderRadius: 8 * scaleX,
-    minHeight: 132 * scaleX,
-  },
-  descriptionInput: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#44474e',
-    lineHeight: 20 * scaleX,
-    paddingHorizontal: 14 * scaleX,
-    paddingVertical: 12 * scaleX,
-    paddingRight: 44 * scaleX,
-    paddingBottom: 14 * scaleX,
-    minHeight: 120 * scaleX,
-  },
-  descriptionEditButton: {
-    position: 'absolute',
-    right: 12 * scaleX,
-    bottom: 12 * scaleX,
-  },
+
+  // Submit (Figma 2373:521: 386 x 70, square)
   submitButton: {
-    backgroundColor: '#5a759d',
-    paddingVertical: 16 * scaleX,
-    borderRadius: 8 * scaleX,
+    height: 70 * scaleX,
+    marginTop: 29 * scaleX,
+    backgroundColor: INK,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 16 * scaleX,
-    width: '100%',
-    alignSelf: 'stretch',
   },
   submitButtonDisabled: {
     opacity: 0.6,
@@ -1094,7 +1015,7 @@ const styles = StyleSheet.create({
   submitButtonText: {
     fontSize: 18 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
+    fontWeight: '400',
     color: '#ffffff',
   },
 });

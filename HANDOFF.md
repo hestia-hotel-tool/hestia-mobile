@@ -31,6 +31,9 @@ Header badge icons are Figma's 1pt-stroke glyphs (4553:856): `badge-bell` and `b
 ## Status
 
 - Typecheck and lint clean; iOS and Android exports succeed and contain the changes. **Nothing checked on a device.** VIP migration applied to `nkawubpnwkhzvwqkxhaz` on 2026-11-06 (both hotels seeded; codes 11 and 22 cleared, so 2 guests are now regular).
+- Laundry department (2026-11-09, migration `20261109090000`, applied): Executive and Administration renamed to Laundry (key `laundry`); its 2 Hotel Managers (Elena Hofmann, Amina Diallo) and the `hotel_manager` title deleted; laundry attendants moved out of Housekeeping (title "Laundry Attendant", key unchanged). Hotel-wide ticket rights are now platform admins only. Laundry has no lead title yet.
+- Room Detail → Tickets form (`tickets/components/TicketForm.tsx`) rebuilt to Figma 589:514 (2026-11-09): department dropdown (pink frame, list under it), "Name {Dept} Ticket", Frequent Cases list, flag priorities with tinted rows, Photo / Tag Staff / Description cards, square Submit. SVG only (new: `action-flag-priority`, `action-chevron-down-wide`, `action-add-photo-frame`). `CreateTicketFormScreen` (Tickets tab → Create Ticket, which draws Room Detail's header and tabs itself) now renders the same `TicketForm` (with `publicAreaName` for public areas) instead of its own copy.
+- Create Ticket → Location (Figma 1085:2628): the room is now typed into `roomPicker/RoomSearchField` (inline; results pop up as `GuestRow` rows, number matches first, max 5) instead of `RoomNumberSelector`'s modal. Picker rooms now carry `adults`, `kids`, `time` (reservation `eta`). Lost & Found → Register still uses the modal picker.
 - Filter counts don't recompute when a hotel's own tiers load after the rooms; only matters once a hotel's tiers differ from the defaults.
 
 ## Open problems

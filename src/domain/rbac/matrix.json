@@ -435,9 +435,9 @@
       "description": "Information technology and technical support"
     },
     {
-      "key": "executive",
-      "name": "Executive and Administration",
-      "description": "General management and hotel administration"
+      "key": "laundry",
+      "name": "Laundry",
+      "description": "Linen, uniforms and guest laundry"
     }
   ],
   "roles": [
@@ -445,7 +445,7 @@
       "key": "full_access",
       "name": "Full Access",
       "description": "Every right. Housekeeping leadership and hotel executives.",
-      "titleCount": 3,
+      "titleCount": 2,
       "rights": {
         "dashboard": true,
         "rooms": true,
@@ -789,8 +789,8 @@
     },
     {
       "key": "housekeeping_laundry_attendant",
-      "name": "Housekeeping Laundry Attendant",
-      "department": "housekeeping",
+      "name": "Laundry Attendant",
+      "department": "laundry",
       "role": "hk_laundry",
       "homeVariant": "default",
       "roomsVariant": "laundry"
@@ -928,14 +928,6 @@
       "name": "Director Of Information Technology",
       "department": "it",
       "role": "technical",
-      "homeVariant": "default",
-      "roomsVariant": "default"
-    },
-    {
-      "key": "hotel_manager",
-      "name": "Hotel Manager",
-      "department": "executive",
-      "role": "full_access",
       "homeVariant": "default",
       "roomsVariant": "default"
     }

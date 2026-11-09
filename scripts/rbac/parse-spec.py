@@ -178,8 +178,11 @@ DEPARTMENTS = [
     ("in_room_dining", "In Room Dining",               "Room service and in-suite dining"),
     ("engineering",    "Engineering",                  "Maintenance, repairs and facility operations"),
     ("it",             "IT",                           "Information technology and technical support"),
-    ("executive",      "Executive and Administration", "General management and hotel administration"),
+    ("laundry",        "Laundry",                      "Linen, uniforms and guest laundry"),
 ]
+# Executive and Administration became Laundry (2026-11-09, migration
+# 20261109090000): its staff and its last title, Hotel Manager, were removed,
+# and the laundry attendants moved in from Housekeeping (TITLE_MOVES).
 # Food & Beverage / Kitchen is in the PDF but not used by the client
 # (2026-10-19): its one title is in REMOVED_TITLES and the department is not
 # seeded. PDF_DEPT_MAP still names it so the PDF parses.
@@ -253,8 +256,17 @@ REMOVED_TITLES = {
     # Executive and Administration (migration 20261019190000)
     "general_manager",
     "assistant_to_general_and_hotel_manager",
+    # ...and the last one, with the department itself (migration 20261109090000)
+    "hotel_manager",
     # Food & Beverage / Kitchen — the whole department (migration 20261019200000)
     "fandb_kitchen_staff",
+}
+
+# Titles moved to another department, and renamed, after the spec: key ->
+# (department key, display name).
+TITLE_MOVES = {
+    # Laundry is its own department (migration 20261109090000).
+    "housekeeping_laundry_attendant": ("laundry", "Laundry Attendant"),
 }
 
 # HomeScreen layout variants live on the job title, not the role: they describe
@@ -476,6 +488,9 @@ def main():
         tkey = slug(display)
         if tkey in REMOVED_TITLES:
             continue
+        # Moved after the spec was signed off; the key stays, so permissions
+        # and the Rooms variant keep following it.
+        dept_key, display = TITLE_MOVES.get(tkey, (dept_key, display))
         # A title may be moved off the role its vector resolves to — see
         # ROLE_TITLE_OVERRIDES.
         role_key = ROLE_TITLE_OVERRIDES.get(tkey, role_key)

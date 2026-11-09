@@ -544,6 +544,7 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
             ),
             arrival_date,
             departure_date,
+            eta,
             adults,
             kids,
             front_office_status

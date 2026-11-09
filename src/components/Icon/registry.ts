@@ -14,12 +14,14 @@
 
 // actions
 import ActionAddNote from '@assets/icons/actions/action-add-note.svg';
+import ActionAddPhotoFrame from '@assets/icons/actions/action-add-photo-frame.svg';
 import ActionAddPhoto from '@assets/icons/actions/action-add-photo.svg';
 import ActionAnnouncement from '@assets/icons/actions/action-announcement.svg';
 import ActionAssignRooms from '@assets/icons/actions/action-assign-rooms.svg';
 import ActionCheckBold from '@assets/icons/actions/action-check-bold.svg';
 import ActionCheck from '@assets/icons/actions/action-check.svg';
 import ActionCheckboxChecked from '@assets/icons/actions/action-checkbox-checked.svg';
+import ActionChevronDownWide from '@assets/icons/actions/action-chevron-down-wide.svg';
 import ActionChevron from '@assets/icons/actions/action-chevron.svg';
 import ActionClose from '@assets/icons/actions/action-close.svg';
 import ActionCopy from '@assets/icons/actions/action-copy.svg';
@@ -29,6 +31,7 @@ import ActionEye from '@assets/icons/actions/action-eye.svg';
 import ActionFilter from '@assets/icons/actions/action-filter.svg';
 import ActionFlagOutlineThin from '@assets/icons/actions/action-flag-outline-thin.svg';
 import ActionFlagOutline from '@assets/icons/actions/action-flag-outline.svg';
+import ActionFlagPriority from '@assets/icons/actions/action-flag-priority.svg';
 import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionGroup from '@assets/icons/actions/action-group.svg';
 import ActionInProgress from '@assets/icons/actions/action-in-progress.svg';
@@ -109,12 +112,14 @@ import StatusVacuum from '@assets/icons/room-status/status-vacuum.svg';
 export const icons = {
   // actions
   'action-add-note': ActionAddNote,
+  'action-add-photo-frame': ActionAddPhotoFrame,
   'action-add-photo': ActionAddPhoto,
   'action-announcement': ActionAnnouncement,
   'action-assign-rooms': ActionAssignRooms,
   'action-check-bold': ActionCheckBold,
   'action-check': ActionCheck,
   'action-checkbox-checked': ActionCheckboxChecked,
+  'action-chevron-down-wide': ActionChevronDownWide,
   'action-chevron': ActionChevron,
   'action-close': ActionClose,
   'action-copy': ActionCopy,
@@ -124,6 +129,7 @@ export const icons = {
   'action-filter': ActionFilter,
   'action-flag-outline-thin': ActionFlagOutlineThin,
   'action-flag-outline': ActionFlagOutline,
+  'action-flag-priority': ActionFlagPriority,
   'action-flag': ActionFlag,
   'action-group': ActionGroup,
   'action-in-progress': ActionInProgress,
@@ -212,12 +218,14 @@ export type IconName = keyof typeof icons;
  */
 export const ICON_ASPECT: Record<IconName, number> = {
   'action-add-note': 1,
+  'action-add-photo-frame': 1.178,
   'action-add-photo': 1.0162,
   'action-announcement': 1.037,
   'action-assign-rooms': 1,
   'action-check-bold': 1.0714,
   'action-check': 1.1798,
   'action-checkbox-checked': 1,
+  'action-chevron-down-wide': 1.9375,
   'action-chevron': 0.5,
   'action-close': 1,
   'action-copy': 1,
@@ -227,6 +235,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-filter': 2,
   'action-flag-outline-thin': 0.7118,
   'action-flag-outline': 0.7179,
+  'action-flag-priority': 0.7368,
   'action-flag': 1.1833,
   'action-group': 1.1154,
   'action-in-progress': 1,
@@ -254,7 +263,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'dept-housekeeping': 0.9581,
   'dept-in-room-dining': 0.9987,
   'dept-it': 1.1179,
-  'dept-laundry': 1.0762,
+  'dept-laundry': 0.7144,
   'dept-reception': 0.9798,
   'guest-arrival': 1,
   'guest-arrow': 1.7423,
@@ -306,11 +315,13 @@ export const ICON_ASPECT: Record<IconName, number> = {
  */
 export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-add-note',
+  'action-add-photo-frame',
   'action-announcement',
   'action-assign-rooms',
   'action-check-bold',
   'action-check',
   'action-checkbox-checked',
+  'action-chevron-down-wide',
   'action-chevron',
   'action-close',
   'action-copy',
@@ -320,6 +331,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-filter',
   'action-flag-outline-thin',
   'action-flag-outline',
+  'action-flag-priority',
   'action-flag',
   'action-group',
   'action-in-progress',
