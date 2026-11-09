@@ -26,7 +26,13 @@ export const TAB_ROUTE: Record<string, string> = {
  * permission at all — that means an unassigned account, and the caller should
  * show an explanation rather than redirect into a loop.
  */
-export function resolveLandingRoute(permissions: ReadonlySet<Permission>): string | null {
+export function resolveLandingRoute(
+  permissions: ReadonlySet<Permission>,
+  opts?: { worksFromTickets?: boolean }
+): string | null {
+  // Laundry attendants and porters open on Tickets; Rooms is their reference
+  // (client, 2026-11-09). See PermissionProvider's worksFromTicketsFor.
+  if (opts?.worksFromTickets && permissions.has(TAB_PERMISSION.Tickets)) return TAB_ROUTE.Tickets;
   for (const tabId of TAB_ORDER) {
     const required = TAB_PERMISSION[tabId];
     if (required && permissions.has(required)) {

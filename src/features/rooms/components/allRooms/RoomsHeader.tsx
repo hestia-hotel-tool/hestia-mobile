@@ -39,6 +39,12 @@ export type RoomsHeaderProps = {
   summary?: React.ReactNode;
   /** Pinned under the search field, e.g. the active filters. Never collapses. */
   footer?: React.ReactNode;
+  /**
+   * Draw the profile band (who you are, the shift). Off for laundry
+   * attendants, whose profile is on Tickets — the tab their app opens on;
+   * Rooms is their reference (client, 2026-11-09).
+   */
+  showProfile?: boolean;
   /** The gap under the search field while open; 40 by default (Figma 4553:262). Smaller when the list opens with its own spacing. */
   listGap?: number;
 };
@@ -79,11 +85,13 @@ export function RoomsHeader({
   summary,
   footer,
   listGap = SEARCH_GAP_OPEN,
+  showProfile = true,
 }: RoomsHeaderProps) {
   const insets = useSafeAreaInsets();
   const pm = pmSurface(shift);
   const page = pm?.background ?? colors.background.primary;
-  const band = colors.background.dashboard;
+  // No band, no band colour: the strip under the status bar is the page's.
+  const band = showProfile ? colors.background.dashboard : page;
   const hasMeta = !!progressPill || !!accessory || !!summary;
 
   // The status bar keeps the band's colour while it is open and turns to the
@@ -118,9 +126,11 @@ export function RoomsHeader({
     <Animated.View style={[styles.root, { backgroundColor: page }, shadowStyle]}>
       <Animated.View style={[{ height: insets.top }, statusBarStyle]} />
 
-      <Collapsible progress={progress} clipTop={insets.top}>
-        <HomeHeader name={name} role={role} avatarUrl={avatarUrl} shift={shift} onShiftChange={onShiftChange} />
-      </Collapsible>
+      {showProfile ? (
+        <Collapsible progress={progress} clipTop={insets.top}>
+          <HomeHeader name={name} role={role} avatarUrl={avatarUrl} shift={shift} onShiftChange={onShiftChange} />
+        </Collapsible>
+      ) : null}
 
       {/* Reanimated's View takes no className; the gutter is on the inner one. */}
       <Animated.View style={searchStyle}>

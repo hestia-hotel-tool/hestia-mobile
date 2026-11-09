@@ -11,8 +11,7 @@ import {
   TextInput,
 } from 'react-native';
 import { router, useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
-import { BottomTabNavigationProp } from 'expo-router/js-tabs';
-import type { RootStackParamList, MainTabsParamList as MainTabsParamListFromApp } from '@/types/navigation';
+import type { RootStackParamList } from '@/types/navigation';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
@@ -32,7 +31,7 @@ import { dashboardService } from '@features/rooms/services/dashboard';
 import { updateTicketStatus, updateTicketDueAt, updateTicketPriority, updateTicketAssignee } from '../services/tickets';
 import TicketStaffSelectorModal from '../components/TicketStaffSelectorModal';
 import { useAuth } from '@features/auth/hooks/useAuth';
-import { useUserStore } from '@features/account/store/useUserStore';
+import { useUser } from '@features/account/hooks/useUser';
 import type { User } from '@/types';
 import { typography } from '@/theme';
 import {
@@ -45,6 +44,7 @@ import StatusPopover from '@features/rooms/components/StatusPopover';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { useTicketAccess } from '../hooks/useTicketAccess';
+import { usePermissions, useTabBack } from '@/domain/rbac';
 import { fetchAssignableTicketStaff } from '../services/ticketAccess';
 import { departmentIconName, sortDepartmentsByDisplayOrder } from '@/lib/departments';
 import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
@@ -77,33 +77,20 @@ const DUE_TIME_BOX_W = 134 * scaleX;
 const DUE_DATE_BOX_W = 175 * scaleX;
 const DUE_FIELDS_GAP = 37 * scaleX;
 
-type MainTabsParamList = MainTabsParamListFromApp & {
-  '(tickets)/index':
-    | {
-        initialTab?: TicketTab;
-        /** If true, only show tickets assignedTo the signed-in user (stricter than myTickets). */
-        assignedToMeOnly?: boolean;
-        /** Optional category filter (e.g. 'engineering'). */
-        category?: string;
-        /** Optional status filter (supports 'priority' for urgent tickets). */
-        statusFilter?: TicketStatus | 'priority';
-      }
-    | undefined;
-};
 
-type TicketsScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(tickets)/index'>;
 type StackNavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function TicketsScreen() {
-  const navigation = useNavigation<TicketsScreenNavigationProp>();
   const stackNavigation = useNavigation<StackNavigationProp>();
   const route = useRoute();
   const { session } = useAuth();
-  const userProfile = useUserStore((s) => s.profile);
+  // The signed-in profile, loaded here as Rooms does (laundry opens on Tickets).
+  const { user: userProfile } = useUser();
   const insets = useSafeAreaInsets();
   const toast = useToast();
   // Resolve: the ticket's department. Reassign: its leads. (migration 20261026090000)
   const { canResolve, canReassign } = useTicketAccess();
+  const { worksFromTickets, departmentId, inLaundry } = usePermissions();
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
@@ -225,9 +212,8 @@ export default function TicketsScreen() {
 
 
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
+  // Not a bare goBack(): for someone without Home that looped (useTabBack).
+  const tabBack = useTabBack('Tickets');
 
   /*
    * Straight to location. This used to open `create-ticket/index`, a grid of the
@@ -451,8 +437,18 @@ export default function TicketsScreen() {
     loadTickets().finally(() => setRefreshing(false));
   }, []);
 
-  const tickets: TicketData[] = ticketsData?.tickets ?? [];
   const currentUserId = session?.user?.id;
+  /*
+   * Laundry attendants and porters see their own tickets and their
+   * department's — not the whole hotel's (client, 2026-11-09). Every tab
+   * works inside that: "All" is all of those, "Open" the open ones.
+   */
+  const tickets: TicketData[] = (ticketsData?.tickets ?? []).filter(
+    (t) =>
+      !worksFromTickets ||
+      (!!currentUserId && t.assignedToId === currentUserId) ||
+      (!!departmentId && t.departmentId === departmentId),
+  );
 
   // Filter tickets based on selected tab
   // The tab's own rules (and any filter Home passed in), before the department filter.
@@ -854,8 +850,15 @@ export default function TicketsScreen() {
 
       {/* Header - Fixed at top */}
       <TicketsHeader
-        onBackPress={handleBackPress}
+        // Hidden where Tickets is where the app opens (laundry, porters).
+        onBackPress={tabBack.canGoBack ? tabBack.goBack : undefined}
         onCreatePress={handleCreatePress}
+        // Laundry opens here: their profile replaces the title (it left Rooms).
+        profile={
+          inLaundry
+            ? { name: userProfile?.name, role: userProfile?.role, avatarUrl: userProfile?.avatar }
+            : null
+        }
       />
 
       {/* Tabs - Fixed below header */}

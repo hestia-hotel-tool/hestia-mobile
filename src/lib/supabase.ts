@@ -70,7 +70,13 @@ function isConnectionLost(err: unknown): boolean {
  * as harmless as a GET. They are the app's start-up lookups: without the retry
  * a dropped connection at launch failed all three at once.
  */
-const READ_ONLY_RPCS = new Set(['get_my_permissions', 'get_my_home_variant', 'get_my_rooms_variant']);
+const READ_ONLY_RPCS = new Set([
+  'get_my_permissions',
+  'get_my_home_variant',
+  'get_my_rooms_variant',
+  // STABLE too (20261026090000): the user's department, for where the app opens.
+  'ticket_access_for_me',
+]);
 
 function isReplaySafe(url: string, init?: RequestInit): boolean {
   const method = (init?.method ?? 'GET').toUpperCase();

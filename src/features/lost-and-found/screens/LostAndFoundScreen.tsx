@@ -34,7 +34,7 @@ import {
   updateLostAndFoundStatus,
   setLostAndFoundShipped,
 } from '../services/lostAndFound';
-import { PERMISSIONS, usePermissions } from '@/domain/rbac';
+import { PERMISSIONS, usePermissions, useTabBack } from '@/domain/rbac';
 import { useStorageLocations } from '../hooks/useStorageLocations';
 
 type MainTabsParamList = {
@@ -371,7 +371,13 @@ export default function LostAndFoundScreen() {
 
 
 
+  const tabBack = useTabBack('LostAndFound');
   const handleBackPress = () => {
+    // Without Home, goBack() lands on Home and loops through the guard.
+    if (!tabBack.hasHome) {
+      tabBack.goBack();
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {

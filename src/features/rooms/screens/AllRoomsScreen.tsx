@@ -61,6 +61,7 @@ import { GroupedRoomsList, type TrayPlacement } from '../components/allRooms/Gro
 import { RoomRow } from '../components/allRooms/RoomRow';
 import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { usePermissions } from '@/domain/rbac/usePermissions';
+import { useTabBack } from '@/domain/rbac/useTabBack';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
@@ -215,7 +216,7 @@ export default function AllRoomsScreen() {
    * permission: supervisors and attendants hold the same rights as the managers
    * above them, only their day differs.
    */
-  const { roomsVariant, can, homeVariant } = usePermissions();
+  const { roomsVariant, can, homeVariant, inLaundry } = usePermissions();
   /**
    * Porters (Figma 3859:1041) see every room grouped by their own round —
    * In Progress, Paused, Priority, Checked, UnChecked — and set that mark from
@@ -698,9 +699,8 @@ export default function AllRoomsScreen() {
     setLocalFilters(appliedFilters);
   };
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
+  // Not a bare goBack(): for someone without Home that looped (useTabBack).
+  const { goBack: handleBackPress } = useTabBack('Rooms');
 
   // `useCallback` for the same reason as `handleAssignStaffPress`.
   const handleRoomPress = useCallback(
@@ -1200,6 +1200,8 @@ export default function AllRoomsScreen() {
               avatarUrl={profile?.avatar}
               shift={displayData.selectedShift}
               onShiftChange={shiftLock.locked ? undefined : handleShiftToggle}
+              // Laundry's profile lives on Tickets, where their app opens.
+              showProfile={!inLaundry}
               searchQuery={searchQuery}
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}

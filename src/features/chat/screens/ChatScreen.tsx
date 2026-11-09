@@ -4,7 +4,7 @@ import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/u
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
-import { PERMISSIONS, usePermissions } from '@/domain/rbac';
+import { PERMISSIONS, usePermissions, useTabBack } from '@/domain/rbac';
 import { typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
@@ -267,9 +267,8 @@ export default function ChatScreen() {
     );
   };
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
+  // Not a bare goBack(): for someone without Home that looped (useTabBack).
+  const { goBack: handleBackPress } = useTabBack('Chat');
 
   const handleMessagePress = () => {
     setShowNewChatMenu(true);

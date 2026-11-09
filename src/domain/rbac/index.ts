@@ -24,4 +24,5 @@ export type {
 } from './matrix';
 
 export { usePermissions } from './usePermissions';
+export { useTabBack } from './useTabBack';
 export { Can } from './Can';

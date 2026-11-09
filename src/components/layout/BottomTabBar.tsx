@@ -115,6 +115,15 @@ const TAB_ORDER_BY_VARIANT: Record<HomeVariant, readonly string[]> = {
 };
 
 /*
+ * Laundry attendants work from tickets and keep Rooms for reference (client,
+ * 2026-11-09): Tickets, Rooms, AI, Lost & Found. They share the `default` home
+ * layout with many roles, so this keys on the Laundry department
+ * (`inLaundry`), not on a variant. Chat,
+ * Home and Staff stay listed for completeness; `hk_laundry` holds none of them.
+ */
+const LAUNDRY_TAB_ORDER: readonly string[] = ['Tickets', 'Rooms', 'AIHome', 'LostAndFound', 'Chat', 'Home', 'Staff'];
+
+/*
  * Every tab is a registry SVG. `iconHeight` is the glyph's own height in the
  * tab bar of Figma 3128:32 — Home 3128:149, Rooms 3128:154, Chat 3128:141,
  * Tickets 3128:184 — and width follows each SVG's aspect ratio. These replace
@@ -170,7 +179,7 @@ export default function BottomTabBar() {
   const { scaleX } = useDesignScale();
   const styles = useMemo(() => buildBottomTabBarStyles(scaleX), [scaleX]);
   const { chatBadgeCount, ticketsBadgeCount, roomsAssignmentCount } = useBottomTabBadges();
-  const { can, homeVariant } = usePermissions();
+  const { can, homeVariant, inLaundry: laundry } = usePermissions();
   // Safe here: the tab bar only ever renders inside `(tabs)` screens, which all
   // sit under AppProviders — the hook throws outside its provider.
   const { open: openAIChatOverlay } = useAIChatOverlay();
@@ -198,14 +207,16 @@ export default function BottomTabBar() {
       // Order by the role's workspace — see TAB_ORDER_BY_VARIANT. Unlisted ids
       // sort after the listed ones, keeping their original relative order,
       // which `sort` guarantees since it is stable.
-      const order = TAB_ORDER_BY_VARIANT[homeVariant] ?? TAB_ORDER_BY_VARIANT.default;
+      const order = laundry
+        ? LAUNDRY_TAB_ORDER
+        : (TAB_ORDER_BY_VARIANT[homeVariant] ?? TAB_ORDER_BY_VARIANT.default);
       const rank = (id: string) => {
         const i = order.indexOf(id);
         return i === -1 ? Number.MAX_SAFE_INTEGER : i;
       };
       return permitted.sort((a, b) => rank(a.id) - rank(b.id));
     },
-    [can, homeVariant]
+    [can, homeVariant, laundry]
   );
 
   const scrollRef = useRef<ScrollView | null>(null);

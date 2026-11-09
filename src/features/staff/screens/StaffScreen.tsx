@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, TextInput } from 'react-native';
 import { Icon } from '@/components/Icon';
+import { useTabBack } from '@/domain/rbac/useTabBack';
 import { useFocusEffect, useNavigation, useRoute, useRouter } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 
@@ -175,7 +176,13 @@ export default function StaffScreen() {
   // screen is showing, or once on return if one happened while it was hidden.
   useLiveRoomChanges(refreshRoster);
 
+  const tabBack = useTabBack('Staff');
   const handleBack = useCallback(() => {
+    // Without Home, goBack() lands on Home and loops through the guard.
+    if (!tabBack.hasHome) {
+      tabBack.goBack();
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
       return;
@@ -183,7 +190,7 @@ export default function StaffScreen() {
     const returnToTab =
       (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
     navigation.navigate(returnToTab as keyof MainTabsParamList);
-  }, [navigation, route.params]);
+  }, [navigation, route.params, tabBack]);
 
   /**
    * "See rooms" leaves for that person's full room list — Figma 3810:173.
