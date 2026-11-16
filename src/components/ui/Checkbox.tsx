@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable } from '@/tw';
+import Svg, { Path } from 'react-native-svg';
+import { View, Pressable } from '@/tw';
 
 export type CheckboxProps = {
   checked: boolean;
@@ -10,16 +11,17 @@ export type CheckboxProps = {
   size?: number;
 };
 
+/** The select-mode tick (Figma 4361:6101): 15x11, a 1pt stroke, in a 29-wide box. */
+const TICK = { width: 15, height: 11, boxWidth: 29 } as const;
+
 /**
  * Square checkbox — Figma node 2702:3195.
  *
- * A 1px outline when clear, filled with ink when set. Deliberately square: the
- * design gives it no corner radius.
- *
- * The tick is the `✓` character rather than an icon, because the design only
- * shows the unchecked state and there is no tick in the icon registry to export
- * from this node. Swap it for `<Icon name="action-tick">` when a checked state
- * is designed.
+ * A 1px outline when clear. When set, the outline darkens to ink and a thin
+ * tick is drawn inside — no fill. That is the tick of Staff → rooms select
+ * mode (`RoomSelectCheckbox`, Figma 4361:6101), which the client asked every
+ * checkbox to use (2026-11-16) in place of the solid black box with a white
+ * "✓" character. Deliberately square: the design gives it no corner radius.
  */
 export function Checkbox({ checked, onToggle, accessibilityLabel, size = 25 }: CheckboxProps) {
   return (
@@ -31,19 +33,20 @@ export function Checkbox({ checked, onToggle, accessibilityLabel, size = 25 }: C
       hitSlop={10}
     >
       <View
-        className={`items-center justify-center border ${
-          checked ? 'border-ink-primary bg-ink-primary' : 'border-border-control'
-        }`}
+        className={`items-center justify-center border ${checked ? 'border-ink-primary' : 'border-border-control'}`}
         // Edge length is a prop, so it stays a style.
         style={{ width: size, height: size }}
       >
         {checked && (
-          <Text
-            className="font-hestia-primary font-bold text-ink-white"
-            style={{ fontSize: size * 0.72, lineHeight: size * 0.72 }}
+          // Same path and stroke as RoomSelectCheckbox, scaled with the box.
+          <Svg
+            width={(size * TICK.width) / TICK.boxWidth}
+            height={(size * TICK.height) / TICK.boxWidth}
+            viewBox="0 0 15 11"
+            fill="none"
           >
-            ✓
-          </Text>
+            <Path d="M0.363709 5.12128L5.12128 9.87885L14.6364 0.363709" stroke="#1e1e1e" strokeWidth={1.03} />
+          </Svg>
         )}
       </View>
     </Pressable>

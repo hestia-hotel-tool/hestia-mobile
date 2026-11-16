@@ -1,52 +1,47 @@
-# Handoff — Rooms list: card, header, VIP codes
+# Handoff — current state (2026-11-16)
 
-Branch `wallice-dev`. The card redesign (Figma 4553:262) is committed as `85f6135` by the user. The header, filter and priority-pill work is **staged by the user**; the VIP work below is **unstaged**. The user approves every commit. Nothing has been pushed by Claude.
+Branch `wallice-dev`. Latest commit `6c9cdc0` (laundry department + navigation). The user approves every commit and push; nothing is pushed by Claude.
 
-## Room card (committed)
+## In progress (staged, not committed)
 
-One card for every state: number + type chips + badge tiles; a tinted guest panel (name / "EDT 12:00  2 Adults, 2 Kids" / "07 Oct - 15 Oct", VIP disc with ⓘ); footer with "Room Attendant" + assignee and a 207×70 pill. Built from `roomsList/roomCardLayout.ts` (`ROOM_CARD`) and `RoomListCard.tsx` (the only card). The Priority pill is a red gradient with a glow (it vanished on the tinted priority frame).
+- **Checkbox tick** (`components/ui/Checkbox.tsx`): checked = no fill, ink outline, thin SVG tick (path from `RoomSelectCheckbox`, Figma 4361:6101). Used by the Floors filter and every `FilterOptionRow` sheet.
+- **Attendant action menu on room cards**: tapping the assignee (`RoomAssigneeBlock`) opens `StaffActionMenu` with Reassign Room / Unassign for that room. Only with `rooms.reassign`.
+  - Always opens below the attendant with the `action-tooltip-tail` pointing at the photo (`tailX`); the list scrolls first via `useRevealBelow` (shared with the VIP popover), gap `ASSIGNEE_MENU_GAP` = 16 in `AllRoomsScreen`.
+  - Header and tapped card stay sharp, rest lightly blurred (`StaffActionMenu` `spotlight`). The block/card hand over `MeasureAnchor`s, not one reading.
+  - Reassign → existing `ReassignModal`; Unassign → confirm → `unassignRoomsFromStaff` → `setRoomAttendant(id, null)`.
+  - `ReassignModal` now omits the current assignee everywhere (Rooms, Room Detail, Staff); Auto Assign uses the same list.
+  - Typecheck/lint clean, iOS export OK; checked by the user on device.
 
-Figma update (4577:72, 2026-11-06): a priority room is one card (`#feefef`, 1pt `#f92424`, white panel; `PRIORITY_CARD`), not a red frame; its pill is solid red with the running figure (`action-priority`). Unassigned rooms show `AssignRoomPill` (169.6×62, person-plus SVG, "Assign Room"; read-only: "Unassigned") centred on the pill, no "Room Attendant" label. Two-guest cards: pill 12 under the panel, 14 above the bottom (316 tall). Cards are 427 wide (gutter 6.5) and every offset counts from the outer edge, border included (`RoomCardShell`). The Rooms screen uses SVG only (no Ionicons, no PNG). Open question: Figma prints "V2" in one VIP disc; the app prints the code.
+## Next
 
-Header badge icons are Figma's 1pt-stroke glyphs (4553:856): `badge-bell` and `badge-lost-found` replaced in place, the flag added as `action-flag-outline-thin` (chat task cards keep the 2pt `action-flag-outline`).
+1. **Engineering UI from Figma 4649:809.** Figma was disconnected in the last session; open a new session (Figma reconnected) and read the node. Plan-first: list differences, approve, then UI-only changes.
+2. Logic changes the user announced after the UI pass (not specified yet).
+3. Commit the staged work after approval.
 
-## Rooms header (staged)
+## How things work now (non-obvious)
 
-- Every Rooms variant now uses the new screen: `default` (bellboys, concierge, engineering, IT, IRD, Hotel Manager) moved off the legacy header and flat list on 2026-11-06. `AllRoomsHeader` and the legacy `allRooms/RoomCard` are now unreachable from AllRoomsScreen (dead code, not yet deleted).
+- **Room card**: `roomsList/RoomListCard.tsx` is the only card, built from `ROOM_CARD` in `roomCardLayout.ts` (440 design frame, `cardPx`). Every Rooms variant uses `RoomsHeader` (collapsing profile band, `useCollapsingHeader`). `AllRoomsHeader` and legacy `allRooms/RoomCard` are dead code, not deleted.
+- **VIP**: hotel codes 1–10 → tiers V1–V5 (`src/domain/vip`, `store/vipTiers.ts`), drawn grey everywhere; disc/ⓘ opens `VipInfoPopover` (built from a screenshot, no Figma node).
+- **Laundry department** (migration `20261109090000`, applied): former Executive and Administration; Lina Moreau and Samantha Nguyen. No lead title, so Laundry tickets can only be reassigned by platform admins.
+- **Works from tickets** (`usePermissions().worksFromTickets`: porters via `hsk_portier`, laundry via department): land on Tickets; ticket list = assigned to them + their department's (client-side filter only; RLS is hotel-wide). Laundry only (`inLaundry`): tab order Tickets, Rooms, AI, Lost & Found; profile in `TicketsHeader` instead of Rooms.
+- **Tab back arrows** use `rbac/useTabBack` (a bare `goBack()` to Home looped through `RouteGuard` for roles without Home).
+- **Ticket form**: `tickets/components/TicketForm.tsx` (Figma 589:514) serves Room Detail → Tickets and `CreateTicketFormScreen`. Location step uses `roomPicker/RoomSearchField` (Figma 1085:2628).
+- **Icons**: SVG only via the registry (`node scripts/normalizeSvg.js --mono`, then `npm run icons:generate`).
+- **Simulator/phone often keeps stale JS**: press `r` in Metro or restart the app before judging a change. The local dev build's bundle id is `com.hestiahotels.app`.
+- **Staff PDF** (`~/Desktop/Hestia-Staff.pdf`, 2026-11-09) contains live passwords; rebuilt from the DB with a scratch script (not in the repo).
 
-- No "Rooms" title. Attendants get "Rooms finished" + the 3/8 pill; laundry gets "View only" + the linen summary.
-- `hooks/useCollapsingHeader.ts`: scrolling down folds the profile band away and pins the search; a flick up or reaching the top brings it back. It stays in the layout (not an overlay) because `GroupedRoomsList` floats the In Progress band at the list's top. Frozen while the status popover or filter sheet is open.
-- AM/PM switch: until the new shift's rooms arrive the store still holds the other shift's (a fetch fills both `rooms` and `roomsPM` with one shift), so the list shows `RoomListSkeleton` instead and hides the refresh spinner (`switchingShift` in AllRoomsScreen). A banded list gets an 8pt gap under the search (`listGap`), since its band heading brings 32.
-- Filter sheet hangs from the header's measured bottom (`AllRoomsFilterModal.anchorTop`, `FilterModalOverlay.windowCoordinates`). The filter button shows open (disc) and applied (dot).
+## Open decisions for the user
 
-## VIP codes (unstaged, user-approved phase 1, 2026-11-06)
-
-- Hotel codes are **1–10** (1 = most important); no code = regular guest (no disc). They're grouped into tiers per hotel: V1 = 1–2, V2 = 3–4, V3 = 5–6, V4 = 7–8, V5 = 9–10. **Drawn neutral everywhere** (`VIP_NEUTRAL`: Figma's grey disc, code `#334866`). Colour is kept for status (client, 2026-11-06); tier colours stay in `vip_tiers`, unused.
-- Migration `20261106120000_vip_tiers.sql`: a `vip_tiers` table (RLS read per hotel, seeded for every hotel + a trigger for new ones). `guests.vip_code` limited to 1–10; other values are **cleared** (data change). `_guest_vip` (used by `upsert_guest`) enforces the same rule.
-- Client: `src/domain/vip` (pure: `vipTierFor`, `normalizeVipCode`, defaults = the seed), `src/store/vipTiers.ts` (loads the hotel's tiers, defaults until then, cleared on tenant reset), `components/ui/VipCode.tsx` (inline tag). `vipCode` is now text (the `parseInt` is gone).
-- Shown on: the room card disc, Room Detail's guest rows (the same `VipDisc` at the row's right, Figma 2333:312; tapping opens the same popover, `useRevealBelow` on the Overview ScrollView; each guest's own code, no inherited `numberBadge`), the room picker, the Lost & Found confirm step. The Rooms filter has a "VIP" section (V1–V5, room counts); the filter bar says "VIP V1".
-- Tapping a VIP disc (code or ⓘ) opens `roomsList/VipInfoPopover.tsx` (user screenshot, 2026-11-06): a card-wide popover that always opens downward from the ⓘ (the list scrolls to make room first: `hooks/useRevealBelow.ts`, which also pads the list's end and freezes the collapsing header), everything blurred but the tapped card's strip: "Code: V3" (tier), "VIP GUEST", "Use {room credits} credits…", "Need Assistance?" and a button that opens the assistant already asking "What are the VIP guest requirements?" (`useAIChatOverlay().open(question)`). Built from a screenshot, so measures are approximate; no Figma node yet.
-- Phase 2 (not built): special-attention flags, operational rules (inspection / auto-priority for VIP arrivals), Mews/Cloudbeds mapping, back-office tier editing.
-
-## Status
-
-- Typecheck and lint clean; iOS and Android exports succeed and contain the changes. **Nothing checked on a device.** VIP migration applied to `nkawubpnwkhzvwqkxhaz` on 2026-11-06 (both hotels seeded; codes 11 and 22 cleared, so 2 guests are now regular).
-- Laundry department (2026-11-09, migration `20261109090000`, applied): Executive and Administration renamed to Laundry (key `laundry`); its 2 Hotel Managers (Elena Hofmann, Amina Diallo) and the `hotel_manager` title deleted; laundry attendants moved out of Housekeeping (title "Laundry Attendant", key unchanged). Hotel-wide ticket rights are now platform admins only. Laundry has no lead title yet.
-- Room Detail → Tickets form (`tickets/components/TicketForm.tsx`) rebuilt to Figma 589:514 (2026-11-09): department dropdown (pink frame, list under it), "Name {Dept} Ticket", Frequent Cases list, flag priorities with tinted rows, Photo / Tag Staff / Description cards, square Submit. SVG only (new: `action-flag-priority`, `action-chevron-down-wide`, `action-add-photo-frame`). `CreateTicketFormScreen` (Tickets tab → Create Ticket, which draws Room Detail's header and tabs itself) now renders the same `TicketForm` (with `publicAreaName` for public areas) instead of its own copy.
-- Create Ticket → Location (Figma 1085:2628): the room is now typed into `roomPicker/RoomSearchField` (inline; results pop up as `GuestRow` rows, number matches first, max 5) instead of `RoomNumberSelector`'s modal. Picker rooms now carry `adults`, `kids`, `time` (reservation `eta`). Lost & Found → Register still uses the modal picker.
-- Laundry attendants and porters work from tickets (client, 2026-11-09): `PermissionProvider.worksFromTickets` (`hsk_portier`, or department Laundry via `ticket_access_for_me`; not the `laundry` Rooms layout, which Public Area attendants also get). `resolveLandingRoute` opens them on Tickets (Splash, Login, RouteGuard); `TicketsScreen` shows them only tickets assigned to them + their department's (porters: all Housekeeping). Client-side only: RLS still lets them read every hotel ticket. Laundry's tab bar: Tickets, Rooms, AI, Lost & Found (`BottomTabBar` `LAUNDRY_TAB_ORDER`). Laundry's profile (avatar, name, title → Settings) replaces the "Tickets" title (`TicketsHeader` `profile`) and is gone from their Rooms header (`RoomsHeader showProfile`); `usePermissions().inLaundry`.
-- Filter counts don't recompute when a hotel's own tiers load after the rooms; only matters once a hotel's tiers differ from the defaults.
+- Porters see all Housekeeping tickets; should it be only their own? Should people see tickets they raised for other departments? Enforce the ticket scope in RLS?
+- Porters: same profile-on-Tickets layout and tab order as laundry?
+- Lost & Found → Register still uses the modal room picker; switch to `RoomSearchField`?
+- Fatima Benali has no shift set in the DB.
 
 ## Open problems
 
-1. Migration `20261030090000` (laundry) is still not applied to `nkawubpnwkhzvwqkxhaz`; the client fallback covers it.
+1. Migration `20261030090000` (laundry rooms variant) not applied to `nkawubpnwkhzvwqkxhaz`; the client fallback (`readOnlyAttendant`) covers it and also gives Public Area Attendants the laundry Rooms view.
 2. `supabase db push` is blocked: the remote has `20260929000600`, which isn't in git. Don't `migration repair` it blind.
-3. "Maximum update depth exceeded": reproduced 2026-11-09 by the back arrow on a tab screen for a role without Home (goBack() goes to the first tab, Home; the RouteGuard around the tab navigator redirects back, and it loops). Fixed with `rbac/useTabBack` on Rooms, Tickets, Chat, Lost & Found and Staff.
-4. Public Area Attendants get the laundry view through the fallback (unconfirmed).
-5. Front-office chips come from `reservations.front_office_status`; after the +29-day data shift some don't match their dates.
-6. Lost & Found's item card accepts `guestVipCode` but never shows it. The confirm step still draws a red arrow on any VIP's photo.
-
-## Next steps
-
-1. Check on iOS/Android: VIP discs and colours, the VIP filter, a guest without a code (no disc), the room picker.
-2. Commit after approval.
+3. Front-office chips come from `reservations.front_office_status`; after the +29-day data shift some don't match their dates.
+4. Lost & Found's item card accepts `guestVipCode` but never shows it; the confirm step draws a red arrow on any VIP's photo.
+5. VIP filter counts don't recompute when a hotel's own tiers load after the rooms.
+6. `@/tw` `Pressable` drops function `style` when `className` is set (still in TicketActivityItem, StaffActionMenu rows, HomeHeader, StaffShiftCard).

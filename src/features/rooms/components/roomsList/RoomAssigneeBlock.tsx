@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useRef } from 'react';
+import { View as RNView } from 'react-native';
 import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { typography } from '@/theme';
 import { ROOM_CARD, cardPx } from './roomCardLayout';
 import type { AssigneeStatus } from '../../utils/cleaningClock';
+import type { MeasureAnchor } from '../../hooks/useRevealBelow';
 
 export type RoomAssigneeBlockProps = {
   /** Who is on the room. An unassigned room shows AssignRoomPill instead of this block. */
@@ -11,7 +13,12 @@ export type RoomAssigneeBlockProps = {
   avatarUrl?: string | null;
   /** The line under the name, already styled for its state — see `assigneeStatus`. */
   status?: AssigneeStatus | null;
-  onPress?: () => void;
+  /**
+   * Tapped. Hands over a way to measure the block, not one reading of it: the
+   * list may scroll to make room before a menu opens under it, and the menu's
+   * tail must point where the block ends up (as VipDisc does).
+   */
+  onPress?: (measure: MeasureAnchor) => void;
 };
 
 /** Figma's line heights: Helvetica at 115%. */
@@ -48,32 +55,50 @@ export function RoomAssigneeBlock({ name, avatarUrl, status, onPress }: RoomAssi
   ) : null;
 
   const Container = onPress ? Pressable : View;
+  // A plain RN View, measured with measureInWindow on a tap.
+  const ref = useRef<RNView>(null);
+  const measure: MeasureAnchor = () =>
+    new Promise((resolve) => {
+      const node = ref.current;
+      if (!node) return resolve(null);
+      node.measureInWindow((x, y, width, height) =>
+        resolve([x, y, width, height].every(Number.isFinite) && height > 0 ? { x, y, width, height } : null)
+      );
+    });
+  const press = () => onPress?.(measure);
 
   return (
-    <Container
-      {...(onPress
-        ? { onPress, accessibilityRole: 'button' as const, accessibilityLabel: `Assigned to ${name}` }
-        : {})}
-      className="flex-row items-center"
-      style={{ gap: ROOM_CARD.assigneeGap }}
-    >
-      <Avatar uri={avatarUrl} name={name} size={ROOM_CARD.assigneeAvatar} />
-      <View style={{ flexShrink: 1 }}>
-        <Text
-          style={{
-            fontFamily: typography.fontFamily.primary,
-            fontSize: cardPx(13),
-            lineHeight: cardPx(14.9),
-            fontWeight: '700',
-            color: '#1e1e1e',
-          }}
-          numberOfLines={1}
-        >
-          {name}
-        </Text>
-        {statusText}
-      </View>
-    </Container>
+    <RNView ref={ref} collapsable={false}>
+      <Container
+        {...(onPress
+          ? {
+              onPress: press,
+              accessibilityRole: 'button' as const,
+              accessibilityLabel: `Assigned to ${name}`,
+              accessibilityHint: 'Reassign or unassign this room',
+            }
+          : {})}
+        className="flex-row items-center"
+        style={{ gap: ROOM_CARD.assigneeGap }}
+      >
+        <Avatar uri={avatarUrl} name={name} size={ROOM_CARD.assigneeAvatar} />
+        <View style={{ flexShrink: 1 }}>
+          <Text
+            style={{
+              fontFamily: typography.fontFamily.primary,
+              fontSize: cardPx(13),
+              lineHeight: cardPx(14.9),
+              fontWeight: '700',
+              color: '#1e1e1e',
+            }}
+            numberOfLines={1}
+          >
+            {name}
+          </Text>
+          {statusText}
+        </View>
+      </Container>
+    </RNView>
   );
 }
 

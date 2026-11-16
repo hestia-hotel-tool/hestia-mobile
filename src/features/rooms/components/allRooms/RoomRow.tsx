@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import type { RoomCardData } from '../../types/allRooms.types';
 import type { ShiftType } from '@/types/shift.types';
+import type { MeasureAnchor } from '../../hooks/useRevealBelow';
 
 /**
  * One row of the Rooms list, memoised.
@@ -39,6 +40,8 @@ export type RoomRowProps = {
   onStatusPress: (room: RoomCardData) => void;
   /** Absent without rooms.reassign — the card's assign control is then read-only. */
   onAssignPress?: (room: RoomCardData) => void;
+  /** The assigned attendant was tapped (rebuilt card): the screen's Reassign / Unassign menu. */
+  onAssigneePress?: (room: RoomCardData, measureAssignee: MeasureAnchor, measureCard: MeasureAnchor) => void;
   /**
    * The screen keeps the ref maps, for the status popover's anchoring. Each
    * returns the matching unregister: the list is virtualised, so a card that
@@ -70,6 +73,7 @@ function RoomRowInner({
   onPress,
   onStatusPress,
   onAssignPress,
+  onAssigneePress,
   registerCardRef,
   registerPillRef,
   RebuiltCard,
@@ -83,6 +87,10 @@ function RoomRowInner({
   const handlePress = useCallback(() => onPress(room), [onPress, room]);
   const handleStatusPress = useCallback(() => onStatusPress(room), [onStatusPress, room]);
   const handleAssignPress = useCallback(() => onAssignPress?.(room), [onAssignPress, room]);
+  const handleAssigneePress = useCallback(
+    (measureAssignee: MeasureAnchor, measureCard: MeasureAnchor) => onAssigneePress?.(room, measureAssignee, measureCard),
+    [onAssigneePress, room]
+  );
 
   const measureRef = useCallback(
     (ref: unknown) => {
@@ -105,6 +113,7 @@ function RoomRowInner({
           onPress={handlePress}
           onStatusPress={canChangeStatus || porter ? handleStatusPress : undefined}
           onAssignPress={onAssignPress ? handleAssignPress : undefined}
+          onAssigneePress={onAssigneePress ? handleAssigneePress : undefined}
           porter={porter}
           frontOffice={frontOffice}
           revealVip={revealVip}

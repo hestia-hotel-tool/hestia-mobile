@@ -107,6 +107,9 @@ export default function ReassignModal({
         ...section,
         data: section.people
           .filter((p) => attendantIds.has(p.id))
+          // Not the person the room is leaving: reassigning to them changes
+          // nothing (client, 2026-11-16).
+          .filter((p) => p.id !== currentAssignedStaffId)
           .filter(
             (p) =>
               !needle ||
@@ -117,7 +120,7 @@ export default function ReassignModal({
           .sort((a, b) => (a.work?.total ?? 0) - (b.work?.total ?? 0)),
       }))
       .filter((section) => section.data.length > 0);
-  }, [roster, attendantIds, query]);
+  }, [roster, attendantIds, query, currentAssignedStaffId]);
 
   const select = (person: StaffRosterPerson) => {
     onStaffSelect(person.id, attendants?.find((a) => a.id === person.id));

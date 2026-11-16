@@ -22,7 +22,7 @@ import { roomBadges } from './RoomBadgeTile';
 import { PorterStatusPill, GuestPresence } from './PorterStatusPill';
 import { vipTierFor } from '@/domain/vip';
 import { VipInfoPopover, VIP_ASSISTANT_QUESTION, VIP_POPOVER_SPACE, type VipAnchor } from './VipInfoPopover';
-import type { MeasureAnchor, RevealBelow } from '../../hooks/useRevealBelow';
+import type { MeasureAnchor, RevealBelow, WindowRect } from '../../hooks/useRevealBelow';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useVipTiers } from '@/store/vipTiers';
 
@@ -31,6 +31,12 @@ export type RoomListCardProps = {
   onPress?: () => void;
   onStatusPress?: () => void;
   onAssignPress?: () => void;
+  /**
+   * The assigned attendant's block was tapped, with where it is on screen —
+   * the Rooms screen opens Reassign / Unassign there. Without it the block
+   * falls back to `onAssignPress`.
+   */
+  onAssigneePress?: (measureAssignee: MeasureAnchor, measureCard: MeasureAnchor) => void;
   onGuestImagePress?: (guest: GuestInfo) => void;
   isChangingStatus?: boolean;
   onLayout?: (e: LayoutChangeEvent) => void;
@@ -68,6 +74,7 @@ export function RoomListCard({
   onPress,
   onStatusPress,
   onAssignPress,
+  onAssigneePress,
   onGuestImagePress,
   isChangingStatus,
   onLayout,
@@ -113,6 +120,15 @@ export function RoomListCard({
     },
     [measureRef]
   );
+  /** The whole card on screen — the Reassign / Unassign menu keeps it sharp. */
+  const measureCard: MeasureAnchor = () =>
+    new Promise<WindowRect | null>((resolve) => {
+      const node = cardRef.current;
+      if (!node) return resolve(null);
+      node.measureInWindow((x, y, width, height) =>
+        resolve([x, y, width, height].every(Number.isFinite) && height > 0 ? { x, y, width, height } : null)
+      );
+    });
   const measureCardTop = () =>
     new Promise<number | null>((resolve) => {
       const node = cardRef.current;
@@ -202,7 +218,12 @@ export function RoomListCard({
           ) : !staff?.name ? (
             <AssignRoomPill roomNumber={room.roomNumber} onPress={onAssignPress} />
           ) : (
-            <RoomAssigneeBlock name={staff.name} avatarUrl={staff.avatar} status={status} onPress={onAssignPress} />
+            <RoomAssigneeBlock
+              name={staff.name}
+              avatarUrl={staff.avatar}
+              status={status}
+              onPress={onAssigneePress ? (measure) => onAssigneePress(measure, measureCard) : onAssignPress ? () => onAssignPress() : undefined}
+            />
           )
         }
         pill={

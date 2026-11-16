@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { View, FlatList, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Platform } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Platform, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -39,11 +39,18 @@ import {
 import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
+  unassignRoomsFromStaff,
 } from '../services/rooms';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategoryName } from '@features/home/types/home.types';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
+import StaffActionMenu, {
+  STAFF_ACTION_MENU_TAIL,
+  staffActionMenuHeight,
+  type StaffRoomsAction,
+} from '@features/staff/components/staffRooms/StaffActionMenu';
+import type { MeasureAnchor, WindowRect } from '../hooks/useRevealBelow';
 import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { useShiftLock } from '@features/account/hooks/useShiftLock';
@@ -783,6 +790,97 @@ export default function AllRoomsScreen() {
     // edge in the window; the VIP popover leaves it unblurred.
     headerBottom: useProfileHeader ? (profileHeaderHeight ?? 0) : 0,
   });
+  /*
+   * The attendant on a card, tapped: the Staff screen's action menu for this
+   * one room — Reassign Room / Unassign (client, 2026-11-16). It always opens
+   * *below* the attendant, a tail pointing up at them: the list scrolls first
+   * to make room (useRevealBelow, as for the VIP popover), which also freezes
+   * the collapsing header. The header and the tapped card stay sharp.
+   * Kept after closing (open: false) so the menu fades out.
+   */
+  const [assigneeMenu, setAssigneeMenu] = useState<{
+    room: RoomCardData;
+    anchor: WindowRect;
+    /** The tapped card, kept sharp in the blur. */
+    card: WindowRect | null;
+    /** Window y where the screen's header ends: never blurred. */
+    headerBottom: number;
+    open: boolean;
+  } | null>(null);
+  const ASSIGNEE_ACTIONS: StaffRoomsAction[] = ['reassign', 'unassign'];
+  /** Between the attendant and the tail's tip (client, 2026-11-16: "a little lower"). */
+  const ASSIGNEE_MENU_GAP = 16 * scaleX;
+  /** Tail + gap + the menu itself: what the list makes room for under the attendant. */
+  const assigneeMenuSpace =
+    ASSIGNEE_MENU_GAP + STAFF_ACTION_MENU_TAIL.height + staffActionMenuHeight(ASSIGNEE_ACTIONS) + 12 * scaleX;
+  const revealForMenu = vipReveal.reveal;
+  const endRevealForMenu = vipReveal.end;
+  const handleAssigneePress = useCallback(
+    async (room: RoomCardData, measureAssignee: MeasureAnchor, measureCard: MeasureAnchor) => {
+      const revealed = await revealForMenu(measureAssignee, assigneeMenuSpace);
+      // Unmeasurable (scrolled away mid-tap): straight to the picker, as before.
+      if (!revealed) {
+        endRevealForMenu();
+        handleAssignStaffPress(room);
+        return;
+      }
+      const card = await measureCard();
+      setAssigneeMenu({ room, anchor: revealed.rect, card, headerBottom: revealed.clearAbove, open: true });
+    },
+    [revealForMenu, endRevealForMenu, assigneeMenuSpace, handleAssignStaffPress]
+  );
+  const closeAssigneeMenu = () => {
+    setAssigneeMenu((m) => (m ? { ...m, open: false } : m));
+    endRevealForMenu();
+  };
+
+  const unassignRoom = async (room: RoomCardData) => {
+    const staff = room.roomAttendantAssigned;
+    const shift = displayData.selectedShift === 'PM' ? 'PM' : 'AM';
+    if (!staff?.userId) {
+      toast.show(`Room ${room.roomNumber} could not be unassigned. Pull to refresh and try again.`, { type: 'error' });
+      return;
+    }
+    setAssigningStaffRoomId(room.id);
+    try {
+      await unassignRoomsFromStaff([room.id], staff.userId, shift);
+      setRoomAttendant(room.id, null);
+    } catch (e) {
+      toast.show(
+        `Room ${room.roomNumber} was not unassigned. ${e instanceof Error ? e.message : 'Please try again.'}`,
+        { type: 'error', duration: 4500 }
+      );
+    } finally {
+      setAssigningStaffRoomId(null);
+    }
+  };
+
+  const handleAssigneeAction = (action: StaffRoomsAction) => {
+    const room = assigneeMenu?.room;
+    closeAssigneeMenu();
+    if (!room) return;
+    if (action === 'reassign') {
+      // After the menu has faded: iOS shows one modal at a time.
+      setTimeout(() => handleAssignStaffPress(room), 350);
+    } else if (action === 'unassign') {
+      const who = room.roomAttendantAssigned?.name ?? 'the attendant';
+      Alert.alert(`Unassign Room ${room.roomNumber}?`, `It will no longer be ${who}'s this shift.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Unassign', style: 'destructive', onPress: () => void unassignRoom(room) },
+      ]);
+    }
+  };
+
+  /** Under the attendant, the tail pointing at their photo; left-aligned with them. */
+  const assigneeMenuPlacement = (() => {
+    const a = assigneeMenu?.anchor;
+    if (!a) return { top: 0, left: 0, tailX: 0 };
+    const width = 302 * scaleX;
+    const top = a.y + a.height + ASSIGNEE_MENU_GAP + STAFF_ACTION_MENU_TAIL.height - 1;
+    const left = Math.min(Math.max(8, a.x - 8 * scaleX), windowWidth - width - 8);
+    return { top, left, tailX: a.x + ROOM_CARD.assigneeAvatar / 2 };
+  })();
+
   const collapsingHeader = useCollapsingHeader({
     // Also frozen while the VIP popover places itself: a header changing
     // height would move the disc out from under its tail.
@@ -1331,6 +1429,7 @@ export default function AllRoomsScreen() {
                   isPorter ? { status: porterChecks.statusOf(room.id), guestIn: isGuestIn(room) } : undefined
                 }
                 onAssignPress={canReassign ? handleAssignStaffPress : undefined}
+                onAssigneePress={canReassign ? handleAssigneePress : undefined}
                 registerCardRef={registerCardRef}
                 registerPillRef={registerPillRef}
                 RebuiltCard={RoomListCard}
@@ -1517,6 +1616,22 @@ export default function AllRoomsScreen() {
         roomNumber={roomToAssign?.roomNumber}
         showAutoAssign={false}
         shift={uiShift === 'PM' ? 'PM' : 'AM'}
+        currentAssignedStaffId={roomToAssign?.roomAttendantAssigned?.userId}
+      />
+
+      {/* Reassign / Unassign for one room, from its attendant (StaffActionMenu, as on Staff). */}
+      <StaffActionMenu
+        visible={!!assigneeMenu?.open}
+        top={assigneeMenuPlacement.top}
+        left={assigneeMenuPlacement.left}
+        // The header and the tapped card stay sharp; the rest blurs lightly.
+        blurTop={assigneeMenu?.headerBottom ?? 0}
+        spotlight={assigneeMenu?.card}
+        tailX={assigneeMenuPlacement.tailX}
+        items={ASSIGNEE_ACTIONS}
+        labels={{ reassign: 'Reassign Room' }}
+        onClose={closeAssigneeMenu}
+        onSelect={handleAssigneeAction}
       />
 
       {/* Filter Modal */}
