@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -19,11 +19,10 @@ import type { RootStackParamList } from '@/types/navigation';
 import { RoomSearchField } from '@features/rooms/components/roomPicker';
 import { useRoomPickerRooms } from '@features/rooms/hooks/useRoomPickerRooms';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
-import {
-  CREATE_TICKET_BETA_OVERLAP_AI_PX,
-  CREATE_TICKET_BETA_TO_DESCRIPTION_PX,
-  createTicketScaleX,
-} from '../constants/createTicketStyles';
+import { createTicketScaleX } from '../constants/createTicketStyles';
+import { RoomListCard } from '@features/rooms/components/roomsList';
+import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
+import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type SelectTicketLocationScreenNavigationProp = NativeStackNavigationProp<
@@ -42,8 +41,8 @@ export default function SelectTicketLocationScreen() {
   const scaleX = createTicketScaleX(windowWidth);
   const insets = useSafeAreaInsets();
   const styles = useMemo(
-    () => buildSelectTicketLocationStyles(scaleX, windowWidth),
-    [scaleX, windowWidth],
+    () => buildSelectTicketLocationStyles(scaleX),
+    [scaleX],
   );
 
   const [locationType, setLocationType] = useState<'room' | 'publicArea'>('room');
@@ -57,6 +56,32 @@ export default function SelectTicketLocationScreen() {
    * `listRoomsWithReservationGuests` and its own copy of the card.
    */
   const { rooms, loading } = useRoomPickerRooms(locationType === 'room');
+
+  /*
+   * Results are drawn as the Rooms list's own card (Figma 4649:921), which
+   * needs the list's card data. Load it once if nobody has yet; never refetch
+   * over a list the Rooms tab already holds (it may be on another shift).
+   */
+  const roomsData = useRoomsStore((s) => s.data);
+  const fetchRooms = useRoomsStore((s) => s.fetchRooms);
+  useEffect(() => {
+    if (locationType === 'room' && !useRoomsStore.getState().data) void fetchRooms();
+  }, [locationType, fetchRooms]);
+  const cardsById = useMemo(() => {
+    const map = new Map<string, RoomCardData>();
+    for (const r of roomsData?.selectedShift === 'PM' ? roomsData.roomsPM ?? roomsData.rooms : roomsData?.rooms ?? []) {
+      map.set(r.id, r);
+    }
+    return map;
+  }, [roomsData]);
+  const renderResult = useCallback(
+    (room: RoomPickerRoom, choose: () => void) => {
+      const card = cardsById.get(room.id);
+      // Display only: tapping anywhere picks the room for the ticket.
+      return card ? <RoomListCard room={card} onPress={choose} /> : null;
+    },
+    [cardsById],
+  );
 
   const PUBLIC_AREAS = [
     'Brasserie',
@@ -120,6 +145,7 @@ export default function SelectTicketLocationScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.topSection}>
           {/* AI Create Ticket Button */}
           <View style={styles.aiButtonSection}>
             {/*
@@ -129,16 +155,10 @@ export default function SelectTicketLocationScreen() {
               a label and a white disc.
             */}
             <CreateTicketButton onPress={handleAICreatePress} scaleX={scaleX} />
-            <Text style={styles.betaLabel} maxFontSizeMultiplier={1.35}>
-              BETA
-            </Text>
-            <Text style={styles.aiDescription} maxFontSizeMultiplier={1.35}>
-              AI detects issues and auto-creates tickets for the right department no manual reporting needed.
-            </Text>
           </View>
 
         {/* Location Section */}
-        <Text style={styles.sectionTitle}>Location</Text>
+        <Text style={styles.sectionTitle}>Select Location</Text>
         
         {/* Location Type Toggles */}
         <View style={styles.locationToggles}>
@@ -156,6 +176,8 @@ export default function SelectTicketLocationScreen() {
                 <Icon name="action-checkbox-checked" size={28 * scaleX} color="#5a759d" />
               )}
             </View>
+            {/* 4649:832 — the bed, 23 after the box and 15.5 before the label. */}
+            <Icon name="checklist-bed" size={25 * scaleX} color="#5a759d" style={styles.bedIcon} />
             <Text style={styles.toggleLabel}>Room</Text>
           </TouchableOpacity>
 
@@ -176,20 +198,20 @@ export default function SelectTicketLocationScreen() {
           </TouchableOpacity>
         </View>
 
+        </View>
+
+        {/* 4649:1016 — the #F9FAFC panel under the toggles, rounded on top. */}
+        <View style={styles.panel}>
         {/* Room Selection */}
         {locationType === 'room' && (
-          <>
-            <Text style={styles.inputLabel}>Enter Room Number</Text>
-            {/* Type the number; matches pop up under it (Figma 1085:2628). */}
-            <RoomSearchField
-              rooms={rooms}
-              loading={loading}
-              value={selectedRoom}
-              onChange={setSelectedRoom}
-              scaleX={scaleX}
-              style={styles.roomSelector}
-            />
-          </>
+          <RoomSearchField
+            rooms={rooms}
+            loading={loading}
+            value={selectedRoom}
+            onChange={setSelectedRoom}
+            scaleX={scaleX}
+            renderResult={renderResult}
+          />
         )}
 
         {/* Public Area Selection */}
@@ -216,6 +238,7 @@ export default function SelectTicketLocationScreen() {
             </View>
           </>
         )}
+        </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -239,15 +262,11 @@ export default function SelectTicketLocationScreen() {
   );
 }
 
-function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
+function buildSelectTicketLocationStyles(scaleX: number) {
   const androidText = Platform.select({
     android: { includeFontPadding: false } as const,
     default: {} as const,
   });
-  const descriptionMaxWidth = Math.min(
-    318 * scaleX,
-    Math.max(0, windowWidth - PixelRatio.roundToNearestPixel(32)),
-  );
 
   return StyleSheet.create({
   container: {
@@ -280,48 +299,49 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   scrollView: {
     flex: 1,
   },
+  /* Lets the panel run to the bottom however short the results are. */
   scrollContent: {
-    paddingHorizontal: 24 * scaleX,
-    // Give extra space for dropdown + keyboard so user can scroll up freely.
-    paddingBottom: 220 * scaleX,
+    flexGrow: 1,
   },
+  topSection: {
+    paddingHorizontal: 27 * scaleX,
+  },
+  /* 4649:814 — the pill at x=27, 22 under the header, left-aligned. */
   aiButtonSection: {
-    alignItems: 'center',
-    marginTop: 48 * scaleX,
-    marginBottom: 48 * scaleX,
+    alignItems: 'flex-start',
+    marginTop: 22 * scaleX,
+    marginBottom: 20 * scaleX,
   },
-  betaLabel: {
-    fontSize: 9 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#ff4dd8',
-    marginTop: -CREATE_TICKET_BETA_OVERLAP_AI_PX * scaleX,
-    marginBottom: CREATE_TICKET_BETA_TO_DESCRIPTION_PX * scaleX,
-    ...androidText,
-  },
-  aiDescription: {
+  /* 4649:820 — Inter Light 14 at x=34. */
+  sectionTitle: {
     fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000',
-    textAlign: 'center',
-    marginTop: 0,
-    maxWidth: descriptionMaxWidth,
-    alignSelf: 'center',
-    lineHeight: 20 * scaleX,
+    marginLeft: 7 * scaleX,
+    marginBottom: 25 * scaleX,
     ...androidText,
   },
-  sectionTitle: {
-    fontSize: 16 * scaleX,
-    fontFamily: 'Inter',
-    fontWeight: '400',
-    color: '#000',
-    marginBottom: 16 * scaleX,
-  },
+  /* Boxes at x=35 and x=242 (y=287); the panel starts 77 below them. */
   locationToggles: {
     flexDirection: 'row',
-    gap: 40 * scaleX,
-    marginBottom: 32 * scaleX,
+    gap: 50 * scaleX,
+    marginLeft: 8 * scaleX,
+    marginBottom: 77 * scaleX,
+  },
+  bedIcon: {
+    marginLeft: 8 * scaleX,
+    marginRight: 15.5 * scaleX,
+  },
+  panel: {
+    flexGrow: 1,
+    backgroundColor: '#f9fafc',
+    borderTopLeftRadius: 24 * scaleX,
+    borderTopRightRadius: 23 * scaleX,
+    paddingTop: 23 * scaleX,
+    paddingHorizontal: 27 * scaleX,
+    // Room for the pinned Continue button and the keyboard.
+    paddingBottom: 220 * scaleX,
   },
   toggleButton: {
     flexDirection: 'row',
@@ -343,7 +363,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     height: 28 * scaleX,
     borderWidth: 2,
     borderColor: '#5a759d',
-    marginRight: 12 * scaleX,
+    marginRight: 15 * scaleX,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -354,12 +374,6 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
     color: '#5a759d',
-  },
-  /** Spacing to whatever follows the picker; the control owns its own height. */
-  // Figma 1085:2628: the label's top 478, the card's 521 (label 19 tall).
-  roomSelector: {
-    marginTop: 12 * scaleX,
-    marginBottom: 16 * scaleX,
   },
   inputLabel: {
     fontSize: 16 * scaleX,
@@ -406,7 +420,7 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
     fontWeight: 'bold',
   },
   /*
-   * Node 3005:443 — 351 x 70 at x=38, `#5a759d`, and **no corner radius**.
+   * Node 4649:823 — 386 x 70 at x=25, `#5a759d`, and **no corner radius**.
    *
    * Kept pinned to the bottom rather than in the flow, which is where the frame
    * draws it (y=653, just under the suggestion card). Pinning keeps Continue
@@ -416,8 +430,8 @@ function buildSelectTicketLocationStyles(scaleX: number, windowWidth: number) {
   continueButton: {
     position: 'absolute',
     bottom: 40 * scaleX,
-    left: 38 * scaleX,
-    width: 351 * scaleX,
+    left: 25 * scaleX,
+    width: 386 * scaleX,
     height: 70 * scaleX,
     backgroundColor: '#5a759d',
     justifyContent: 'center',

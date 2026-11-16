@@ -9,16 +9,19 @@ import {
   Switch,
   ActivityIndicator,
   TextInput,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { router, useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import type { RootStackParamList } from '@/types/navigation';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
-import { TabBar } from '@/components/ui/TabBar';
 import TicketCard from '../components/TicketCard';
+import TicketDraftCard from '../components/TicketDraftCard';
 import EmptyTicketsState from '../components/EmptyTicketsState';
 import type { TicketStatusAnchorLayout } from '../components/TicketCard';
+import { useTicketDrafts, type TicketDraft } from '../store/ticketDrafts';
 import { TicketTab, TicketData, TicketsScreenData, TicketStatus } from '../types/tickets.types';
 import {
   getTicketsTopShift,
@@ -47,17 +50,21 @@ import { useTicketAccess } from '../hooks/useTicketAccess';
 import { usePermissions, useTabBack } from '@/domain/rbac';
 import { fetchAssignableTicketStaff } from '../services/ticketAccess';
 import { departmentIconName, sortDepartmentsByDisplayOrder } from '@/lib/departments';
-import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
 import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
 import { FilterModalOverlay, RoomsFilterSheet } from '@/components/filters';
 
-/** Figma 667-3068: My Tickets / All / Open / Closed, in this order. */
-const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed'];
+/**
+ * Figma 667:3068 (4702:2175): All / Open / Closed / Drafts (n) as chips, the
+ * filter glyph at the end. My Tickets is kept first (the frame drops it; the
+ * screen opens on it for porters and laundry).
+ */
+const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed', 'drafts'];
 const TICKET_TAB_LABELS: Record<TicketTab, string> = {
   myTickets: 'My Tickets',
   all: 'All',
   open: 'Open',
   closed: 'Closed',
+  drafts: 'Drafts',
 };
 
 /** Change Status popover — height for vertical clamping (expanded when Due time fields visible). Figma ~295 / ~472. */
@@ -95,19 +102,17 @@ export default function TicketsScreen() {
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
   /*
-   * Search and filter, as on Home and Rooms (client request, 2026-10-26): a
-   * search field with the filter glyph, a filter sheet (Department, Priority)
-   * and the "Filtered: … — Clear" bar. `filters` is applied; the sheet edits
-   * `pending` until See Tickets.
+   * Filter (Figma 667:3068: the glyph at the end of the chip row — no search
+   * field): a filter sheet (Department, Priority) and the "Filtered: … — Clear"
+   * bar. `filters` is applied; the sheet edits `pending` until See Tickets.
    */
   type TicketFilters = { departments: string[]; priorities: string[] };
   const NO_FILTERS: TicketFilters = { departments: [], priorities: [] };
-  const [search, setSearch] = useState('');
   const [filters, setFilters] = useState<TicketFilters>(NO_FILTERS);
   const [pending, setPending] = useState<TicketFilters>(NO_FILTERS);
   const [filterOpen, setFilterOpen] = useState(false);
   const [filterAnchor, setFilterAnchor] = useState<{ top: number; bottom: number } | null>(null);
-  const searchBarRef = React.useRef<View>(null);
+  const chipsRowRef = React.useRef<View>(null);
   const [ticketsData, setTicketsData] = useState<TicketsScreenData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -222,6 +227,32 @@ export default function TicketsScreen() {
    * owns a department strip — so the grid was asking for a choice that the form
    * then asked for again, and only the form's answer reached `createTicket`.
    */
+  // Drafts (Gmail-style): this user's unsent tickets, on this device.
+  const drafts = useTicketDrafts((st) => st.drafts);
+  const loadDrafts = useTicketDrafts((st) => st.load);
+  const removeDraft = useTicketDrafts((st) => st.remove);
+  const draftsUserId = session?.user?.id;
+  useEffect(() => {
+    void loadDrafts(draftsUserId);
+  }, [loadDrafts, draftsUserId]);
+
+  const openDraft = (draft: TicketDraft) => {
+    stackNavigation.navigate('create-ticket-form/index', {
+      roomId: draft.roomId,
+      roomNumber: draft.roomNumber,
+      isPublicArea: draft.isPublicArea,
+      publicAreaName: draft.publicAreaName,
+      draftId: draft.id,
+    });
+  };
+
+  const discardDraft = (draft: TicketDraft) => {
+    Alert.alert('Discard draft?', draft.title.trim() ? `“${draft.title.trim()}” will be deleted.` : 'This draft will be deleted.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Discard', style: 'destructive', onPress: () => removeDraft(draft.id) },
+    ]);
+  };
+
   const handleCreatePress = () => {
     stackNavigation.navigate('select-ticket-location/index');
   };
@@ -395,7 +426,9 @@ export default function TicketsScreen() {
     key: string,
     label: string,
     circle: React.ReactNode,
-    onPress: () => void
+    onPress: () => void,
+    /** The state the ticket is in: ringed, and a tap does nothing. */
+    current = false
   ) => {
     const busy = pendingAction === key;
     const blocked = pendingAction !== null || statusUpdating;
@@ -405,13 +438,14 @@ export default function TicketsScreen() {
         style={[styles.statusGridItem, blocked && !busy && styles.statusGridItemDimmed]}
         activeOpacity={0.6}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-        disabled={blocked}
+        disabled={blocked || current}
         onPress={onPress}
         accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={{ busy, disabled: blocked }}
+        accessibilityLabel={current ? `${label}, current status` : label}
+        accessibilityState={{ busy, disabled: blocked || current, selected: current }}
       >
         <View>
+          {current ? <View style={styles.statusCurrentRing} pointerEvents="none" /> : null}
           {circle}
           {busy ? (
             <View style={styles.statusCircleBusy}>
@@ -489,6 +523,8 @@ export default function TicketsScreen() {
       return ticket.status === 'unsolved' || ticket.status === 'inProgress' || ticket.status === 'ofo';
     } else if (selectedTab === 'closed') {
       return ticket.status === 'done';
+    } else if (selectedTab === 'drafts') {
+      return false; // drafts are not tickets yet — listed from the drafts store
     }
     return true; // 'all' shows all tickets
   };
@@ -496,24 +532,18 @@ export default function TicketsScreen() {
   const tabTickets = tickets.filter(passesTab);
   const deptOf = (t: TicketData) => (t.category ?? '').trim() || 'No department';
   const PRIORITY_LABEL: Record<string, string> = { urgent: 'Urgent', medium: 'Medium', notUrgent: 'Not urgent' };
-  const matchesSearch = (t: TicketData) => {
-    const q = search.trim().toLowerCase();
-    if (!q) return true;
-    return [t.title, t.description, t.locationText, t.roomNumber, deptOf(t), t.assignedTo?.name, t.createdBy?.name]
-      .some((v) => String(v ?? '').toLowerCase().includes(q));
-  };
   const matchesFilters = (t: TicketData, f: TicketFilters) =>
     (f.departments.length === 0 || f.departments.includes(deptOf(t))) &&
     (f.priorities.length === 0 || f.priorities.includes(t.priority ?? 'notUrgent'));
-  const filteredTickets = tabTickets.filter((t) => matchesSearch(t) && matchesFilters(t, filters));
+  const filteredTickets = tabTickets.filter((t) => matchesFilters(t, filters));
   const activeDept = filters.departments.length ? filters.departments.join(', ') : null;
   const activeFilterParts = [
     ...filters.departments,
     ...filters.priorities.map((p) => PRIORITY_LABEL[p] ?? p),
   ];
 
-  // The sheet's sections, counted on the tab's tickets (and the search).
-  const searched = tabTickets.filter(matchesSearch);
+  // The sheet's sections, counted on the tab's tickets.
+  const searched = tabTickets;
   const filterSections = (() => {
     const deptCounts = new Map<string, number>();
     const prioCounts = new Map<string, number>();
@@ -563,14 +593,14 @@ export default function TicketsScreen() {
 
   const openFilter = () => {
     setPending(filters);
-    searchBarRef.current?.measureInWindow((_x, y, _w, h) => {
+    chipsRowRef.current?.measureInWindow((_x, y, _w, h) => {
       setFilterAnchor({ top: y, bottom: y + h });
       setFilterOpen(true);
     });
   };
 
   /** What this list shows, for the assistant (see screenContext.ts). */
-  const TAB_NAMES: Record<TicketTab, string> = { myTickets: 'My Tickets', all: 'All', open: 'Open', closed: 'Closed' };
+  const TAB_NAMES = TICKET_TAB_LABELS;
   const assistantKey = filteredTickets.map((t) => `${t.id}:${t.status}`).join('|');
   const assistantFacts = React.useMemo<ScreenFact[]>(
     () => [
@@ -594,6 +624,24 @@ export default function TicketsScreen() {
       {(loading || refreshing) && <LoadingOverlay fullScreen message={loading ? 'Loading tickets…' : 'Refreshing…'} />}
       <View style={styles.scrollContainer}>
         {/* Virtualised: only the cards near the screen are mounted. */}
+        {selectedTab === 'drafts' ? (
+          <FlatList
+            style={styles.scrollView}
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingTop: TICKETS_SPACING.contentPaddingTop * scaleX + topShift },
+            ]}
+            data={drafts}
+            keyExtractor={(d) => d.id}
+            renderItem={({ item: draft }) => (
+              <View style={styles.cardSlot}>
+                <TicketDraftCard draft={draft} onPress={() => openDraft(draft)} onDiscard={() => discardDraft(draft)} />
+              </View>
+            )}
+            ListEmptyComponent={<EmptyTicketsState selectedTab="drafts" />}
+            showsVerticalScrollIndicator={false}
+          />
+        ) : (
         <FlatList
           style={styles.scrollView}
           contentContainerStyle={[
@@ -603,6 +651,7 @@ export default function TicketsScreen() {
           data={filteredTickets}
           keyExtractor={(ticket) => ticket.id}
           renderItem={({ item: ticket }) => (
+            <View style={styles.cardSlot}>
             <TicketCard
               ticket={ticket}
               onPress={() => handleTicketPress(ticket)}
@@ -619,32 +668,19 @@ export default function TicketsScreen() {
               }
               onAssigneePress={canReassign(ticket) ? () => handleAssigneePress(ticket) : undefined}
             />
+            </View>
           )}
           ListHeaderComponent={
-            // Only when the tab has tickets to search or filter.
-            tabTickets.length === 0 ? null : (
-            <View style={styles.searchWrap}>
-              <View ref={searchBarRef} collapsable={false}>
-                {/* `medium`: Rooms' 68px pill was too heavy under the tabs. */}
-                <SearchAndFilterBar
-                  size="medium"
-                  value={search}
-                  onChangeText={setSearch}
-                  onFilterPress={openFilter}
-                  placeholderLead="Search"
-                  placeholderRest="Tickets, rooms, people"
-                />
-              </View>
-              {activeFilterParts.length > 0 ? (
+            activeFilterParts.length > 0 ? (
+              <View style={styles.searchWrap}>
                 <ActiveFiltersBar
                   parts={activeFilterParts}
                   resultCount={filteredTickets.length}
                   onClear={() => setFilters(NO_FILTERS)}
                   scaleX={scaleX}
                 />
-              ) : null}
-            </View>
-            )
+              </View>
+            ) : null
           }
           ListEmptyComponent={<EmptyTicketsState selectedTab={selectedTab} />}
           initialNumToRender={8}
@@ -655,6 +691,7 @@ export default function TicketsScreen() {
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
           }
         />
+        )}
 
         {/* Blur Overlay for content only */}
       </View>
@@ -681,7 +718,7 @@ export default function TicketsScreen() {
         contentHeight={dueTimeEnabled ? STATUS_POPOVER_HEIGHT_EXPANDED : STATUS_POPOVER_HEIGHT_COLLAPSED}
       >
         {() => (
-          <>
+          <View style={styles.statusPanel}>
             <Text style={styles.statusSectionTitle}>Change Status</Text>
 
             <View style={styles.statusGrid}>
@@ -690,7 +727,7 @@ export default function TicketsScreen() {
                 'Priority',
                 <View style={[styles.statusCircle, styles.statusCirclePriority]}>
                   {/* Red on the pale disc, matching TicketStatusCircle.priority. */}
-                  <Icon name="action-priority" size={26 * scaleX} color="#f92424" />
+                  <Icon name="action-priority" size={30 * scaleX} color="#f92424" />
                 </View>,
                 () =>
                   runStatusAction('priority', async () => {
@@ -700,12 +737,12 @@ export default function TicketsScreen() {
                   })
               )}
               {/*
-                Every state but the one the ticket is in — offering the current
-                state is a no-op (client feedback, 2026-10-27). With Priority
-                that keeps the row at four: an Unsolved ticket offers In
-                Progress, Solved and OFO.
+                Figma 4649:1562: always Priority / Unsolved / Solved / OFO; the
+                state the ticket is in is ringed and inert (user, 2026-11-16 —
+                replaces hiding it, client feedback 2026-10-27). In Progress is
+                no longer offered here.
               */}
-              {STATUS_MENU_ORDER.filter((key) => key !== statusMenuTicket?.status).map((key) =>
+              {STATUS_MENU_ORDER.map((key) =>
                 renderStatusOption(
                   key,
                   STATUS_MENU_LABEL[key],
@@ -724,10 +761,11 @@ export default function TicketsScreen() {
                             : styles.statusCircleUnsolved,
                       ]}
                     >
-                      <Icon name={STATUS_MENU_ICON[key]} size={(key === 'inProgress' ? 26 : 24) * scaleX} color="#ffffff" />
+                      <Icon name={STATUS_MENU_ICON[key]} size={(key === 'inProgress' ? 30 : 27) * scaleX} color="#ffffff" />
                     </View>
                   ),
-                  () => handleStatusSelect(key)
+                  () => handleStatusSelect(key),
+                  key === statusMenuTicket?.status
                 )
               )}
             </View>
@@ -813,7 +851,7 @@ export default function TicketsScreen() {
                 </View>
               </View>
             )}
-          </>
+          </View>
         )}
       </StatusPopover>
 
@@ -861,23 +899,43 @@ export default function TicketsScreen() {
         }
       />
 
-      {/* Tabs - Fixed below header */}
-      {/*
-        Figma 667-3068: labels x=25..403 at y=158, one rule 92x4 `#5a759d` at
-        y=189 under whichever tab is active. The row this replaces carried a
-        *per-tab* rule width (92 / 18 / 41 / 51) matched to each label's text —
-        the frame draws one width, 92, so the other three were invented.
-      */}
-      <View style={[styles.tabsRow, { top: 158 * scaleX + topShift }]}>
-        <TabBar<TicketTab>
-          tabs={TICKET_TABS}
-          activeTab={selectedTab}
-          onTabPress={handleTabChange}
-          ruleColor="#5a759d"
-          ruleGap={13}
-          labelColor="#5a759d"
-          renderLabel={(tab) => TICKET_TAB_LABELS[tab]}
-        />
+      {/* Chips — Figma 4702:2175: 16 in, 12 apart; the filter glyph at the end. */}
+      <View ref={chipsRowRef} collapsable={false} style={[styles.chipsRow, { top: 157 * scaleX + topShift }]}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsScroll}
+          style={styles.chipsScrollView}
+        >
+          {TICKET_TABS.map((tab) => {
+            const active = selectedTab === tab;
+            return (
+              <TouchableOpacity
+                key={tab}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => handleTabChange(tab)}
+                activeOpacity={0.7}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>
+                  {TICKET_TAB_LABELS[tab]}
+                  {tab === 'drafts' ? <Text style={styles.chipCount}>{` (${drafts.length})`}</Text> : null}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+        <TouchableOpacity
+          style={styles.filterButton}
+          onPress={openFilter}
+          disabled={selectedTab === 'drafts'}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Filter tickets"
+        >
+          <Icon name="action-filter" size={12 * scaleX} color={selectedTab === 'drafts' ? '#c3cddc' : '#5a759d'} />
+        </TouchableOpacity>
       </View>
 
       {/* Bottom Navigation */}
@@ -887,7 +945,7 @@ export default function TicketsScreen() {
 }
 
 /** The Change Status row after Priority, in order. */
-const STATUS_MENU_ORDER: TicketStatus[] = ['inProgress', 'unsolved', 'done', 'ofo'];
+const STATUS_MENU_ORDER: TicketStatus[] = ['unsolved', 'done', 'ofo'];
 const STATUS_MENU_LABEL: Record<TicketStatus, string> = {
   inProgress: 'In Progress',
   unsolved: 'Unsolved',
@@ -901,18 +959,71 @@ const STATUS_MENU_ICON: Record<Exclude<TicketStatus, 'ofo'>, IconName> = {
 };
 
 const styles = StyleSheet.create({
-  searchWrap: { marginBottom: 12, gap: 8 },
+  searchWrap: { marginBottom: 12, gap: 8, paddingHorizontal: 15.5 * scaleX },
   container: {
     flex: 1,
     backgroundColor: TICKETS_COLORS.background,
   },
-  /** The slot the old absolute tab row occupied; gaps are K4's job. */
-  tabsRow: {
+  /* 4702:2175 — chips at y=157, 16 in; the filter glyph 26 wide at x=387. */
+  chipsRow: {
     position: 'absolute',
-    top: 158 * scaleX,
-    left: 25 * scaleX,
-    right: 37 * scaleX,
+    top: 157 * scaleX,
+    left: 0,
+    right: 0,
+    height: 46 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
     zIndex: 10,
+    backgroundColor: TICKETS_COLORS.background,
+  },
+  chipsScrollView: {
+    flex: 1,
+  },
+  chipsScroll: {
+    alignItems: 'center',
+    gap: 12 * scaleX,
+    paddingLeft: 16 * scaleX,
+    paddingRight: 12 * scaleX,
+  },
+  chip: {
+    height: 44 * scaleX,
+    minWidth: 57 * scaleX,
+    paddingHorizontal: 18 * scaleX,
+    borderRadius: 77 * scaleX,
+    backgroundColor: '#eef2f7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipActive: {
+    height: 46 * scaleX,
+    backgroundColor: '#5a759d',
+  },
+  chipText: {
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#5a759d',
+  },
+  chipTextActive: {
+    fontSize: 16 * scaleX,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  chipCount: {
+    fontWeight: '700',
+  },
+  filterButton: {
+    width: 26 * scaleX,
+    height: 44 * scaleX,
+    marginLeft: 4 * scaleX,
+    marginRight: 27 * scaleX,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  /* Cards 409 wide (x=10.5); 14 between them. */
+  cardSlot: {
+    paddingHorizontal: 15.5 * scaleX,
+    marginBottom: 14 * scaleX,
   },
   scrollContainer: {
     flex: 1,
@@ -926,17 +1037,34 @@ const styles = StyleSheet.create({
     paddingBottom: TICKETS_SPACING.contentPaddingBottom * scaleX,
     minHeight: '100%',
   },
+  /* 4649:1747: the card's 24 padding + 13 puts the title 37 in, as drawn. */
+  statusPanel: {
+    paddingHorizontal: 13 * scaleX,
+  },
   statusSectionTitle: {
-    fontSize: 16 * scaleX,
+    fontSize: 18 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#5b769e',
   },
+  /* Discs 50 under the title; the last ends 55 from the card's right edge. */
   statusGrid: {
-    marginTop: 14 * scaleX,
+    marginTop: 50 * scaleX,
+    paddingRight: 18 * scaleX,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
+  },
+  /** The current state: a ring 4 outside the disc. */
+  statusCurrentRing: {
+    position: 'absolute',
+    top: -5 * scaleX,
+    left: -5 * scaleX,
+    right: -5 * scaleX,
+    bottom: -5 * scaleX,
+    borderRadius: 31 * scaleX,
+    borderWidth: 2,
+    borderColor: '#5b769e',
   },
   statusGridItem: {
     width: 64 * scaleX,
@@ -955,13 +1083,14 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 22 * scaleX,
+    borderRadius: 25.5 * scaleX,
     backgroundColor: 'rgba(0,0,0,0.35)',
   },
+  /* 4649:1755 — 51 discs. */
   statusCircle: {
-    width: 44 * scaleX,
-    height: 44 * scaleX,
-    borderRadius: 22 * scaleX,
+    width: 51 * scaleX,
+    height: 51 * scaleX,
+    borderRadius: 25.5 * scaleX,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -979,25 +1108,26 @@ const styles = StyleSheet.create({
   },
   /** Thick grey ring + white center (Figma OFO), not a thin outline. */
   statusCircleOfoOuter: {
-    width: 44 * scaleX,
-    height: 44 * scaleX,
-    borderRadius: 22 * scaleX,
+    width: 51 * scaleX,
+    height: 51 * scaleX,
+    borderRadius: 25.5 * scaleX,
     backgroundColor: '#c6c5c5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   statusCircleOfoInner: {
-    width: 20 * scaleX,
-    height: 20 * scaleX,
-    borderRadius: 10 * scaleX,
+    width: 23 * scaleX,
+    height: 23 * scaleX,
+    borderRadius: 11.5 * scaleX,
     backgroundColor: '#ffffff',
   },
   /** Priority / rush — full-color asset from Figma; do not tint. */
   /** Same glyph as ticket “done” state, white on green circle. */
+  /* 4649:1760 — Inter Light 14, 10 under the disc. */
   statusGridLabel: {
-    marginTop: 8 * scaleX,
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
+    marginTop: 10 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000000',
     textAlign: 'center',
@@ -1005,11 +1135,13 @@ const styles = StyleSheet.create({
     // line; the row's space-between leaves the room either side.
     width: 84 * scaleX,
   },
+  /* 4649:1786 — a fine #5a759d rule, 16 in from the card's edges. */
   statusDivider: {
-    height: 1,
-    backgroundColor: '#e3e3e3',
-    marginTop: 14 * scaleX,
-    marginBottom: 10 * scaleX,
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: 'rgba(90, 117, 157, 0.45)',
+    marginHorizontal: -21 * scaleX,
+    marginTop: 37 * scaleX,
+    marginBottom: 18 * scaleX,
   },
   dueTimeRow: {
     flexDirection: 'row',
@@ -1019,8 +1151,10 @@ const styles = StyleSheet.create({
   dueTimeSpinner: {
     marginRight: 10 * scaleX,
   },
+  /* 4649:1788 — 78 x 39 (the native switch is 51 x 31), ending 55 from the card's right. */
   dueTimeSwitch: {
-    transform: [{ scaleX: 0.88 }, { scaleY: 0.88 }],
+    transform: [{ scaleX: 1.2 }, { scaleY: 1.2 }],
+    marginRight: 23 * scaleX,
   },
   dueTimeFields: {
     marginTop: 12 * scaleX,

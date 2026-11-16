@@ -1,13 +1,16 @@
 import React from 'react';
-import { ScrollView, StyleSheet, Platform, View, Text, ActivityIndicator } from 'react-native';
-import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
-import { router, useFocusEffect } from 'expo-router';
+import { ScrollView, StyleSheet, View, Text, ActivityIndicator, TouchableOpacity, Platform } from 'react-native';
+import { router, useFocusEffect, useNavigation, NativeStackNavigationProp } from 'expo-router';
+import type { RootStackParamList } from '@/types/navigation';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, typography } from '@/theme';
+import { Icon } from '@/components/Icon';
 import { scaleX } from '../../constants/roomDetailStyles';
 import TicketCard from '@features/tickets/components/TicketCard';
-import TicketForm from '@features/tickets/components/TicketForm';
-import { getOpenTicketsForRoom } from '@features/tickets/services/tickets';
+import CreateTicketButton from '@features/tickets/components/CreateTicketButton';
+import { getTicketsForRoom } from '@features/tickets/services/tickets';
 import type { TicketData } from '@features/tickets/types/tickets.types';
+import { getDepartments, sortDepartmentsByDisplayOrder } from '@/lib/departments';
 
 interface RoomTicketsSectionProps {
   roomNumber: string;
@@ -16,125 +19,291 @@ interface RoomTicketsSectionProps {
   onSubmit?: (ticketData: any) => void;
 }
 
-export default function RoomTicketsSection({
-  roomNumber,
-  departmentName,
-  roomId,
-}: RoomTicketsSectionProps) {
-  const [openTickets, setOpenTickets] = React.useState<TicketData[]>([]);
-  const [loadingTickets, setLoadingTickets] = React.useState(false);
+type StatusFilter = 'all' | 'open' | 'closed';
 
-  const loadOpenTickets = React.useCallback(async () => {
+const STATUS_CHIPS: { key: StatusFilter; label: string }[] = [
+  { key: 'all', label: 'All' },
+  { key: 'open', label: 'Open' },
+  { key: 'closed', label: 'Closed' },
+];
+
+/**
+ * Room Detail → Tickets — Figma 285:4037.
+ *
+ * Chips (All / Open / Closed / Department ▾), then every ticket on the room as
+ * a card, newest first; "Create Ticket" (bottom right) opens the ticket form
+ * with this room already chosen, and comes back here after submitting.
+ */
+export default function RoomTicketsSection({ roomNumber, departmentName, roomId }: RoomTicketsSectionProps) {
+  const insets = useSafeAreaInsets();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const [tickets, setTickets] = React.useState<TicketData[]>([]);
+  const [loading, setLoading] = React.useState(false);
+  const [statusFilter, setStatusFilter] = React.useState<StatusFilter>('all');
+  const [deptFilter, setDeptFilter] = React.useState<string | null>(null);
+  const [deptMenuOpen, setDeptMenuOpen] = React.useState(false);
+  const [deptNames, setDeptNames] = React.useState<Map<string, string>>(new Map());
+
+  const loadTickets = React.useCallback(async () => {
     if (!roomId) {
-      setOpenTickets([]);
+      setTickets([]);
       return;
     }
-    setLoadingTickets(true);
+    setLoading(true);
     try {
-      setOpenTickets(await getOpenTicketsForRoom(roomId));
+      setTickets(await getTicketsForRoom(roomId));
     } finally {
-      setLoadingTickets(false);
+      setLoading(false);
     }
   }, [roomId]);
 
-  // On open, and again on return from a ticket (its status may have changed,
-  // or it may have been deleted).
+  // On open, and again on return from a ticket or the form.
   useFocusEffect(
     React.useCallback(() => {
-      void loadOpenTickets();
-    }, [loadOpenTickets])
+      void loadTickets();
+    }, [loadTickets])
   );
 
-  /*
-   * Refetch rather than prepend the submitted ticket locally: `createTicket`
-   * returns `void`, so the caller never learns the new row's id, and the server
-   * is the only thing that knows its created_at ordering.
-   */
-  const handleSubmitSuccess = () => {
-    loadOpenTickets();
+  // Department id → name, for the Department chip.
+  React.useEffect(() => {
+    let cancelled = false;
+    getDepartments()
+      .then((res) => {
+        if (cancelled) return;
+        const map = new Map<string, string>();
+        for (const d of sortDepartmentsByDisplayOrder(res.data ?? [])) {
+          if (d?.id && d?.name) map.set(String(d.id), String(d.name).trim());
+        }
+        setDeptNames(map);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  /** Only the departments this room has tickets for, in display order. */
+  const roomDepartments = React.useMemo(() => {
+    const ids = new Set(tickets.map((t) => t.departmentId).filter(Boolean) as string[]);
+    return Array.from(deptNames.entries()).filter(([id]) => ids.has(id));
+  }, [tickets, deptNames]);
+
+  const visible = React.useMemo(
+    () =>
+      tickets.filter((t) => {
+        if (statusFilter === 'open' && t.status === 'done') return false;
+        if (statusFilter === 'closed' && t.status !== 'done') return false;
+        if (deptFilter && t.departmentId !== deptFilter) return false;
+        return true;
+      }),
+    [tickets, statusFilter, deptFilter]
+  );
+
+  const openCreateTicket = () => {
+    navigation.navigate('create-ticket-form/index', {
+      roomId,
+      roomNumber,
+      departmentName,
+      isPublicArea: false,
+      returnToRoom: true,
+    });
   };
 
+  const deptLabel = deptFilter ? (deptNames.get(deptFilter) ?? 'Department') : 'Department';
+  const emptyText =
+    statusFilter === 'closed'
+      ? 'No closed tickets for this room.'
+      : statusFilter === 'open'
+        ? 'No open tickets for this room.'
+        : 'No tickets for this room yet.';
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-      keyboardVerticalOffset={0}
-    >
+    <View style={styles.container}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: (120 + insets.bottom) * scaleX }]}
         showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        keyboardDismissMode="on-drag"
-        nestedScrollEnabled
       >
-        <View style={styles.currentTicketSection}>
-          <Text style={styles.currentTicketTitle}>
-            {openTickets.length > 1 ? 'Current Tickets' : 'Current Ticket'}
-          </Text>
-          {loadingTickets ? (
-            <View style={styles.currentTicketEmpty}>
-              <ActivityIndicator size="small" color={colors.primary.main} />
+        {/* Chips — 4649:690…695 */}
+        <View style={styles.chips}>
+          {STATUS_CHIPS.map(({ key, label }) => {
+            const active = statusFilter === key;
+            return (
+              <TouchableOpacity
+                key={key}
+                style={[styles.chip, active && styles.chipActive]}
+                onPress={() => setStatusFilter(key)}
+                activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+              >
+                <Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={[styles.chip, styles.deptChip, deptFilter != null && styles.chipActive]}
+            onPress={() => setDeptMenuOpen((open) => !open)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Department filter: ${deptFilter ? deptLabel : 'all'}`}
+            accessibilityState={{ expanded: deptMenuOpen }}
+          >
+            <Text style={[styles.chipText, deptFilter != null && styles.chipTextActive]} numberOfLines={1}>
+              {deptLabel}
+            </Text>
+            <View style={deptMenuOpen ? styles.chevronOpen : undefined}>
+              <Icon
+                name="action-chevron-down-wide"
+                width={14 * scaleX}
+                height={6.6 * scaleX}
+                color={deptFilter != null ? '#ffffff' : '#5a759d'}
+              />
             </View>
-          ) : openTickets.length > 0 ? (
-            // Newest first — `getOpenTicketsForRoom` orders by created_at desc.
-            openTickets.map((ticket) => (
+          </TouchableOpacity>
+        </View>
+
+        {deptMenuOpen ? (
+          <View style={styles.deptMenu}>
+            {[[null, 'All departments'] as const, ...roomDepartments].map(([id, name]) => (
+              <TouchableOpacity
+                key={id ?? 'all'}
+                style={styles.deptMenuRow}
+                onPress={() => {
+                  setDeptFilter(id);
+                  setDeptMenuOpen(false);
+                }}
+                activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: deptFilter === id }}
+              >
+                <Text style={[styles.deptMenuText, deptFilter === id && styles.deptMenuTextActive]}>{name}</Text>
+                {deptFilter === id ? <Icon name="action-check" width={14 * scaleX} height={12 * scaleX} color="#5a759d" /> : null}
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
+
+        {loading && tickets.length === 0 ? (
+          <View style={styles.empty}>
+            <ActivityIndicator size="small" color={colors.primary.main} />
+          </View>
+        ) : visible.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyText}>{emptyText}</Text>
+          </View>
+        ) : (
+          <View style={styles.list}>
+            {visible.map((ticket) => (
               <TicketCard
                 key={ticket.id}
                 ticket={ticket}
                 onPress={() => router.push({ pathname: '/ticket/[id]', params: { id: ticket.id } })}
               />
-            ))
-          ) : (
-            <View style={styles.currentTicketEmpty}>
-              <Text style={styles.currentTicketEmptyText}>
-                No open ticket for this room.
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <TicketForm
-          roomNumber={roomNumber}
-          roomId={roomId}
-          departmentName={departmentName}
-          onSubmitSuccess={handleSubmitSuccess}
-        />
+            ))}
+          </View>
+        )}
       </ScrollView>
-    </KeyboardAvoidingView>
+
+      {/* 710:138 — the AI "Create Ticket" pill, bottom right (26 in). */}
+      <View style={[styles.createButton, { bottom: (24 + insets.bottom) * scaleX }]}>
+        <CreateTicketButton onPress={openCreateTicket} scaleX={scaleX} />
+      </View>
+    </View>
   );
 }
+
+const androidText = Platform.select({ android: { includeFontPadding: false } as const, default: {} as const });
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background.primary,
-    // Match the content area start position (like ChecklistSection).
-    // No marginTop: the header and tab row are in the flex flow and already
-    // occupy the 285 design px this used to reserve for them.
   },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
-    paddingTop: 0,
-    // Extra space so the bottom of the form can scroll above keyboard.
-    paddingBottom: 320 * scaleX,
   },
-  currentTicketSection: {
-    paddingTop: 18 * scaleX,
-    marginBottom: 8 * scaleX,
+  /* 23 under the tab rule; All at x=16; 12 between chips. */
+  chips: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12 * scaleX,
+    paddingTop: 23 * scaleX,
+    paddingHorizontal: 16 * scaleX,
   },
-  currentTicketTitle: {
-    fontSize: 20 * scaleX,
+  chip: {
+    height: 44 * scaleX,
+    minWidth: 57 * scaleX,
+    paddingHorizontal: 18 * scaleX,
+    borderRadius: 77 * scaleX,
+    backgroundColor: '#eef2f7',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  chipActive: {
+    height: 46 * scaleX,
+    backgroundColor: '#5a759d',
+  },
+  deptChip: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    gap: 10 * scaleX,
+  },
+  chipText: {
+    fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#607aa1',
-    marginLeft: 20 * scaleX,
-    marginBottom: 10 * scaleX,
+    fontWeight: '300',
+    color: '#5a759d',
+    ...androidText,
   },
-  currentTicketEmpty: {
+  chipTextActive: {
+    fontSize: 16 * scaleX,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  chevronOpen: {
+    transform: [{ rotate: '180deg' }],
+  },
+  deptMenu: {
+    marginTop: 10 * scaleX,
+    marginHorizontal: 16 * scaleX,
+    borderRadius: 12 * scaleX,
+    borderWidth: 1,
+    borderColor: '#e3e3e3',
+    backgroundColor: '#ffffff',
+    overflow: 'hidden',
+  },
+  deptMenuRow: {
+    height: 46 * scaleX,
+    paddingHorizontal: 18 * scaleX,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#e3e3e3',
+  },
+  deptMenuText: {
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+    ...androidText,
+  },
+  deptMenuTextActive: {
+    fontWeight: '700',
+    color: '#5a759d',
+  },
+  /* Cards 409 wide (x=10), 20 under the chips. */
+  list: {
+    marginTop: 20 * scaleX,
+    paddingHorizontal: 15.5 * scaleX,
+    gap: 16 * scaleX,
+  },
+  empty: {
+    marginTop: 20 * scaleX,
     marginHorizontal: 16 * scaleX,
     minHeight: 80 * scaleX,
     borderRadius: 10 * scaleX,
@@ -145,11 +314,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16 * scaleX,
   },
-  currentTicketEmptyText: {
+  emptyText: {
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: '#5a759d',
     textAlign: 'center',
+    ...androidText,
+  },
+  createButton: {
+    position: 'absolute',
+    right: 26 * scaleX,
   },
 });

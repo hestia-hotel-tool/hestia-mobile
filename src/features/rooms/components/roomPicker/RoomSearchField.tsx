@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Keyboard,
   Platform,
   StyleSheet,
   Text,
@@ -11,13 +12,13 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { typography } from '@/theme';
-import { formatDatesOfStayShort, formatGuestCountWords } from '@/utils/formatting';
+import { formatDatesOfStayShort, formatGuestCountWords, getFloorFromRoomNumber } from '@/utils/formatting';
 import { vipTierFor } from '@/domain/vip';
 import { useVipTiers } from '@/store/vipTiers';
 import type { RoomPickerRoom } from '../../types/roomPicker.types';
 import { GuestRow } from '../roomsList/GuestRow';
-import { ROOM_PICKER_LAYOUT as L } from './roomPickerLayout';
 
 export interface RoomSearchFieldProps {
   rooms: RoomPickerRoom[];
@@ -26,29 +27,39 @@ export interface RoomSearchFieldProps {
   onChange: (room: RoomPickerRoom | null) => void;
   scaleX: number;
   loading?: boolean;
-  placeholder?: string;
+  /**
+   * Draws one result. The caller passes the full room card when it has the
+   * room's card data; returning `null` (or omitting the prop) falls back to
+   * the tinted guest row.
+   */
+  renderResult?: (room: RoomPickerRoom, choose: () => void) => React.ReactNode | null;
   style?: StyleProp<ViewStyle>;
 }
 
-/** More than this and the reader should type more, not scroll a card. */
-const MAX_RESULTS = 5;
+/** A floor is a lot of cards; past this the reader should type more. */
+const MAX_RESULTS = 10;
+
+/** "floor 2", "fl 2", "f2", "2nd floor", "floor2" → 2. */
+function floorQuery(needle: string): number | null {
+  const m =
+    needle.match(/^(?:floor|fl|f)\s*(\d+)$/) ?? needle.match(/^(\d+)(?:st|nd|rd|th)?\s*floor$/);
+  return m ? Number(m[1]) : null;
+}
 
 /**
- * Type a room number, pick the room from what comes up — Figma 1085:2628
- * (Create Ticket → Location, node 3005:494 and 4592:75).
+ * Search for the ticket's room — Figma 4649:809 (Create Ticket → Select
+ * Location).
  *
- * A white card with the halo of the picker card: the field on top ("201|",
- * Inter Medium 16), and once something is typed, a tiny "Results" and one
- * tinted row per match drawn exactly as the room card's guest row (photo with
- * its front-office disc, name, "EDT: 12:00  2 Adults, 2 Kids", the stay, the
- * grey VIP disc) — `GuestRow` itself, so the two never drift.
+ * A white pill (1px #e3e3e3, fully round, 68 tall) with the magnifier and
+ * "**Search** Rooms, Guests, Floors etc"; under it, outside the pill,
+ * "Results" and one card per match.
  *
- * Tapping a result chooses that room: the field shows its number and the card
- * keeps just that row, which is the confirmation. Editing the text again
- * clears the choice.
+ * Matches, in this order: the room number's start, any guest's name, the
+ * floor ("floor 2", "2nd floor"), then the room number anywhere and the
+ * front-office status ("departure").
  *
- * Matches the room number first, then the guest's name — the same rule as the
- * picker modal's search.
+ * Tapping a result chooses that room: the pill shows its number and only that
+ * card stays, which is the confirmation. Editing the text clears the choice.
  */
 export default function RoomSearchField({
   rooms,
@@ -56,7 +67,7 @@ export default function RoomSearchField({
   onChange,
   scaleX,
   loading = false,
-  placeholder = 'Room number',
+  renderResult,
   style,
 }: RoomSearchFieldProps) {
   const styles = useMemo(() => buildStyles(scaleX), [scaleX]);
@@ -64,23 +75,39 @@ export default function RoomSearchField({
   const inputRef = useRef<TextInput>(null);
   const [query, setQuery] = useState(value?.number ?? '');
 
-  const results = useMemo(() => {
-    if (value) return [value];
+  const { results, total } = useMemo(() => {
+    if (value) return { results: [value], total: 1 };
     const needle = query.trim().toLowerCase();
-    if (!needle) return [];
-    const byNumber = rooms.filter((r) => r.number.toLowerCase().startsWith(needle));
-    const byOther = rooms.filter(
+    if (!needle) return { results: [], total: 0 };
+
+    const floor = floorQuery(needle);
+    const guestMatches = (r: RoomPickerRoom) =>
+      [r.primaryGuest, ...r.guests].some((g) => (g?.fullName ?? '').toLowerCase().includes(needle));
+
+    const tiers: ((r: RoomPickerRoom) => boolean)[] = [
+      (r) => r.number.toLowerCase().startsWith(needle),
+      guestMatches,
+      (r) => floor !== null && getFloorFromRoomNumber(r.number) === floor,
       (r) =>
-        !byNumber.includes(r) &&
-        (r.number.toLowerCase().includes(needle) ||
-          (r.primaryGuest?.fullName ?? '').toLowerCase().includes(needle)),
-    );
-    return [...byNumber, ...byOther].slice(0, MAX_RESULTS);
+        r.number.toLowerCase().includes(needle) ||
+        (needle.length >= 3 && (r.frontOfficeStatus ?? '').toLowerCase().includes(needle)),
+    ];
+    const seen = new Set<string>();
+    const ordered: RoomPickerRoom[] = [];
+    for (const test of tiers) {
+      for (const r of rooms) {
+        if (!seen.has(r.id) && test(r)) {
+          seen.add(r.id);
+          ordered.push(r);
+        }
+      }
+    }
+    return { results: ordered.slice(0, MAX_RESULTS), total: ordered.length };
   }, [rooms, query, value]);
 
   const searching = query.trim().length > 0;
-  // With several rooms in the list the guest alone does not say which room a
-  // row is; with one (the typed number) the design's row is enough.
+  // With several rooms the guest alone does not say which room a fallback
+  // row is; with one (the typed number) the row is enough.
   const showRoomNumber = results.length > 1;
 
   const handleChangeText = (text: string) => {
@@ -91,24 +118,82 @@ export default function RoomSearchField({
   const choose = (room: RoomPickerRoom) => {
     setQuery(room.number);
     onChange(room);
-    inputRef.current?.blur();
+    Keyboard.dismiss();
+  };
+
+  const guestRowFor = (room: RoomPickerRoom) => {
+    const guest = room.primaryGuest;
+    const tier = guest?.vipCode ? vipTierFor(guest.vipCode, vipTiers) : null;
+    const guestName = guest?.fullName?.trim();
+    const name = guestName
+      ? showRoomNumber
+        ? `${room.number} · ${guestName}`
+        : guestName
+      : `Room ${room.number}`;
+    const timePrefix =
+      room.guestKind === 'arrival' ? 'ETA' : room.guestKind === 'departure' ? 'EDT' : null;
+    return (
+      <TouchableOpacity
+        key={room.id}
+        style={styles.resultRow}
+        onPress={() => choose(room)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityState={{ selected: value?.id === room.id }}
+        accessibilityLabel={guestName ? `Room ${room.number}, ${guestName}` : `Room ${room.number}, no guest`}
+      >
+        <GuestRow
+          name={name}
+          kind={guestName ? room.guestKind : 'vacant'}
+          imageUrl={guest?.imageUrl ?? null}
+          timeLabel={guestName && timePrefix && room.time ? `${timePrefix}: ${room.time}` : undefined}
+          occupancy={
+            guestName
+              ? formatGuestCountWords({ adults: room.adults ?? 0, kids: room.kids ?? 0 }) || undefined
+              : 'Vacant'
+          }
+          dates={
+            guestName && room.checkIn && room.checkOut
+              ? formatDatesOfStayShort({ from: room.checkIn, to: room.checkOut })
+              : undefined
+          }
+          vip={tier && guest?.vipCode ? { code: guest.vipCode, tier } : undefined}
+        />
+      </TouchableOpacity>
+    );
   };
 
   return (
-    <View style={[styles.card, style]}>
-      <TextInput
-        ref={inputRef}
-        style={styles.input}
-        value={query}
-        onChangeText={handleChangeText}
-        placeholder={placeholder}
-        placeholderTextColor="#9aa7bd"
-        keyboardType="default"
-        autoCorrect={false}
-        autoCapitalize="none"
-        returnKeyType="search"
-        accessibilityLabel="Room number"
-      />
+    <View style={style}>
+      {/* 4649:888 — the pill; 4649:889 the magnifier; 4649:893 the hint. */}
+      <TouchableOpacity
+        style={styles.pill}
+        activeOpacity={1}
+        onPress={() => inputRef.current?.focus()}
+        accessible={false}
+      >
+        <View style={styles.searchIcon}>
+          <Icon name="action-search" size={24 * scaleX} color="#5a759d" />
+        </View>
+        <View style={styles.inputWrap}>
+          {query.length === 0 ? (
+            <Text style={styles.hint} numberOfLines={1} pointerEvents="none">
+              <Text style={styles.hintStrong}>Search </Text>
+              Rooms, Guests, Floors etc
+            </Text>
+          ) : null}
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            value={query}
+            onChangeText={handleChangeText}
+            autoCorrect={false}
+            autoCapitalize="none"
+            returnKeyType="search"
+            accessibilityLabel="Search rooms, guests, floors"
+          />
+        </View>
+      </TouchableOpacity>
 
       {searching ? (
         <>
@@ -119,51 +204,19 @@ export default function RoomSearchField({
             </View>
           ) : results.length === 0 ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No room matches “{query.trim()}”.</Text>
+              <Text style={styles.emptyText}>Nothing matches “{query.trim()}”.</Text>
             </View>
           ) : (
             <View style={styles.results}>
               {results.map((room) => {
-                const guest = room.primaryGuest;
-                const tier = guest?.vipCode ? vipTierFor(guest.vipCode, vipTiers) : null;
-                const guestName = guest?.fullName?.trim();
-                const name = guestName
-                  ? showRoomNumber
-                    ? `${room.number} · ${guestName}`
-                    : guestName
-                  : `Room ${room.number}`;
-                const timePrefix =
-                  room.guestKind === 'arrival' ? 'ETA' : room.guestKind === 'departure' ? 'EDT' : null;
-                return (
-                  <TouchableOpacity
-                    key={room.id}
-                    style={[styles.resultRow, value?.id === room.id && styles.resultRowChosen]}
-                    onPress={() => choose(room)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: value?.id === room.id }}
-                    accessibilityLabel={guestName ? `Room ${room.number}, ${guestName}` : `Room ${room.number}, no guest`}
-                  >
-                    <GuestRow
-                      name={name}
-                      kind={guestName ? room.guestKind : 'vacant'}
-                      imageUrl={guest?.imageUrl ?? null}
-                      timeLabel={guestName && timePrefix && room.time ? `${timePrefix}: ${room.time}` : undefined}
-                      occupancy={
-                        guestName
-                          ? formatGuestCountWords({ adults: room.adults ?? 0, kids: room.kids ?? 0 }) || undefined
-                          : 'Vacant'
-                      }
-                      dates={
-                        guestName && room.checkIn && room.checkOut
-                          ? formatDatesOfStayShort({ from: room.checkIn, to: room.checkOut })
-                          : undefined
-                      }
-                      vip={tier && guest?.vipCode ? { code: guest.vipCode, tier } : undefined}
-                    />
-                  </TouchableOpacity>
-                );
+                const custom = renderResult?.(room, () => choose(room));
+                return custom ? <React.Fragment key={room.id}>{custom}</React.Fragment> : guestRowFor(room);
               })}
+              {total > results.length ? (
+                <Text style={styles.moreText}>
+                  {total - results.length} more — keep typing to narrow it down.
+                </Text>
+              ) : null}
             </View>
           )}
         </>
@@ -179,49 +232,70 @@ function buildStyles(scaleX: number) {
   });
 
   return StyleSheet.create({
-    /*
-     * Node 3005:494 ("Union"): white, radius 9, 1px #e6e6e6, and the picker
-     * card's halo (#6483b0 at 40%, blur 105, spread -35 — see
-     * roomPickerLayout.card for how that maps to React Native).
-     */
-    card: {
+    pill: {
+      height: 68 * scaleX,
+      borderRadius: 34 * scaleX,
       backgroundColor: '#ffffff',
-      borderRadius: 9 * scaleX,
       borderWidth: 1,
-      borderColor: L.card.borderColor,
-      shadowColor: L.card.shadowColor,
-      shadowOpacity: L.card.shadowOpacity,
-      shadowRadius: L.card.shadowRadius,
-      shadowOffset: { width: 0, height: L.card.shadowOffsetY },
-      elevation: 6,
-      overflow: Platform.OS === 'android' ? 'hidden' : 'visible',
+      borderColor: '#e3e3e3',
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    /* "201|" — Inter Medium 16 black, 14 in and 21 down (4592:97). */
+    /* The glyph's box starts 27 in; the hint 66 in (x=54 and x=93 on the frame). */
+    searchIcon: {
+      marginLeft: 27 * scaleX,
+      width: 24 * scaleX,
+      height: 24 * scaleX,
+      alignItems: 'center',
+      justifyContent: 'center',
+      // The registry glyph has its handle bottom-left; the design's points bottom-right.
+      transform: [{ scaleX: -1 }],
+    },
+    inputWrap: {
+      flex: 1,
+      marginLeft: 15 * scaleX,
+      marginRight: 24 * scaleX,
+      justifyContent: 'center',
+      alignSelf: 'stretch',
+    },
+    hint: {
+      position: 'absolute',
+      left: 0,
+      right: 0,
+      fontSize: 15 * scaleX,
+      fontFamily: typography.fontFamily.secondary,
+      fontWeight: '300',
+      color: '#000000',
+      opacity: 0.36,
+      ...androidText,
+    },
+    hintStrong: {
+      fontWeight: '600',
+    },
     input: {
-      height: 60 * scaleX,
-      paddingHorizontal: 14 * scaleX,
-      fontSize: 16 * scaleX,
+      height: '100%',
+      padding: 0,
+      fontSize: 15 * scaleX,
       fontFamily: typography.fontFamily.secondary,
       fontWeight: '500',
       color: '#000000',
       ...androidText,
     },
-    /* "Results" — Inter Light 7, 13 in (4592:98). */
+    /* 4649:918 — Inter Light 15, 3 in from the pill, 16 under it; the card 20 under. */
     resultsLabel: {
-      marginLeft: 13 * scaleX,
-      marginBottom: 10 * scaleX,
-      fontSize: 7 * scaleX,
+      marginTop: 16 * scaleX,
+      marginLeft: 3 * scaleX,
+      marginBottom: 20 * scaleX,
+      fontSize: 15 * scaleX,
       fontFamily: typography.fontFamily.secondary,
       fontWeight: '300',
       color: '#000000',
       ...androidText,
     },
     results: {
-      gap: 4 * scaleX,
-      paddingHorizontal: 1,
-      paddingBottom: 1,
+      gap: 12 * scaleX,
     },
-    /* 4592:76 — rgba(223,230,240,0.4), radius 10, 84 tall; the photo 28 in. */
+    /* Fallback row when there is no card data: 4592:76's tinted guest row. */
     resultRow: {
       minHeight: 84 * scaleX,
       borderRadius: 10 * scaleX,
@@ -231,18 +305,22 @@ function buildStyles(scaleX: number) {
       paddingTop: 14 * scaleX,
       paddingBottom: 10 * scaleX,
     },
-    resultRowChosen: {
-      backgroundColor: 'rgba(223, 230, 240, 0.7)',
-    },
     empty: {
       minHeight: 60 * scaleX,
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 16 * scaleX,
-      paddingBottom: 8 * scaleX,
     },
     emptyText: {
       fontSize: 14 * scaleX,
+      fontFamily: typography.fontFamily.primary,
+      fontWeight: '300',
+      color: '#5a759d',
+      textAlign: 'center',
+      ...androidText,
+    },
+    moreText: {
+      fontSize: 13 * scaleX,
       fontFamily: typography.fontFamily.primary,
       fontWeight: '300',
       color: '#5a759d',

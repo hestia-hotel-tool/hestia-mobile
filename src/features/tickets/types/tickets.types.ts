@@ -1,4 +1,5 @@
-export type TicketTab = 'myTickets' | 'all' | 'open' | 'closed';
+/** `drafts`: this user's unsent tickets, kept on the device (store/ticketDrafts). */
+export type TicketTab = 'myTickets' | 'all' | 'open' | 'closed' | 'drafts';
 
 /**
  * `ofo` = out-of-order / OFT pill (Figma 3147:87). `inProgress` is someone

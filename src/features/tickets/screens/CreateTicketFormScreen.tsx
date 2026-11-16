@@ -16,6 +16,7 @@ import {
   type RoomCardData,
 } from '@features/rooms/types/allRooms.types';
 import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
+import { useTicketDrafts } from '../store/ticketDrafts';
 import { showStayoverWithLinenBadge } from '@features/rooms/utils/stayoverLinen';
 import TicketForm from '../components/TicketForm';
 import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
@@ -46,6 +47,11 @@ export default function CreateTicketFormScreen() {
   const paramRoomNumber = route.params?.roomNumber;
   const paramIsPublicArea = route.params?.isPublicArea;
   const paramPublicAreaName = route.params?.publicAreaName;
+  const paramDraftId = route.params?.draftId;
+  // Read once: the form keeps saving into the draft, and must not restart from each save.
+  const [draft] = useState(() =>
+    paramDraftId ? (useTicketDrafts.getState().drafts.find((d) => d.id === paramDraftId) ?? null) : null
+  );
   const { data: roomsData } = useRoomsStore();
   const shift = roomsData?.selectedShift ?? 'AM';
 
@@ -218,7 +224,12 @@ export default function CreateTicketFormScreen() {
           roomId={isPublicArea ? undefined : (selectedRoomId ?? undefined)}
           departmentName={paramDepartmentName}
           publicAreaName={isPublicArea ? (paramPublicAreaName ?? 'Public Area') : null}
-          onSubmitSuccess={() => router.replace('/(tabs)/(tickets)')}
+          draft={draft}
+          onSubmitSuccess={() =>
+            route.params?.returnToRoom && navigation.canGoBack()
+              ? navigation.goBack()
+              : router.replace('/(tabs)/(tickets)')
+          }
         />
       </ScrollView>
       </KeyboardAvoidingView>
@@ -335,7 +346,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // TicketForm brings its own gutter and bottom space.
+  // The form's grey panel carries the bottom space (TicketForm `bottomInset`).
   scrollContent: {
-    paddingBottom: 100 * scaleX,
+    flexGrow: 1,
   },
 });

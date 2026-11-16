@@ -26,6 +26,8 @@ import {
 } from '@/lib/departments';
 import { Icon, type IconName } from '@/components/Icon';
 import { fetchAssignableTicketStaff } from '../services/ticketAccess';
+import { useAuth } from '@features/auth/hooks/useAuth';
+import { useTicketDrafts, newDraftId, draftHasContent, type TicketDraft } from '../store/ticketDrafts';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DESIGN_WIDTH = 440;
@@ -56,6 +58,13 @@ interface TicketFormProps {
   /** A public area instead of a room: the ticket is filed against it, with no room. */
   publicAreaName?: string | null;
   onSubmitSuccess?: () => void;
+  /**
+   * Space under Submit, inside the grey panel, so the panel runs to the end of
+   * the scroll instead of leaving a white strip (keyboard room on Room Detail).
+   */
+  bottomInset?: number;
+  /** Reopened from Tickets → Drafts: the form starts from it and keeps saving into it. */
+  draft?: TicketDraft | null;
 }
 
 export default function TicketForm({
@@ -64,21 +73,35 @@ export default function TicketForm({
   departmentName = 'Engineering',
   publicAreaName,
   onSubmitSuccess,
+  bottomInset = 100,
+  draft = null,
 }: TicketFormProps) {
   const isPublicArea = publicAreaName != null;
   const toast = useToast();
 
+  // Drafts (Gmail-style): this user's, kept on this device.
+  const { session } = useAuth();
+  const loadDrafts = useTicketDrafts((st) => st.load);
+  const saveDraft = useTicketDrafts((st) => st.save);
+  const removeDraft = useTicketDrafts((st) => st.remove);
+  const [draftId] = useState(() => draft?.id ?? newDraftId());
+  /** Set once submitted, so the autosave never brings the ticket back as a draft. */
+  const submittedRef = useRef(false);
+  useEffect(() => {
+    void loadDrafts(session?.user?.id);
+  }, [loadDrafts, session?.user?.id]);
+
   // Form state
-  const [ticketName, setTicketName] = useState('');
-  const [showDepartmentList, setShowDepartmentList] = useState(false);
+  const [ticketName, setTicketName] = useState(draft?.title ?? '');
   const [departments, setDepartments] = useState<DepartmentUiItem[]>([]);
   const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
-  const [assignedStaff, setAssignedStaff] = useState<string[]>([]);
-  const [priority, setPriority] = useState<Priority>('high');
-  const [pictures, setPictures] = useState<string[]>([]);
+  const [assignedStaff, setAssignedStaff] = useState<string[]>(draft?.taggedStaffIds ?? []);
+  const [priority, setPriority] = useState<Priority>(draft?.priority ?? 'high');
+  const [showUrgencyOptions, setShowUrgencyOptions] = useState(true);
+  const [pictures, setPictures] = useState<string[]>(draft?.pictures ?? []);
   const [photoGridWidth, setPhotoGridWidth] = useState<number | null>(null);
-  const [description, setDescription] = useState('');
+  const [description, setDescription] = useState(draft?.description ?? '');
   const [showStaffModal, setShowStaffModal] = useState(false);
   const [departmentStaff, setDepartmentStaff] = useState<User[]>([]);
   const [loadingStaff, setLoadingStaff] = useState(false);
@@ -86,9 +109,65 @@ export default function TicketForm({
   const descriptionInputRef = useRef<TextInput>(null);
 
   // If the department changes, previously tagged staff may no longer be valid.
+  // Not on the first pick (the default, or the draft's own department): a
+  // reopened draft keeps the people it had tagged.
+  const lastDepartmentRef = useRef<string | null>(null);
   useEffect(() => {
-    setAssignedStaff([]);
+    const prev = lastDepartmentRef.current;
+    lastDepartmentRef.current = selectedDepartmentId;
+    if (prev !== null && prev !== selectedDepartmentId) setAssignedStaff([]);
   }, [selectedDepartmentId]);
+
+  // Autosave: anything typed or attached is kept as a draft until submitted.
+  // `pendingDraftRef` holds the edit the debounce has not written yet, so
+  // leaving the form right after a keystroke still keeps it (flushed on unmount).
+  const pendingDraftRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    return () => {
+      pendingDraftRef.current?.();
+      pendingDraftRef.current = null;
+    };
+  }, []);
+  useEffect(() => {
+    if (submittedRef.current) return;
+    const content = { title: ticketName, description, pictures, taggedStaffIds: assignedStaff };
+    const write = () => {
+      pendingDraftRef.current = null;
+      if (submittedRef.current) return;
+      if (!draftHasContent(content)) {
+        removeDraft(draftId);
+        return;
+      }
+      saveDraft({
+        id: draftId,
+        updatedAt: new Date().toISOString(),
+        roomId: isPublicArea ? undefined : roomId,
+        roomNumber: isPublicArea ? undefined : roomNumber || undefined,
+        isPublicArea,
+        publicAreaName: isPublicArea ? (publicAreaName ?? undefined) : undefined,
+        departmentId: selectedDepartmentId,
+        priority,
+        ...content,
+      });
+    };
+    pendingDraftRef.current = write;
+    const timer = setTimeout(write, 600);
+    return () => clearTimeout(timer);
+  }, [
+    ticketName,
+    description,
+    pictures,
+    assignedStaff,
+    priority,
+    selectedDepartmentId,
+    draftId,
+    saveDraft,
+    removeDraft,
+    isPublicArea,
+    roomId,
+    roomNumber,
+    publicAreaName,
+  ]);
 
   // Load departments from DB (source of truth)
   useEffect(() => {
@@ -107,6 +186,7 @@ export default function TicketForm({
         setDepartments(mapped);
 
         const initial =
+          (draft?.departmentId ? mapped.find((m) => m.id === draft.departmentId) : undefined) ??
           mapped.find((m) => m.name.toLowerCase() === String(departmentName).trim().toLowerCase()) ??
           mapped[0] ??
           null;
@@ -123,7 +203,7 @@ export default function TicketForm({
     return () => {
       cancelled = true;
     };
-  }, [departmentName]);
+  }, [departmentName, draft?.departmentId]);
 
   const selectedDepartmentName = useMemo(() => {
     if (selectedDepartmentId) {
@@ -223,6 +303,8 @@ export default function TicketForm({
         pictures,
       });
 
+      submittedRef.current = true;
+      removeDraft(draftId);
       toast.show('Ticket created successfully', { type: 'success', title: 'Success' });
       
       // Reset form
@@ -251,77 +333,57 @@ export default function TicketForm({
     }
   };
 
-  const selectedDepartment = departments.find((d) => d.id === selectedDepartmentId) ?? null;
-  const otherDepartments = departments.filter((d) => d.id !== selectedDepartmentId);
   const taggedStaff = departmentStaff.filter((staff) => assignedStaff.includes(staff.id));
 
   return (
     <View style={styles.formContainer}>
-      {/* Department — a dropdown: the chosen one large in a pink frame, the
-          rest listed under it while open (Figma 589:514, 4600:609). */}
-      <Text style={styles.selectDepartmentLabel}>Select Department</Text>
-      <TouchableOpacity
-        style={styles.departmentBox}
-        onPress={() => setShowDepartmentList((open) => !open)}
-        activeOpacity={0.7}
-        disabled={departmentsLoading || departments.length === 0}
-        accessibilityRole="button"
-        accessibilityLabel={`Department: ${selectedDepartment?.name ?? 'none'}`}
-        accessibilityHint="Choose the department this ticket is for"
-        accessibilityState={{ expanded: showDepartmentList }}
-      >
-        <View style={styles.departmentBoxGlyph}>
-          {selectedDepartment?.iconName ? (
-            <Icon
-              name={selectedDepartment.iconName}
-              size={Math.min(departmentGlyphHeight(selectedDepartment.iconName) * BOX_GLYPH_SCALE, BOX_GLYPH_MAX) * scaleX}
-              color={INK}
-            />
-          ) : null}
+      {/* Department — every department as a pink disc, four to a row, in a
+          white card (Figma 589:514, 4645:496). The chosen one fills red. */}
+      <View style={styles.departmentSection}>
+        <Text style={styles.selectDepartmentLabel}>Select Department</Text>
+        <View style={styles.departmentGrid}>
+          {departmentsLoading ? (
+            <ActivityIndicator color={INK} style={styles.departmentGridLoading} />
+          ) : (
+            departments.map((dept) => {
+              const chosen = dept.id === selectedDepartmentId;
+              return (
+                <TouchableOpacity
+                  key={dept.id}
+                  style={styles.departmentCell}
+                  onPress={() => setSelectedDepartmentId(dept.id)}
+                  activeOpacity={0.7}
+                  accessibilityRole="radio"
+                  accessibilityLabel={dept.name}
+                  accessibilityState={{ selected: chosen }}
+                >
+                  <View style={[styles.departmentDisc, chosen && styles.departmentDiscChosen]}>
+                    {dept.iconName ? (
+                      <Icon
+                        name={dept.iconName}
+                        size={departmentGlyphHeight(dept.iconName) * scaleX}
+                        color={chosen ? '#ffffff' : DEPT_RED}
+                      />
+                    ) : null}
+                  </View>
+                  <Text
+                    style={[styles.departmentLabel, chosen && styles.departmentLabelChosen]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                  >
+                    {dept.name}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })
+          )}
         </View>
-        {departmentsLoading ? (
-          <ActivityIndicator color={INK} style={styles.departmentBoxName} />
-        ) : (
-          <Text style={styles.departmentBoxName} numberOfLines={1}>
-            {selectedDepartment?.name ?? 'Select'}
-          </Text>
-        )}
-        <View style={showDepartmentList ? styles.chevronOpen : undefined}>
-          <Icon name="action-chevron-down-wide" width={30 * scaleX} height={14 * scaleX} color={INK} />
-        </View>
-      </TouchableOpacity>
+      </View>
 
-      {showDepartmentList ? (
-        <View style={styles.departmentList}>
-          {otherDepartments.map((dept) => (
-            <TouchableOpacity
-              key={dept.id}
-              style={styles.departmentRow}
-              onPress={() => {
-                setSelectedDepartmentId(dept.id);
-                setShowDepartmentList(false);
-              }}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={dept.name}
-            >
-              <View style={styles.departmentRowGlyph}>
-                {dept.iconName ? (
-                  <Icon name={dept.iconName} size={departmentGlyphHeight(dept.iconName) * scaleX} color={INK} />
-                ) : null}
-              </View>
-              <Text style={styles.departmentRowLabel} numberOfLines={1}>
-                {dept.name}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      ) : null}
-
-      <View style={[styles.fullBleedRule, showDepartmentList && styles.fullBleedRuleAfterList]} />
-
-      {/* Name — "Name Engineering Ticket", the field, then the frequent cases. */}
-      <Text style={styles.nameHeading}>Name {selectedDepartmentName} Ticket</Text>
+      {/* 4649:471 — the grey panel everything else sits on. */}
+      <View style={[styles.panel, { paddingBottom: bottomInset * scaleX }]}>
+      {/* Issue — the field, then the frequent cases. */}
+      <Text style={styles.nameHeading}>Whats the Issue?</Text>
       <View style={styles.pinkBox}>
         <TextInput
           style={styles.nameInput}
@@ -355,12 +417,23 @@ export default function TicketForm({
         })}
       </View>
 
-      {/* Priority — the choice in a pink frame, the three options under it. */}
-      <Text style={styles.priorityTitle}>Priority</Text>
-      <View style={[styles.pinkBox, styles.priorityBox]}>
+      {/* Urgency — the choice in a pink frame; its chevron opens the three options. */}
+      <Text style={styles.priorityTitle}>Urgency</Text>
+      <TouchableOpacity
+        style={[styles.pinkBox, styles.priorityBox]}
+        onPress={() => setShowUrgencyOptions((open) => !open)}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`Urgency: ${PRIORITY[priority].label}`}
+        accessibilityState={{ expanded: showUrgencyOptions }}
+      >
         <PriorityFlags priority={priority} />
         <Text style={styles.priorityBoxLabel}>{PRIORITY[priority].label}</Text>
-      </View>
+        <View style={showUrgencyOptions ? undefined : styles.chevronClosed}>
+          <Icon name="action-chevron-down-wide" width={21 * scaleX} height={10 * scaleX} color={INK} />
+        </View>
+      </TouchableOpacity>
+      {showUrgencyOptions ? (
       <View style={styles.priorityOptions}>
         {PRIORITY_ORDER.map((p) => (
           <TouchableOpacity
@@ -380,9 +453,49 @@ export default function TicketForm({
           </TouchableOpacity>
         ))}
       </View>
+      ) : null}
 
-      {/* Add Photo */}
-      <View style={styles.card}>
+      {/* Tag Staff */}
+      <View style={[styles.card, styles.tagStaffCard]}>
+        {/* 4649:558–567: title, hint, and the + disc top-right. */}
+        <View style={[styles.cardHeader, styles.tagStaffHeader]}>
+          <View style={styles.tagStaffHeading}>
+            <Text style={styles.tagStaffTitle}>Tag Staff</Text>
+            <Text style={styles.tagStaffSubtitle}>Tag people to the ticket</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.addStaffButton}
+            onPress={handleOpenStaffModal}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Tag staff"
+          >
+            <Text style={styles.addStaffText}>+</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={styles.cardRule} />
+        <View style={styles.taggedStaffRow}>
+          <View style={styles.taggedStaffList}>
+            {taggedStaff.map((staff) => (
+              <View key={staff.id} style={styles.staffChip}>
+                <View style={styles.staffAvatar}>
+                  {staff.avatar ? (
+                    <Image source={{ uri: staff.avatar }} style={styles.avatarImage} />
+                  ) : (
+                    <Text style={styles.avatarInitials}>{initials(staff.name)}</Text>
+                  )}
+                </View>
+                <Text style={styles.staffName} numberOfLines={1}>
+                  {shortName(staff.name)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </View>
+
+      {/* Photo and Description share one card — 4649:476 (386 x 400, rule at 304). */}
+      <View style={[styles.card, styles.photoDescriptionCard]}>
         {pictures.length === 0 ? (
           <TouchableOpacity
             style={styles.addPhotoEmpty}
@@ -440,46 +553,8 @@ export default function TicketForm({
             />
           </View>
         )}
-      </View>
 
-      {/* Tag Staff */}
-      <View style={[styles.card, styles.tagStaffCard]}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.tagStaffTitle}>Tag Staff</Text>
-          <Text style={styles.tagStaffSubtitle}>Tag people to the ticket</Text>
-        </View>
-        <View style={styles.cardRule} />
-        <View style={styles.taggedStaffRow}>
-          <View style={styles.taggedStaffList}>
-            {taggedStaff.map((staff) => (
-              <View key={staff.id} style={styles.staffChip}>
-                <View style={styles.staffAvatar}>
-                  {staff.avatar ? (
-                    <Image source={{ uri: staff.avatar }} style={styles.avatarImage} />
-                  ) : (
-                    <Text style={styles.avatarInitials}>{initials(staff.name)}</Text>
-                  )}
-                </View>
-                <Text style={styles.staffName} numberOfLines={1}>
-                  {shortName(staff.name)}
-                </Text>
-              </View>
-            ))}
-          </View>
-          <TouchableOpacity
-            style={styles.addStaffButton}
-            onPress={handleOpenStaffModal}
-            activeOpacity={0.7}
-            accessibilityRole="button"
-            accessibilityLabel="Tag staff"
-          >
-            <Text style={styles.addStaffText}>+</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
-      {/* Description — the whole text area is the field. */}
-      <View style={[styles.card, styles.descriptionCard]}>
+        {/* Description — the whole text area under the rule is the field. */}
         <View style={styles.cardHeader}>
           <Text style={styles.descriptionLabel}>Description</Text>
         </View>
@@ -499,13 +574,6 @@ export default function TicketForm({
             accessibilityLabel="Description"
           />
           <KeyboardDoneBar />
-          <View style={styles.descriptionAIBadge}>
-            <GradientText
-              text="AI"
-              textStyle={{ fontSize: 12 * scaleX, fontFamily: typography.fontFamily.primary, fontWeight: '700' }}
-              direction="vertical"
-            />
-          </View>
         </View>
       </View>
 
@@ -518,6 +586,7 @@ export default function TicketForm({
       >
         {submitting ? <ActivityIndicator color="#ffffff" /> : <Text style={styles.submitButtonText}>Submit Ticket</Text>}
       </TouchableOpacity>
+      </View>
 
       <TicketStaffSelectorModal
         visible={showStaffModal}
@@ -582,16 +651,14 @@ const PLACEHOLDER = 'rgba(90, 117, 157, 0.5)';
 const CASE_FLAG = '#c9c9d0';
 const FLAG = { width: 14 * scaleX, height: 19 * scaleX };
 const CHECK = { width: 15.5 * scaleX, height: 13.1 * scaleX };
-/** The chosen department's glyph is drawn larger than in the list: the wrench is 40 tall there, 31 in a chip. */
-const BOX_GLYPH_SCALE = 40 / 31.07;
-/** ...but never taller than that wrench: the tall marks (Laundry 37, Reception 37) would otherwise reach 48. */
-const BOX_GLYPH_MAX = 40;
+/** Department glyphs (4630:148 …): red on the pink disc, white on the chosen one. */
+const DEPT_RED = '#f92424';
 const GUTTER = 26;
 
 const PRIORITY: Record<Priority, { label: string; flags: number; color: string; tint: string }> = {
   // The row tints are Figma's fills at its 20% layer opacity, flattened.
   high: { label: 'High Priority', flags: 3, color: '#f92424', tint: 'rgba(249, 36, 36, 0.056)' },
-  medium: { label: 'Medium Priority', flags: 2, color: '#f0be1b', tint: 'rgba(240, 190, 27, 0.072)' },
+  medium: { label: 'Normal', flags: 2, color: '#f0be1b', tint: 'rgba(240, 190, 27, 0.072)' },
   low: { label: 'Low Priority', flags: 1, color: '#9797a3', tint: 'rgba(217, 217, 217, 0.2)' },
 };
 const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low'];
@@ -605,78 +672,74 @@ const card = {
 
 const styles = StyleSheet.create({
   formContainer: {
-    paddingHorizontal: GUTTER * scaleX,
-    paddingTop: 28 * scaleX,
-    paddingBottom: 100 * scaleX,
     width: '100%',
   },
 
-  // Department
+  // Department (4645:496: label at x=9, the card 421 wide, discs 55.5 on a 114 pitch)
+  departmentSection: {
+    paddingHorizontal: 9.5 * scaleX,
+    paddingTop: 27 * scaleX,
+  },
   selectDepartmentLabel: {
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000000',
-    marginBottom: 20 * scaleX,
+    marginBottom: 13 * scaleX,
   },
-  departmentBox: {
-    height: 118 * scaleX,
+  departmentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    rowGap: 29 * scaleX,
+    paddingVertical: 28 * scaleX,
+    backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: PINK,
+    borderColor: '#e1e1e1',
     borderRadius: 8 * scaleX,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 30 * scaleX,
-    paddingRight: 33 * scaleX,
   },
-  departmentBoxGlyph: {
-    width: 42 * scaleX,
-    alignItems: 'center',
-  },
-  departmentBoxName: {
+  departmentGridLoading: {
     flex: 1,
-    marginLeft: 28 * scaleX,
-    fontSize: 23 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '400',
-    color: INK,
+    paddingVertical: 40 * scaleX,
   },
-  chevronOpen: {
-    transform: [{ rotate: '180deg' }],
+  departmentCell: {
+    width: '25%',
+    alignItems: 'center',
+    paddingHorizontal: 2 * scaleX,
   },
-  departmentList: {
-    marginTop: 4 * scaleX,
-  },
-  departmentRow: {
-    height: 70 * scaleX,
-    flexDirection: 'row',
+  departmentDisc: {
+    width: 55.5 * scaleX,
+    height: 55.5 * scaleX,
+    borderRadius: 28 * scaleX,
+    backgroundColor: '#ffebeb',
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  departmentRowGlyph: {
-    width: 44 * scaleX,
-    marginLeft: 18 * scaleX,
-    alignItems: 'center',
+  departmentDiscChosen: {
+    backgroundColor: DEPT_RED,
   },
-  departmentRowLabel: {
-    marginLeft: 34 * scaleX,
+  departmentLabel: {
+    marginTop: 11 * scaleX,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.secondary,
     fontWeight: '300',
     color: '#000000',
   },
-  fullBleedRule: {
-    height: 1,
-    backgroundColor: '#e4e4e4',
-    marginHorizontal: -GUTTER * scaleX,
-    marginTop: 24 * scaleX,
+  departmentLabelChosen: {
+    fontWeight: '600',
   },
-  fullBleedRuleAfterList: {
-    marginTop: 14 * scaleX,
+
+  /* 4649:471 — #F9FAFC, rounded on top, 18 under the department card. */
+  panel: {
+    marginTop: 18 * scaleX,
+    paddingTop: 41 * scaleX,
+    paddingHorizontal: GUTTER * scaleX,
+    backgroundColor: '#f9fafc',
+    borderTopLeftRadius: 24 * scaleX,
+    borderTopRightRadius: 23 * scaleX,
   },
 
   // Name
   nameHeading: {
-    marginTop: 23 * scaleX,
     fontSize: 20 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
@@ -684,7 +747,7 @@ const styles = StyleSheet.create({
   },
   pinkBox: {
     height: 68 * scaleX,
-    marginTop: 16 * scaleX,
+    marginTop: 23 * scaleX,
     borderWidth: 1,
     borderColor: PINK,
     borderRadius: 8 * scaleX,
@@ -725,21 +788,28 @@ const styles = StyleSheet.create({
   },
 
   // Priority
+  /* 4649:480 — the same heading as "Whats the Issue?". */
   priorityTitle: {
-    marginTop: 20 * scaleX,
-    fontSize: 13 * scaleX,
+    marginTop: 23 * scaleX,
+    fontSize: 20 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: '400',
-    color: INK,
+    fontWeight: '700',
+    color: '#607aa1',
   },
   priorityBox: {
-    marginTop: 9 * scaleX,
+    marginTop: 24 * scaleX,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingLeft: 15 * scaleX,
+    paddingRight: 27 * scaleX,
+  },
+  /* Down while the options show (as drawn); right while they are folded away. */
+  chevronClosed: {
+    transform: [{ rotate: '-90deg' }],
   },
   priorityBoxLabel: {
+    flex: 1,
     marginLeft: 22 * scaleX,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
@@ -788,11 +858,14 @@ const styles = StyleSheet.create({
   },
 
   // Add Photo
+  /* 4649:572: the frame 75 down, the title 14 under it, the hint 9 under that; the Description label 72 below. */
+  photoDescriptionCard: {
+    marginTop: 30 * scaleX,
+  },
   addPhotoEmpty: {
-    minHeight: 229 * scaleX,
     alignItems: 'center',
-    paddingTop: 56 * scaleX,
-    paddingBottom: 24 * scaleX,
+    paddingTop: 75 * scaleX,
+    paddingBottom: 72 * scaleX,
   },
   addPhotoMark: {
     width: 55.4 * scaleX,
@@ -812,7 +885,7 @@ const styles = StyleSheet.create({
     fontWeight: '300',
   },
   addPhotoTitle: {
-    marginTop: 10 * scaleX,
+    marginTop: 14 * scaleX,
   },
   addPhotoTitleText: {
     fontSize: 19 * scaleX,
@@ -820,7 +893,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   addPhotoSubtitle: {
-    marginTop: 2 * scaleX,
+    marginTop: 7 * scaleX,
     width: 160 * scaleX,
     fontSize: 13 * scaleX,
     fontFamily: typography.fontFamily.primary,
@@ -876,8 +949,17 @@ const styles = StyleSheet.create({
 
   // Tag Staff (Figma 2385:987: 183 tall, rule at 65)
   tagStaffCard: {
+    marginTop: 22 * scaleX,
     minHeight: 183 * scaleX,
     paddingTop: 13 * scaleX,
+  },
+  tagStaffHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  tagStaffHeading: {
+    flex: 1,
+    paddingLeft: 2 * scaleX,
   },
   tagStaffTitle: {
     fontSize: 19 * scaleX,
@@ -897,7 +979,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingLeft: 14 * scaleX,
-    paddingRight: 28 * scaleX,
+    paddingRight: 14 * scaleX,
     paddingTop: 22 * scaleX,
     paddingBottom: 24 * scaleX,
   },
@@ -934,19 +1016,21 @@ const styles = StyleSheet.create({
   },
   staffName: {
     flexShrink: 1,
-    fontSize: 18 * scaleX,
+    fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: INK,
   },
+  /* 4649:566 — a 45 #D9DFE9 disc, 11 down and 24 in from the card's right. */
   addStaffButton: {
-    width: 53 * scaleX,
-    height: 49 * scaleX,
-    borderRadius: 41 * scaleX,
-    backgroundColor: '#f1f6fc',
+    width: 45 * scaleX,
+    height: 45 * scaleX,
+    borderRadius: 22.5 * scaleX,
+    backgroundColor: '#d9dfe9',
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12 * scaleX,
+    marginTop: -2 * scaleX,
+    marginRight: 12 * scaleX,
   },
   addStaffText: {
     fontSize: 29 * scaleX,
@@ -955,14 +1039,9 @@ const styles = StyleSheet.create({
     color: INK,
   },
 
-  // Description (Figma 2373:524: 150 tall, rule at 54)
-  descriptionCard: {
-    marginTop: 26 * scaleX,
-    minHeight: 150 * scaleX,
-    paddingTop: 20 * scaleX,
-  },
+  // Description (4649:508: label 33 in, 17 above the rule; text 24 under it)
   descriptionLabel: {
-    paddingLeft: 12 * scaleX,
+    paddingLeft: 21 * scaleX,
     marginBottom: 17 * scaleX,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
@@ -972,9 +1051,9 @@ const styles = StyleSheet.create({
   descriptionBody: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingLeft: 24 * scaleX,
+    paddingLeft: 33 * scaleX,
     paddingRight: 17 * scaleX,
-    paddingTop: 18 * scaleX,
+    paddingTop: 24 * scaleX,
     paddingBottom: 14 * scaleX,
   },
   descriptionInput: {
@@ -988,19 +1067,6 @@ const styles = StyleSheet.create({
     color: '#000000',
     lineHeight: 18 * scaleX,
   },
-  descriptionAIBadge: {
-    width: 29 * scaleX,
-    height: 30 * scaleX,
-    borderRadius: 15 * scaleX,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#f0d0e4',
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-    marginLeft: 'auto',
-  },
-
   // Submit (Figma 2373:521: 386 x 70, square)
   submitButton: {
     height: 70 * scaleX,

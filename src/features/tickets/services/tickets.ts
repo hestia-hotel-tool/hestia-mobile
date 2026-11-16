@@ -380,6 +380,28 @@ export async function getOpenTicketsForRoom(roomId: string): Promise<TicketData[
   );
 }
 
+/**
+ * Every ticket on a room, open and closed, newest first — Room Detail →
+ * Tickets (Figma 285:4037), which filters them All / Open / Closed / by
+ * department on the client.
+ */
+export async function getTicketsForRoom(roomId: string): Promise<TicketData[]> {
+  if (!isSupabaseConfigured || !roomId) return [];
+
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(TICKET_SELECT)
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+
+  const now = Date.now();
+  return (data as unknown as TicketsRow[]).map((row) =>
+    mapRowToTicketData(row, new Map(), now, new Set())
+  );
+}
+
 export type CreateTicketInput = {
   title: string;
   description?: string | null;
