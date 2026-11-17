@@ -10,25 +10,12 @@
  * message at 23:50 last night is "Yesterday" at 00:10 today.
  */
 
-const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+import { calendarDaysAgo, dayLabel, isSameCalendarDay } from '@/utils/calendarDays';
 
-const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
-
-/** Whole calendar days from `date` to `now` (0 = same day, 1 = yesterday). */
-export function calendarDaysAgo(date: Date, now: Date = new Date()): number {
-  return Math.round((startOfDay(now).getTime() - startOfDay(date).getTime()) / 86_400_000);
-}
+export { calendarDaysAgo };
 
 /** Same calendar day? */
-export function isSameChatDay(a: string, b: string): boolean {
-  const x = new Date(a);
-  const y = new Date(b);
-  return x.getFullYear() === y.getFullYear() && x.getMonth() === y.getMonth() && x.getDate() === y.getDate();
-}
+export const isSameChatDay = isSameCalendarDay;
 
 /** The time inside a bubble: 24-hour "16:13". Empty for an unreadable timestamp. */
 export function formatMessageTime(iso: string): string {
@@ -37,14 +24,5 @@ export function formatMessageTime(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
-/** The day chip above a day's first message. */
-export function chatDayLabel(iso: string, now: Date = new Date()): string {
-  const d = new Date(iso);
-  if (!Number.isFinite(d.getTime())) return '';
-  const days = calendarDaysAgo(d, now);
-  if (days <= 0) return 'Today';
-  if (days === 1) return 'Yesterday';
-  if (days < 7) return WEEKDAYS[d.getDay()];
-  const date = `${d.getDate()} ${MONTHS[d.getMonth()]}`;
-  return d.getFullYear() === now.getFullYear() ? date : `${date} ${d.getFullYear()}`;
-}
+/** The day chip above a day's first message (see `dayLabel`). */
+export const chatDayLabel = dayLabel;

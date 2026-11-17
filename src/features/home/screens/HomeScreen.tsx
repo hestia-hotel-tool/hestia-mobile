@@ -25,6 +25,8 @@ import { HousekeepingDashboard } from '../components/HousekeepingDashboard';
 import { usePermissions } from '@/domain/rbac/usePermissions';
 import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
 import { TicketsOverviewCard } from '../components/TicketsOverviewCard';
+import { useToast } from '@/contexts/ToastContext';
+import FloorsOverviewCard, { type FloorRow } from '../components/FloorsOverviewCard';
 import { TicketActivityItem } from '../components/TicketActivityItem';
 import type { TicketActivityKey } from '@/components/ui/TicketStatusCircle';
 import HskPortierTasksOverviewCard from '../components/HskPortierTasksOverviewCard';
@@ -211,6 +213,7 @@ export default function HomeScreen() {
   // see HOME_CHROME. `homeVariant` is narrowed by `asHomeVariant` before it
   // reaches here, so this lookup cannot come back undefined.
   const chrome = HOME_CHROME[homeVariant];
+  const toast = useToast();
 
   /*
    * Engineering and In Room Dining read the same dashboard over their own
@@ -880,6 +883,48 @@ export default function HomeScreen() {
   }, [homeData.categories, derivedCategories, homeData.selectedShift, roomsForHome]);
 
   /*
+   * Engineering → Floors (Figma 3843:52): the hotel's room floors, highest
+   * first, from the same per-floor counts the filter sheet shows; then the
+   * levels without rooms. Those are a fixed list for now (user, 2026-11-17).
+   */
+  /** Room floors with counts, highest first. */
+  const roomFloorOptions = useMemo(
+    () =>
+      Object.entries(filterCounts.floors ?? {})
+        .filter(([key, count]) => key !== 'all' && count > 0 && !Number.isNaN(Number(key)))
+        .sort(([a], [b]) => Number(b) - Number(a))
+        .map(([label, count]) => ({ label, count })),
+    [filterCounts.floors]
+  );
+
+  const floorRows: FloorRow[] = useMemo(() => {
+    if (!chrome.floors) return [];
+    const assignSoon = () =>
+      toast.show('Assigning floors is coming soon.', { type: 'info', title: 'Assign Floor' });
+    // View Rooms opens the Rooms tab on that floor (its floor bar, Figma 4684:62).
+    const roomFloors = roomFloorOptions.map(({ label, count }) => ({
+      label,
+      caption: `${count} ${count === 1 ? 'Room' : 'Rooms'}`,
+      onViewRooms: () =>
+        navigation.navigate('(rooms)/index', {
+          selectedShift: homeData.selectedShift,
+          filters: {
+            roomStates: { dirty: false, inProgress: false, cleaned: false, inspected: false, priority: false },
+            guests: { arrivals: false, departures: false, turnDown: false, stayOver: false },
+            reservations: { occupied: false, vacant: false },
+            floors: { all: false, [label]: true },
+          },
+        } as any),
+      onAssign: assignSoon,
+    }));
+    const levelsWithoutRooms: FloorRow[] = [
+      { label: '-2', caption: 'Kitchen, HSK Office', onAssign: assignSoon },
+      { label: '-1', caption: 'Technical Room', onAssign: assignSoon },
+    ];
+    return [...roomFloors, ...levelsWithoutRooms];
+  }, [chrome.floors, roomFloorOptions, navigation, homeData.selectedShift, toast]);
+
+  /*
    * What this Home shows, for the assistant: "I can read 18 on my Home screen"
    * should be something it can see (tester feedback). The same figures the
    * cards draw, for whichever Home this viewer has.
@@ -1099,7 +1144,7 @@ export default function HomeScreen() {
             {isTicketDashboard ? (
               <>
                 <View style={{ paddingTop: 12 * scaleX, paddingBottom: 24 * scaleX }}>
-                  <Text style={[styles.ticketDashboardTitle]}>Tickets Overview</Text>
+                  {chrome.ticketsTitle ? <Text style={[styles.ticketDashboardTitle]}>Tickets Overview</Text> : null}
                   <TicketsOverviewCard
                     total={ticketCounts.total}
                     priority={ticketCounts.priority}
@@ -1140,6 +1185,16 @@ export default function HomeScreen() {
                     }}
                   />
 
+                  {chrome.floors ? (
+                    <>
+                      {/* Figma 3843:52 — "Floors" (3856:1010) and the list (4686:524). */}
+                      <Text style={[styles.ticketDashboardRecentTitle, styles.floorsTitle, pm && { color: pm.text }]}>Floors</Text>
+                      <FloorsOverviewCard floors={floorRows} />
+                    </>
+                  ) : null}
+
+                  {chrome.recentActivity ? (
+                  <>
                   <Text style={[styles.ticketDashboardRecentTitle, pm && { color: pm.text }]}>Recent activity</Text>
                   {ticketRecent.length === 0 ? (
                     <TicketActivityItem
@@ -1179,6 +1234,8 @@ export default function HomeScreen() {
                       <Text style={[styles.ticketDashboardLoadMoreText, pm && { color: pm.accent }]}>Load more</Text>
                     </Pressable>
                   )}
+                  </>
+                  ) : null}
                 </View>
               </>
             ) : isHskPortierUser ? (
@@ -1374,6 +1431,12 @@ function buildHomeScreenStyles(scaleX: number) {
   // Nodes 3843:53 and 3856:1010 are the same run: 20px bold #1e1e1e in a 21px
   // box. This was 14px Inter regular #000000, which matched neither the other
   // title above it nor the frame.
+  // Node 3856:1010 sits 26 under the ticket card, x=13; its card 16 below.
+  floorsTitle: {
+    marginTop: 26 * scaleX,
+    marginBottom: 16 * scaleX,
+    marginLeft: 13 * scaleX,
+  },
   ticketDashboardRecentTitle: {
     fontSize: 20 * scaleX,
     fontFamily: 'Helvetica',

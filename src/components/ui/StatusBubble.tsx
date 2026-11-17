@@ -14,7 +14,7 @@ export type StatusSpec = {
   label: string;
   /**
    * The glyph inside the circle. Omitted for a status drawn as a shape rather
-   * than a mark — Out of Order is a plain ring (Figma 3843:86).
+   * than a mark — the activity list's neutral "Updated" is a plain ring.
    */
   icon?: IconName;
   /** Tailwind background class for the circle. */

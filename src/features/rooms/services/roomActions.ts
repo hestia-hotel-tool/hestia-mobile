@@ -116,3 +116,36 @@ export function loadRoomStatusConfig(): Promise<RoomStatusConfig> {
 export function clearRoomStatusConfig() {
   cached = null;
 }
+
+/**
+ * Take a room out of order from today, with a reason, or put it back
+ * (engineering's status menu, Figma 4686:686). Through
+ * `set_room_out_of_order()` (migration 20261117100000): `rooms.out_of_order.toggle`
+ * may change only these fields, where a direct update needs `rooms.manage`.
+ * The period is open-ended until switched off.
+ */
+export async function setRoomOutOfOrder(
+  roomId: string,
+  outOfOrder: boolean,
+  reason: string | null
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => PromiseLike<{ error: { message?: string; code?: string } | null }>;
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const today = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const { error } = await rpc('set_room_out_of_order', {
+    p_room_id: roomId,
+    p_out_of_order: outOfOrder,
+    p_reason: outOfOrder ? reason : null,
+    p_from: today,
+  });
+  if (error) {
+    const err = new Error(error.message || 'The room could not be updated.');
+    (err as Error & { code?: string }).code = error.code;
+    throw err;
+  }
+}

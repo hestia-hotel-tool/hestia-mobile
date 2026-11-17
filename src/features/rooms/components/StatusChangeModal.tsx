@@ -40,6 +40,63 @@ const STATUS_OPTION_IDS: StatusChangeOption[] = ['Dirty', 'InProgress', 'Cleaned
  */
 const NEEDS_ATTENDANT: StatusChangeOption[] = ['InProgress', 'Pause'];
 
+/** Engineering's repair states for a room — Figma 4686:686. */
+export type EngineeringRoomStatus = 'unsolved' | 'inProgress' | 'solved';
+
+/** The grid after Priority on engineering's menu: the ticket colours and marks. */
+const ENGINEERING_OPTIONS: {
+  id: EngineeringRoomStatus;
+  label: string;
+  iconName: React.ComponentProps<typeof Icon>['name'];
+  glyphHeight: number;
+  circleColor: string;
+}[] = [
+  { id: 'unsolved', label: 'Unsolved', iconName: 'action-thumbs-down-solid', glyphHeight: 24, circleColor: '#f92424' },
+  { id: 'inProgress', label: 'In Progress', iconName: 'action-in-progress', glyphHeight: 26, circleColor: '#f0be1b' },
+  { id: 'solved', label: 'Solved', iconName: 'action-thumbs-up-solid', glyphHeight: 24, circleColor: '#41d541' },
+];
+
+/** The two reason-carrying switches on the menu: Flag Room, and engineering's Out of Order. */
+type ReasonKind = 'flag' | 'outOfOrder';
+const REASON_KIND: Record<
+  ReasonKind,
+  { title: string; placeholder: string; inputLabel: string; offLabel: string; onLabel: string; mentions: boolean }
+> = {
+  flag: {
+    title: 'Flag Room',
+    placeholder: 'Why is this room flagged? Type @ to tag staff',
+    inputLabel: 'Reason for flagging the room',
+    offLabel: 'Flag room',
+    onLabel: 'Save flag note',
+    mentions: true,
+  },
+  outOfOrder: {
+    title: 'Out of Order',
+    placeholder: 'Why is this room out of order?',
+    inputLabel: 'Reason the room is out of order',
+    offLabel: 'Mark out of order',
+    onLabel: 'Save out of order note',
+    mentions: false,
+  },
+};
+
+/** The disc a reason switch starts with: the pale flag, or the struck-through bed. */
+function ReasonDisc({ kind, small = false }: { kind: ReasonKind; small?: boolean }) {
+  const discStyle = small ? styles.flagIconCircleSmall : styles.flagIconCircle;
+  if (kind === 'outOfOrder') {
+    return (
+      <View style={[discStyle, styles.outOfOrderDisc]}>
+        <Icon name="ticket-out-of-order" size={(small ? 16 : 22) * scaleX} color="#5a759d" />
+      </View>
+    );
+  }
+  return (
+    <View style={discStyle}>
+      <Icon name="action-flag-outline" size={(small ? 18 : 24) * scaleX} color={colors.status.dirty} />
+    </View>
+  );
+}
+
 /**
  * How tall the status sheet actually renders, in design px.
  *
@@ -210,6 +267,15 @@ interface StatusChangeModalProps {
   overrideFor?: string | null;
   /** Set / remove promise time — managers and supervisors only. Hides the row. */
   canSetPromise?: boolean;
+  /**
+   * Engineering's menu (Figma 4686:686): Priority, Unsolved, In Progress,
+   * Solved, then Out of Order and Flag Room. Replaces the housekeeping grid.
+   */
+  engineering?: {
+    onStatus: (status: EngineeringRoomStatus) => void;
+    /** Out of order from today with a reason, or back in order. Without it, no row. */
+    onOutOfOrderToggle?: (outOfOrder: boolean, reason: string | null) => Promise<void>;
+  };
 }
 
 /**
@@ -226,7 +292,7 @@ const ACTION_LABEL: Partial<Record<RoomAction, string>> = {
 };
 
 /** Which face of the popover is showing. */
-type PopoverFace = 'status' | 'cleanChecklist' | 'inspectionChecklist' | 'flag';
+type PopoverFace = 'status' | 'cleanChecklist' | 'inspectionChecklist' | 'flag' | 'outOfOrder';
 
 export default function StatusChangeModal({
   visible,
@@ -249,6 +315,7 @@ export default function StatusChangeModal({
   allowedOptions,
   overrideFor,
   canSetPromise = true,
+  engineering,
 }: StatusChangeModalProps) {
   /*
    * Choosing "Cleaned" turns this card into the clean checklist rather than
@@ -277,6 +344,9 @@ export default function StatusChangeModal({
   const isInspection = view === 'inspectionChecklist';
   const isChecklist = view === 'cleanChecklist' || isInspection;
   const isFlagEditor = view === 'flag' && !!onFlagToggle;
+  const isOutOfOrderEditor = view === 'outOfOrder' && !!engineering?.onOutOfOrderToggle;
+  const hasOutOfOrderRow = !!engineering?.onOutOfOrderToggle;
+  const priorityOption = STATUS_OPTIONS.find((o) => o.id === 'Priority');
   const options = allowedOptions
     ? STATUS_OPTIONS.filter(
         (option) => (option.id === 'Priority' && canSetPriority) || allowedOptions.has(option.id)
@@ -312,9 +382,12 @@ export default function StatusChangeModal({
           ? isInspection
             ? INSPECTION_CHECKLIST_HEIGHT
             : CLEAN_CHECKLIST_HEIGHT
-          : isFlagEditor
+          : isFlagEditor || isOutOfOrderEditor
             ? FLAG_EDITOR_HEIGHT
-            : statusSheetHeight(options.length, hasFlagRow) + (canSetPromise ? PROMISE_ROW_HEIGHT : 0)
+            : engineering
+              ? statusSheetHeight(ENGINEERING_OPTIONS.length + (canSetPriority ? 1 : 0), hasFlagRow) +
+                (hasOutOfOrderRow ? 80 : 0)
+              : statusSheetHeight(options.length, hasFlagRow) + (canSetPromise ? PROMISE_ROW_HEIGHT : 0)
       }
       clampHeight={isChecklist}
       // Always under the status pill, never flipped above it.
@@ -327,6 +400,10 @@ export default function StatusChangeModal({
           await onFlagToggle?.(flagged, reason, mentionIds);
           dismiss();
         };
+        const submitOutOfOrder: FlagSubmit = async (on, reason) => {
+          await engineering?.onOutOfOrderToggle?.(on, reason);
+          dismiss();
+        };
         if (isFlagEditor) {
           return (
             <FlagEditor
@@ -334,6 +411,17 @@ export default function StatusChangeModal({
               savedReason={room.flagReason ?? ''}
               onBack={() => setView('status')}
               onSubmit={submitFlag}
+            />
+          );
+        }
+        if (isOutOfOrderEditor) {
+          return (
+            <FlagEditor
+              kind="outOfOrder"
+              flagged={!!room.outOfOrder}
+              savedReason={room.outOfOrder?.reason ?? ''}
+              onBack={() => setView('status')}
+              onSubmit={submitOutOfOrder}
             />
           );
         }
@@ -358,6 +446,57 @@ export default function StatusChangeModal({
               dismiss(() => (onCleanComplete ? onCleanComplete(report) : onStatusSelect('Cleaned')))
             }
           />
+        ) : engineering ? (
+          <>
+            <Text style={styles.headerText}>Change Status</Text>
+            <View style={styles.optionsGrid}>
+              {canSetPriority && priorityOption ? (
+                <StatusOptionItem
+                  key="Priority"
+                  iconName={priorityOption.iconName}
+                  glyphHeight={priorityOption.glyphHeight}
+                  circleColor={priorityOption.circleColor}
+                  glyphColor={priorityOption.glyphColor}
+                  label={priorityOption.label}
+                  onPress={() => dismiss(() => onStatusSelect('Priority'))}
+                />
+              ) : null}
+              {ENGINEERING_OPTIONS.map((option) => (
+                <StatusOptionItem
+                  key={option.id}
+                  iconName={option.iconName}
+                  glyphHeight={option.glyphHeight}
+                  circleColor={option.circleColor}
+                  glyphColor="#ffffff"
+                  label={option.label}
+                  onPress={() => dismiss(() => engineering.onStatus(option.id))}
+                />
+              ))}
+            </View>
+
+            {hasOutOfOrderRow ? (
+              <>
+                <View style={styles.divider} />
+                <FlagRow
+                  kind="outOfOrder"
+                  flagged={!!room.outOfOrder}
+                  savedReason={room.outOfOrder?.reason ?? ''}
+                  onOpenEditor={() => setView('outOfOrder')}
+                  onSubmit={submitOutOfOrder}
+                />
+              </>
+            ) : null}
+
+            <View style={styles.divider} />
+            {hasFlagRow ? (
+              <FlagRow
+                flagged={room.flagged}
+                savedReason={room.flagReason ?? ''}
+                onOpenEditor={() => setView('flag')}
+                onSubmit={submitFlag}
+              />
+            ) : null}
+          </>
         ) : (
           <>
             <Text style={styles.headerText}>Change Status</Text>
@@ -517,11 +656,13 @@ type FlagSubmit = (flagged: boolean, reason: string | null, mentionIds: string[]
  * it; switching off unflags straight away.
  */
 function FlagRow({
+  kind = 'flag',
   flagged,
   savedReason,
   onOpenEditor,
   onSubmit,
 }: {
+  kind?: ReasonKind;
   flagged: boolean;
   savedReason: string;
   onOpenEditor: () => void;
@@ -549,13 +690,11 @@ function FlagRow({
       onPress={flagged ? onOpenEditor : undefined}
       disabled={!flagged || saving}
       accessibilityRole={flagged ? 'button' : undefined}
-      accessibilityLabel={flagged ? 'Edit flag reason' : undefined}
+      accessibilityLabel={flagged ? `Edit ${REASON_KIND[kind].title.toLowerCase()} reason` : undefined}
     >
-      <View style={styles.flagIconCircle}>
-        <Icon name="action-flag-outline" size={24 * scaleX} color={colors.status.dirty} />
-      </View>
+      <ReasonDisc kind={kind} />
       <View style={styles.flagRoomLabel}>
-        <Text style={styles.flagRoomText}>Flag Room</Text>
+        <Text style={styles.flagRoomText}>{REASON_KIND[kind].title}</Text>
         {flagged && savedReason ? (
           <Text style={styles.flagRoomReason} numberOfLines={1}>
             {savedReason}
@@ -583,11 +722,13 @@ function FlagRow({
  * does the same for a new flag, or unflags a room that already was.
  */
 function FlagEditor({
+  kind = 'flag',
   flagged,
   savedReason,
   onBack,
   onSubmit,
 }: {
+  kind?: ReasonKind;
   flagged: boolean;
   savedReason: string;
   onBack: () => void;
@@ -599,8 +740,11 @@ function FlagEditor({
   const trimmed = reason.trim();
   const canSend = trimmed.length > 0 && (!flagged || trimmed !== savedReason.trim());
 
-  // Staff to tag, loaded once when the editor opens.
+  const copy = REASON_KIND[kind];
+
+  // Staff to tag, loaded once when the editor opens (Flag only).
   useEffect(() => {
+    if (!copy.mentions) return;
     let cancelled = false;
     fetchStaffFromSupabase()
       .then((list) => {
@@ -620,9 +764,9 @@ function FlagEditor({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [copy.mentions]);
 
-  const mention = activeMention(reason);
+  const mention = copy.mentions ? activeMention(reason) : null;
   const suggestions =
     mention && !saving
       ? staff
@@ -665,10 +809,8 @@ function FlagEditor({
           <Icon name="action-chevron" size={20 * scaleX} color={colors.primary.main} />
         </Pressable>
         <View style={styles.editorTitleRow}>
-          <View style={styles.flagIconCircleSmall}>
-            <Icon name="action-flag-outline" size={18 * scaleX} color={colors.status.dirty} />
-          </View>
-          <Text style={styles.editorTitle}>Flag Room</Text>
+          <ReasonDisc kind={kind} small />
+          <Text style={styles.editorTitle}>{copy.title}</Text>
         </View>
         <FlagToggle value onValueChange={toggle} disabled={saving} scaleX={scaleX} />
       </View>
@@ -711,14 +853,14 @@ function FlagEditor({
           value={reason}
           onChangeText={setReason}
           editable={!saving}
-          placeholder="Why is this room flagged? Type @ to tag staff"
+          placeholder={copy.placeholder}
           placeholderTextColor="rgba(0,0,0,0.36)"
           multiline
           maxLength={REASON_MAX}
           textAlignVertical="top"
           autoFocus
           style={[styles.reasonInput, (canSend || saving) && styles.reasonInputWithSend]}
-          accessibilityLabel="Reason for flagging the room"
+          accessibilityLabel={copy.inputLabel}
         />
         {canSend || saving ? (
           <Pressable
@@ -727,7 +869,7 @@ function FlagEditor({
             hitSlop={8}
             style={({ pressed }) => [styles.sendButton, pressed && styles.sendButtonPressed]}
             accessibilityRole="button"
-            accessibilityLabel={flagged ? 'Save flag note' : 'Flag room'}
+            accessibilityLabel={flagged ? copy.onLabel : copy.offLabel}
             accessibilityState={{ busy: saving }}
           >
             {saving ? (
@@ -755,6 +897,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: 14 * scaleX,
+  },
+  /* Figma 4686:686 — the Out of Order disc is the pale #e7eaed of the tickets overview. */
+  outOfOrderDisc: {
+    backgroundColor: '#e7eaed',
   },
   flagIconCircleSmall: {
     width: 36 * scaleX,

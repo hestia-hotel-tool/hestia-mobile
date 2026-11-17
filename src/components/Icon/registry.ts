@@ -90,6 +90,7 @@ import LfShipped from '@assets/icons/misc/lf-shipped.svg';
 import LfStored from '@assets/icons/misc/lf-stored.svg';
 import LocationPin from '@assets/icons/misc/location-pin.svg';
 import LostFoundBasket from '@assets/icons/misc/lost-found-basket.svg';
+import TicketOutOfOrder from '@assets/icons/misc/ticket-out-of-order.svg';
 // nav
 import NavAi from '@assets/icons/nav/nav-ai.svg';
 import NavChat from '@assets/icons/nav/nav-chat.svg';
@@ -190,6 +191,7 @@ export const icons = {
   'lf-stored': LfStored,
   'location-pin': LocationPin,
   'lost-found-basket': LostFoundBasket,
+  'ticket-out-of-order': TicketOutOfOrder,
   // nav
   'nav-ai': NavAi,
   'nav-chat': NavChat,
@@ -295,6 +297,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'lf-stored': 1.0714,
   'location-pin': 1,
   'lost-found-basket': 0.9,
+  'ticket-out-of-order': 1.13,
   'nav-ai': 1,
   'nav-chat': 1.0003,
   'nav-home': 1.0744,
@@ -386,6 +389,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'lf-shipped',
   'lf-stored',
   'location-pin',
+  'ticket-out-of-order',
   'nav-chat',
   'nav-home',
   'nav-lost-found',

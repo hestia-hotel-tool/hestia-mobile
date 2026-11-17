@@ -142,7 +142,8 @@ export interface RoomCardData {
    * Out of order today: the back office's rooms.out_of_order_from–to
    * (inclusive) and reason. Null when the room is in service.
    */
-  outOfOrder?: { from: string; to: string; reason: string | null } | null;
+  /** `to` null: open-ended, until switched off (set_room_out_of_order). */
+  outOfOrder?: { from: string; to: string | null; reason: string | null } | null;
   cleaningElapsedSeconds?: number;
   /** When set (ISO timestamp), room is in "Refused Service" state (for display). */
   refuseServiceAt?: string | null;

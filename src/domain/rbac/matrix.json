@@ -155,6 +155,10 @@
       "description": "Act on a room for its attendant (reason required)"
     },
     {
+      "key": "rooms.out_of_order.toggle",
+      "description": "Take a room out of order (with a reason) and put it back"
+    },
+    {
       "key": "backoffice.access",
       "description": "Sign in to the back office"
     },
@@ -361,6 +365,13 @@
     ],
     "rooms.read": [
       "engineering"
+    ],
+    "tab.rooms.view": [
+      "engineering"
+    ],
+    "rooms.out_of_order.toggle": [
+      "engineering",
+      "full_access"
     ],
     "backoffice.access": [
       "full_access",

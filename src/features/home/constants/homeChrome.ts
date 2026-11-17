@@ -38,6 +38,12 @@ export type HomeChrome = {
    * match `matrix.json`'s department name but not its casing.
    */
   ticketDepartment: string | null;
+  /** Ticket dashboards: the "Tickets Overview" heading over the card. */
+  ticketsTitle: boolean;
+  /** Ticket dashboards: "Recent activity" and Load more under the card. */
+  recentActivity: boolean;
+  /** Ticket dashboards: the Floors list (View Rooms / Assign Floor) under the card. */
+  floors: boolean;
 };
 
 export const HOME_CHROME: Record<HomeVariant, HomeChrome> = {
@@ -46,12 +52,23 @@ export const HOME_CHROME: Record<HomeVariant, HomeChrome> = {
     searchTarget: 'rooms',
     searchSize: 'default',
     ticketDepartment: null,
+    ticketsTitle: false,
+    recentActivity: false,
+    floors: false,
   },
-  /** Engineering's ticket dashboard — Figma 3843-52. */
+  /**
+   * Engineering's dashboard — Figma 3843-52, as redrawn 2026-11: the short
+   * rooms search pill with the filter glyph, the {n} Tickets card with no
+   * heading, then Floors (View Rooms / Assign Floor). No Recent activity.
+   * Engineering has a Rooms tab now, so the rooms placeholder is the design.
+   */
   engineering: {
-    searchTarget: 'tickets',
-    searchSize: 'large',
+    searchTarget: 'rooms',
+    searchSize: 'default',
     ticketDepartment: 'Engineering',
+    ticketsTitle: false,
+    recentActivity: false,
+    floors: true,
   },
   /**
    * In Room Dining's ticket dashboard — Figma 3859:3355.
@@ -71,6 +88,9 @@ export const HOME_CHROME: Record<HomeVariant, HomeChrome> = {
     searchTarget: 'rooms',
     searchSize: 'large',
     ticketDepartment: 'In Room Dining',
+    ticketsTitle: true,
+    recentActivity: true,
+    floors: false,
   },
   /**
    * The porter's task dashboard.
@@ -84,6 +104,9 @@ export const HOME_CHROME: Record<HomeVariant, HomeChrome> = {
     searchTarget: 'rooms',
     searchSize: 'default',
     ticketDepartment: null,
+    ticketsTitle: false,
+    recentActivity: false,
+    floors: false,
   },
 };
 

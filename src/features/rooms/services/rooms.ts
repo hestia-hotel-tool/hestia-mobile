@@ -62,11 +62,15 @@ function localDateString(now = new Date()): string {
   return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
 }
 
-/** The room's out-of-order period when today falls inside it (dates are inclusive). */
+/**
+ * The room's out-of-order period when today falls inside it (dates are
+ * inclusive). No end date means until someone puts it back (engineering's
+ * switch, set_room_out_of_order).
+ */
 function outOfOrderToday(room: RoomRow, today = localDateString()): RoomCardData['outOfOrder'] {
   const from = room.out_of_order_from;
-  const to = room.out_of_order_to;
-  if (!from || !to || today < from || today > to) return null;
+  const to = room.out_of_order_to ?? null;
+  if (!from || today < from || (to !== null && today > to)) return null;
   return { from, to, reason: room.out_of_order_reason ?? null };
 }
 

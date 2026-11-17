@@ -77,9 +77,11 @@ const UNGATED_TABS = new Set<string>(['AIHome']);
  *
  * The frames do not agree on one order, and the disagreement is deliberate:
  * each puts the role's primary workspace immediately after Home. Housekeeping
- * (node 3883:6323) reads Home, Rooms, Chat, AI, Tickets; engineering
- * (node 3843:151) reads Home, Tickets, Chat, AI, Rooms, because engineering is
- * ticket-driven and holds no Rooms right at all.
+ * (node 3883:6323) reads Home, Rooms, Chat, AI, Tickets; engineering reads
+ * Home, Rooms, Tickets, AI, Chat, Lost & Found (user, 2026-11-17: Rooms before
+ * Tickets; Home → Floors → View Rooms lands on Rooms, which came back that day
+ * in migration 20261117090000). Engineering is the one exception to
+ * AI-after-Chat below.
  *
  * What they *do* agree on is the AI button: all three place it directly after
  * Chat, the porter frame (3859:1497) included. So that position is the one part
@@ -103,7 +105,7 @@ const TAB_ORDER_BY_VARIANT: Record<HomeVariant, readonly string[]> = {
    * nothing bespoke" is worth recording.
    */
   hsk_portier: ['Home', 'Rooms', 'Chat', 'AIHome', 'Tickets', 'LostAndFound', 'Staff'],
-  engineering: ['Home', 'Tickets', 'Chat', 'AIHome', 'Rooms', 'LostAndFound', 'Staff'],
+  engineering: ['Home', 'Rooms', 'Tickets', 'AIHome', 'Chat', 'LostAndFound', 'Staff'],
   /*
    * The same order as engineering, and for the same reason: a ticket dashboard
    * puts Tickets next to Home. Figma 3859:3355 draws Home, Tickets, Chat, AI,

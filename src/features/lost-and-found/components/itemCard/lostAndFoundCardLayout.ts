@@ -50,7 +50,8 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
    * still starts at frame x=194, so the gap beside the photo is derived from
    * `rightColumn` rather than fixed — see `LostAndFoundCard`.
    */
-  photo: { width: 121, height: 115, radius: 10, top: 55 },
+  /** Redrawn 2026-11 (4735:414): 114 x 109, radius 10, top-left of the card. */
+  photo: { width: 114, height: 109, radius: 10, top: 15 },
 
   /** Node 3871:3601 — Helvetica Bold 21, and the tracking chip follows it in flow. */
   titleFontSize: 21,
