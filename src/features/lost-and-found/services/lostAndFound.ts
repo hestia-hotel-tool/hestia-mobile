@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { getMyHotelId } from '@/lib/tenant';
 import { base64ToArrayBuffer } from '@/utils/encoding';
 import type { LostAndFoundStatus } from '../types/lostAndFound.types';
+import { CLOSED_STAYS, withoutClosedStays } from '@features/rooms/services/rooms';
 
 export const LOST_AND_FOUND_BUCKET = 'lost-and-found';
 
@@ -139,11 +140,14 @@ export async function fetchLostAndFoundRows(): Promise<LostAndFoundRowsResult> {
   let data: any[] | null = null;
   let error: any = null;
 
-  ({ data, error } = await supabase
-    .from('lost_and_found_items')
-    .select(WITH_SHIPPED_SELECT)
-    .order('found_at', { ascending: false, nullsFirst: false })
-    .order('created_at', { ascending: false }));
+  // Each guest is the room's stay, never a cancelled or no-show one; a database
+  // without stay_status (42703) is asked again without that filter.
+  const list = (select: string, filter: boolean) => {
+    let q = supabase.from('lost_and_found_items').select(select);
+    if (filter) q = q.not('rooms.reservations.stay_status', 'in', CLOSED_STAYS);
+    return q.order('found_at', { ascending: false, nullsFirst: false }).order('created_at', { ascending: false });
+  };
+  ({ data, error } = await withoutClosedStays((filter) => list(WITH_SHIPPED_SELECT, filter)));
 
   let shippedLocationColumnAvailable = !error;
 
@@ -209,6 +213,23 @@ export interface CreateLostAndFoundItemResult {
    * exactly like a saved one — the item simply never appeared in the list.
    */
   error?: string;
+  /**
+   * "Send Email to Guest for reclamation?": where it was queued to, or why it
+   * was not. Absent when the box was not ticked.
+   */
+  email?: { queuedTo: string } | { error: string };
+}
+
+/**
+ * Queue the reclamation email for an item (migration 20261023120000). The
+ * server writes the message from the stored item and the `send-email`
+ * function delivers it through the configured provider. Throws with a
+ * message meant for the person holding the phone.
+ */
+export async function emailGuestAboutItem(itemId: string, email: string): Promise<void> {
+  // Cast: lf_email_guest postdates the generated types.
+  const { error } = await (supabase as any).rpc('lf_email_guest', { p_item_id: itemId, p_email: email });
+  if (error) throw new Error(error.message || 'The email could not be queued.');
 }
 
 async function uploadLostAndFoundImage(hotelId: string, imageUri: string): Promise<string | null> {
@@ -373,7 +394,8 @@ export async function createLostAndFoundItem(
       status,
       storage_location: storedLocation,
       found_at: foundAt,
-      found_by_id: userId,
+      // The form's "Found by" — it used to be ignored and always set to the registrant.
+      found_by_id: (itemData.foundedBy as string | undefined) || userId,
       registered_by_id: registeredByIdFromForm ?? userId,
       found_location: foundLocation,
       room_id: selectedLocation === 'room' && selectedRoom ? selectedRoom.id ?? null : null,
@@ -396,7 +418,18 @@ export async function createLostAndFoundItem(
     return { id: null, trackingNumber: null, error: error.message || 'The item could not be saved.' };
   }
 
-  return { id: inserted?.id ?? null, trackingNumber: inserted?.tracking_number ?? null };
+  let email: CreateLostAndFoundItemResult['email'];
+  const guestEmail = String(itemData.guestEmail ?? '').trim();
+  if (inserted?.id && itemData.sendEmailToGuest && guestEmail) {
+    try {
+      await emailGuestAboutItem(inserted.id, guestEmail);
+      email = { queuedTo: guestEmail };
+    } catch (e) {
+      email = { error: e instanceof Error ? e.message : 'The email could not be queued.' };
+    }
+  }
+
+  return { id: inserted?.id ?? null, trackingNumber: inserted?.tracking_number ?? null, email };
 }
 
 /**
@@ -515,7 +548,11 @@ const DETAIL_SELECT = `
 
 /** One lost & found item by id, with its room, guest and people. Null if gone. */
 export async function fetchLostAndFoundItemDetail(id: string): Promise<LostAndFoundItemDetail | null> {
-  const { data, error } = await supabase.from('lost_and_found_items').select(DETAIL_SELECT).eq('id', id).maybeSingle();
+  const { data, error } = await withoutClosedStays((filter) => {
+    let q = supabase.from('lost_and_found_items').select(DETAIL_SELECT).eq('id', id);
+    if (filter) q = q.not('rooms.reservations.stay_status', 'in', CLOSED_STAYS);
+    return q.maybeSingle();
+  });
   if (error) throw new Error(error.message || 'Could not load the item.');
   if (!data) return null;
   const row = data as any;

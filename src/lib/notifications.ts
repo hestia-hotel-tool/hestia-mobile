@@ -73,7 +73,16 @@ export async function setupNotificationPresentation(): Promise<void> {
  * flight, and a token already registered for this user is not sent again.
  */
 let inFlight: Promise<{ token: string | null }> | null = null;
-let registeredFor: { token: string; userId: string } | null = null;
+let registeredFor: { token: string; userId: string; at: number } | null = null;
+
+/**
+ * Re-confirm the device with the server this often, even when nothing seems
+ * to have changed. The server forgets a token Apple / Google report dead
+ * (supabase/functions/notify), and a phone that only registered at sign-in
+ * then went silent until its owner signed out and in again. Re-registering
+ * on returning to the app (throttled) heals that within minutes.
+ */
+const RECONFIRM_MS = 10 * 60_000;
 
 export function registerAndSyncPushToken(): Promise<{ token: string | null }> {
   if (!inFlight) {
@@ -125,8 +134,10 @@ async function registerOnce(): Promise<{ token: string | null }> {
   const { data: sessionData } = await supabase.auth.getSession();
   const userId = sessionData?.session?.user?.id;
   if (!userId) return { token: null };
-  // Already registered for this user: nothing to tell the server.
-  if (registeredFor?.token === token && registeredFor.userId === userId) return { token };
+  // Registered for this user recently: nothing to tell the server.
+  if (registeredFor?.token === token && registeredFor.userId === userId && Date.now() - registeredFor.at < RECONFIRM_MS) {
+    return { token };
+  }
 
   // SECURITY DEFINER so a device can move between accounts (the last one to
   // sign in on it gets its pushes) without RLS blocking the takeover.
@@ -140,7 +151,7 @@ async function registerOnce(): Promise<{ token: string | null }> {
     return { token: null };
   }
   registeredToken = token;
-  registeredFor = { token, userId };
+  registeredFor = { token, userId, at: Date.now() };
   return { token };
 }
 

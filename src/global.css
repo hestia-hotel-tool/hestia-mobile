@@ -36,6 +36,7 @@
     --color-surface-header: #e4eefe;
     --color-surface-dashboard: #e3e8f0;
     --color-surface-overlay: rgba(228, 228, 228, 0.1);
+    --color-surface-scrim: rgba(0, 0, 0, 0.5);
 
     /* Text */
     --color-ink-primary: #1e1e1e;
@@ -55,13 +56,13 @@
     --color-border-dark: #e6e6e6;
     --color-border-card: rgba(90, 117, 157, 0.23);
     --color-border-control: #c6c5c5;
+    --color-border-toast: #e1e1e1;
     --color-border-ai-panel-start: #ff4dd8;
     --color-border-ai-panel-end: #3bc1f6;
 
     /* Badge */
     --color-badge-eta: #e9f7e9;
     --color-badge-etd: #ffe3e3;
-    --color-badge-group: #ffebeb;
     --color-badge-priority: #ffebeb;
     --color-badge-results: rgba(181, 207, 246, 0.37);
 
@@ -127,6 +128,7 @@
 
     /* Shadows */
     --shadow-nav: 0px 0px 105.1px -35px rgba(100, 131, 176, 0.4);
+    --shadow-float: 0px 4px 14.4px rgba(136, 136, 136, 0.12);
   }
 }
 

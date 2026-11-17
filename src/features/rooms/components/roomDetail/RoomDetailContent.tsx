@@ -8,7 +8,9 @@
  */
 
 import React, { useState, useRef, useMemo } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRevealBelow } from '../../hooks/useRevealBelow';
 import { colors } from '@/theme';
 import { scaleX, ASSIGNED_TASK_CARD } from '../../constants/roomDetailStyles';
 import { getRoomTypeConfig } from '../../constants/roomTypeConfigs';
@@ -71,6 +73,9 @@ export default function RoomDetailContent({
   onAddNote,
   onAddTask,
   onSeeMoreTask,
+  canDeleteItem,
+  onDeleteNote,
+  onDeleteTask,
   onAddLostAndFoundItem,
   onOpenLostAndFound,
   onOpenLostAndFoundItem,
@@ -108,6 +113,23 @@ export default function RoomDetailContent({
    * nothing), and its own `canGoBack()` fallback could never run, because the
    * header always saw a handler. Absent means absent.
    */
+
+  /*
+   * The VIP popover opens downward from a guest's VIP disc, always (as on the
+   * room card): this scrolls the Overview to make room. Everything above the
+   * scroll view — the header and the tabs — stays sharp.
+   */
+  const scrollRef = useRef<ScrollView>(null);
+  const scrollYRef = useRef(0);
+  const [scrollTop, setScrollTop] = useState(0);
+  const { height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const vipReveal = useRevealBelow({
+    scrollRef,
+    scrollOffsetRef: scrollYRef,
+    bottomBound: windowHeight - insets.bottom - 152 * scaleX,
+    headerBottom: scrollTop,
+  });
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -171,14 +193,7 @@ export default function RoomDetailContent({
       />
 
       {activeTab === 'Checklist' ? (
-        <ChecklistSection
-          roomNumber={roomNumber}
-          roomCode={roomCode}
-          roomStatus={currentStatus}
-          onSubmit={(data) => {
-            // TODO: persist the checklist submission.
-          }}
-        />
+        roomId ? <ChecklistSection roomId={roomId} roomNumber={roomNumber} roomCode={roomCode} /> : null
       ) : activeTab === 'Tickets' ? (
         <RoomTicketsSection
           roomId={roomId}
@@ -189,8 +204,22 @@ export default function RoomDetailContent({
         />
       ) : (
         <ScrollView
+          ref={scrollRef}
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            vipReveal.active && { paddingBottom: 200 * scaleX + vipReveal.extraBottom },
+          ]}
+          onScroll={(e) => {
+            scrollYRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+          onLayout={(e) => {
+            const node = e.currentTarget as unknown as View;
+            node.measureInWindow((_x, y) => {
+              if (Number.isFinite(y)) setScrollTop(y);
+            });
+          }}
           showsVerticalScrollIndicator={false}
         >
           {activeTab === 'Overview' && (
@@ -207,7 +236,9 @@ export default function RoomDetailContent({
                         <GuestInfoCard
                           guest={block.guest}
                           category={guestCategoryFromType(block.slot.role)}
-                          numberBadge={block.numberBadge}
+                          credits={cleaning?.credit}
+                          revealVip={vipReveal.reveal}
+                          endVipReveal={vipReveal.end}
                           specialInstructions={
                             block.slot.showsSpecialInstructions
                               ? specialInstructions ?? undefined
@@ -238,7 +269,7 @@ export default function RoomDetailContent({
 
                     {/* Figma 1772-104: the notes, straight under the assignee. */}
                     <View style={styles.cardDivider} />
-                    <NotesSection notes={notes} onAddPress={onAddNote} />
+                    <NotesSection notes={notes} onAddPress={onAddNote} canDeleteNote={canDeleteItem} onDeleteNote={onDeleteNote} />
 
                     {tasks.length > 0 ? <View style={styles.cardDivider} /> : null}
 
@@ -247,6 +278,8 @@ export default function RoomDetailContent({
                         tasks={tasks}
                         onAddPress={onAddTask}
                         onSeeMorePress={onSeeMoreTask}
+                        canDeleteTask={canDeleteItem}
+                        onDeleteTask={onDeleteTask}
                       />
                     ) : null}
                   </View>

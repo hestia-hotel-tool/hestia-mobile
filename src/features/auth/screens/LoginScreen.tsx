@@ -27,7 +27,7 @@ const styles = StyleSheet.create({
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { signIn, resetPassword } = useAuth();
-  const { permissions } = usePermissions();
+  const { permissions, worksFromTickets } = usePermissions();
   const { t, language, setLanguage } = useTranslation();
 
   const [email, setEmail] = useState('');
@@ -58,7 +58,7 @@ export default function LoginScreen() {
       // Not hardcoded to Home: F&B and Kitchen staff have no Dashboard right,
       // so sending everyone there drops them on a screen the route guard then
       // bounces them off. Same resolution the splash uses.
-      const landing = resolveLandingRoute(permissions);
+      const landing = resolveLandingRoute(permissions, { worksFromTickets });
       router.replace((landing ?? '/(tabs)/(home)') as never);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('login.errors.unexpected'));

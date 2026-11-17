@@ -32,8 +32,13 @@ import type { RootStackParamList } from '@/types/navigation';
 import { getOrCreateDirectChat } from '../services/chat';
 import { groupByDepartment, loadAllColleagues, matchesColleague } from '../utils/colleagues';
 import { CHAT_COLORS, scaleX } from '../constants/chatStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Starting a chat with a colleague' }];
 
 export default function NewChatScreen() {
+  useAssistantScreen('New chat', ASSISTANT_FACTS);
   const router = useRouter();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList, 'new-chat/index'>>();
   const toast = useToast();

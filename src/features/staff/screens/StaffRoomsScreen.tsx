@@ -26,6 +26,7 @@ import EmptyStaffState from '../components/EmptyStaffState';
 import { useStaffAssignedRooms } from '../hooks/useStaffAssignedRooms';
 import type { StaffRosterPerson, StaffShiftState } from '../types/staffRoster.types';
 import { STAFF_ROOMS_LAYOUT as L } from '../components/staffRooms/staffRoomsLayout';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /**
  * What the roster hands over when you tap "See rooms".
@@ -262,6 +263,18 @@ export default function StaffRoomsScreen() {
     return base.filter((r) => (filters.has('Priority') && isActivePriority(r)) || filters.has(r.houseKeepingStatus as RoomFilterKey));
   }, [mode, hotelRooms, rooms, staffId, filters]);
   const groups = useMemo(() => groupRoomsByStatus(source), [source]);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Staff member', value: person.name },
+      { label: 'Showing', value: mode === 'assign' ? 'Hotel rooms to assign to them' : 'Their rooms this shift' },
+      { label: 'Rooms listed', value: source.length },
+      ...groups.map((g) => ({ label: `${g.label} (${g.rooms.length})`, value: g.rooms.map((r) => r.roomNumber).join(', ') })),
+    ],
+    [person.name, mode, source, groups]
+  );
+  useAssistantScreen('Staff rooms', assistantFacts);
   const filterCounts = useMemo(() => {
     const base = mode === 'assign' ? (hotelRooms ?? []).filter((r) => r.roomAttendantAssigned?.userId !== staffId) : (rooms ?? []);
     const count = (k: RoomFilterKey) =>

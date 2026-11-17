@@ -10,6 +10,9 @@ interface TaskSectionProps {
   onAddPress?: () => void;
   /** Opens the full task in ViewTaskModal. */
   onSeeMorePress?: (task: Task) => void;
+  /** Whether this person may delete a task; null/false hides its menu. */
+  canDeleteTask?: (task: Task) => boolean;
+  onDeleteTask?: (task: Task) => void;
 }
 
 /**
@@ -22,7 +25,7 @@ interface TaskSectionProps {
  * did not fit. The Overview is a flex column, so this stretches the card to
  * whatever its tasks need instead.
  */
-export default function TaskSection({ tasks = [], onAddPress, onSeeMorePress }: TaskSectionProps) {
+export default function TaskSection({ tasks = [], onAddPress, onSeeMorePress, canDeleteTask, onDeleteTask }: TaskSectionProps) {
   return (
     <View style={styles.container}>
       <View style={styles.headerRow}>
@@ -47,6 +50,7 @@ export default function TaskSection({ tasks = [], onAddPress, onSeeMorePress }: 
           absoluteTop={0}
           contentAreaTop={0}
           onSeeMorePress={onSeeMorePress}
+          onDelete={onDeleteTask && !task.isDefault && canDeleteTask?.(task) ? onDeleteTask : undefined}
         />
       ))}
     </View>

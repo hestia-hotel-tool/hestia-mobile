@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, router, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -10,6 +10,7 @@ import { typography } from '@/theme';
 import { SETTINGS_COLORS as C } from '../components/SettingsList';
 import { listRoster, listShifts, type RosterMember, type Shift } from '../services/shifts';
 import { isOvernight, shiftLengthLabel, shiftNow } from '../utils/shiftClock';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** The id the "no shift" group is opened with. */
 export const NO_SHIFT_ID = 'none';
@@ -26,6 +27,19 @@ export default function ShiftsScreen() {
   const now = useNow();
   const [shifts, setShifts] = useState<Shift[] | null>(null);
   const [roster, setRoster] = useState<RosterMember[]>([]);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      ...(shifts ?? []).map((s) => ({
+        label: `${s.name} shift ${s.start}–${s.end}`,
+        value: `${roster.filter((m) => m.shiftId === s.id).length} people`,
+      })),
+      { label: 'Not on a shift', value: roster.filter((m) => !m.shiftId || !(shifts ?? []).some((s) => s.id === m.shiftId)).length },
+    ],
+    [shifts, roster]
+  );
+  useAssistantScreen('Shifts & breaks', assistantFacts);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {

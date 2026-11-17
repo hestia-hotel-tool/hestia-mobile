@@ -19,6 +19,8 @@ export interface ChatItemData {
 interface ChatItemProps {
   chat: ChatItemData;
   onPress?: () => void;
+  /** Long-press: delete the chat (SwipeableChatItem). */
+  onLongPress?: () => void;
 }
 
 /**
@@ -37,7 +39,7 @@ function senderPrefix(sender: string): string {
  * before a light message, and a pink "Group" tag. Direct ("Etleva Hoxha"): no
  * ring, no sender prefix, regular-weight message. Unread badge on the right.
  */
-export default function ChatItem({ chat, onPress }: ChatItemProps) {
+export default function ChatItem({ chat, onPress, onLongPress }: ChatItemProps) {
   const unreadCount = typeof chat.unreadCount === 'number' ? chat.unreadCount : 0;
   const name = typeof chat.name === 'string' ? chat.name : 'Chat';
   const lastMsg = typeof chat.lastMessage === 'string' ? chat.lastMessage : '';
@@ -45,7 +47,16 @@ export default function ChatItem({ chat, onPress }: ChatItemProps) {
     chat.isGroup && typeof chat.lastMessageSender === 'string' ? senderPrefix(chat.lastMessageSender) : '';
 
   return (
-    <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7} accessibilityRole="button">
+    <TouchableOpacity
+      style={styles.container}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityActions={onLongPress ? [{ name: 'delete', label: 'Delete chat' }] : undefined}
+      onAccessibilityAction={(e) => e.nativeEvent.actionName === 'delete' && onLongPress?.()}
+    >
       <View style={[styles.avatar, chat.isGroup ? styles.avatarGroup : null]}>
         {chat.avatar ? (
           <Image source={chat.avatar} style={styles.avatarImage} contentFit="cover" cachePolicy="memory-disk" />
@@ -84,6 +95,8 @@ export default function ChatItem({ chat, onPress }: ChatItemProps) {
 
 const styles = StyleSheet.create({
   container: {
+    // Opaque: the swipe-to-delete button sits behind the row (SwipeableChatItem).
+    backgroundColor: CHAT_COLORS.background,
     flexDirection: 'row',
     alignItems: 'flex-start',
     paddingLeft: 27 * scaleX,

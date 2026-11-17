@@ -255,6 +255,7 @@ export async function getUsers(params?: GetUsersParams): Promise<GetUsersRespons
     .range(from, to)
     .order('full_name', { ascending: true });
 
+
   if (params?.search?.trim()) {
     query = query.ilike('full_name', `%${params.search.trim()}%`);
   }

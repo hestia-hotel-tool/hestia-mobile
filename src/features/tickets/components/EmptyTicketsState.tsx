@@ -26,6 +26,10 @@ const MESSAGES = {
     title: 'No Closed Tickets',
     subtitle: 'There are no closed tickets yet.',
   },
+  drafts: {
+    title: 'No Drafts',
+    subtitle: 'A ticket you start and leave before submitting is kept here, just for you.',
+  },
 };
 
 export default function EmptyTicketsState({ selectedTab }: EmptyTicketsStateProps) {

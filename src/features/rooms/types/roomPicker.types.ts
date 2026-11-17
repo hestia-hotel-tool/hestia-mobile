@@ -43,6 +43,11 @@ export interface RoomPickerRoom {
   checkIn?: string | null;
   checkOut?: string | null;
   guestCount?: number;
+  /** The reservation's adults and kids, for "2 Adults, 2 Kids". */
+  adults?: number;
+  kids?: number;
+  /** The reservation's ETA/EDT as "HH:mm", or null when it has none. */
+  time?: string | null;
   frontOfficeStatus?: string;
   /**
    * A departure room, as the Rooms list labels it: one of its reservations is

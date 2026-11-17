@@ -55,4 +55,26 @@ module.exports = defineConfig([
       'import/no-cycle': ['error', { ignoreExternal: true, allowUnsafeDynamicCyclicDependency: false }],
     },
   },
+  {
+    /*
+     * React Native's KeyboardAvoidingView loops ("Maximum update depth
+     * exceeded") on NaN, sub-pixel oscillation and keyboards opened on other
+     * screens. Use the hardened one.
+     */
+    ignores: ['src/components/ui/SafeKeyboardAvoidingView.tsx'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: 'react-native',
+              importNames: ['KeyboardAvoidingView'],
+              message: "Use SafeKeyboardAvoidingView from '@/components/ui/SafeKeyboardAvoidingView'.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 ]);

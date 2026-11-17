@@ -189,20 +189,39 @@ export const formatDatesOfStay = (datesOfStay: { from: string; to: string } | un
   return `${formatPart(datesOfStay.from)} - ${formatPart(datesOfStay.to)}`;
 };
 
-/**
- * The same range with no spaces around the dash: "07/10-15/10".
- *
- * What the room card actually shows — Figma 3883:5592 and 3838:1329. The spaced
- * form is ~8px wider at 14px Helvetica, which is enough to push the occupancy
- * count off a 402pt-wide card.
- *
- * A separate export rather than a change to `formatDatesOfStay`, because that
- * one also feeds the room-detail guest card and this pass has no design for it.
- */
-export const formatDatesOfStayCompact = (
-  datesOfStay: { from: string; to: string } | undefined | null
-): string => formatDatesOfStay(datesOfStay).replace(' - ', '-');
 
+
+const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * The stay as the room card shows it — Figma 4553:919: "07 Oct - 15 Oct".
+ *
+ * Reads the calendar date straight from the ISO string, so a "2026-10-07"
+ * stay never turns into the 6th in a timezone west of UTC.
+ */
+export const formatDatesOfStayShort = (datesOfStay: { from: string; to: string } | undefined | null): string => {
+  if (!datesOfStay?.from || !datesOfStay?.to) return '';
+  const formatPart = (iso: string) => {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+    if (m) return `${m[3]} ${MONTHS_SHORT[Number(m[2]) - 1] ?? m[2]}`;
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return iso;
+    return `${d.getDate().toString().padStart(2, '0')} ${MONTHS_SHORT[d.getMonth()]}`;
+  };
+  return `${formatPart(datesOfStay.from)} - ${formatPart(datesOfStay.to)}`;
+};
+
+/**
+ * Guests in words — Figma 4553:922: "2 Adults, 2 Kids", "1 Adult". Kids are
+ * left out when there are none; empty when nobody is booked.
+ */
+export const formatGuestCountWords = (guestCount: { adults: number; kids: number } | undefined | null): string => {
+  if (!guestCount) return '';
+  const parts: string[] = [];
+  if (guestCount.adults > 0) parts.push(`${guestCount.adults} ${guestCount.adults === 1 ? 'Adult' : 'Adults'}`);
+  if (guestCount.kids > 0) parts.push(`${guestCount.kids} ${guestCount.kids === 1 ? 'Kid' : 'Kids'}`);
+  return parts.join(', ');
+};
 
 /**
  * A moment, the way staff say it — 24-hour, and only as much date as needed:

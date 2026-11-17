@@ -23,7 +23,11 @@ export const authService = {
    */
   async signIn({ email, password }: SignInCredentials): Promise<{ error: AuthError | null }> {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
+    // A mistyped email or password is the user's to fix, and the login screen
+    // says so: a warning, not the red error box. Anything else is a real failure.
+    if (error?.code === 'invalid_credentials') {
+      console.warn('[Auth] signIn rejected: invalid credentials');
+    } else if (error) {
       console.error('[Auth] signIn error:', {
         message: error.message,
         status: error.status,

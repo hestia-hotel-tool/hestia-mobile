@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions, PixelRat
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { typography } from '@/theme';
 import { Icon } from '@/components/Icon';
+import { router } from 'expo-router';
+import { Avatar } from '@/components/ui/Avatar';
 import CreateTicketButton from './CreateTicketButton';
 import {
   TICKETS_HEADER,
@@ -16,12 +18,16 @@ import {
 interface TicketsHeaderProps {
   onBackPress?: () => void;
   onCreatePress?: () => void;
+  /**
+   * Who is signed in, in place of the "Tickets" title — for someone whose app
+   * opens here (laundry attendants, client 2026-11-09): the tab bar already
+   * says Tickets, and this is their home screen, so it carries their profile
+   * the way Home and Rooms do for everyone else. Tapping it opens Settings.
+   */
+  profile?: { name?: string | null; role?: string | null; avatarUrl?: string | null } | null;
 }
 
-export default function TicketsHeader({
-  onBackPress,
-  onCreatePress,
-}: TicketsHeaderProps) {
+export default function TicketsHeader({ onBackPress, onCreatePress, profile }: TicketsHeaderProps) {
   const { width: windowWidth } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const scaleXForIcons = ticketsScaleX(windowWidth);
@@ -37,35 +43,58 @@ export default function TicketsHeader({
    * and is zero on a device with no inset.
    */
   const topShift = getTicketsTopShift(insets.top, scaleXForIcons);
-  const styles = useMemo(
-    () => buildTicketsHeaderStyles(windowWidth, topShift),
-    [windowWidth, topShift]
-  );
+  const styles = useMemo(() => buildTicketsHeaderStyles(windowWidth, topShift), [windowWidth, topShift]);
 
   return (
     <View style={styles.container}>
       <View style={styles.headerBackground} />
 
       <View style={styles.topSection}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={onBackPress || (() => {})}
-          activeOpacity={0.7}
-        >
-          {/*
+        {/* No handler, no arrow (Tickets is where this person's app opens);
+            the box stays so the title does not move. */}
+        {onBackPress ? (
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={onBackPress}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+          >
+            {/*
             Figma 667-3068 node 667:3116 is 14x28. `action-chevron` already
             points left and its viewBox aspect is exactly 0.5, so a height of 28
             paints 14 wide — the same call the room-detail header back button
             makes. The 32x32 box around it is unchanged in this stage.
           */}
-          <Icon
-            name="action-chevron"
-            size={TICKETS_HEADER.backButton.height * scaleXForIcons}
-            color="#607AA1"
-          />
-        </TouchableOpacity>
+            <Icon name="action-chevron" size={TICKETS_HEADER.backButton.height * scaleXForIcons} color="#607AA1" />
+          </TouchableOpacity>
+        ) : (
+          <View style={styles.backButton} />
+        )}
 
-        <Text style={styles.title}>Tickets</Text>
+        {profile ? (
+          <TouchableOpacity
+            style={styles.profile}
+            onPress={() => router.push('/settings')}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${profile.name ?? 'Your profile'}, open account`}
+          >
+            <Avatar uri={profile.avatarUrl} name={profile.name} size={PROFILE_AVATAR * scaleXForIcons} />
+            <View style={styles.profileText}>
+              <Text style={styles.profileName} numberOfLines={1}>
+                {profile.name ?? 'Staff'}
+              </Text>
+              {profile.role ? (
+                <Text style={styles.profileRole} numberOfLines={1}>
+                  {profile.role}
+                </Text>
+              ) : null}
+            </View>
+          </TouchableOpacity>
+        ) : (
+          <Text style={styles.title}>Tickets</Text>
+        )}
 
         <View style={styles.createButton}>
           <CreateTicketButton onPress={onCreatePress} scaleX={scaleXForIcons} />
@@ -74,6 +103,9 @@ export default function TicketsHeader({
     </View>
   );
 }
+
+/** The profile's avatar — a touch under Home's 51, to sit level with the 74 pill. */
+const PROFILE_AVATAR = 46;
 
 function buildTicketsHeaderStyles(windowWidth: number, topShift: number) {
   const scaleX = ticketsScaleX(windowWidth);
@@ -121,6 +153,37 @@ function buildTicketsHeaderStyles(windowWidth: number, topShift: number) {
       position: 'absolute',
       left: TICKETS_HEADER.title.left * scaleX,
       top: TICKETS_HEADER.title.top * scaleX + topShift,
+    },
+    // Where the arrow and title were: from the left gutter to just short of the
+    // Create Ticket pill, centred on the same line as both.
+    profile: {
+      position: 'absolute',
+      left: TICKETS_HEADER.backButton.left * scaleX,
+      right: (TICKETS_HEADER.createButton.right + TICKETS_HEADER.createButton.width + 12) * scaleX,
+      top:
+        (TICKETS_HEADER.backButton.top + TICKETS_HEADER.backButton.height / 2 - PROFILE_AVATAR / 2) * scaleX +
+        topShift,
+      height: PROFILE_AVATAR * scaleX,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12 * scaleX,
+    },
+    profileText: {
+      flex: 1,
+      minWidth: 0,
+    },
+    // HomeHeader's name and title, at this band's size.
+    profileName: {
+      fontSize: 18 * scaleX,
+      fontFamily: typography.fontFamily.primary,
+      fontWeight: '300',
+      color: '#1e1e1e',
+    },
+    profileRole: {
+      marginTop: 2 * scaleX,
+      fontSize: 12 * scaleX,
+      fontFamily: typography.fontFamily.primary,
+      color: '#1e1e1e',
     },
     createButton: {
       position: 'absolute',

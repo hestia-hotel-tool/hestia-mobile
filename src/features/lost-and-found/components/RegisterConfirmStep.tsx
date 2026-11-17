@@ -6,6 +6,7 @@ import { Icon } from '@/components/Icon';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
 import { scaleX } from '../constants/lostAndFoundStyles';
 import { StaffAvatar } from './StaffAvatar';
+import { VipCode } from '@/components/ui/VipCode';
 
 const s = (n: number) => n * scaleX;
 
@@ -34,6 +35,8 @@ export type RegisterConfirmStepProps = {
   onEditLocation: () => void;
   /** Back to step 2 — people, status and storage. */
   onEditDetails: () => void;
+  /** Line staff register as themselves: no editing who found / registered it. */
+  peopleLocked?: boolean;
   onAddPhoto: () => void;
 };
 
@@ -79,6 +82,7 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
     pictures,
     onEditLocation,
     onEditDetails,
+    peopleLocked = false,
     onAddPhoto,
   } = props;
   const isRoom = location === 'room';
@@ -150,13 +154,13 @@ export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
 
       {/* Node 4231:581 — who found it, who registered it. */}
       <View style={[styles.panel, styles.peoplePanel]}>
-        <Text style={[styles.heading, styles.peopleHeading]}>Founded by</Text>
-        <PersonRow person={foundedBy} onEdit={onEditDetails} editLabel="Edit who found it" />
+        <Text style={[styles.heading, styles.peopleHeading]}>Found by</Text>
+        <PersonRow person={foundedBy} onEdit={peopleLocked ? undefined : onEditDetails} editLabel="Edit who found it" />
         <View style={styles.peopleRule} />
         <Text style={[styles.heading, styles.peopleHeading, styles.registeredHeading]}>
           Registered by
         </Text>
-        <PersonRow person={registeredBy} onEdit={onEditDetails} editLabel="Edit who registered it" />
+        <PersonRow person={registeredBy} onEdit={peopleLocked ? undefined : onEditDetails} editLabel="Edit who registered it" />
       </View>
 
       {/* Node 1102:3280 */}
@@ -236,7 +240,7 @@ function GuestBlock({ room }: { room: RoomPickerRoom | null }) {
           <Text style={styles.guestName} numberOfLines={1}>
             {guest?.fullName ?? '—'}
           </Text>
-          {guest?.vipCode ? <Text style={styles.vipCode}>{guest.vipCode}</Text> : null}
+          <VipCode code={guest?.vipCode} fontSize={s(12)} style={styles.vipCode} />
         </View>
         <View style={styles.guestMeta}>
           {dates ? <Text style={styles.guestDates}>{dates}</Text> : null}
@@ -259,7 +263,7 @@ function PersonRow({
   editLabel,
 }: {
   person: ConfirmPerson;
-  onEdit: () => void;
+  onEdit?: () => void;
   editLabel: string;
 }) {
   return (
@@ -271,7 +275,7 @@ function PersonRow({
         </Text>
         {person.department ? <Text style={styles.personDept}>{person.department}</Text> : null}
       </View>
-      <EditButton onPress={onEdit} label={editLabel} />
+      {onEdit ? <EditButton onPress={onEdit} label={editLabel} /> : null}
     </View>
   );
 }
@@ -388,13 +392,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#000000',
   },
-  // Node 2961:163 — Light 12, #334866.
+  // Node 2961:163's spot; the pill (VipCode) draws the code in its tier colour.
   vipCode: {
     marginLeft: s(6),
-    fontSize: s(12),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#334866',
   },
   guestMeta: { flexDirection: 'row', alignItems: 'center', marginTop: s(4), gap: s(6) },
   guestDates: {

@@ -16,6 +16,8 @@ export interface LostAndFoundItem {
   guestCount?: number; // e.g., 2
   guestImage?: { uri: string } | any; // Guest avatar/image
   storedLocation: string; // e.g., "Office"
+  /** The notes typed when it was registered (`description`), shown on the card. */
+  notes?: string | null;
   /** When status is `shipped`/`returned`, where the item was shipped to (Figma 3107:70). */
   shippedLocation?: string;
   registeredBy: {

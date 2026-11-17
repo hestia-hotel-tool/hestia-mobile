@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, SectionList, TextInput } from 'react-native';
 import { Icon } from '@/components/Icon';
+import { useTabBack } from '@/domain/rbac/useTabBack';
 import { useFocusEffect, useNavigation, useRoute, useRouter } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 
@@ -19,6 +20,7 @@ import StaffDepartmentStrip from '../components/StaffDepartmentStrip';
 import EmptyStaffState, { type StaffEmptyReason } from '../components/EmptyStaffState';
 import StaffShiftCard from '../components/staffList/StaffShiftCard';
 import ShiftGroupHeading from '../components/staffList/ShiftGroupHeading';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { STAFF_LIST_LAYOUT as L } from '../components/staffList/staffListLayout';
 import { useStaffRoster } from '../hooks/useStaffRoster';
 import type { StaffTab } from '../types/staff.types';
@@ -31,7 +33,6 @@ type MainTabsParamList = {
   '(tickets)/index': undefined;
   '(lost_and_found)/index': undefined;
   '(staff)/index': undefined;
-  '(settings)/index': undefined;
 };
 
 type StaffScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(staff)/index'>;
@@ -43,25 +44,6 @@ type StaffScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(st
  * with several spellings.
  */
 const CLEANING_DEPARTMENTS = new Set(['hsk portier', 'laundry', 'housekeeping', 'hsk']);
-
-/**
- * Departments the roster does not show.
- *
- * "Executive and Administration" is general management, not a shift-working
- * team — it has no rooms, no shifts and nothing for this screen to group, and
- * the frame never drew it.
- *
- * **Hidden here, not deleted, and not hidden globally.** The row has three real
- * users attached (including the account owner), so removing it from the
- * database would orphan them or fail on the foreign key. `getDepartments` is
- * also shared with the ticket department picker, where routing a ticket to
- * management is legitimate — filtering inside that helper would take it away
- * from Tickets too.
- *
- * The cost, stated: those three people are no longer reachable from this
- * screen. Delete this constant to bring the department back.
- */
-const HIDDEN_DEPARTMENTS = new Set(['executive and administration']);
 
 /**
  * The Staff roster — Figma 3240:561.
@@ -156,10 +138,7 @@ export default function StaffScreen() {
     getDepartments()
       .then((res) => {
         if (cancelled) return;
-        const visible = (res.data ?? []).filter(
-          (d) => !HIDDEN_DEPARTMENTS.has((d.name ?? '').trim().toLowerCase()),
-        );
-        const sorted = sortDepartmentsByDisplayOrder(visible);
+        const sorted = sortDepartmentsByDisplayOrder(res.data ?? []);
         setDepartments(sorted);
         setActiveDepartmentId((prev) => prev ?? sorted[0]?.id ?? null);
       })
@@ -197,7 +176,13 @@ export default function StaffScreen() {
   // screen is showing, or once on return if one happened while it was hidden.
   useLiveRoomChanges(refreshRoster);
 
+  const tabBack = useTabBack('Staff');
   const handleBack = useCallback(() => {
+    // Without Home, goBack() lands on Home and loops through the guard.
+    if (!tabBack.hasHome) {
+      tabBack.goBack();
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
       return;
@@ -205,7 +190,7 @@ export default function StaffScreen() {
     const returnToTab =
       (route.params as { returnToTab?: ReturnToTab } | undefined)?.returnToTab ?? '(home)/index';
     navigation.navigate(returnToTab as keyof MainTabsParamList);
-  }, [navigation, route.params]);
+  }, [navigation, route.params, tabBack]);
 
   /**
    * "See rooms" leaves for that person's full room list — Figma 3810:173.
@@ -286,6 +271,30 @@ export default function StaffScreen() {
 
   const visibleCount = sections.reduce((n, s) => n + s.people.length, 0);
 
+  /** What this roster shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    const facts: ScreenFact[] = [
+      { label: 'Department', value: activeDepartment?.name ?? '—' },
+      { label: 'Shift tab', value: selectedTab === 'am' ? 'AM' : 'PM' },
+      { label: 'People on this shift', value: roster?.totalCount ?? 0 },
+    ];
+    for (const section of sections) {
+      if (!section.people.length) continue;
+      facts.push({
+        label: `${section.title} (${section.people.length})`,
+        value: section.people
+          .map((p) => {
+            const w = p.work;
+            const load = w && w.total ? ` – ${w.completed}/${w.total} rooms done` : '';
+            return `${p.name} (${p.jobTitle ?? 'staff'})${load}`;
+          })
+          .join('; '),
+      });
+    }
+    return facts;
+  }, [activeDepartment, selectedTab, roster, sections]);
+  useAssistantScreen('Staff', assistantFacts);
+
   /** Which empty state, if any. Order matters: most specific first. */
   const emptyReason: StaffEmptyReason | null = (() => {
     if (loading || error) return null;
@@ -360,7 +369,7 @@ export default function StaffScreen() {
         keyExtractor={(person) => person.id}
         renderSectionHeader={({ section }) => (
           <View style={{ paddingHorizontal: s(L.gutter) }}>
-            <ShiftGroupHeading state={section.state} />
+            <ShiftGroupHeading state={section.state} count={section.data.length} />
           </View>
         )}
         /*

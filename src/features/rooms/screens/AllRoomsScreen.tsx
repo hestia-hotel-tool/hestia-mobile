@@ -1,6 +1,6 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { View, FlatList, StyleSheet, RefreshControl, useWindowDimensions, Text, Image, Platform } from 'react-native';
+import { View, FlatList, ScrollView, StyleSheet, RefreshControl, useWindowDimensions, Text, Platform, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useRoute, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
@@ -18,10 +18,12 @@ import {
 } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
+import { LINEN_FOCI, LinenSummary, ViewOnlyChip, type LinenFocus } from '../components/allRooms/LinenSummary';
 import { useUser } from '@features/account/hooks/useUser';
 import RoomCard from '../components/allRooms/RoomCard';
 import { ActiveFiltersBar } from '@/components/filters/ActiveFiltersBar';
-import { RoomListCard } from '../components/roomsList';
+import { RoomListCard, ROOM_CARD } from '../components/roomsList';
+import { cardPx } from '../components/roomsList/roomCardLayout';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import StatusChangeModal, {
   STATUS_MODAL_SPACING,
@@ -37,33 +39,52 @@ import {
 import {
   getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreatedAt,
   getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt,
+  unassignRoomsFromStaff,
 } from '../services/rooms';
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { CategoryName } from '@features/home/types/home.types';
 import AllRoomsFilterModal from '../components/allRooms/AllRoomsFilterModal';
 import ReassignModal from '../components/roomDetail/ReassignModal';
+import StaffActionMenu, {
+  STAFF_ACTION_MENU_TAIL,
+  staffActionMenuHeight,
+  type StaffRoomsAction,
+} from '@features/staff/components/staffRooms/StaffActionMenu';
+import type { MeasureAnchor, WindowRect } from '../hooks/useRevealBelow';
 import { CARD_DIMENSIONS } from '../constants/allRoomsStyles';
 import { getShiftFromTime } from '@/utils/shiftUtils';
+import { useShiftLock } from '@features/account/hooks/useShiftLock';
+import OffShiftNotice from '@features/account/components/OffShiftNotice';
+import { usePorterChecks } from '../hooks/usePorterChecks';
+import { groupRoomsForPorter, isGuestIn, type PorterAction } from '../utils/porter';
+import PorterStatusModal from '../components/PorterStatusModal';
 import { getStayoverWithLinen } from '../utils/stayoverLinen';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
-import { applyRoomFilters, describeActiveFilters, hasAnyActiveFilter } from '../utils/roomFilters';
+import { activeFilterGroups, applyRoomFilters, describeActiveFilters, hasAnyActiveFilter, roomVipTiers } from '../utils/roomFilters';
 import { scrollTargetOf, trackRef, type ScrollTarget } from '../utils/scrollTarget';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
 import { groupRoomsByStatus } from '../utils/roomGroups';
-import { GroupedRoomsList } from '../components/allRooms/GroupedRoomsList';
+import { GroupedRoomsList, type TrayPlacement } from '../components/allRooms/GroupedRoomsList';
 import { RoomRow } from '../components/allRooms/RoomRow';
 import { PERMISSIONS } from '@/domain/rbac/permissions';
 import { usePermissions } from '@/domain/rbac/usePermissions';
+import { useTabBack } from '@/domain/rbac/useTabBack';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
-import { OVERRIDE_REASONS, SEND_BACK_REASONS } from '../utils/roomStatusMachine';
+import { OVERRIDE_REASONS } from '../utils/roomStatusMachine';
+import { useSendBackSheet } from '../components/SendBackSheet';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { useToast } from '@/contexts/ToastContext';
 import { useStatusPopoverAnchor } from '../hooks/useStatusPopoverAnchor';
 import { useKeepRoomVisible } from '../hooks/useKeepRoomVisible';
+import { useCollapsingHeader } from '../hooks/useCollapsingHeader';
+import { useRevealBelow } from '../hooks/useRevealBelow';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { ROOMS_LIST_CHROME } from '../constants/roomsListChrome';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Icon } from '@/components/Icon';
+import { RoomListSkeleton } from '../components/roomsList/RoomCardSkeleton';
 
 /** When user taps a status badge or priority badge on Home. */
 export type CategoryFilterParam = {
@@ -80,6 +101,7 @@ export default function AllRoomsScreen() {
   const navigation = useNavigation<AllRoomsScreenNavigationProp>();
   const { session } = useAuth();
   const messageModal = useMessageModal();
+  const sendBack = useSendBackSheet();
   const toast = useToast();
 
   /*
@@ -111,14 +133,17 @@ export default function AllRoomsScreen() {
   const insets = useSafeAreaInsets();
   const route = useRoute();
   const routeShift = (route.params as any)?.selectedShift as ShiftType | undefined;
-  const initialShift = routeShift || getShiftFromTime();
+  /** Room attendants work their own shift only: no toggle, and links cannot switch it (useShiftLock). */
+  const shiftLock = useShiftLock();
+  const initialShift = shiftLock.locked ? shiftLock.shift : routeShift || getShiftFromTime();
   // Only the fields this screen uses: a whole-store subscription re-rendered it
   // on every change, including the per-update "saving" flag.
-  const { data: allRoomsData, loading, refreshing, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
+  const { data: allRoomsData, loading, refreshing, lastFetchedShift, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
     useShallow((st) => ({
       data: st.data,
       loading: st.loading,
       refreshing: st.refreshing,
+      lastFetchedShift: st.lastFetchedShift,
       fetchRooms: st.fetchRooms,
       updateRoom: st.updateRoom,
       runRoomAction: st.runRoomAction,
@@ -141,6 +166,16 @@ export default function AllRoomsScreen() {
   // UI shift follows the selected shift. Do not coerce PM->AM during AM hours; that breaks
   // assignment-based navigation (HSK Portier) and can lead to empty results.
   const uiShift: ShiftType = (displayData.selectedShift ?? initialShift) as ShiftType;
+  /*
+   * The AM/PM toggle has switched shift and that shift's rooms are on their
+   * way: until they land the store still holds the other shift's list, and
+   * painting it in the new shift's colours, then swapping it out, read as a
+   * glitch. The list shows skeleton cards instead (RoomListSkeleton) and the
+   * pull-to-refresh spinner stays hidden. If the fetch fails, `refreshing`
+   * drops and the list falls back to what it has, as before.
+   */
+  const switchingShift =
+    !!allRoomsData && lastFetchedShift != null && lastFetchedShift !== uiShift && (refreshing || loading);
 
   React.useEffect(() => {
     fetchRooms(initialShift);
@@ -188,7 +223,14 @@ export default function AllRoomsScreen() {
    * permission: supervisors and attendants hold the same rights as the managers
    * above them, only their day differs.
    */
-  const { roomsVariant, can } = usePermissions();
+  const { roomsVariant, can, homeVariant, inLaundry } = usePermissions();
+  /**
+   * Porters (Figma 3859:1041) see every room grouped by their own round —
+   * In Progress, Paused, Priority, Checked, UnChecked — and set that mark from
+   * the pill. It is separate from the cleaning status (utils/porter.ts).
+   */
+  const isPorter = homeVariant === 'hsk_portier' && can(PERMISSIONS.ROOMS_PORTER_CHECK);
+  const porterChecks = usePorterChecks(uiShift, isPorter);
   /*
    * Whether the status pill is a control or just a badge.
    *
@@ -377,14 +419,22 @@ export default function AllRoomsScreen() {
     React.useCallback(() => {
       const params = route.params as any;
       const currentRouteShift = params?.selectedShift as ShiftType | undefined;
-      if (currentRouteShift && currentRouteShift !== allRoomsData?.selectedShift) {
+      if (!shiftLock.locked && currentRouteShift && currentRouteShift !== allRoomsData?.selectedShift) {
         setSelectedShift(currentRouteShift);
         fetchRooms(currentRouteShift);
         setLocalFilters(undefined);
         setSearchQuery('');
       }
-    }, [route.params, allRoomsData?.selectedShift, fetchRooms, setSelectedShift])
+    }, [route.params, allRoomsData?.selectedShift, fetchRooms, setSelectedShift, shiftLock.locked])
   );
+
+  // A locked attendant always sees their own shift, once it is known.
+  React.useEffect(() => {
+    if (shiftLock.locked && allRoomsData && allRoomsData.selectedShift !== shiftLock.shift) {
+      setSelectedShift(shiftLock.shift);
+      fetchRooms(shiftLock.shift);
+    }
+  }, [shiftLock.locked, shiftLock.shift, allRoomsData, setSelectedShift, fetchRooms]);
 
   // Sync local filters with route params when navigating (e.g. from Home with categoryFilter)
   React.useEffect(() => {
@@ -447,8 +497,27 @@ export default function AllRoomsScreen() {
     setSearchQuery(text);
   };
 
+  /** The profile header's wrapper, measured to hang the filter sheet under it. */
+  const headerWrapRef = useRef<View>(null);
+  const [filterAnchorTop, setFilterAnchorTop] = useState<number | undefined>(undefined);
+
+  /*
+   * The profile header stays on screen under the filter sheet, so the sheet
+   * hangs from wherever the header ends right now — open or collapsed, with
+   * or without its filters row. Measured at the tap; if the measure fails the
+   * last layout height stands in, the header being flush with the top.
+   */
   const handleFilterPress = () => {
-    setShowFilterModal(true);
+    const header = headerWrapRef.current;
+    if (!useProfileHeader || !header) {
+      setShowFilterModal(true);
+      return;
+    }
+    header.measureInWindow((_x, y, _width, height) => {
+      const bottom = Number.isFinite(y + height) && height > 0 ? y + height : (profileHeaderHeight ?? undefined);
+      setFilterAnchorTop(bottom);
+      setShowFilterModal(true);
+    });
   };
 
   // `useCallback` because every card holds this: a fresh identity re-renders
@@ -520,8 +589,13 @@ export default function AllRoomsScreen() {
       vacant: 0,
     };
     const totalRooms = sourceRooms.length;
+    // Rooms with a guest in each VIP tier ('1'–'5'); a room counts once per tier.
+    const vip: Record<string, number> = {};
 
     sourceRooms.forEach((room) => {
+      roomVipTiers(room).forEach((tier) => {
+        vip[String(tier)] = (vip[String(tier)] ?? 0) + 1;
+      });
       // Room state counts
       if (room.houseKeepingStatus === 'Dirty') roomStates.dirty++;
       if (room.houseKeepingStatus === 'InProgress') roomStates.inProgress++;
@@ -576,7 +650,7 @@ export default function AllRoomsScreen() {
       ...Object.fromEntries(Object.entries(floorCounts).map(([k, v]) => [k, v])),
     };
 
-    return { roomStates, guests, reservations, floors, totalRooms };
+    return { roomStates, guests, reservations, floors, vip, totalRooms };
   }, [displayData.rooms, displayData.roomsPM, uiShift]);
 
   /**
@@ -595,6 +669,33 @@ export default function AllRoomsScreen() {
     });
   }, [navigation]);
 
+  /**
+   * The linen tile whose filter is on: exactly that one guest filter and
+   * nothing else, so a selection made in the filter sheet never lights a tile.
+   */
+  const linenFocus = useMemo<LinenFocus | null>(() => {
+    if (!chrome.linenSummary || !activeFilters) return null;
+    const groups = activeFilterGroups(activeFilters);
+    if (groups.roomStates || groups.reservations || groups.floors) return null;
+    const on = Object.entries(activeFilters.guests).filter(([, v]) => v).map(([k]) => k);
+    return on.length === 1 && LINEN_FOCI.includes(on[0] as LinenFocus) ? (on[0] as LinenFocus) : null;
+  }, [chrome.linenSummary, activeFilters]);
+
+  /** A linen tile: show only its rooms, or every room again when it is already on. */
+  const handleLinenSelect = useCallback(
+    (focus: LinenFocus) => {
+      if (linenFocus === focus) {
+        clearAllFilters();
+        return;
+      }
+      setLocalFilters({
+        roomStates: { dirty: false, inProgress: false, cleaned: false, inspected: false, priority: false },
+        guests: { arrivals: false, departures: false, turnDown: false, stayOver: false, [focus]: true },
+      });
+    },
+    [linenFocus, clearAllFilters]
+  );
+
   const handleApplyFilters = (appliedFilters: FilterState) => {
     setShowFilterModal(false);
     // Applying an empty selection (Reset, then apply) means "all rooms".
@@ -605,9 +706,8 @@ export default function AllRoomsScreen() {
     setLocalFilters(appliedFilters);
   };
 
-  const handleBackPress = () => {
-    navigation.goBack();
-  };
+  // Not a bare goBack(): for someone without Home that looped (useTabBack).
+  const { goBack: handleBackPress } = useTabBack('Rooms');
 
   // `useCallback` for the same reason as `handleAssignStaffPress`.
   const handleRoomPress = useCallback(
@@ -671,6 +771,121 @@ export default function AllRoomsScreen() {
   const statusButtonPosition = statusPopover.anchor;
   const statusBlurTop = statusPopover.blurTop;
   const statusOverlayActive = statusPopover.overlayActive;
+  /**
+   * The profile band folds away as the list scrolls and comes back on a flick
+   * up (RoomsHeader). Frozen while the status popover is up: it scrolls the
+   * list itself to place the card, and a header changing height then would
+   * move the card out from under its anchor.
+   */
+  /*
+   * The VIP popover opens downward from a card's VIP disc, always: this makes
+   * the room (pads the list's end, scrolls just enough). Its window ends where
+   * the tab bar starts, as for keepRoomVisible below.
+   */
+  const vipReveal = useRevealBelow({
+    scrollRef: scrollViewRef,
+    scrollOffsetRef: currentScrollYRef,
+    bottomBound: SCREEN_HEIGHT - insets.bottom - 152 * scaleX,
+    // The profile header is flush with the top, so its height is its bottom
+    // edge in the window; the VIP popover leaves it unblurred.
+    headerBottom: useProfileHeader ? (profileHeaderHeight ?? 0) : 0,
+  });
+  /*
+   * The attendant on a card, tapped: the Staff screen's action menu for this
+   * one room — Reassign Room / Unassign (client, 2026-11-16). It always opens
+   * *below* the attendant, a tail pointing up at them: the list scrolls first
+   * to make room (useRevealBelow, as for the VIP popover), which also freezes
+   * the collapsing header. The header and the tapped card stay sharp.
+   * Kept after closing (open: false) so the menu fades out.
+   */
+  const [assigneeMenu, setAssigneeMenu] = useState<{
+    room: RoomCardData;
+    anchor: WindowRect;
+    /** The tapped card, kept sharp in the blur. */
+    card: WindowRect | null;
+    /** Window y where the screen's header ends: never blurred. */
+    headerBottom: number;
+    open: boolean;
+  } | null>(null);
+  const ASSIGNEE_ACTIONS: StaffRoomsAction[] = ['reassign', 'unassign'];
+  /** Between the attendant and the tail's tip (client, 2026-11-16: "a little lower"). */
+  const ASSIGNEE_MENU_GAP = 16 * scaleX;
+  /** Tail + gap + the menu itself: what the list makes room for under the attendant. */
+  const assigneeMenuSpace =
+    ASSIGNEE_MENU_GAP + STAFF_ACTION_MENU_TAIL.height + staffActionMenuHeight(ASSIGNEE_ACTIONS) + 12 * scaleX;
+  const revealForMenu = vipReveal.reveal;
+  const endRevealForMenu = vipReveal.end;
+  const handleAssigneePress = useCallback(
+    async (room: RoomCardData, measureAssignee: MeasureAnchor, measureCard: MeasureAnchor) => {
+      const revealed = await revealForMenu(measureAssignee, assigneeMenuSpace);
+      // Unmeasurable (scrolled away mid-tap): straight to the picker, as before.
+      if (!revealed) {
+        endRevealForMenu();
+        handleAssignStaffPress(room);
+        return;
+      }
+      const card = await measureCard();
+      setAssigneeMenu({ room, anchor: revealed.rect, card, headerBottom: revealed.clearAbove, open: true });
+    },
+    [revealForMenu, endRevealForMenu, assigneeMenuSpace, handleAssignStaffPress]
+  );
+  const closeAssigneeMenu = () => {
+    setAssigneeMenu((m) => (m ? { ...m, open: false } : m));
+    endRevealForMenu();
+  };
+
+  const unassignRoom = async (room: RoomCardData) => {
+    const staff = room.roomAttendantAssigned;
+    const shift = displayData.selectedShift === 'PM' ? 'PM' : 'AM';
+    if (!staff?.userId) {
+      toast.show(`Room ${room.roomNumber} could not be unassigned. Pull to refresh and try again.`, { type: 'error' });
+      return;
+    }
+    setAssigningStaffRoomId(room.id);
+    try {
+      await unassignRoomsFromStaff([room.id], staff.userId, shift);
+      setRoomAttendant(room.id, null);
+    } catch (e) {
+      toast.show(
+        `Room ${room.roomNumber} was not unassigned. ${e instanceof Error ? e.message : 'Please try again.'}`,
+        { type: 'error', duration: 4500 }
+      );
+    } finally {
+      setAssigningStaffRoomId(null);
+    }
+  };
+
+  const handleAssigneeAction = (action: StaffRoomsAction) => {
+    const room = assigneeMenu?.room;
+    closeAssigneeMenu();
+    if (!room) return;
+    if (action === 'reassign') {
+      // After the menu has faded: iOS shows one modal at a time.
+      setTimeout(() => handleAssignStaffPress(room), 350);
+    } else if (action === 'unassign') {
+      const who = room.roomAttendantAssigned?.name ?? 'the attendant';
+      Alert.alert(`Unassign Room ${room.roomNumber}?`, `It will no longer be ${who}'s this shift.`, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Unassign', style: 'destructive', onPress: () => void unassignRoom(room) },
+      ]);
+    }
+  };
+
+  /** Under the attendant, the tail pointing at their photo; left-aligned with them. */
+  const assigneeMenuPlacement = (() => {
+    const a = assigneeMenu?.anchor;
+    if (!a) return { top: 0, left: 0, tailX: 0 };
+    const width = 302 * scaleX;
+    const top = a.y + a.height + ASSIGNEE_MENU_GAP + STAFF_ACTION_MENU_TAIL.height - 1;
+    const left = Math.min(Math.max(8, a.x - 8 * scaleX), windowWidth - width - 8);
+    return { top, left, tailX: a.x + ROOM_CARD.assigneeAvatar / 2 };
+  })();
+
+  const collapsingHeader = useCollapsingHeader({
+    // Also frozen while the VIP popover places itself: a header changing
+    // height would move the disc out from under its tail.
+    enabled: !statusOverlayActive && !showFilterModal && !vipReveal.active,
+  });
   const handleStatusPress = statusPopover.open;
 
   /** The status menu's remove button on a room's promise time. */
@@ -771,15 +986,21 @@ export default function AllRoomsScreen() {
     await statusPopover.close();
 
     // A reason where the rules require one: sending back, acting for someone.
-    let reason: string | null = presetReason ?? null;
-    if (resolved.action === 'send_back' && !reason) {
-      reason = await askReason(
-        messageModal,
-        roomToUpdate.houseKeepingStatus === 'Inspected' ? `Reopen ${label}?` : `Send ${label} back?`,
-        'The attendant is told why and the room goes back to Dirty.',
-        SEND_BACK_REASONS
-      );
-      if (!reason) return false;
+    let reason: string | null = null;
+    let photoUrls: string[] = [];
+    if (resolved.action === 'send_back') {
+      // Why, in a preset or their own words, with photos of what to fix. A
+      // preset from the Inspection Checklist's reject is ticked on opening.
+      const sent = await sendBack.ask({
+        roomNumber: roomToUpdate.roomNumber,
+        fromInspected: roomToUpdate.houseKeepingStatus === 'Inspected',
+        presetReason: presetReason ?? undefined,
+      });
+      if (!sent) return false;
+      reason = sent.reason;
+      photoUrls = sent.photoUrls;
+    } else {
+      reason = presetReason ?? null;
     }
     if (resolved.viaOverride && !reason) {
       const attendant = roomToUpdate.roomAttendantAssigned?.name ?? 'the attendant';
@@ -796,7 +1017,7 @@ export default function AllRoomsScreen() {
     setChangingStatusRoomId(roomToUpdate.id);
     let saved = true;
     try {
-      await runRoomAction(roomToUpdate.id, resolved.action, { reason });
+      await runRoomAction(roomToUpdate.id, resolved.action, { reason, photoUrls });
       if (resolved.action === 'dnd') {
         toast.show(`${label}: Do Not Disturb recorded. Your supervisor has been told.`, { type: 'success' });
       } else if (resolved.action === 'dnd_recheck') {
@@ -977,8 +1198,55 @@ export default function AllRoomsScreen() {
   );
 
   const roomGroups = useMemo(
-    () => (isGroupedRooms ? groupRoomsByStatus(filteredRooms) : []),
-    [isGroupedRooms, filteredRooms]
+    () =>
+      isGroupedRooms
+        ? isPorter
+          ? groupRoomsForPorter(filteredRooms, porterChecks.statusOf)
+          : groupRoomsByStatus(filteredRooms)
+        : [],
+    [isGroupedRooms, isPorter, filteredRooms, porterChecks.statusOf]
+  );
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    const facts: ScreenFact[] = [{ label: 'Shift shown', value: uiShift }];
+    if (shiftLock.offShift) {
+      facts.push({ label: 'Notice', value: `You have no ${shiftLock.offShift.shift} shift` });
+      return facts;
+    }
+    facts.push({ label: 'Rooms listed', value: filteredRooms.length });
+    if (activeFilterParts.length) facts.push({ label: 'Filters on', value: activeFilterParts.join(', ') });
+    if (searchQuery.trim()) facts.push({ label: 'Search', value: searchQuery.trim() });
+    const numbers = (rooms: RoomCardData[]) => rooms.map((r) => r.roomNumber).join(', ');
+    if (roomGroups.length) {
+      for (const g of roomGroups) facts.push({ label: `${g.label} (${g.rooms.length})`, value: numbers(g.rooms) });
+    } else {
+      const byStatus = new Map<string, RoomCardData[]>();
+      for (const r of filteredRooms) {
+        const k = String(r.houseKeepingStatus ?? 'Unknown');
+        byStatus.set(k, [...(byStatus.get(k) ?? []), r]);
+      }
+      for (const [k, rooms] of byStatus) facts.push({ label: `${k} (${rooms.length})`, value: numbers(rooms) });
+    }
+    const priority = filteredRooms.filter((r) => r.isPriority);
+    if (priority.length) facts.push({ label: `Priority (${priority.length})`, value: numbers(priority) });
+    return facts;
+  }, [uiShift, shiftLock.offShift, filteredRooms, activeFilterParts, searchQuery, roomGroups]);
+  useAssistantScreen(isPorter ? 'Rooms (porter round)' : 'Rooms', assistantFacts);
+
+  /** A porter step chosen in the porter's Change Status menu. */
+  const runPorterStep = useCallback(
+    (room: RoomCardData, action: PorterAction) => {
+      porterChecks
+        .act(room.id, action)
+        .then(() => {
+          if (action === 'check') toast.show(`Room ${room.roomNumber} checked`, { type: 'success' });
+        })
+        .catch((e: unknown) =>
+          toast.show(e instanceof Error ? e.message : 'The room could not be updated.', { type: 'error' })
+        );
+    },
+    [porterChecks, toast]
   );
 
   /*
@@ -1015,33 +1283,62 @@ export default function AllRoomsScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {useProfileHeader && !showFilterModal && (
-          <View onLayout={(e) => setProfileHeaderHeight(e.nativeEvent.layout.height)}>
+        {useProfileHeader && (
+          // zIndex here, on the list's sibling: the collapsed header's shadow falls on the cards.
+          // Stays mounted under the filter sheet, which hangs from its bottom edge.
+          <View
+            ref={headerWrapRef}
+            collapsable={false}
+            style={{ zIndex: 2 }}
+            onLayout={(e) => setProfileHeaderHeight(e.nativeEvent.layout.height)}
+          >
             <RoomsHeader
               name={profile?.name}
               role={profile?.role}
               avatarUrl={profile?.avatar}
               shift={displayData.selectedShift}
-              onShiftChange={handleShiftToggle}
+              onShiftChange={shiftLock.locked ? undefined : handleShiftToggle}
+              // Laundry's profile lives on Tickets, where their app opens.
+              showProfile={!inLaundry}
               searchQuery={searchQuery}
               onSearch={handleSearch}
               onFilterPress={handleFilterPress}
-              progress={attendantProgress}
-              titleHidden={statusOverlayActive}
+              filterOpen={showFilterModal}
+              filtersApplied={activeFilterParts.length > 0}
+              progress={collapsingHeader.progress}
+              // A banded list opens with its band heading, which brings its own
+              // 32 above: the field leaves 8, not 40, so the two do not stack.
+              listGap={isGroupedRooms ? 8 : undefined}
+              progressPill={attendantProgress}
+              accessory={chrome.linenSummary ? <ViewOnlyChip onDark={displayData.selectedShift === 'PM'} /> : undefined}
+              summary={
+                chrome.linenSummary ? (
+                  <LinenSummary
+                    counts={{
+                      departures: filterCounts.guests.departures,
+                      stayOverWithLinen: filterCounts.guests.stayOverWithLinen ?? 0,
+                      arrivals: filterCounts.guests.arrivals,
+                    }}
+                    selected={linenFocus}
+                    onSelect={handleLinenSelect}
+                  />
+                ) : undefined
+              }
+              footer={
+                !statusOverlayActive && activeFilterParts.length > 0 ? (
+                  <View style={{ paddingBottom: 8 * scaleX }}>
+                    <ActiveFiltersBar
+                      parts={activeFilterParts}
+                      resultCount={filteredRooms.length}
+                      onClear={clearAllFilters}
+                      scaleX={scaleX}
+                    />
+                  </View>
+                ) : undefined
+              }
             />
           </View>
         )}
-
-        {useProfileHeader && !statusOverlayActive && activeFilterParts.length > 0 ? (
-          <View style={{ paddingTop: 4 * scaleX, paddingBottom: 8 * scaleX }}>
-            <ActiveFiltersBar
-              parts={activeFilterParts}
-              resultCount={filteredRooms.length}
-              onClear={clearAllFilters}
-              scaleX={scaleX}
-            />
-          </View>
-        ) : null}
 
         {/* Scrollable Content with conditional blur */}
         <View
@@ -1080,6 +1377,8 @@ export default function AllRoomsScreen() {
                  * scroll up by the menu's height. Only while it is opening/open.
                  */
                 statusOverlayActive && { paddingBottom: (172 + statusSheetDesignHeight) * scaleX },
+                // Room for the VIP popover under the last cards (useRevealBelow).
+                vipReveal.active && { paddingBottom: 172 * scaleX + vipReveal.extraBottom },
               ],
               showsVerticalScrollIndicator: false,
               scrollEnabled: !showStatusModal,
@@ -1092,30 +1391,50 @@ export default function AllRoomsScreen() {
               keyboardShouldPersistTaps: 'handled' as const,
               onScroll: (event: any) => {
                 currentScrollYRef.current = event.nativeEvent.contentOffset.y;
+                if (useProfileHeader) collapsingHeader.onScroll(event);
               },
               scrollEventThrottle: 16,
               refreshControl: (
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+                <RefreshControl refreshing={refreshing && !switchingShift} onRefresh={onRefresh} />
               ),
             };
 
-            const renderRoomCard = (room: RoomCardData) => (
+            // A room attendant off the shift that is on now: say so, and when theirs is.
+            if (shiftLock.offShift) return <OffShiftNotice info={shiftLock.offShift} onDark={displayData.selectedShift === 'PM'} />;
+
+            // Shift just switched: the card outlines until its rooms arrive.
+            if (switchingShift) {
+              return (
+                <ScrollView {...scrollProps}>
+                  <RoomListSkeleton slotStyle={styles.roomCardSlot} />
+                </ScrollView>
+              );
+            }
+
+            const renderRoomCard = (room: RoomCardData, tray?: TrayPlacement) => (
               <RoomRow
                 key={room.id}
                 room={room}
                 rebuilt={chrome.rebuiltCard}
+                frontOffice={chrome.frontOffice}
+                revealVip={vipReveal.reveal}
+                endVipReveal={vipReveal.end}
                 selectedShift={displayData.selectedShift}
                 canChangeStatus={canChangeStatus}
-                isChangingStatus={changingStatusRoomId === room.id}
+                isChangingStatus={changingStatusRoomId === room.id || (isPorter && porterChecks.busyRoomId === room.id)}
                 isAssigningStaff={assigningStaffRoomId === room.id}
                 onPress={handleRoomPress}
                 onStatusPress={handleStatusPress}
+                porter={
+                  isPorter ? { status: porterChecks.statusOf(room.id), guestIn: isGuestIn(room) } : undefined
+                }
                 onAssignPress={canReassign ? handleAssignStaffPress : undefined}
+                onAssigneePress={canReassign ? handleAssigneePress : undefined}
                 registerCardRef={registerCardRef}
                 registerPillRef={registerPillRef}
                 RebuiltCard={RoomListCard}
                 LegacyCard={RoomCard}
-                slotStyle={styles.roomCardSlot}
+                slotStyle={tray ? (tray.last ? styles.trayLastSlot : styles.traySlot) : styles.roomCardSlot}
               />
             );
 
@@ -1123,12 +1442,8 @@ export default function AllRoomsScreen() {
               <View style={styles.emptyStateCard}>
                 <View style={styles.emptyStateIconContainer}>
                   <View style={styles.emptyStateIconCircle}>
-                    <Image
-                      source={require('../../../../assets/icons/menu-icon.png')}
-                      style={styles.emptyStateIcon}
-                      resizeMode="contain"
-                      tintColor="#5a759d"
-                    />
+                    {/* SVG, not the old menu-icon.png: sharp at any scale. */}
+                    <Icon name="action-filter" size={20 * scaleX} color="#5a759d" />
                   </View>
                 </View>
                 <Text style={styles.emptyStateTitle}>No rooms found</Text>
@@ -1147,6 +1462,7 @@ export default function AllRoomsScreen() {
                   groups={roomGroups}
                   renderRoom={renderRoomCard}
                   stickyInProgress={chrome.stickyInProgress}
+                  trayBands={chrome.frontOffice}
                   scrollProps={scrollProps}
                   scrollRef={scrollViewRef}
                 />
@@ -1210,8 +1526,22 @@ export default function AllRoomsScreen() {
       <BottomTabBar />
 
       {/* Status Change Modal */}
+      {sendBack.element}
+
+      {/* Porters get the same menu, with the porter round's steps (Figma 3859:1041). */}
+      <PorterStatusModal
+        visible={showStatusModal && isPorter}
+        onClose={statusPopover.close}
+        room={isPorter ? selectedRoomForStatusChange : null}
+        status={selectedRoomForStatusChange ? porterChecks.statusOf(selectedRoomForStatusChange.id) : 'unchecked'}
+        onSelect={runPorterStep}
+        buttonPosition={statusButtonPosition}
+        headerHeight={modalHeaderHeight}
+        blurTop={statusBlurTop}
+      />
+
       <StatusChangeModal
-        visible={showStatusModal}
+        visible={showStatusModal && !isPorter}
         onClose={statusPopover.close}
         onStatusSelect={handleStatusSelect}
         onInspectComplete={(report) => {
@@ -1286,6 +1616,22 @@ export default function AllRoomsScreen() {
         roomNumber={roomToAssign?.roomNumber}
         showAutoAssign={false}
         shift={uiShift === 'PM' ? 'PM' : 'AM'}
+        currentAssignedStaffId={roomToAssign?.roomAttendantAssigned?.userId}
+      />
+
+      {/* Reassign / Unassign for one room, from its attendant (StaffActionMenu, as on Staff). */}
+      <StaffActionMenu
+        visible={!!assigneeMenu?.open}
+        top={assigneeMenuPlacement.top}
+        left={assigneeMenuPlacement.left}
+        // The header and the tapped card stay sharp; the rest blurs lightly.
+        blurTop={assigneeMenu?.headerBottom ?? 0}
+        spotlight={assigneeMenu?.card}
+        tailX={assigneeMenuPlacement.tailX}
+        items={ASSIGNEE_ACTIONS}
+        labels={{ reassign: 'Reassign Room' }}
+        onClose={closeAssigneeMenu}
+        onSelect={handleAssigneeAction}
       />
 
       {/* Filter Modal */}
@@ -1297,6 +1643,7 @@ export default function AllRoomsScreen() {
         filterCounts={filterCounts}
         onFilterIconPress={() => setShowFilterModal(false)}
         countMatching={countMatching}
+        anchorTop={useProfileHeader ? filterAnchorTop : undefined}
       />
 
     </View>
@@ -1339,9 +1686,17 @@ function buildAllRoomsStyles(scaleX: number) {
     // The design insets cards 9px and stacks them 16px apart. The card this
     // replaces carried its own marginHorizontal/marginBottom; the new one is
     // `w-full` and lets the list own the gutter.
-    paddingHorizontal: 9,
+    paddingHorizontal: ROOM_CARD.listGutter,
     paddingBottom: 16,
   },
+  /**
+   * A card inside Front Office's band tray (GroupedRoomsList): the tray owns
+   * the gutter and its 18 top and bottom, cards are 15 apart (3859:2479).
+   */
+  traySlot: {
+    paddingBottom: cardPx(15),
+  },
+  trayLastSlot: {},
   emptyStateCard: {
     width: CARD_DIMENSIONS.width * scaleX,
     alignSelf: 'center',
@@ -1379,10 +1734,6 @@ function buildAllRoomsStyles(scaleX: number) {
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
-  },
-  emptyStateIcon: {
-    width: 40 * scaleX,
-    height: 40 * scaleX,
   },
   emptyStateTitle: {
     fontSize: 22 * scaleX,

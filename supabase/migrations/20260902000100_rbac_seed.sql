@@ -4,7 +4,7 @@
 -- Do not edit by hand — run `npm run rbac:generate` instead.
 --
 -- Source spec: hestia-roles-2026-01-03.pdf
--- 54 job titles across 8 departments,
+-- 22 job titles across 7 departments,
 -- collapsing to 12 distinct permission profiles.
 --
 -- Idempotent: safe to re-run. Reference data is upserted by key, and
@@ -86,7 +86,16 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'chat.announce',
   'tickets.manage',
   'rooms.inspect',
-  'rooms.status.override'
+  'rooms.status.override',
+  'backoffice.access',
+  'rooms.manage',
+  'reservations.manage',
+  'guests.manage',
+  'reports.view',
+  'audit.view',
+  'rooms.porter.check',
+  'rooms.notes.manage',
+  'lost_and_found.read_all'
 );
 
 -- 3. Departments.
@@ -102,8 +111,7 @@ UPDATE public.departments d
     ('in_room_dining', 'In Room Dining'),
     ('engineering', 'Engineering'),
     ('it', 'IT'),
-    ('executive', 'Executive and Administration'),
-    ('food_beverage', 'Food & Beverage / Kitchen')
+    ('laundry', 'Laundry')
   ) AS v(key, name)
  WHERE d.name = v.name
    AND d.key IS NULL
@@ -116,8 +124,7 @@ INSERT INTO public.departments (key, name, description) VALUES
   ('in_room_dining', 'In Room Dining', 'Room service and in-suite dining'),
   ('engineering', 'Engineering', 'Maintenance, repairs and facility operations'),
   ('it', 'IT', 'Information technology and technical support'),
-  ('executive', 'Executive and Administration', 'General management and hotel administration'),
-  ('food_beverage', 'Food & Beverage / Kitchen', 'Restaurants, bars, banquets and kitchen brigade')
+  ('laundry', 'Laundry', 'Linen, uniforms and guest laundry')
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
@@ -160,23 +167,32 @@ INSERT INTO public.permissions (name, description) VALUES
   ('chat.announce', 'Publish a General Announcement to all staff'),
   ('tickets.manage', 'Edit or delete any ticket'),
   ('rooms.inspect', 'Inspect cleaned rooms and send rooms back'),
-  ('rooms.status.override', 'Act on a room for its attendant (reason required)')
+  ('rooms.status.override', 'Act on a room for its attendant (reason required)'),
+  ('backoffice.access', 'Sign in to the back office'),
+  ('rooms.manage', 'Create, edit and delete rooms, room types, floors and public areas'),
+  ('reservations.manage', 'Create, edit and check reservations in and out'),
+  ('guests.manage', 'Create and edit guests'),
+  ('reports.view', 'Open reports and dashboard charts'),
+  ('audit.view', 'Open the activity log'),
+  ('rooms.porter.check', 'Mark a room checked on the porter round'),
+  ('rooms.notes.manage', 'Delete anyone''s notes and tasks on a room'),
+  ('lost_and_found.read_all', 'See every lost & found item, not only your own from today')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- 5. Roles — one per distinct permission profile.
 INSERT INTO public.roles (key, name, description) VALUES
-  ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.'),  -- 9 titles
+  ('full_access', 'Full Access', 'Every right. Housekeeping leadership and hotel executives.'),  -- 2 titles
   ('hk_room_attendant', 'Room Attendant', 'Cleans rooms: status changes, notes, checklist and history.'),  -- 1 title
   ('hk_houseman', 'Porter / Houseman', 'Support role: rooms, notes and history, no status changes.'),  -- 1 title
   ('hk_laundry', 'Laundry Attendant', 'Linen duties. No chat.'),  -- 1 title
   ('hk_public_area', 'Public Area Attendant', 'Public areas only. No room access.'),  -- 1 title
-  ('ops_senior', 'Operations Senior', 'Front Office, Concierge and In-Room Dining leadership.'),  -- 20 titles
-  ('fo_agent', 'Front Office Agent', 'Front desk agents and trainees.'),  -- 4 titles
-  ('concierge_agent', 'Concierge Agent', 'Concierge, bell desk and valet floor staff.'),  -- 5 titles
-  ('ird_service', 'In-Room Dining Service', 'In-room dining order takers and butlers.'),  -- 2 titles
-  ('technical', 'Technical', 'IT. Ticket-driven.'),  -- 5 titles
-  ('fnb_kitchen', 'F&B / Kitchen', 'Chat, tickets and lost & found only.'),  -- 1 title
-  ('engineering', 'Engineering', 'Engineering. Ticket-driven, works from Home rather than Rooms.')  -- 4 titles
+  ('ops_senior', 'Operations Senior', 'Front Office, Concierge and In-Room Dining leadership.'),  -- 8 titles
+  ('fo_agent', 'Front Office Agent', 'Front desk agents and trainees.'),  -- 2 titles
+  ('concierge_agent', 'Concierge Agent', 'Concierge, bell desk and valet floor staff.'),  -- 3 titles
+  ('ird_service', 'In-Room Dining Service', 'In-room dining order takers and butlers.'),  -- 0 titles
+  ('technical', 'Technical', 'IT. Ticket-driven.'),  -- 1 title
+  ('fnb_kitchen', 'F&B / Kitchen', 'Chat, tickets and lost & found only.'),  -- 0 titles
+  ('engineering', 'Engineering', 'Engineering. Ticket-driven, works from Home rather than Rooms.')  -- 2 titles
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
@@ -226,6 +242,15 @@ SELECT r.id, p.id
   ('full_access', 'tickets.manage'),
   ('full_access', 'rooms.inspect'),
   ('full_access', 'rooms.status.override'),
+  ('full_access', 'backoffice.access'),
+  ('full_access', 'rooms.manage'),
+  ('full_access', 'reservations.manage'),
+  ('full_access', 'guests.manage'),
+  ('full_access', 'reports.view'),
+  ('full_access', 'audit.view'),
+  ('full_access', 'rooms.porter.check'),
+  ('full_access', 'rooms.notes.manage'),
+  ('full_access', 'lost_and_found.read_all'),
   ('hk_room_attendant', 'tab.rooms.view'),
   ('hk_room_attendant', 'rooms.read'),
   ('hk_room_attendant', 'tab.chat.view'),
@@ -261,6 +286,7 @@ SELECT r.id, p.id
   ('hk_houseman', 'rooms.notes.create'),
   ('hk_houseman', 'rooms.history.view'),
   ('hk_houseman', 'rooms.history.export'),
+  ('hk_houseman', 'rooms.porter.check'),
   ('hk_laundry', 'tab.rooms.view'),
   ('hk_laundry', 'rooms.read'),
   ('hk_laundry', 'tab.tickets.view'),
@@ -313,6 +339,12 @@ SELECT r.id, p.id
   ('ops_senior', 'chat.announce'),
   ('ops_senior', 'lost_and_found.manage'),
   ('ops_senior', 'tickets.manage'),
+  ('ops_senior', 'backoffice.access'),
+  ('ops_senior', 'reservations.manage'),
+  ('ops_senior', 'guests.manage'),
+  ('ops_senior', 'reports.view'),
+  ('ops_senior', 'rooms.notes.manage'),
+  ('ops_senior', 'lost_and_found.read_all'),
   ('fo_agent', 'tab.home.view'),
   ('fo_agent', 'tab.rooms.view'),
   ('fo_agent', 'rooms.read'),
@@ -332,6 +364,7 @@ SELECT r.id, p.id
   ('fo_agent', 'rooms.checklist.view'),
   ('fo_agent', 'rooms.checklist.complete'),
   ('fo_agent', 'rooms.rush.toggle'),
+  ('fo_agent', 'lost_and_found.read_all'),
   ('concierge_agent', 'tab.home.view'),
   ('concierge_agent', 'tab.rooms.view'),
   ('concierge_agent', 'rooms.read'),
@@ -352,6 +385,7 @@ SELECT r.id, p.id
   ('concierge_agent', 'rooms.reservation_status.view'),
   ('concierge_agent', 'rooms.rush.toggle'),
   ('concierge_agent', 'rooms.flag.toggle'),
+  ('concierge_agent', 'lost_and_found.read_all'),
   ('ird_service', 'tab.home.view'),
   ('ird_service', 'tab.rooms.view'),
   ('ird_service', 'rooms.read'),
@@ -374,6 +408,7 @@ SELECT r.id, p.id
   ('ird_service', 'rooms.reservation_status.view'),
   ('ird_service', 'rooms.rush.toggle'),
   ('ird_service', 'rooms.flag.toggle'),
+  ('ird_service', 'lost_and_found.read_all'),
   ('technical', 'tab.home.view'),
   ('technical', 'tab.rooms.view'),
   ('technical', 'rooms.read'),
@@ -396,6 +431,7 @@ SELECT r.id, p.id
   ('technical', 'rooms.reservation_status.view'),
   ('technical', 'rooms.rush.toggle'),
   ('technical', 'rooms.flag.toggle'),
+  ('technical', 'lost_and_found.read_all'),
   ('fnb_kitchen', 'tab.chat.view'),
   ('fnb_kitchen', 'chat.create'),
   ('fnb_kitchen', 'chat.groups.manage'),
@@ -406,6 +442,7 @@ SELECT r.id, p.id
   ('fnb_kitchen', 'lost_and_found.read'),
   ('fnb_kitchen', 'lost_and_found.register'),
   ('fnb_kitchen', 'tab.settings.view'),
+  ('fnb_kitchen', 'lost_and_found.read_all'),
   ('engineering', 'tab.home.view'),
   ('engineering', 'tab.chat.view'),
   ('engineering', 'chat.create'),
@@ -426,7 +463,8 @@ SELECT r.id, p.id
   ('engineering', 'rooms.reservation_status.view'),
   ('engineering', 'rooms.rush.toggle'),
   ('engineering', 'rooms.flag.toggle'),
-  ('engineering', 'rooms.read')
+  ('engineering', 'rooms.read'),
+  ('engineering', 'lost_and_found.read_all')
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
@@ -435,59 +473,27 @@ INSERT INTO public.job_titles (key, name, department_id, role_id, home_variant, 
 SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
   FROM (VALUES
     ('executive_housekeeper', 'Executive Housekeeper', 'housekeeping', 'full_access', 'default', 'leadership'),
-    ('housekeeping_manager', 'Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'leadership'),
-    ('assistant_housekeeping_manager', 'Assistant Housekeeping Manager', 'housekeeping', 'full_access', 'default', 'leadership'),
-    ('senior_supervisor', 'Senior Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('supervisor', 'Supervisor', 'housekeeping', 'full_access', 'default', 'supervisor'),
-    ('coordinator', 'Coordinator', 'housekeeping', 'full_access', 'default', 'supervisor'),
     ('housekeeping_room_attendant', 'Housekeeping Room Attendant', 'housekeeping', 'hk_room_attendant', 'default', 'attendant'),
     ('housekeeping_porter_houseman', 'Housekeeping Porter / Houseman', 'housekeeping', 'hk_houseman', 'hsk_portier', 'leadership'),
-    ('housekeeping_laundry_attendant', 'Housekeeping Laundry Attendant', 'housekeeping', 'hk_laundry', 'default', 'attendant'),
+    ('housekeeping_laundry_attendant', 'Laundry Attendant', 'laundry', 'hk_laundry', 'default', 'laundry'),
     ('housekeeping_public_area_attendant', 'Housekeeping Public Area Attendant', 'housekeeping', 'hk_public_area', 'default', 'attendant'),
-    ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('assistant_director_of_rooms', 'Assistant Director Of Rooms', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('director_of_front_office', 'Director of Front Office', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('front_office_manager', 'Front Office Manager', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('assistant_front_office_manager', 'Assistant Front Office Manager', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('front_office_supervisor', 'Front Office Supervisor', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('front_office_agent', 'Front Office Agent', 'front_office', 'fo_agent', 'default', 'leadership'),
-    ('front_office_trainee', 'Front Office Trainee', 'front_office', 'fo_agent', 'default', 'leadership'),
-    ('night_manager', 'Night Manager', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('night_auditor', 'Night Auditor', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('night_agent', 'Night Agent', 'front_office', 'fo_agent', 'default', 'leadership'),
-    ('guest_relations_manager', 'Guest Relations Manager', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('guest_relations_supervisor', 'Guest Relations Supervisor', 'front_office', 'ops_senior', 'default', 'leadership'),
-    ('guest_relations_agent', 'Guest Relations Agent', 'front_office', 'fo_agent', 'default', 'leadership'),
+    ('director_of_rooms', 'Director Of Rooms', 'front_office', 'ops_senior', 'default', 'front_office'),
+    ('front_office_manager', 'Front Office Manager', 'front_office', 'ops_senior', 'default', 'front_office'),
+    ('front_office_supervisor', 'Front Office Supervisor', 'front_office', 'ops_senior', 'default', 'front_office'),
+    ('front_office_agent', 'Front Office Agent', 'front_office', 'fo_agent', 'default', 'front_office'),
+    ('night_manager', 'Night Manager', 'front_office', 'ops_senior', 'default', 'front_office'),
+    ('night_agent', 'Night Agent', 'front_office', 'fo_agent', 'default', 'front_office'),
     ('head_concierge', 'Head Concierge', 'concierge', 'ops_senior', 'default', 'default'),
-    ('chief_concierge', 'Chief Concierge', 'concierge', 'ops_senior', 'default', 'default'),
-    ('concierge_manager', 'Concierge Manager', 'concierge', 'ops_senior', 'default', 'default'),
-    ('assistant_concierge_manager', 'Assistant Concierge Manager', 'concierge', 'ops_senior', 'default', 'default'),
-    ('concierge_supervisor', 'Concierge Supervisor', 'concierge', 'ops_senior', 'default', 'default'),
     ('concierge_agent', 'Concierge Agent', 'concierge', 'concierge_agent', 'default', 'default'),
     ('bellboy_supervisor', 'Bellboy Supervisor', 'concierge', 'concierge_agent', 'default', 'default'),
     ('bellboy_agent', 'Bellboy Agent', 'concierge', 'concierge_agent', 'default', 'default'),
-    ('valet_supervisor', 'Valet Supervisor', 'concierge', 'concierge_agent', 'default', 'default'),
-    ('valet_attendant', 'Valet Attendant', 'concierge', 'concierge_agent', 'default', 'default'),
-    ('director_of_in_room_dining', 'Director Of In Room Dining', 'in_room_dining', 'ops_senior', 'dining', 'default'),
     ('in_room_dining_manager', 'In Room Dining Manager', 'in_room_dining', 'ops_senior', 'dining', 'default'),
-    ('in_room_dining_assistant_manager', 'In Room Dining Assistant Manager', 'in_room_dining', 'ops_senior', 'dining', 'default'),
     ('in_room_dining_supervisor', 'In Room Dining Supervisor', 'in_room_dining', 'ops_senior', 'dining', 'default'),
     ('in_room_dining_waiter_waitress', 'In Room Dining Waiter/Waitress', 'in_room_dining', 'ops_senior', 'dining', 'default'),
-    ('in_room_dining_order_taker', 'In Room Dining Order Taker', 'in_room_dining', 'ird_service', 'dining', 'default'),
-    ('butler_in_room_dining', 'Butler In Room Dining', 'in_room_dining', 'ird_service', 'dining', 'default'),
     ('director_of_engineering', 'Director of Engineering', 'engineering', 'engineering', 'engineering', 'default'),
-    ('assistant_director_of_engineering', 'Assistant Director Of Engineering', 'engineering', 'engineering', 'engineering', 'default'),
-    ('engineering_supervisor', 'Engineering Supervisor', 'engineering', 'engineering', 'engineering', 'default'),
     ('shift_engineer', 'Shift Engineer', 'engineering', 'engineering', 'engineering', 'default'),
-    ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default'),
-    ('it_manager', 'IT Manager', 'it', 'technical', 'default', 'default'),
-    ('assistant_it_manager', 'Assistant IT Manager', 'it', 'technical', 'default', 'default'),
-    ('it_supervisor', 'IT Supervisor', 'it', 'technical', 'default', 'default'),
-    ('it_agent', 'IT Agent', 'it', 'technical', 'default', 'default'),
-    ('general_manager', 'General Manager', 'executive', 'full_access', 'default', 'default'),
-    ('hotel_manager', 'Hotel Manager', 'executive', 'full_access', 'default', 'default'),
-    ('assistant_to_general_and_hotel_manager', 'Assistant to General & Hotel Manager', 'executive', 'full_access', 'default', 'default'),
-    ('fandb_kitchen_staff', 'F&B / Kitchen Staff', 'food_beverage', 'fnb_kitchen', 'default', 'default')
+    ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default')
   ) AS v(key, name, department_key, role_key, home_variant, rooms_variant)
   JOIN public.departments d ON d.key = v.department_key
   JOIN public.roles r       ON r.key = v.role_key
@@ -543,14 +549,14 @@ BEGIN
   IF n_roles  <> 12 THEN
     RAISE EXCEPTION 'expected 12 roles, found %', n_roles;
   END IF;
-  IF n_titles <> 54 THEN
-    RAISE EXCEPTION 'expected 54 job titles, found %', n_titles;
+  IF n_titles <> 22 THEN
+    RAISE EXCEPTION 'expected 22 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 38 THEN
-    RAISE EXCEPTION 'expected 38 permissions, found %', n_perms;
+  IF n_perms  <> 47 THEN
+    RAISE EXCEPTION 'expected 47 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 239 THEN
-    RAISE EXCEPTION 'expected 239 role_permissions, found %', n_grants;
+  IF n_grants <> 261 THEN
+    RAISE EXCEPTION 'expected 261 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

@@ -65,3 +65,15 @@ export function currentShiftNow(now: Date = new Date()): ShiftType {
   }
   return now.getHours() < 12 ? 'AM' : 'PM';
 }
+
+/**
+ * When `shift` next starts, by the hotel's shift times: today if its start is
+ * still ahead, otherwise tomorrow. The usual 06:00 / 14:00 until they load.
+ */
+export function nextShiftStart(shift: ShiftType, now: Date = new Date()): Date {
+  const w = (windows ?? []).find((x) => x.name.toLowerCase() === shift.toLowerCase());
+  const start = w?.start ?? (shift === 'AM' ? 6 * 60 : 14 * 60);
+  const at = new Date(now.getFullYear(), now.getMonth(), now.getDate(), Math.floor(start / 60), start % 60);
+  if (at.getTime() <= now.getTime()) at.setDate(at.getDate() + 1);
+  return at;
+}

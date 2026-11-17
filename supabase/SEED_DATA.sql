@@ -206,16 +206,16 @@ END $$;
 -- which the app uses for staff lists, assignments, notes, etc.
 DO $$
 BEGIN
-  -- Ensure Default Hotel exists for fallback (tenant schema).
+  -- Ensure a default hotel (hotels.is_default) exists for the fallback (tenant schema).
   IF EXISTS (
     SELECT 1
     FROM information_schema.tables
     WHERE table_schema = 'public'
       AND table_name = 'hotels'
   ) THEN
-    INSERT INTO public.hotels (name)
-    VALUES ('Default Hotel')
-    ON CONFLICT (name) DO NOTHING;
+    INSERT INTO public.hotels (name, is_default)
+    SELECT 'Default Hotel', true
+    WHERE NOT EXISTS (SELECT 1 FROM public.hotels WHERE is_default);
   END IF;
 
   -- Tenant schema (users.hotel_id exists)
@@ -239,7 +239,7 @@ BEGIN
       NULLIF(au.raw_user_meta_data->>'avatar_url', '') AS avatar_url,
       COALESCE(
         NULLIF(au.raw_user_meta_data->>'hotel_id', '')::uuid,
-        (SELECT id FROM public.hotels WHERE name = 'Default Hotel' LIMIT 1)
+        (SELECT id FROM public.hotels WHERE is_default LIMIT 1)
       ) AS hotel_id
     FROM auth.users au
     ON CONFLICT (id) DO UPDATE

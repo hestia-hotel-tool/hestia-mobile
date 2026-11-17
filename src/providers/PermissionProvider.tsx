@@ -40,6 +40,19 @@ interface PermissionContextValue {
   homeVariant: HomeVariant;
   /** Which Rooms list layout this user sees. */
   roomsVariant: RoomsVariant;
+  /** The user's department (their job title's), or null when unknown. */
+  departmentId: string | null;
+  /**
+   * Laundry attendants and porters work from tickets: the app opens on
+   * Tickets and their list is their own plus their department's; Rooms is
+   * there for reference (client, 2026-11-09). See `worksFromTicketsFor`.
+   */
+  worksFromTickets: boolean;
+  /**
+   * In the Laundry department (laundry attendants): Tickets first in the tab
+   * bar, their profile on Tickets rather than Rooms (client, 2026-11-09).
+   */
+  inLaundry: boolean;
   /** True until the first resolution completes. Gate on this, don't render an empty app. */
   isLoading: boolean;
   /** Set when resolution failed; the permission set is empty in that case. */
@@ -55,6 +68,8 @@ const ROOMS_VARIANTS: ReadonlySet<string> = new Set<RoomsVariant>([
   'leadership',
   'supervisor',
   'attendant',
+  'front_office',
+  'laundry',
 ]);
 
 /**
@@ -112,10 +127,43 @@ function asHomeVariant(value: unknown): HomeVariant {
   return 'default';
 }
 
+/**
+ * An attendant title that cannot change a room's status reads every room,
+ * view only (`laundry`), not the assigned-only list.
+ *
+ * Rooms are only ever assigned to Room Attendants (`fetchRoomAttendants`), and
+ * they are the attendants who hold `rooms.status.update`. Any other attendant
+ * title on the `attendant` layout would open an empty list, which is what the
+ * Laundry Attendant got until 20261030090000_rooms_variant_laundry.sql — and
+ * still gets on a database that has not run it.
+ */
+function readOnlyAttendant(variant: RoomsVariant, keys: readonly string[]): RoomsVariant {
+  return variant === 'attendant' && !keys.includes('rooms.status.update') ? 'laundry' : variant;
+}
+
+const NO_DEPARTMENT = { id: null, name: null } as const;
+
+/**
+ * Who works from tickets rather than rooms (client, 2026-11-09): porters
+ * (`hsk_portier`) and the Laundry department. By department, not by the
+ * `laundry` Rooms layout — Public Area attendants get that layout too
+ * (`readOnlyAttendant`) and they work from rooms.
+ */
+export function worksFromTicketsFor(homeVariant: HomeVariant, departmentName: string | null): boolean {
+  return homeVariant === 'hsk_portier' || isLaundryDepartment(departmentName);
+}
+
+function isLaundryDepartment(departmentName: string | null): boolean {
+  return (departmentName ?? '').trim().toLowerCase() === 'laundry';
+}
+
 const PermissionContext = createContext<PermissionContextValue>({
   permissions: EMPTY,
   homeVariant: 'default',
   roomsVariant: 'default',
+  departmentId: null,
+  worksFromTickets: false,
+  inLaundry: false,
   isLoading: true,
   error: null,
   refresh: async () => {},
@@ -128,6 +176,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
   const [permissions, setPermissions] = useState<ReadonlySet<Permission>>(EMPTY);
   const [homeVariant, setHomeVariant] = useState<HomeVariant>('default');
   const [roomsVariant, setRoomsVariant] = useState<RoomsVariant>('default');
+  const [department, setDepartment] = useState<{ id: string | null; name: string | null }>(NO_DEPARTMENT);
   const [error, setError] = useState<string | null>(null);
 
   /**
@@ -171,20 +220,32 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
         fn: string
       ) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
 
-      const [permissionsResult, variantResult, roomsVariantResult] = await Promise.all([
+      const [permissionsResult, variantResult, roomsVariantResult, accessResult] = await Promise.all([
         rpc('get_my_permissions'),
         rpc('get_my_home_variant'),
         rpc('get_my_rooms_variant'),
+        // The user's department (job title first), for where the app opens.
+        // Not fatal: without it a laundry attendant just opens on Rooms.
+        rpc('ticket_access_for_me'),
       ]);
 
       if (requestFor.current !== forUser) return; // superseded
 
       if (permissionsResult.error) throw permissionsResult.error;
+      // A failed variant lookup is a failed load too. Read as "default" it
+      // gave the user the wrong Home and Rooms layout until they signed in
+      // again; thrown, the back-off below retries it.
+      if (variantResult.error) throw variantResult.error;
+      if (roomsVariantResult.error) throw roomsVariantResult.error;
 
       const keys = (permissionsResult.data ?? []) as Permission[];
       setPermissions(new Set(keys));
       setHomeVariant(asHomeVariant(variantResult.data));
-      setRoomsVariant(asRoomsVariant(roomsVariantResult.data));
+      setRoomsVariant(readOnlyAttendant(asRoomsVariant(roomsVariantResult.data), keys));
+      const access = (accessResult.error ? null : accessResult.data) as
+        | { department_id?: string | null; department_name?: string | null }
+        | null;
+      setDepartment({ id: access?.department_id ?? null, name: access?.department_name ?? null });
       setFailState({ user: forUser, n: 0 });
       setError(
         keys.length === 0
@@ -198,6 +259,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       setPermissions(EMPTY); // fail closed
       setHomeVariant('default');
       setRoomsVariant('default');
+      setDepartment(NO_DEPARTMENT);
       setError(LOAD_FAILED);
       setFailState((prev) => ({ user: forUser, n: prev.user === forUser ? prev.n + 1 : 1 }));
     } finally {
@@ -234,17 +296,21 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
     };
   }, [loadFailed, failures, resolve]);
 
+  const mine = canResolve && resolvedFor === userId;
   const value = useMemo<PermissionContextValue>(
     () => ({
       // Only report permissions that belong to the user asking for them.
       permissions: canResolve && resolvedFor === userId ? permissions : EMPTY,
       homeVariant: canResolve && resolvedFor === userId ? homeVariant : 'default',
       roomsVariant: canResolve && resolvedFor === userId ? roomsVariant : 'default',
+      departmentId: mine ? department.id : null,
+      worksFromTickets: mine ? worksFromTicketsFor(homeVariant, department.name) : false,
+      inLaundry: mine ? isLaundryDepartment(department.name) : false,
       isLoading,
       error: canResolve && resolvedFor === userId ? error : null,
       refresh: resolve,
     }),
-    [canResolve, resolvedFor, userId, permissions, homeVariant, roomsVariant, isLoading, error, resolve]
+    [canResolve, resolvedFor, userId, mine, permissions, homeVariant, roomsVariant, department, isLoading, error, resolve]
   );
 
   return <PermissionContext.Provider value={value}>{children}</PermissionContext.Provider>;

@@ -39,6 +39,7 @@ const META: Record<string, TaskMeta> = {
   room_status_override: { label: 'Changed for you', icon: 'action-check', iconSize: 16, target: 'room', colour: '#5a759d' },
   // Shift end: rooms back in the unassigned pool — opens Rooms filtered to them.
   room_pool: { label: 'Rooms unassigned', icon: 'nav-rooms', iconSize: 16, target: 'room', colour: '#5a759d' },
+  room_unassigned: { label: 'Room unassigned', icon: 'nav-rooms', iconSize: 16, target: 'room', colour: '#5a759d' },
   room_paused: { label: 'Room Paused', icon: 'status-paused-vacuum', iconSize: 22, target: 'room', colour: '#b0c0c6' },
   room_overdue: { label: 'Taking longer than expected', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#f59e0b' },
   room_promise: { label: 'Promise time', icon: 'action-promised-time', iconSize: 20, target: 'room', colour: '#fcf1cf', glyph: '#3f4c5f' },

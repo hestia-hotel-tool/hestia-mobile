@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, Text, FlatList, StyleSheet, RefreshControl, Platform } from 'react-native';
+import { View, Text, FlatList, StyleSheet, RefreshControl, Platform, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useNavigation, useFocusEffect , NativeStackNavigationProp } from 'expo-router';
 import { BottomTabNavigationProp } from 'expo-router/js-tabs';
 import { CompositeNavigationProp } from 'expo-router/react-navigation';
-import { PERMISSIONS, usePermissions } from '@/domain/rbac';
+import { PERMISSIONS, usePermissions, useTabBack } from '@/domain/rbac';
 import { typography } from '@/theme';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import ChatHeader from '../components/ChatHeader';
-import ChatItem, { ChatItemData } from '../components/ChatItem';
+import { ChatItemData } from '../components/ChatItem';
+import SwipeableChatItem from '../components/SwipeableChatItem';
+import { deleteChatForEveryone, deleteChatForMe, getMyRoleInChat } from '../services/chat';
 import NotificationItem, { NotificationItemData } from '../components/NotificationItem';
 import NewChatMenu, { NewChatMenuOption } from '../components/NewChatMenu';
 import { NewChatFab } from '../components/NewChatFab';
@@ -27,6 +29,7 @@ import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 
 import type { RootStackParamList } from '@/types/navigation';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type MainTabsParamList = {
   '(home)/index': undefined;
@@ -35,7 +38,6 @@ type MainTabsParamList = {
   '(tickets)/index': undefined;
   '(lost_and_found)/index': undefined;
   '(staff)/index': undefined;
-  '(settings)/index': undefined;
 };
 
 type ChatScreenNavigationProp = CompositeNavigationProp<
@@ -92,6 +94,8 @@ export default function ChatScreen() {
           .select('id,title,body,created_at')
           .eq('user_id', userId)
           .in('type', [...types])
+          // Deleted from the inbox: not the preview either.
+          .is('dismissed_at' as 'id', null)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle(),
@@ -217,9 +221,54 @@ export default function ChatScreen() {
     navigation.navigate('chat/[chatId]', { chatId: chat.id, chat });
   };
 
-  const handleBackPress = () => {
-    navigation.goBack();
+  /**
+   * Delete a chat (swipe left or long-press). A direct chat leaves my list and
+   * my copy of its messages — the other person keeps theirs, and a new
+   * message brings it back. A group: I leave it; an admin may also delete it
+   * for everyone. The server decides (migration 20261026120000).
+   */
+  const handleDeleteChat = async (chat: ChatItemData) => {
+    const run = async (how: 'me' | 'everyone') => {
+      try {
+        if (how === 'everyone') await deleteChatForEveryone(chat.id);
+        else await deleteChatForMe(chat.id);
+        useChatStore.getState().removeChat(chat.id);
+        invalidateNotificationBadges();
+      } catch (e) {
+        Alert.alert('Chat not deleted', e instanceof Error ? e.message : 'Please try again.');
+      }
+    };
+
+    if (!chat.isGroup) {
+      Alert.alert(
+        `Delete chat with ${chat.name}?`,
+        `It is removed from your chats and your copy of the messages is deleted. ${chat.name} keeps theirs.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Delete', style: 'destructive', onPress: () => void run('me') },
+        ]
+      );
+      return;
+    }
+
+    const role = await getMyRoleInChat(chat.id).catch(() => null);
+    Alert.alert(
+      `Delete "${chat.name}"?`,
+      role === 'admin'
+        ? 'Leave the group and delete it from your chats, or delete it for every member.'
+        : 'You will leave the group and it is removed from your chats.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Leave and delete', style: 'destructive', onPress: () => void run('me') },
+        ...(role === 'admin'
+          ? [{ text: 'Delete for everyone', style: 'destructive' as const, onPress: () => void run('everyone') }]
+          : []),
+      ]
+    );
   };
+
+  // Not a bare goBack(): for someone without Home that looped (useTabBack).
+  const { goBack: handleBackPress } = useTabBack('Chat');
 
   const handleMessagePress = () => {
     setShowNewChatMenu(true);
@@ -265,6 +314,25 @@ export default function ChatScreen() {
   });
   const hasNotifications = Boolean(generalNotification || tasksNotification);
 
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantKey = filteredChats.map((c) => `${c.id}:${c.unreadCount ?? 0}`).join('|');
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Filter', value: filter },
+      { label: 'Conversations listed', value: filteredChats.length },
+      { label: 'Unread messages', value: filteredChats.reduce((n, c) => n + (c.unreadCount ?? 0), 0) },
+      ...(generalNotification ? [{ label: 'General notifications unread', value: generalNotification.unreadCount ?? 0 }] : []),
+      ...(tasksNotification ? [{ label: 'Task notifications unread', value: tasksNotification.unreadCount ?? 0 }] : []),
+      ...filteredChats.slice(0, 20).map((c) => ({
+        label: `${c.isGroup ? 'Group' : 'Chat'} "${String(c.name ?? '')}"`,
+        value: `${c.unreadCount ?? 0} unread`,
+      })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [filter, assistantKey, generalNotification, tasksNotification]
+  );
+  useAssistantScreen('Chat', assistantFacts);
+
   return (
     <View style={styles.container}>
       {refreshing || isLoading ? <LoadingOverlay fullScreen message={refreshing ? 'Refreshing…' : 'Loading chats…'} /> : null}
@@ -286,7 +354,9 @@ export default function ChatScreen() {
             keyboardShouldPersistTaps="handled"
             data={filteredChats}
             keyExtractor={(chat) => chat.id}
-            renderItem={({ item: chat }) => <ChatItem chat={chat} onPress={() => handleChatPress(chat)} />}
+            renderItem={({ item: chat }) => (
+              <SwipeableChatItem chat={chat} onPress={() => handleChatPress(chat)} onDelete={(c) => void handleDeleteChat(c)} />
+            )}
             initialNumToRender={12}
             maxToRenderPerBatch={10}
             windowSize={7}

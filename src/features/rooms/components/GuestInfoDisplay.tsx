@@ -9,7 +9,7 @@ import type { GuestImageAnchorLayout } from '@features/rooms/components/GuestPro
 
 interface GuestInfoDisplayProps {
   guest: GuestInfo;
-  vipCode?: number;
+  vipCode?: string;
   numberBadge?: string; // Alternative to vipCode (for room detail screen)
   isPriority?: boolean;
   isFirstGuest?: boolean;

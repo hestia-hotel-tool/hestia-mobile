@@ -31,6 +31,7 @@ const defaultFilterState: FilterState = {
     vacant: false,
   },
   floors: { all: false }, // Floor keys (1,2,3,...) added dynamically from room data
+  vip: {},
 };
 
 export function useHomeFilters(initialFilters?: FilterState) {
@@ -81,6 +82,14 @@ export function useHomeFilters(initialFilters?: FilterState) {
         ...(prev.floors || defaultFilterState.floors),
         [floor]: !(prev.floors || defaultFilterState.floors)?.[floor],
       },
+    }));
+  }, []);
+
+  /** A VIP tier, '1'–'5'. */
+  const toggleVip = useCallback((tier: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      vip: { ...(prev.vip ?? {}), [tier]: !prev.vip?.[tier] },
     }));
   }, []);
 
@@ -191,7 +200,8 @@ export function useHomeFilters(initialFilters?: FilterState) {
       Object.values(filters.roomStates).some((v) => v) ||
       Object.values(filters.guests).some((v) => v) ||
       Object.values(filters.reservations || {}).some((v) => v) ||
-      Object.values(filters.floors || {}).some((v) => v)
+      Object.values(filters.floors || {}).some((v) => v) ||
+      Object.values(filters.vip || {}).some((v) => v)
     );
   }, [filters]);
 
@@ -211,6 +221,7 @@ export function useHomeFilters(initialFilters?: FilterState) {
       guests: filters?.guests || defaultFilterState.guests,
       reservations: filters?.reservations || defaultFilterState.reservations,
       floors: filters?.floors || defaultFilterState.floors,
+      vip: filters?.vip || defaultFilterState.vip,
     }),
     [filters]
   );
@@ -222,6 +233,7 @@ export function useHomeFilters(initialFilters?: FilterState) {
     toggleGuest,
     toggleReservation,
     toggleFloor,
+    toggleVip,
     resetFilters,
     calculateResultCount,
     hasActiveFilters,

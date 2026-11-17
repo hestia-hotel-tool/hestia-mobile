@@ -116,8 +116,14 @@ export type HomeVariant = 'default' | 'engineering' | 'dining' | 'hsk_portier';
  *
  * `attendant` is that same banded list narrowed to the rooms assigned to the
  * person reading it, with a finished/total counter (Figma 3838:1623).
+ *
+ * `front_office` is the leadership list in Front Office's dress (Figma
+ * 3859:1919) — see `ROOMS_LIST_CHROME.front_office`.
+ *
+ * `laundry` is every room on the shift that is on now, read-only, with the
+ * shift's linen workload above the list — see `ROOMS_LIST_CHROME.laundry`.
  */
-export type RoomsVariant = 'default' | 'leadership' | 'supervisor' | 'attendant';
+export type RoomsVariant = 'default' | 'leadership' | 'supervisor' | 'attendant' | 'front_office' | 'laundry';
 
 export interface JobTitleDefinition {
   key: string;

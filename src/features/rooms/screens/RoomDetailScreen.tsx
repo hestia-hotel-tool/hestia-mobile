@@ -4,7 +4,7 @@
  * Supports: Arrival, Departure, ArrivalDeparture, Stayover, Turndown
  */
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { View, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRoute, useNavigation, useFocusEffect, router, NativeStackNavigationProp } from 'expo-router';
@@ -39,14 +39,18 @@ import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
-import { OVERRIDE_REASONS, SEND_BACK_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
+import { useSendBackSheet } from '../components/SendBackSheet';
+import { OVERRIDE_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
 import { PERMISSIONS } from '@/domain/rbac';
 import { useMessageModal } from '@/contexts/MessageModalContext';
-import { getRoomNotes, addRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, type RoomStateUpdate, assignRoomToStaff } from '../services/rooms';
+import { getRoomNotes, addRoomNote, deleteRoomNote, getRoomDetailsById, fullRoomDetailsToRoomCardData, type FullRoomDetails, type RoomStateUpdate, assignRoomToStaff } from '../services/rooms';
+import { addRoomTask, deleteRoomTask, fetchRoomTasks } from '../services/roomTasks';
+import { useAuth } from '@features/auth/hooks/useAuth';
 import { formatDueTime } from '@/utils/formatting';
 import { supabase } from '@/lib/supabase';
 import { invalidateNotificationBadges, markRoomAssignmentNotificationsReadForRoom } from '@/lib/inAppNotifications';
 import { buildFriendlyRoomHistoryMessage, getRoomHistoryEvents, logRoomHistoryEvent } from '../services/roomHistory';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 type RoomDetailScreenNavigationProp = NativeStackNavigationProp<
   RootStackParamList,
@@ -107,14 +111,24 @@ export default function RoomDetailScreen() {
       data: st.data,
     }))
   );
-  const { accessFor, canInspect: canInspectRooms } = useRoomStatusAccess();
+  const { accessFor, canChangeAnyStatus, canInspect: canInspectRooms } = useRoomStatusAccess();
   const { can } = usePermissions();
+  const canManageNotes = can(PERMISSIONS.ROOMS_NOTES_MANAGE);
+  const myUserId = useAuth().session?.user?.id ?? null;
   /*
    * Only holders of rooms.reassign (not room attendants) may change who a room
    * is assigned to. Without it every Reassign control is withheld, not just
    * disabled, so the attendant sees who has the room and nothing to tap.
    */
   const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
+  /*
+   * The same rule as the Rooms list: the status row opens the sheet only for
+   * someone who can do something in it — a status step, priority or the flag.
+   * Without a handler the row draws as mark and label alone, no chevron
+   * (RoomHeaderStatusButton), which is what Laundry reads.
+   */
+  const canOpenStatusSheet =
+    canChangeAnyStatus || can(PERMISSIONS.ROOMS_RUSH_TOGGLE) || can(PERMISSIONS.ROOMS_FLAG_TOGGLE);
   const messageModal = useMessageModal();
   const shift = roomsData?.selectedShift ?? 'AM';
 
@@ -245,6 +259,7 @@ export default function RoomDetailScreen() {
             text: n.text,
             staff: { name: n.staff.name, avatar: n.staff.avatar_url ?? undefined },
             createdAt: n.created_at,
+            createdById: n.created_by_id,
           }))
         );
         const assignment = full.assignedStaff[0];
@@ -299,6 +314,39 @@ export default function RoomDetailScreen() {
   const roomType = fetchedRoomType ?? initialRoomType;
   /** Whether `room` is real data rather than the stand-in. Checked after the hooks. */
   const hasRoom = Boolean(fetchedRoom ?? initialRoom);
+
+  /** What this room's page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    if (!hasRoom) return [];
+    const facts: ScreenFact[] = [
+      { label: 'Room', value: `${room.roomNumber} · ${room.roomCategory}` },
+      { label: 'Housekeeping status', value: String(room.houseKeepingStatus) },
+      { label: 'Front office status', value: String(room.frontOfficeStatus) },
+      { label: 'Reservation status', value: String(room.reservationStatus ?? '—') },
+      { label: 'Assigned to', value: room.roomAttendantAssigned?.name ?? 'Nobody' },
+      { label: 'Priority', value: room.isPriority ? 'Yes' : 'No' },
+      { label: 'Credit (minutes)', value: room.credit },
+    ];
+    if (room.flagged) facts.push({ label: 'Flagged', value: room.flagReason || 'Yes' });
+    if (room.promisedTime) facts.push({ label: 'Promised time', value: String(room.promisedTime) });
+    if (room.pausedAt) facts.push({ label: 'Paused since', value: room.pausedAt });
+    if (room.returnLaterAt) facts.push({ label: 'Return later', value: `${room.returnLaterAt}${room.returnLaterReason ? ` (${room.returnLaterReason})` : ''}` });
+    if (room.refuseServiceReason || room.refuseServiceAt) facts.push({ label: 'Refused service', value: room.refuseServiceReason || 'Yes' });
+    if (room.dndAt) facts.push({ label: 'Do not disturb since', value: room.dndAt });
+    if (room.outOfOrder) facts.push({ label: 'Out of order', value: `${room.outOfOrder.from} to ${room.outOfOrder.to}${room.outOfOrder.reason ? ` (${room.outOfOrder.reason})` : ''}` });
+    if (room.specialInstructions) facts.push({ label: 'Special instructions', value: room.specialInstructions });
+    if (room.lostAndFoundCount) facts.push({ label: 'Lost & found items stored', value: room.lostAndFoundCount });
+    room.guests
+      .filter((g) => g.name && g.name !== 'Guest')
+      .forEach((g, i) =>
+        facts.push({
+          label: room.guests.length > 1 ? `Guest ${i + 1}` : 'Guest',
+          value: `${g.name}, ${g.datesOfStay.from}–${g.datesOfStay.to}${g.timeLabel !== 'N/A' ? `, ${g.timeLabel} ${g.time}` : ''}, ${g.guestCount.adults} adults / ${g.guestCount.kids} kids`,
+        })
+      );
+    return facts;
+  }, [hasRoom, room]);
+  useAssistantScreen('Room detail', assistantFacts);
 
   const roomGuests = room.guests || [];
   const isUpdating = updatingRoomId === room.id;
@@ -465,8 +513,22 @@ export default function RoomDetailScreen() {
             id: 'default-task',
             text: getDefaultTaskText(roomType),
             createdAt: new Date().toISOString(),
+            // The room type's standing task: derived, not saved, not deletable.
+            isDefault: true,
           },
         ];
+
+  // The room's saved tasks (migration 20261026160000) — they used to live in screen state only.
+  useEffect(() => {
+    if (!room?.id || !/^[0-9a-f-]{36}$/i.test(room.id)) return;
+    let cancelled = false;
+    void fetchRoomTasks(room.id).then((loaded) => {
+      if (!cancelled) setTasks(loaded);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [room?.id]);
 
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
@@ -595,9 +657,10 @@ export default function RoomDetailScreen() {
    * room is then shown as the server left it.
    */
   const acting = useRef(false);
+  const sendBack = useSendBackSheet();
   const act = async (
     option: StatusChangeOption,
-    extra: { reason?: string | null; until?: string | null; done?: string; busy?: ServiceBusy } = {}
+    extra: { reason?: string | null; until?: string | null; done?: string; busy?: ServiceBusy; photoUrls?: string[] } = {}
   ): Promise<boolean> => {
     // One at a time: a second tap while the first is in flight does nothing.
     if (acting.current) return false;
@@ -613,17 +676,16 @@ export default function RoomDetailScreen() {
       return false;
     }
     let reason = extra.reason?.trim() || null;
+    let photoUrls = extra.photoUrls ?? [];
     if (resolved.action === 'send_back' && !reason) {
-      reason = await askReason(
-        messageModal,
-        currentStatus === 'Inspected' ? `Reopen Room ${room.roomNumber}?` : `Send Room ${room.roomNumber} back?`,
-        'The attendant is told why and the room goes back to Dirty.',
-        SEND_BACK_REASONS
-      );
-      if (!reason) {
+      // Why, in a preset or their own words, with photos of what to fix.
+      const sent = await sendBack.ask({ roomNumber: room.roomNumber, fromInspected: currentStatus === 'Inspected' });
+      if (!sent) {
         setPendingActivity(null);
         return false;
       }
+      reason = sent.reason;
+      photoUrls = sent.photoUrls;
     }
     if (resolved.viaOverride && !reason) {
       const attendant = assignedStaff?.name ?? 'the attendant';
@@ -641,7 +703,7 @@ export default function RoomDetailScreen() {
     acting.current = true;
     setServiceBusy(extra.busy ?? null);
     try {
-      const result = await runRoomAction(room.id, resolved.action, { reason, until: extra.until ?? null });
+      const result = await runRoomAction(room.id, resolved.action, { reason, until: extra.until ?? null, photoUrls });
       const applied = roomStateFromClock(result);
       const nextWork = workStatusAfter(resolved.action);
       setLocalRoom((prev) => ({
@@ -892,20 +954,56 @@ export default function RoomDetailScreen() {
     setSelectedTask(null);
   };
 
-  const handleSaveTask = (taskText: string) => {
-    const newTask: Task = {
-      id: Date.now().toString(),
-      text: taskText,
-      createdAt: new Date().toISOString(),
-    };
-    setTasks(prev => [...prev, newTask]);
-    // TODO: persist the added task.
-    void logRoomHistoryEvent({
-      roomId: room.id,
-      type: 'task',
-      description: buildFriendlyRoomHistoryMessage({ type: 'task', taskText }),
-    });
-    void refreshHistory();
+  const handleSaveTask = async (taskText: string) => {
+    // Shown at once, then swapped for the saved row (its real id and author).
+    const tempId = `pending-${Date.now()}`;
+    setTasks((prev) => [...prev, { id: tempId, text: taskText, createdAt: new Date().toISOString(), createdById: myUserId }]);
+    try {
+      const saved = await addRoomTask(room.id, taskText);
+      setTasks((prev) => prev.map((t) => (t.id === tempId ? saved : t)));
+      void logRoomHistoryEvent({
+        roomId: room.id,
+        type: 'task',
+        description: buildFriendlyRoomHistoryMessage({ type: 'task', taskText }),
+      });
+      void refreshHistory();
+    } catch (e) {
+      setTasks((prev) => prev.filter((t) => t.id !== tempId));
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Task not saved' });
+    }
+  };
+
+  /*
+   * Deleting a note or task (migration 20261026160000): its author, or anyone
+   * with rooms.notes.manage. Gone at once; the server records it in History;
+   * a refusal brings it back with the reason.
+   */
+  const canDeleteItem = (item: { createdById?: string | null }) =>
+    canManageNotes || (!!myUserId && item.createdById === myUserId);
+
+  const handleDeleteNote = async (note: Note) => {
+    setNotes((prev) => prev.filter((n) => n.id !== note.id));
+    try {
+      await deleteRoomNote(note.id);
+      void useRoomsStore.getState().refreshRoomBadges(room.id);
+      void refreshHistory();
+      toast.show('Note deleted', { type: 'success' });
+    } catch (e) {
+      setNotes(await getRoomNotes(room.id));
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Note not deleted' });
+    }
+  };
+
+  const handleDeleteTask = async (task: Task) => {
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    try {
+      await deleteRoomTask(task.id);
+      void refreshHistory();
+      toast.show('Task deleted', { type: 'success' });
+    } catch (e) {
+      setTasks(await fetchRoomTasks(room.id));
+      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Task not deleted' });
+    }
   };
 
   /*
@@ -942,9 +1040,19 @@ export default function RoomDetailScreen() {
   /** Inspected through the Inspection Checklist: the same filing, as an inspection. */
   const handleInspectComplete = handleCleanComplete;
 
-  /** The inspection failed: back to Dirty, and the attendant is told why. */
+  /**
+   * The inspection failed: back to Dirty, and the attendant is told why —
+   * "Failed inspection" ticked, with room for a comment and photos.
+   */
   const handleInspectReject = () => {
-    void act('Dirty', { reason: 'Failed inspection' });
+    void (async () => {
+      const sent = await sendBack.ask({
+        roomNumber: room.roomNumber,
+        fromInspected: currentStatus === 'Inspected',
+        presetReason: 'Failed inspection',
+      });
+      if (sent) void act('Dirty', { reason: sent.reason, photoUrls: sent.photoUrls });
+    })();
   };
 
   const handleSaveNote = async (noteText: string) => {
@@ -1165,11 +1273,14 @@ export default function RoomDetailScreen() {
         lostAndFoundItems={lostAndFoundItems}
         historyEvents={historyEvents}
         onBackPress={handleBackPress}
-        onStatusPress={handleStatusPress}
+        onStatusPress={canOpenStatusSheet ? handleStatusPress : undefined}
         onReassign={canReassign ? handleReassign : undefined}
         onAddNote={handleAddNote}
         onAddTask={handleAddTask}
         onSeeMoreTask={handleSeeMoreTask}
+        canDeleteItem={canDeleteItem}
+        onDeleteNote={(n) => void handleDeleteNote(n)}
+        onDeleteTask={(t) => void handleDeleteTask(t)}
         onAddLostAndFoundItem={handleAddPhotos}
         onOpenLostAndFound={() => router.navigate('/(tabs)/(lost_and_found)')}
         // Pushed over the room, so Back comes straight back here.
@@ -1236,6 +1347,8 @@ export default function RoomDetailScreen() {
           setLocalRoom((prev) => ({ ...prev, flagged, flagReason }));
         }}
       />
+
+      {sendBack.element}
 
       <ReturnLaterModal
         top={modalHeaderHeight * scaleX}

@@ -22,7 +22,7 @@ import { resolveLandingRoute } from './landing';
 export function RouteGuard({ children }: { children: React.ReactNode }) {
   const segments = useSegments();
   const { session, isLoading: authLoading } = useAuth();
-  const { permissions, isLoading: permissionsLoading } = usePermissions();
+  const { permissions, worksFromTickets, isLoading: permissionsLoading } = usePermissions();
 
   const required = resolveRoutePermission(segments as readonly string[]);
 
@@ -37,7 +37,7 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const allowed = required !== null && permissions.has(required);
   if (allowed) return <>{children}</>;
 
-  const landing = resolveLandingRoute(permissions);
+  const landing = resolveLandingRoute(permissions, { worksFromTickets });
 
   // No permitted tab at all — usually an account with no job title assigned.
   // Redirecting would loop, so explain instead.

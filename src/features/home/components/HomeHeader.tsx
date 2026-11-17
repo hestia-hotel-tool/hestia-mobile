@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { View, Text } from '@/tw';
+import { router } from 'expo-router';
+import { View, Text, Pressable } from '@/tw';
 import { Avatar } from '@/components/ui/Avatar';
 import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import type { ShiftType } from '@/types/shift.types';
@@ -15,7 +16,11 @@ export type HomeHeaderProps = {
   role?: string | null;
   avatarUrl?: string | null;
   shift: ShiftType;
-  onShiftChange: (shift: ShiftType) => void;
+  /**
+   * Omit to lock the shift: room attendants work theirs only, so they see it
+   * as a fixed pill instead of the AM/PM toggle (see useShiftLock).
+   */
+  onShiftChange?: (shift: ShiftType) => void;
 };
 
 /**
@@ -49,6 +54,17 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
       // Status bar height is a runtime value, so it stays a style.
       style={{ paddingTop: insets.top + 12 }}
     >
+      {/*
+        Who you are opens your Settings — there is no Settings tab any more.
+        The avatar, name and title are one target.
+      */}
+      <Pressable
+        className="flex-1 flex-row items-center gap-lg"
+        onPress={() => router.push('/settings')}
+        accessibilityRole="button"
+        accessibilityLabel={`${name ?? 'Your profile'}, open account`}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
       <Avatar uri={avatarUrl} name={name} size={51} />
 
       <View className="flex-1">
@@ -74,8 +90,22 @@ export function HomeHeader({ name, role, avatarUrl, shift, onShiftChange }: Home
           </Text>
         )}
       </View>
+      </Pressable>
 
-      <SegmentedToggle options={SHIFT_OPTIONS} value={shift} onChange={onShiftChange} />
+      {onShiftChange ? (
+        <SegmentedToggle options={SHIFT_OPTIONS} value={shift} onChange={onShiftChange} />
+      ) : (
+        // The toggle's own thumb, alone: the same blue pill and white label,
+        // with nothing to switch to.
+        <View
+          className="items-center justify-center rounded-full bg-primary"
+          style={{ width: 64.612, height: 30.544 }}
+          accessible
+          accessibilityLabel={`Your shift: ${shift}`}
+        >
+          <Text className="font-hestia-primary text-hestia-lg font-bold text-ink-white">{shift}</Text>
+        </View>
+      )}
     </View>
   );
 }

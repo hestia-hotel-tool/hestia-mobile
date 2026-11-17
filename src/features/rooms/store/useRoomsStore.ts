@@ -72,7 +72,7 @@ interface RoomsState {
   runRoomAction: (
     roomId: string,
     action: RoomAction,
-    options?: { reason?: string | null; until?: string | null }
+    options?: { reason?: string | null; until?: string | null; photoUrls?: string[] }
   ) => Promise<RoomActionResult>;
   /** Set assigned staff for a room (optimistic update after assign from modal). */
   setRoomAttendant: (roomId: string, staff: StaffInfo | null) => void;

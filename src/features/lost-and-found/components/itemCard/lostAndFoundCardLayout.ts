@@ -94,6 +94,12 @@ export const LOST_AND_FOUND_CARD_LAYOUT = {
   vipDisc: { size: 14.118, glyph: 3.294, color: '#f92424' },
   /** Nodes 3871:3704 / 3871:3706 — the public-area tile (`#caecfb`) and its glyph. */
   publicTile: { width: 41, height: 38, radius: 5, glyph: 24, background: '#caecfb' },
+  /**
+   * A room item's tile, where the guest's photo used to be (client change,
+   * 2026-10-23): the public-area tile's size and radius, the room chip's blue,
+   * the room number in it.
+   */
+  roomTile: { width: 41, height: 38, radius: 5, fontSize: 14, background: 'rgba(59, 193, 246, 0.25)', text: '#1e1e1e' },
 
   /** "Found In" label, card-relative y (frame 274). */
   foundInTop: 59,

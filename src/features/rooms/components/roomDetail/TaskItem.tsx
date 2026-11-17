@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, LayoutChangeEvent } from 'react-native';
 import { typography } from '@/theme';
 import { scaleX } from '../../constants/roomDetailStyles';
 import type { Task } from '../../types/roomDetail.types';
+import { ItemMoreButton, openDeleteMenu } from './ItemDeleteMenu';
 
 interface TaskItemProps {
   task: Task;
@@ -10,6 +11,8 @@ interface TaskItemProps {
   contentAreaTop: number; // Should be 0 (relative to container)
   onHeightMeasured?: (height: number) => void;
   onSeeMorePress?: (task: Task) => void; // Callback to open modal
+  /** Set when this person may delete the task (not the room type's standing task). */
+  onDelete?: (task: Task) => void;
 }
 
 const MAX_LINES = 2; // Maximum lines to show before truncating
@@ -21,6 +24,7 @@ export default function TaskItem({
   contentAreaTop,
   onHeightMeasured,
   onSeeMorePress,
+  onDelete,
 }: TaskItemProps) {
   const [showSeeMore, setShowSeeMore] = useState(false);
   const [textHeight, setTextHeight] = useState<number>(0);
@@ -86,10 +90,12 @@ export default function TaskItem({
     setShowSeeMore(estimatedNeedsTruncation);
   }, [task.id, estimatedNeedsTruncation]);
 
+  const menu = onDelete ? () => openDeleteMenu({ what: 'task', preview: task.text, onDelete: () => onDelete(task) }) : undefined;
+
   return (
     <View
       ref={containerRef}
-      style={styles.container}
+      style={[styles.container, menu && styles.withMenu]}
     >
       {/* Hidden text to measure full height */}
       <Text
@@ -99,10 +105,11 @@ export default function TaskItem({
       >
         {task.text}
       </Text>
-      {/* Text with inline "see more" button */}
+      {/* Text with inline "see more" button; long-press or ⋯ to delete. */}
       <Text
         ref={textRef}
-        style={styles.taskText}
+        style={[styles.taskText, menu && styles.textFlex]}
+        onLongPress={menu}
         numberOfLines={!showSeeMore ? MAX_LINES : undefined}
       >
         {getDisplayText()}
@@ -118,11 +125,14 @@ export default function TaskItem({
           </>
         )}
       </Text>
+      {menu ? <ItemMoreButton onPress={menu} label="Task options" /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  withMenu: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 * scaleX },
+  textFlex: { flex: 1 },
   container: {
     position: 'relative', // Changed from absolute to relative for scrollable layout
     paddingHorizontal: 0, // Padding handled by ScrollView

@@ -38,6 +38,8 @@ export interface FilterState {
     vacant: boolean;
   };
   floors?: Record<string, boolean>; // 'all' + floor numbers '1','2','3',...
+  /** VIP tiers, keyed '1'–'5' (V1–V5). A room matches when any of its guests is in a ticked tier. */
+  vip?: Record<string, boolean>;
 }
 
 export interface FilterCounts {
@@ -71,6 +73,8 @@ export interface FilterCounts {
     vacant: number;
   };
   floors?: Record<string, number>; // 'all' + floor numbers '1','2','3',... with room counts
+  /** Rooms with at least one guest in each VIP tier, keyed '1'–'5'. */
+  vip?: Record<string, number>;
   totalRooms?: number;
 }
 

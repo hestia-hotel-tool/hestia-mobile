@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { getTicketCountsForAssignee } from '@features/tickets/services/tickets';
+import { getTicketCountsForDepartment } from '@features/tickets/services/tickets';
 import { useShallow } from 'zustand/react/shallow';
 import { View, ScrollView, StyleSheet, RefreshControl, Platform, Pressable, Text, Alert } from 'react-native';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
@@ -36,10 +36,14 @@ import { describeActiveFilters, hasAnyActiveFilter } from '@features/rooms/utils
 import { FilterState, FilterCounts } from '@/types/filter.types';
 import type { RoomCardData } from '@features/rooms/types/allRooms.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
+import { useShiftLock } from '@features/account/hooks/useShiftLock';
+import OffShiftNotice from '@features/account/components/OffShiftNotice';
 import { useRenderLoopProbe } from '@/utils/useRenderLoopProbe';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { getFloorFromRoomNumber } from '@/utils/formatting';
 import { getRecentActivityLogs } from '@/lib/activityLogs';
 import { getLatestPausedAssignment } from '../services/home';
+import { pmSurface } from '@/theme/shiftSurface';
 
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
@@ -125,10 +129,24 @@ export default function HomeScreen() {
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [assignedRoomIdsOrdered, setAssignedRoomIdsOrdered] = useState<string[]>([]);
 
+  /*
+   * Room attendants work their own shift only: no AM/PM toggle, and Home
+   * follows their rostered shift (useShiftLock).
+   */
+  const shiftLock = useShiftLock();
+  // Colours for text drawn on the page itself, which is dark in PM mode.
+  const pm = pmSurface(homeData?.selectedShift ?? null);
+  useEffect(() => {
+    if (shiftLock.locked && homeData.selectedShift !== shiftLock.shift) {
+      setHomeData((prev) => ({ ...prev, selectedShift: shiftLock.shift }));
+    }
+  }, [shiftLock.locked, shiftLock.shift, homeData.selectedShift]);
+
   // PM should behave like AM during AM hours; PM home categories differ from AM (see derivedCategories).
+  // Not for a locked attendant: a PM attendant opening the app in the morning sees their PM rooms.
   const currentShiftFromClock = useMemo(() => getShiftFromTime(), []);
   const effectiveShift: ShiftType =
-    homeData.selectedShift === 'PM' && currentShiftFromClock === 'AM'
+    !shiftLock.locked && homeData.selectedShift === 'PM' && currentShiftFromClock === 'AM'
       ? 'AM'
       : homeData.selectedShift;
 
@@ -239,9 +257,9 @@ export default function HomeScreen() {
     if (!isTicketDashboard) return;
 
     try {
-      // Only this user's tickets in this department, counted (not the hotel's whole list).
-      const uid = session?.user?.id;
-      setTicketCounts(uid ? await getTicketCountsForAssignee(uid, ticketDepartment ?? '') : { total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 });
+      // The department's queue (open, plus closed in the last 30 days) — not
+      // only the viewer's own: a director saw 0 while the team had tickets.
+      setTicketCounts(await getTicketCountsForDepartment(ticketDepartment ?? ''));
     } catch (e) {
       console.warn('[HomeScreen] Failed to load ticket dashboard counts', e);
     }
@@ -279,14 +297,15 @@ export default function HomeScreen() {
           const status: TicketActivityKey =
             /status to\s+solved|status to\s+done/i.test(action) ? 'solved' :
             /out of order|status to\s+ofo/i.test(action) ? 'outOfOrder' :
-            /status to\s+unsolved/i.test(action) ? 'unsolved' :
+            /status to\s+(unsolved|in_progress)/i.test(action) ? 'unsolved' :
             'neutral';
 
           return {
             id: l.id,
             roomId: l.room_id ?? undefined,
             roomLabel: roomNum ? `Room ${roomNum}` : 'Room',
-            message: `${staffName} ${action.charAt(0).toLowerCase()}${action.slice(1)}`,
+            // The column stores `in_progress`; the feed says it in words.
+            message: `${staffName} ${action.charAt(0).toLowerCase()}${action.slice(1).replace(/\bin_progress\b/gi, 'In Progress')}`,
             timeLabel,
             status,
           };
@@ -297,11 +316,21 @@ export default function HomeScreen() {
     } catch (e) {
       console.warn('[HomeScreen] Failed to load ticket dashboard recent activity', e);
     }
-  }, [isTicketDashboard, ticketDepartment, session?.user?.id, ticketActivityLimit]);
+  }, [isTicketDashboard, ticketDepartment, ticketActivityLimit]);
 
-  useEffect(() => {
-    void refreshTicketDashboard();
-  }, [refreshTicketDashboard]);
+  /*
+   * On every visit, not once: Home stays mounted behind the other tabs, so a
+   * ticket created from Tickets never reached the counts until a restart.
+   * And every minute while it is on screen, for tickets others create.
+   */
+  useFocusEffect(
+    React.useCallback(() => {
+      if (!isTicketDashboard) return;
+      void refreshTicketDashboard();
+      const timer = setInterval(() => void refreshTicketDashboard(), 60_000);
+      return () => clearInterval(timer);
+    }, [isTicketDashboard, refreshTicketDashboard])
+  );
 
   const [portierOverview, setPortierOverview] = useState<{
     total: number;
@@ -850,6 +879,80 @@ export default function HomeScreen() {
     return { roomStates, guests, floors, totalRooms, reservations };
   }, [homeData.categories, derivedCategories, homeData.selectedShift, roomsForHome]);
 
+  /*
+   * What this Home shows, for the assistant: "I can read 18 on my Home screen"
+   * should be something it can see (tester feedback). The same figures the
+   * cards draw, for whichever Home this viewer has.
+   */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    const facts: ScreenFact[] = [{ label: 'Shift shown', value: homeData.selectedShift }];
+    if (shiftLock.offShift) {
+      facts.push({ label: 'Notice', value: `You have no ${shiftLock.offShift.shift} shift` });
+      return facts;
+    }
+    if (isTicketDashboard) {
+      facts.push(
+        { label: 'Tickets overview (open, plus the last 30 days)', value: ticketCounts.total },
+        { label: 'Priority tickets', value: ticketCounts.priority },
+        { label: 'Unsolved tickets', value: ticketCounts.unsolved },
+        { label: 'Solved tickets', value: ticketCounts.solved },
+        { label: 'Out of order', value: ticketCounts.outOfOrder },
+      );
+      return facts;
+    }
+    if (isHskPortierUser) {
+      facts.push(
+        { label: 'My rooms', value: portierOverview.total },
+        { label: 'Done (cleaned + inspected)', value: portierOverview.progressText },
+        { label: 'Dirty', value: portierOverview.dirty },
+        { label: 'In progress', value: portierOverview.inProgress },
+        { label: 'Cleaned', value: portierOverview.cleaned },
+        { label: 'Inspected', value: portierOverview.inspected },
+        { label: 'Priority', value: portierOverview.priority },
+        ...portierRows.map((r) => ({ label: r.label, value: r.count })),
+      );
+      return facts;
+    }
+    const { roomStates, guests, reservations, totalRooms } = filterCounts;
+    facts.push({ label: 'Rooms on this shift', value: totalRooms ?? 0 });
+    for (const c of derivedCategories) {
+      const detail = `dirty ${c.status.dirty}, in progress ${c.status.inProgress}, cleaned ${c.status.cleaned}, inspected ${c.status.inspected}`;
+      facts.push({
+        label: `${c.name} card`,
+        value: `${c.total} rooms (${detail}${c.priority ? `, priority ${c.priority}` : ''})`,
+      });
+    }
+    facts.push(
+      { label: 'Stayovers', value: guests.stayOver },
+      { label: 'Arrivals', value: guests.arrivals },
+      { label: 'Departures', value: guests.departures },
+      { label: 'Turndowns', value: guests.turnDown ?? 0 },
+      { label: 'Dirty', value: roomStates.dirty },
+      { label: 'In progress', value: roomStates.inProgress },
+      { label: 'Cleaned', value: roomStates.cleaned },
+      { label: 'Inspected', value: roomStates.inspected },
+      { label: 'Priority', value: roomStates.priority },
+      { label: 'Paused', value: roomStates.paused ?? 0 },
+      { label: 'Return later', value: roomStates.returnLater ?? 0 },
+      { label: 'Refused service', value: roomStates.refused ?? 0 },
+      { label: 'Occupied', value: reservations?.occupied ?? 0 },
+      { label: 'Vacant', value: reservations?.vacant ?? 0 },
+    );
+    return facts;
+  }, [
+    homeData.selectedShift,
+    shiftLock.offShift,
+    isTicketDashboard,
+    ticketCounts,
+    isHskPortierUser,
+    portierOverview,
+    portierRows,
+    filterCounts,
+    derivedCategories,
+  ]);
+
+  useAssistantScreen('Home', assistantFacts);
+
   /**
    * "See Rooms" in the filter sheet.
    *
@@ -950,7 +1053,7 @@ export default function HomeScreen() {
             role={safeUser?.role}
             avatarUrl={safeUser?.avatar}
             shift={homeData.selectedShift}
-            onShiftChange={handleShiftToggle}
+            onShiftChange={shiftLock.locked ? undefined : handleShiftToggle}
           />
         </View>
 
@@ -968,7 +1071,10 @@ export default function HomeScreen() {
           />
         )}
 
-        {/* Scrollable Content with conditional blur */}
+        {/* A room attendant off the shift that is on now: say so, and when theirs is. */}
+        {shiftLock.offShift ? (
+          <OffShiftNotice info={shiftLock.offShift} onDark={homeData.selectedShift === 'PM'} />
+        ) : (
         <View style={styles.scrollContainer}>
           <ScrollView
             style={styles.scrollView}
@@ -1034,7 +1140,7 @@ export default function HomeScreen() {
                     }}
                   />
 
-                  <Text style={styles.ticketDashboardRecentTitle}>Recent activity</Text>
+                  <Text style={[styles.ticketDashboardRecentTitle, pm && { color: pm.text }]}>Recent activity</Text>
                   {ticketRecent.length === 0 ? (
                     <TicketActivityItem
                       roomLabel="—"
@@ -1070,14 +1176,14 @@ export default function HomeScreen() {
                       accessibilityRole="button"
                       style={styles.ticketDashboardLoadMore}
                     >
-                      <Text style={styles.ticketDashboardLoadMoreText}>Load more</Text>
+                      <Text style={[styles.ticketDashboardLoadMoreText, pm && { color: pm.accent }]}>Load more</Text>
                     </Pressable>
                   )}
                 </View>
               </>
             ) : isHskPortierUser ? (
               <View style={{ paddingTop: 12 * scaleX, paddingBottom: 24 * scaleX }}>
-                <Text style={styles.portierTitle}>Tasks Overview</Text>
+                <Text style={[styles.portierTitle, pm && { color: pm.text }]}>Tasks Overview</Text>
                 <HskPortierTasksOverviewCard
                   total={portierOverview.total}
                   dirty={portierOverview.dirty}
@@ -1210,6 +1316,7 @@ export default function HomeScreen() {
           </ScrollView>
           
         </View>
+        )}
 
       </KeyboardAvoidingView>
 

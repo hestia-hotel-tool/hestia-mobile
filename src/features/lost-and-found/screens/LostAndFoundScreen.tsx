@@ -1,5 +1,9 @@
-import React, { useRef, useState, useEffect } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import React, { useRef, useState, useEffect, useMemo } from 'react';
+import { View, ScrollView, StyleSheet, RefreshControl, TextInput, Text, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Icon } from '@/components/Icon';
+import { matchesLostAndFoundQuery } from '../utils/searchLostAndFound';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import { router, useNavigation, useRoute, useFocusEffect } from 'expo-router';
 import { BottomTabNavigationProp } from "expo-router/js-tabs";
 import { LOST_AND_FOUND_CARD_LAYOUT as CARD_LAYOUT } from '../components/itemCard/lostAndFoundCardLayout';
@@ -30,6 +34,8 @@ import {
   updateLostAndFoundStatus,
   setLostAndFoundShipped,
 } from '../services/lostAndFound';
+import { PERMISSIONS, usePermissions, useTabBack } from '@/domain/rbac';
+import { useStorageLocations } from '../hooks/useStorageLocations';
 
 type MainTabsParamList = {
   '(home)/index': undefined;
@@ -38,7 +44,6 @@ type MainTabsParamList = {
   '(tickets)/index': undefined;
   '(lost_and_found)/index': undefined;
   '(staff)/index': undefined;
-  '(settings)/index': undefined;
 };
 
 type LostAndFoundScreenNavigationProp = BottomTabNavigationProp<MainTabsParamList, '(lost_and_found)/index'>;
@@ -67,6 +72,13 @@ const TAB_STATUS: Record<LostAndFoundTab, LostAndFoundStatus[] | null> = {
   discarded: ['discarded'],
 };
 
+const TAB_LABEL: Record<LostAndFoundTab, string> = {
+  created: 'Created',
+  stored: 'Stored',
+  returned: 'Returned',
+  discarded: 'Discarded',
+};
+
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
   const toast = useToast();
@@ -88,6 +100,13 @@ export default function LostAndFoundScreen() {
     if (roomId) router.push({ pathname: '/room/[roomId]', params: { roomId } });
   };
   const [selectedTab, setSelectedTab] = useState<LostAndFoundTab>('created');
+  // Loads the hotel's storage-location names, so cards show them (and re-render once they arrive).
+  useStorageLocations();
+  // Housekeeping line staff see only their own items from today (migration 20261026240000).
+  const ownTodayOnly = !usePermissions().can(PERMISSIONS.LOST_AND_FOUND_READ_ALL);
+  /** Search: the bar under the tabs, opened by the magnifier. Filters the current tab. */
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const [items, setItems] = useState<LostAndFoundItem[]>([]);
   const itemsRef = React.useRef<LostAndFoundItem[]>([]);
   React.useEffect(() => {
@@ -114,6 +133,10 @@ export default function LostAndFoundScreen() {
     trackingNumber: string;
     itemImage?: string;
     itemData: any;
+    /** Set once the insert returns; the success sheet's Print needs it. */
+    itemId?: string | null;
+    /** The guest email's outcome, when the box was ticked. */
+    email?: { queuedTo: string } | { error: string };
   } | null>(null);
   const [needsRefreshAfterRegister, setNeedsRefreshAfterRegister] = useState(false);
   const registerInflightRef = React.useRef<Promise<void> | null>(null);
@@ -284,6 +307,7 @@ export default function LostAndFoundScreen() {
            */
           guestImage: guestImageUri ? { uri: guestImageUri } : undefined,
           storedLocation: row.storage_location ?? '',
+          notes: (row as { description?: string | null }).description?.trim() || null,
           shippedLocation:
             (row as any).shipped_location ??
             shippingRef.current[row.id] ??
@@ -347,7 +371,13 @@ export default function LostAndFoundScreen() {
 
 
 
+  const tabBack = useTabBack('LostAndFound');
   const handleBackPress = () => {
+    // Without Home, goBack() lands on Home and loops through the guard.
+    if (!tabBack.hasHome) {
+      tabBack.goBack();
+      return;
+    }
     if (navigation.canGoBack()) {
       navigation.goBack();
     } else {
@@ -383,6 +413,8 @@ export default function LostAndFoundScreen() {
     itemData: any;
   }) => {
     let trackingNumberFromDb: string = data.trackingNumber ?? '';
+    let insertedId: string | null = null;
+    let emailOutcome: { queuedTo: string } | { error: string } | undefined;
     const firstImageUri: string | undefined = data.itemImage;
 
     // Close the register modal first; then show success.
@@ -405,7 +437,11 @@ export default function LostAndFoundScreen() {
           imageUri: firstImageUri,
         });
         if (result.trackingNumber) trackingNumberFromDb = result.trackingNumber;
-        if (result.id) pendingInsertedItemIdRef.current = result.id;
+        if (result.id) {
+          pendingInsertedItemIdRef.current = result.id;
+          insertedId = result.id;
+        }
+        emailOutcome = result.email;
         // The room's card on Rooms gets its lost-and-found tile now, not on
         // the list's next refetch.
         if (result.id && data.itemData?.selectedLocation === 'room') {
@@ -429,6 +465,8 @@ export default function LostAndFoundScreen() {
         setSuccessData((prev) => ({
           ...(prev ?? { itemData: data.itemData, itemImage: data.itemImage, trackingNumber: '' }),
           trackingNumber: trackingNumberFromDb,
+          itemId: insertedId,
+          email: emailOutcome,
         }));
       }
     })();
@@ -579,10 +617,49 @@ export default function LostAndFoundScreen() {
     loadItems('pull').finally(() => setRefreshing(false));
   }, [loadItems]);
 
-  const filteredItems = items.filter((item) => {
-    const allowed = TAB_STATUS[selectedTab];
+  const inTab = (item: LostAndFoundItem, tab: LostAndFoundTab) => {
+    const allowed = TAB_STATUS[tab];
     return allowed == null || allowed.includes(item.status);
-  });
+  };
+  const searching = query.trim().length > 0;
+  const filteredItems = items.filter(
+    (item) => inTab(item, selectedTab) && (!searching || matchesLostAndFoundQuery(item, query))
+  );
+  /** Nothing here but matches elsewhere: say where, and let them jump there. */
+  const matchesInOtherTabs =
+    searching && filteredItems.length === 0
+      ? (Object.keys(TAB_STATUS) as LostAndFoundTab[])
+          .filter((tab) => tab !== selectedTab)
+          .map((tab) => ({
+            tab,
+            count: items.filter((item) => inTab(item, tab) && matchesLostAndFoundQuery(item, query)).length,
+          }))
+          .filter((t) => t.count > 0)
+      : [];
+
+  /** What this list shows, for the assistant (see screenContext.ts). */
+  const assistantKey = filteredItems.map((i) => `${i.id}:${i.status}`).join('|');
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => [
+      { label: 'Tab', value: TAB_LABEL[selectedTab] },
+      ...(searching ? [{ label: 'Search', value: query.trim() }] : []),
+      { label: 'Items listed', value: filteredItems.length },
+      ...filteredItems.slice(0, 30).map((i) => ({
+        label: `${i.itemName} (${i.itemId})`,
+        value: [i.status, i.location, i.guestName ? `guest ${i.guestName}` : '', i.storedLocation ? `stored at ${i.storedLocation}` : '', `registered by ${i.registeredBy.name}`]
+          .filter(Boolean)
+          .join(', '),
+      })),
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedTab, searching, query, assistantKey]
+  );
+  useAssistantScreen('Lost & Found', assistantFacts);
+
+  const toggleSearch = () => {
+    if (searchOpen) setQuery('');
+    setSearchOpen(!searchOpen);
+  };
 
   return (
     <View style={styles.container}>
@@ -596,8 +673,37 @@ export default function LostAndFoundScreen() {
       />
 
       <View style={styles.tabRow}>
-        <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} />
+        <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} onSearchPress={toggleSearch} />
       </View>
+
+      {searchOpen ? (
+        <View style={styles.searchRow}>
+          <View style={styles.searchField}>
+            <Icon name="action-search" size={18 * scaleX} color="#5a759d" />
+            <TextInput
+              style={styles.searchInput}
+              value={query}
+              onChangeText={setQuery}
+              placeholder="Item, tracking no., guest, room, staff…"
+              placeholderTextColor="#a0a0a0"
+              autoFocus
+              autoCorrect={false}
+              autoCapitalize="none"
+              returnKeyType="search"
+              clearButtonMode="never"
+              accessibilityLabel="Search lost and found"
+            />
+            {query ? (
+              <Pressable onPress={() => setQuery('')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search">
+                <Ionicons name="close-circle" size={18 * scaleX} color="#a0a0a0" />
+              </Pressable>
+            ) : null}
+          </View>
+          <Pressable onPress={toggleSearch} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.searchCancel}>Cancel</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       <View style={styles.scrollContainer}>
         <ScrollView
@@ -620,10 +726,41 @@ export default function LostAndFoundScreen() {
              * has been handed in" for a frame on every cold open.
              */
             !listLoading && !refetchLoading && !refreshing ? (
-              <EmptyLostAndFoundState selectedTab={selectedTab} />
+              searching ? (
+                <View style={styles.noResults}>
+                  <Text style={styles.noResultsTitle}>No items match “{query.trim()}”</Text>
+                  {matchesInOtherTabs.length > 0 ? (
+                    <>
+                      <Text style={styles.noResultsHint}>Found in other tabs:</Text>
+                      <View style={styles.otherTabs}>
+                        {matchesInOtherTabs.map(({ tab, count }) => (
+                          <Pressable
+                            key={tab}
+                            style={styles.otherTabChip}
+                            onPress={() => handleTabChange(tab)}
+                            accessibilityRole="button"
+                          >
+                            <Text style={styles.otherTabChipText}>
+                              {TAB_LABEL[tab]} ({count})
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
+                  ) : (
+                    <Text style={styles.noResultsHint}>Try an item name, tracking number, guest, room or staff name.</Text>
+                  )}
+                </View>
+              ) : (
+                <EmptyLostAndFoundState selectedTab={selectedTab} ownTodayOnly={ownTodayOnly} />
+              )
             ) : null
           ) : (
-            filteredItems.map((item) => (
+            <>
+            {ownTodayOnly ? (
+              <Text style={styles.scopeNote}>Showing items you registered or found today.</Text>
+            ) : null}
+            {filteredItems.map((item) => (
               <LostAndFoundItemCard
                 key={item.id}
                 item={item}
@@ -631,7 +768,8 @@ export default function LostAndFoundScreen() {
                 onStatusPress={(anchor) => handleStatusPress(item, anchor)}
                 statusUpdating={statusUpdating && statusUpdatingItemId === item.id}
               />
-            ))
+            ))}
+            </>
           )}
         </ScrollView>
 
@@ -654,6 +792,9 @@ export default function LostAndFoundScreen() {
         onClose={handleCloseSuccessModal}
         trackingNumber={successData?.trackingNumber || ''}
         itemImage={successData?.itemImage}
+        itemId={successData?.itemId}
+        notes={successData?.itemData?.notes}
+        email={successData?.email}
       />
 
       {/* Change status popover (anchored, like Tickets) */}
@@ -686,6 +827,7 @@ export default function LostAndFoundScreen() {
 }
 
 const styles = StyleSheet.create({
+  scopeNote: { marginBottom: 10, marginHorizontal: 4, fontSize: 13, color: '#6b7a90' },
   container: {
     flex: 1,
     backgroundColor: LOST_AND_FOUND_COLORS.background,
@@ -703,6 +845,73 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12 * scaleX,
+    paddingHorizontal: CARD_LAYOUT.gutter * scaleX,
+    paddingTop: 12 * scaleX,
+    backgroundColor: LOST_AND_FOUND_COLORS.background,
+  },
+  searchField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10 * scaleX,
+    height: 44 * scaleX,
+    paddingHorizontal: 16 * scaleX,
+    borderRadius: 22 * scaleX,
+    backgroundColor: '#f1f6fc',
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15 * scaleX,
+    fontFamily: 'Helvetica',
+    color: '#1e1e1e',
+    paddingVertical: 0,
+  },
+  searchCancel: {
+    fontSize: 15 * scaleX,
+    fontFamily: 'Helvetica',
+    color: '#5a759d',
+  },
+  noResults: {
+    alignItems: 'center',
+    paddingTop: 48 * scaleX,
+    paddingHorizontal: 24 * scaleX,
+    gap: 10 * scaleX,
+  },
+  noResultsTitle: {
+    fontSize: 17 * scaleX,
+    fontFamily: 'Helvetica',
+    fontWeight: '700',
+    color: '#334866',
+    textAlign: 'center',
+  },
+  noResultsHint: {
+    fontSize: 14 * scaleX,
+    fontFamily: 'Helvetica',
+    color: '#a0a0a0',
+    textAlign: 'center',
+  },
+  otherTabs: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10 * scaleX,
+  },
+  otherTabChip: {
+    paddingHorizontal: 16 * scaleX,
+    paddingVertical: 8 * scaleX,
+    borderRadius: 18 * scaleX,
+    backgroundColor: '#e4eefe',
+  },
+  otherTabChipText: {
+    fontSize: 14 * scaleX,
+    fontFamily: 'Helvetica',
+    fontWeight: '700',
+    color: '#5a759d',
   },
   scrollContent: {
     /*

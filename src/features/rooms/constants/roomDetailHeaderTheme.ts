@@ -86,20 +86,6 @@ const HEADER_STATE_PALETTE = {
     returnTimeColor: '#334866',
   },
   /*
-   * Promised Time — **unverified**. It shared the block above until Return
-   * Later's frame was read, and nothing says the two agree; keeping the old
-   * values here rather than inheriting the new ones means this pass changes
-   * only the state whose frame was actually measured.
-   */
-  promisedTime: {
-    headerBackground: '#FCF1CF',
-    backArrowTint: '#6C7D99',
-    roomNumberColor: '#334866',
-    roomCodeColor: '#6C7D99',
-    statusTextAndIconColor: '#000000',
-    returnTimeColor: '#6C7D99',
-  },
-  /*
    * Refused Service — Figma 2333-835, pixel-sampled from the rendered frame.
    *
    * A `#ff9090` salmon ground with white foregrounds, which replaced a
@@ -149,12 +135,8 @@ export function resolveRoomDetailHeaderTheme(
         overlayIcon: 'refuseService',
       };
     }
-    case 'returnLater':
-    case 'promisedTime': {
-      const p =
-        activity.kind === 'returnLater'
-          ? HEADER_STATE_PALETTE.returnLater
-          : HEADER_STATE_PALETTE.promisedTime;
+    case 'returnLater': {
+      const p = HEADER_STATE_PALETTE.returnLater;
       return {
         headerBackground: p.headerBackground,
         roomNumberColor: p.roomNumberColor,
@@ -162,7 +144,7 @@ export function resolveRoomDetailHeaderTheme(
         backArrowTint: p.backArrowTint,
         statusTextAndIconColor: p.statusTextAndIconColor,
         subtitleColor: p.returnTimeColor,
-        overlayIcon: activity.kind === 'returnLater' ? 'returnLater' : 'promisedTime',
+        overlayIcon: 'returnLater',
       };
     }
     /*
@@ -174,6 +156,9 @@ export function resolveRoomDetailHeaderTheme(
      */
     case 'paused':
     case 'dnd':
+    // A promise does not take the header over: the room's status does (the
+    // promise is the line under it — see describeRoomActivity).
+    case 'promisedTime':
     case 'none': {
       const displayStatus =
         activity.kind === 'paused' ? 'Paused' : activity.kind === 'dnd' ? 'DoNotDisturb' : status;

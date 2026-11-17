@@ -23,7 +23,9 @@ import {
   uploadLostAndFoundPhotos,
 } from '../services/lostAndFound';
 import { PhotoGridEditor, type EditablePhoto } from '@/components/media/PhotoGridEditor';
-import { STORED_LOCATIONS } from '../utils/storedLocations';
+import { storedLocationLabel } from '../utils/storedLocations';
+import { useStorageLocations } from '../hooks/useStorageLocations';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 const C = {
   title: '#5a759d',
@@ -45,7 +47,12 @@ type Form = { itemName: string; description: string; storageLocation: string; ph
  * (route gated on `lost_and_found.manage`, and the database refuses edits from
  * anyone else). Leaving with unsaved changes asks first.
  */
+/** For the assistant: what this screen is for (see screenContext.ts). */
+const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Editing a lost & found item' }];
+
 export default function LostAndFoundEditScreen() {
+  const { active: activeStorage } = useStorageLocations();
+  useAssistantScreen('Edit lost & found item', ASSISTANT_FACTS);
   const { id } = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
   const toast = useToast();
@@ -163,6 +170,13 @@ export default function LostAndFoundEditScreen() {
     );
   }
 
+  const storageChoices = [
+    ...activeStorage.map((l) => ({ value: l.key, label: l.label })),
+    ...(form && form.storageLocation && !activeStorage.some((l) => l.key === form.storageLocation)
+      ? [{ value: form.storageLocation, label: storedLocationLabel(form.storageLocation) }]
+      : []),
+  ];
+
   return (
     <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       {header}
@@ -186,9 +200,9 @@ export default function LostAndFoundEditScreen() {
         {form.itemName.trim().length === 0 ? <Text style={styles.error}>A title is required.</Text> : null}
 
         <Text style={[styles.label, styles.gap]}>Stored location</Text>
-        {/* The same four places the register form offers (the column holds their keys). */}
+        {/* The hotel's locations (the column holds their keys); a retired one the item is in stays shown. */}
         <View style={styles.chips}>
-          {STORED_LOCATIONS.map((o) => {
+          {storageChoices.map((o) => {
             const selected = form.storageLocation === o.value;
             return (
               <Pressable

@@ -66,7 +66,8 @@ export interface GuestInfo {
   /** ETA = Arrival (check-in); EDT = Departure (check-out); N/A = Stayover, Turndown, No Task, Vacant */
   timeLabel: 'ETA' | 'EDT' | 'N/A';
   guestCount: GuestCount; // Display: adults/kids (e.g. 2/2)
-  vipCode?: number; // VIP code badge (e.g., 11 for first guest, 22 for second in Arrival/Departure)
+  /** The hotel's VIP code, "1"–"10" (1 most important); absent for a regular guest. See `@/domain/vip`. */
+  vipCode?: string;
   isVacant?: boolean; // For turndown vacant state
   /** ISO date string (YYYY-MM-DD) of guest arrival; used for Stayover linen calculation (every 2nd day = linen change) */
   arrivalDate?: string;
@@ -137,6 +138,11 @@ export interface RoomCardData {
   cleaningStartedAt?: string | null;
   /** When the current cleaning run started; "Undo start" is open for a short window after it. */
   inProgressStartedAt?: string | null;
+  /**
+   * Out of order today: the back office's rooms.out_of_order_from–to
+   * (inclusive) and reason. Null when the room is in service.
+   */
+  outOfOrder?: { from: string; to: string; reason: string | null } | null;
   cleaningElapsedSeconds?: number;
   /** When set (ISO timestamp), room is in "Refused Service" state (for display). */
   refuseServiceAt?: string | null;
@@ -212,11 +218,9 @@ export function getRoomDisplayStatus(
     case 'returnLater':
       return 'ReturnLater';
     case 'promisedTime':
-      // A promise only overlays a room still to be cleaned; once Cleaned or
-      // Inspected the promise has been kept.
-      return room.houseKeepingStatus === 'Cleaned' || room.houseKeepingStatus === 'Inspected'
-        ? room.houseKeepingStatus
-        : 'PromisedTime';
+      // A promise is a note on the room, not a status: the room keeps its own
+      // (Dirty, In Progress, …) and can move through them as usual.
+      return room.houseKeepingStatus;
     default:
       return room.houseKeepingStatus;
   }
@@ -262,7 +266,8 @@ export const ROOM_ACTIVITY_LABEL: Record<RoomActivityKind, string | null> = {
   dnd: 'Do Not Disturb',
   returnLater: 'Return Later',
   refuseService: 'Refused Service',
-  promisedTime: 'Promised Time',
+  // Not a status: the header keeps the room's own label (client feedback).
+  promisedTime: null,
 };
 
 /** ISO → epoch ms, or null when absent/unparseable. */
@@ -478,7 +483,7 @@ export const STATUS_CONFIGS: Record<RoomDisplayStatus, StatusConfig> = {
   Inspected: {
     color: '#41d541',
     iconName: 'status-approved',
-    glyphHeight: 26,
+    glyphHeight: 25,
     label: 'Inspected',
   },
   /**

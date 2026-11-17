@@ -50,6 +50,18 @@ async function uploadRoomPhotos(hotelId: string, userId: string, localUris: stri
 }
 
 /**
+ * Upload photos for a room action (a send-back or reopen) to `room-photos`,
+ * under the signed-in user's folder, and return their public URLs.
+ */
+export async function uploadRoomActionPhotos(localUris: string[]): Promise<string[]> {
+  if (localUris.length === 0) return [];
+  const [{ data: auth }, hotelId] = await Promise.all([supabase.auth.getSession(), getMyHotelId()]);
+  const userId = auth?.session?.user?.id;
+  if (!userId || !hotelId) throw new Error('You must be signed in to add photos.');
+  return uploadRoomPhotos(hotelId, userId, localUris);
+}
+
+/**
  * File the report for a room that has just been set Cleaned: upload the
  * photos, write the row, add the note to the room's notes.
  */

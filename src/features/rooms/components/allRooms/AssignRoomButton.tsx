@@ -46,7 +46,7 @@ const B = {
  *   non-interactive "Unassigned" chip in the same slot, so the card does not
  *   change shape by role.
  *
- * Content-sized, so the header can measure it (RoomCardHeader).
+ * Content-sized, left-aligned in the room card's footer (RoomAssigneeBlock).
  */
 export function AssignRoomButton({ left, top, roomNumber, loading = false, onPress }: Props) {
   // Created once; state rather than a ref so it is not read off a ref during render.

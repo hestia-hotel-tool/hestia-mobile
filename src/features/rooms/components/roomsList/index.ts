@@ -1,12 +1,12 @@
 export { RoomListCard } from './RoomListCard';
 export type { RoomListCardProps } from './RoomListCard';
-export { SingleGuestRoomCard } from './SingleGuestRoomCard';
-export { ArrivalDepartureRoomCard } from './ArrivalDepartureRoomCard';
 export { RoomCardShell } from './RoomCardShell';
 export { RoomCardHeader } from './RoomCardHeader';
+export { RoomCardBody } from './RoomCardBody';
+export { RoomCardFooter } from './RoomCardFooter';
+export { RoomTypeChip } from './RoomTypeChip';
 export { RoomStatusPill } from './RoomStatusPill';
 export { RoomAssigneeBlock } from './RoomAssigneeBlock';
-export { RoomCardBody } from './RoomCardBody';
 export { GuestRow } from './GuestRow';
 export type { GuestRowKind, GuestRowProps } from './GuestRow';
-export { ROOM_CARD, ROOM_CARD_SPECS, roomCardSpecName } from './roomCardLayout';
+export { ROOM_CARD } from './roomCardLayout';

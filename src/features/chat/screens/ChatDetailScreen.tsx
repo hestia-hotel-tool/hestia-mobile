@@ -58,6 +58,9 @@ import {
 import { useToast } from '@/contexts/ToastContext';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { Ionicons } from '@expo/vector-icons';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
+import { NO_CAMERA_MESSAGE, cameraAvailable } from '@/components/media/photoPicker';
+import { chatDayLabel, isSameChatDay } from '../utils/chatDates';
 
 type ChatDetailScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'chat/[chatId]'>;
 
@@ -89,6 +92,13 @@ export default function ChatDetailScreen() {
 
   const isSupabaseChat = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(chatId);
   const [fetchedChat, setFetchedChat] = useState<{ name: string; isGroup: boolean; created_by_id: string } | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). Not the messages themselves. */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () => (fetchedChat ? [{ label: fetchedChat.isGroup ? 'Group chat' : 'Chat with', value: fetchedChat.name }] : []),
+    [fetchedChat]
+  );
+  useAssistantScreen('Chat conversation', assistantFacts);
   const baseChat = chatParam ?? (isSupabaseChat ? { id: chatId, name: 'Chat', lastMessage: '', isGroup: false } : null);
   const isGroup = fetchedChat ? fetchedChat.isGroup : (baseChat?.isGroup ?? false);
   const chat = baseChat
@@ -366,6 +376,11 @@ export default function ChatDetailScreen() {
   };
 
   const handleTakePhoto = async () => {
+    // The iOS simulator has no camera; launching it there is a native crash.
+    if (!cameraAvailable()) {
+      toast.show(NO_CAMERA_MESSAGE, { type: 'error', title: 'No camera' });
+      return;
+    }
     try {
       const { status } = await ImagePicker.requestCameraPermissionsAsync();
       if (status !== 'granted') {
@@ -507,38 +522,10 @@ export default function ChatDetailScreen() {
   const removeImage = () => setSelectedImage(null);
   const removeFile = () => setSelectedFile(null);
 
-  const shouldShowDateSeparator = (currentMessage: ChatMessage, prevMessage: ChatMessage | null): boolean => {
-    if (!prevMessage) return true;
-    
-    const currentDate = new Date(currentMessage.timestamp);
-    const prevDate = new Date(prevMessage.timestamp);
-    
-    return (
-      currentDate.getDate() !== prevDate.getDate() ||
-      currentDate.getMonth() !== prevDate.getMonth() ||
-      currentDate.getFullYear() !== prevDate.getFullYear()
-    );
-  };
-
-  const formatDateSeparator = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', { 
-        weekday: 'long',
-        month: 'long', 
-        day: 'numeric',
-        year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
-      });
-    }
-  };
+  // A day chip above each day's first message (WhatsApp): "Today",
+  // "Yesterday", the weekday within the week, else the date — chatDayLabel.
+  const shouldShowDateSeparator = (currentMessage: ChatMessage, prevMessage: ChatMessage | null): boolean =>
+    !prevMessage || !isSameChatDay(currentMessage.timestamp, prevMessage.timestamp);
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -739,11 +726,9 @@ export default function ChatDetailScreen() {
             >
               {showDateSeparator ? (
                 <View style={styles.dateSeparator}>
-                  <View style={styles.dateSeparatorLine} />
                   <Text style={styles.dateSeparatorText}>
-                    {formatDateSeparator(message.timestamp)}
+                    {chatDayLabel(message.timestamp)}
                   </Text>
-                  <View style={styles.dateSeparatorLine} />
                 </View>
               ) : null}
               <MessageBubble
@@ -1163,24 +1148,25 @@ const styles = StyleSheet.create({
   sendButtonRecording: {
     backgroundColor: colors.primary.main,
   },
+  // WhatsApp's day chip: centred, white on the chat's ground, a soft shadow.
   dateSeparator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 0,
-    marginBottom: 16 * scaleX,
-    paddingHorizontal: 16 * scaleX,
-  },
-  dateSeparatorLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: colors.border.medium,
+    alignSelf: 'center',
+    marginTop: 4 * scaleX,
+    marginBottom: 14 * scaleX,
+    paddingHorizontal: 12 * scaleX,
+    paddingVertical: 5 * scaleX,
+    borderRadius: 8 * scaleX,
+    backgroundColor: '#ffffff',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 2 },
+      android: { elevation: 1 },
+    }),
   },
   dateSeparatorText: {
-    fontSize: 12 * scaleX,
+    fontSize: 12.5 * scaleX,
     fontFamily: 'Helvetica',
-    color: colors.text.tertiary,
-    marginHorizontal: 12 * scaleX,
-    fontWeight: '400' as any,
+    color: '#5a759d',
+    fontWeight: '500' as any,
   },
   attachmentPreviewRow: {
     flexDirection: 'row',

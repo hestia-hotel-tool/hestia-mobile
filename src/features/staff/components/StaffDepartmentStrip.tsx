@@ -9,7 +9,7 @@ import { departmentIconName, departmentGlyphHeight, type DepartmentRow } from '@
 import { STAFF_LIST_LAYOUT as L } from './staffList/staffListLayout';
 
 /**
- * "Executive and Administration" -> "EA", "IT" -> "IT".
+ * "In Room Dining" -> "IRD", "IT" -> "IT".
  *
  * Skips the joining words so "Food & Beverage / Kitchen" gives FBK rather than
  * something with an ampersand in it.
@@ -104,9 +104,8 @@ export default function StaffDepartmentStrip({
               }}
             >
               {/*
-                `departmentIconName` returns null rather than a wrong glyph —
-                "Executive and Administration" has none, and the frame's answer
-                to that is a bare disc rather than a borrowed mark.
+                `departmentIconName` returns null rather than a wrong glyph for
+                a department the design drew no mark for.
               */}
               {iconName ? (
                 <Icon
@@ -121,10 +120,8 @@ export default function StaffDepartmentStrip({
                   `departmentIconName` returns null rather than a wrong glyph,
                   which is the right call — but the frame never drew a
                   department without one, so nothing decided what to put there.
-                  "Executive and Administration" has no mark and rendered a bare
-                  disc that reads as a failed image. Its initials read as a
-                  choice, and any department added later gets the same
-                  treatment for free.
+                  A bare disc reads as a failed image; initials read as a
+                  choice, and any department added later gets them for free.
                 */
                 <Text
                   className="font-hestia-primary font-bold"

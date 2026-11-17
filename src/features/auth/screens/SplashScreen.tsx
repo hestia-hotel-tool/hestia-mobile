@@ -16,7 +16,7 @@ import { useAuth } from '../hooks/useAuth';
  */
 export default function SplashScreen() {
   const { session, hotelId, error, isLoading, signOut } = useAuth();
-  const { permissions, isLoading: permissionsLoading } = usePermissions();
+  const { permissions, worksFromTickets, isLoading: permissionsLoading } = usePermissions();
   const { t } = useTranslation();
   const [fade] = useState(() => new Animated.Value(0));
   useEffect(() => {
@@ -40,9 +40,9 @@ export default function SplashScreen() {
     }
     if (!hotelId || permissionsLoading) return;
 
-    const landing = resolveLandingRoute(permissions);
+    const landing = resolveLandingRoute(permissions, { worksFromTickets });
     if (landing) router.replace(landing as never);
-  }, [isLoading, session, hotelId, permissionsLoading, permissions]);
+  }, [isLoading, session, hotelId, permissionsLoading, permissions, worksFromTickets]);
 
   const settled = !isLoading && !!session && !!hotelId && !permissionsLoading;
   const noAccess = settled && resolveLandingRoute(permissions) === null;

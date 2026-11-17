@@ -11,6 +11,7 @@ import { PhotoViewer } from '@/components/media/PhotoViewer';
 import { fetchAnnouncement, fetchTaskContext, type Announcement, type TaskContext } from '../services/chat';
 import { taskMeta } from '../utils/taskMeta';
 import { CHAT_COLORS, CHAT_LIST as L, scaleX } from '../constants/chatStyles';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** "Friday 26 September 2026, 09:14" */
 function formatFull(iso: string): string {
@@ -38,6 +39,21 @@ export default function TaskDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const [item, setItem] = useState<Announcement | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = React.useMemo<ScreenFact[]>(
+    () =>
+      item
+        ? [
+            { label: 'Subject', value: item.subject },
+            { label: 'From', value: item.senderName ?? '—' },
+            { label: 'Sent', value: item.createdAt },
+            { label: 'Message', value: item.body },
+          ]
+        : [],
+    [item]
+  );
+  useAssistantScreen('Task', assistantFacts);
   const [loading, setLoading] = useState(true);
   /** The room now, the attendant, and a cleaning's report — loaded after the task itself. */
   const [context, setContext] = useState<TaskContext | null>(null);
@@ -70,6 +86,9 @@ export default function TaskDetailScreen() {
   };
 
   const meta = item ? taskMeta(item.type) : null;
+  /** What the photo viewer pages through: a cleaning's report, or a send-back's photos. */
+  const viewerPhotos =
+    item?.type === 'room_cleaned' ? (context?.report?.photos ?? []) : (item?.photoUrls ?? []);
   /*
    * Rooms back in the pool (shift end): open Rooms on that shift, filtered to
    * the unassigned rooms, so they can be handed out again.
@@ -144,6 +163,26 @@ export default function TaskDetailScreen() {
               {item.body}
             </Text>
 
+            {/* A send-back or reopen: the photos of what needs fixing. */}
+            {item.type !== 'room_cleaned' && item.photoUrls && item.photoUrls.length > 0 ? (
+              <>
+                <View style={styles.rule} />
+                <Text style={styles.sectionTitle}>Photos</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.photos}>
+                  {item.photoUrls.map((uri, index) => (
+                    <Pressable
+                      key={uri}
+                      onPress={() => setViewerIndex(index)}
+                      accessibilityRole="imagebutton"
+                      accessibilityLabel={`Photo ${index + 1} of ${item.photoUrls!.length}`}
+                    >
+                      <Image source={{ uri }} style={styles.photo} contentFit="cover" cachePolicy="memory-disk" />
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            ) : null}
+
             {/* A cleaning: what the attendant filed with it (Figma 4378:472). */}
             {item.type === 'room_cleaned' ? (
               context == null ? (
@@ -183,9 +222,9 @@ export default function TaskDetailScreen() {
             ) : null}
           </ScrollView>
 
-          {context?.report && context.report.photos.length > 0 ? (
+          {viewerPhotos.length > 0 ? (
             <PhotoViewer
-              photos={context.report.photos}
+              photos={viewerPhotos}
               startIndex={viewerIndex ?? 0}
               visible={viewerIndex != null}
               onClose={() => setViewerIndex(null)}

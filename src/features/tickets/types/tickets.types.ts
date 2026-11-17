@@ -1,7 +1,12 @@
-export type TicketTab = 'myTickets' | 'all' | 'open' | 'closed';
+/** `drafts`: this user's unsent tickets, kept on the device (store/ticketDrafts). */
+export type TicketTab = 'myTickets' | 'all' | 'open' | 'closed' | 'drafts';
 
-/** `ofo` = out-of-order / OFT pill (Figma 3147:87). */
-export type TicketStatus = 'done' | 'unsolved' | 'ofo';
+/**
+ * `ofo` = out-of-order / OFT pill (Figma 3147:87). `inProgress` is someone
+ * working on it (client feedback, 2026-10-27) — still open, stored as
+ * `in_progress`.
+ */
+export type TicketStatus = 'done' | 'unsolved' | 'inProgress' | 'ofo';
 
 export interface TicketData {
   id: string;
@@ -44,6 +49,8 @@ export interface TicketData {
    * Currently not used for filtering but kept for future extensions.
    */
   createdById?: string;
+  /** The department the ticket was raised for: who may resolve and reassign it. */
+  departmentId?: string | null;
   /** Current session user appears in ticket_tags for this ticket. */
   viewerIsTagged?: boolean;
   priority?: 'urgent' | 'medium' | 'notUrgent';

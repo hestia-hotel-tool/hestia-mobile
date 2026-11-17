@@ -1,8 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { Platform, StyleSheet } from 'react-native';
+import Animated, {
+  interpolate,
+  interpolateColor,
+  useAnimatedStyle,
+  type SharedValue,
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { View, Text } from '@/tw';
 import { SearchAndFilterBar } from '@/components/ui/SearchAndFilterBar';
 import { HomeHeader } from '@features/home/components/HomeHeader';
+import { colors, typography } from '@/theme';
 import type { ShiftType } from '@/types/shift.types';
+import { pmSurface } from '@/theme/shiftSurface';
 import { RoomsProgressPill } from './RoomsProgressPill';
 
 export type RoomsHeaderProps = {
@@ -10,44 +20,53 @@ export type RoomsHeaderProps = {
   role?: string | null;
   avatarUrl?: string | null;
   shift: ShiftType;
-  onShiftChange: (shift: ShiftType) => void;
+  /** Omit to lock the shift (room attendants) — see HomeHeader. */
+  onShiftChange?: (shift: ShiftType) => void;
   searchQuery: string;
   onSearch: (text: string) => void;
   onFilterPress?: () => void;
+  /** The filter sheet is open — the filter button shows pressed. */
+  filterOpen?: boolean;
+  /** Filters are applied — a dot on the filter button. */
+  filtersApplied?: boolean;
+  /** 1 open, 0 collapsed — from `useCollapsingHeader`. */
+  progress: SharedValue<number>;
+  /** Finished / total assigned. Room attendants only — omit it and no pill is drawn. */
+  progressPill?: { finished: number; total: number };
+  /** Beside the progress pill — e.g. laundry's "View only" chip. */
+  accessory?: React.ReactNode;
+  /** Under the pill row — e.g. laundry's linen workload (LinenSummary). */
+  summary?: React.ReactNode;
+  /** Pinned under the search field, e.g. the active filters. Never collapses. */
+  footer?: React.ReactNode;
   /**
-   * Finished / total assigned, shown beside the title. Room attendants only —
-   * omit it and no pill is drawn.
+   * Draw the profile band (who you are, the shift). Off for laundry
+   * attendants, whose profile is on Tickets — the tab their app opens on;
+   * Rooms is their reference (client, 2026-11-09).
    */
-  progress?: { finished: number; total: number };
-  /**
-   * Drop the "Rooms" title while an anchored overlay is open.
-   *
-   * Unmounted, not just made invisible: hiding it with `opacity` left its row
-   * holding a band of empty white, which is not what the frame shows. The list
-   * reflows upward as a result, so `AllRoomsScreen` sets this *before* it
-   * measures the pill the popover points at — see `pendingStatusRoom`.
-   */
-  titleHidden?: boolean;
+  showProfile?: boolean;
+  /** The gap under the search field while open; 40 by default (Figma 4553:262). Smaller when the list opens with its own spacing. */
+  listGap?: number;
 };
 
+/** Gaps around the search field, open and collapsed (Figma 4553:262: 40 above and below). */
+const SEARCH_GAP_OPEN = 40;
+const SEARCH_GAP_TIGHT = 12;
+/** Under the field when the pill row follows it. */
+const SEARCH_GAP_TO_META = 16;
+
 /**
- * The Rooms tab header — Figma 3883:5570 (HSK Executive) and 3838:1117
- * (Supervisor), which are the same screen bar the profile text.
+ * The Rooms tab header — Figma 4553:262.
  *
- * Who you are, then what you are searching, then the section title. Notably
- * *not* what the old `AllRoomsHeader` drew: there is no back arrow (this is a
- * tab, not a pushed screen) and no "All Rooms" heading. The title is the word
- * "Rooms", and it sits below the search field rather than up in the band.
+ * Who you are (the dashboard's own profile band), then the search field, then
+ * any context the reader needs: an attendant's progress, laundry's "View
+ * only" chip and linen summary. No "Rooms" title: the tab bar already says
+ * where you are, and the new frame drops it.
  *
- * The profile band is `HomeHeader` unchanged — nodes 3883:5749 + 3883:5758 are
- * pixel-for-pixel the dashboard's own header, down to the 51px avatar, the
- * 17px light name and the 121px AM/PM toggle. Rebuilding it here would have
- * meant maintaining the same band twice.
- *
- * Everything is in the flex flow. The header it replaces was
- * `position: absolute` with a fixed `height: 217`, which the list paid for with
- * a matching `paddingTop` — a number repeated in four places and wrong on any
- * device whose safe area differs from the designer's.
+ * Collapses as the list scrolls (`useCollapsingHeader`): the band and the
+ * context row fold away, the search field stays pinned under the status bar,
+ * and a hairline with a soft shadow separates it from the cards passing
+ * beneath. Scrolling up brings everything back.
  */
 export function RoomsHeader({
   name,
@@ -58,49 +77,156 @@ export function RoomsHeader({
   searchQuery,
   onSearch,
   onFilterPress,
+  filterOpen = false,
+  filtersApplied = false,
   progress,
-  titleHidden = false,
+  progressPill,
+  accessory,
+  summary,
+  footer,
+  listGap = SEARCH_GAP_OPEN,
+  showProfile = true,
 }: RoomsHeaderProps) {
+  const insets = useSafeAreaInsets();
+  const pm = pmSurface(shift);
+  const page = pm?.background ?? colors.background.primary;
+  // No band, no band colour: the strip under the status bar is the page's.
+  const band = showProfile ? colors.background.dashboard : page;
+  const hasMeta = !!progressPill || !!accessory || !!summary;
+
+  // The status bar keeps the band's colour while it is open and turns to the
+  // page's once the band has folded away beneath it.
+  const statusBarStyle = useAnimatedStyle(() => ({
+    backgroundColor: interpolateColor(progress.value, [0, 1], [page, band]),
+  }));
+
+  const searchStyle = useAnimatedStyle(() => ({
+    paddingTop: interpolate(progress.value, [0, 1], [SEARCH_GAP_TIGHT, SEARCH_GAP_OPEN]),
+    paddingBottom: interpolate(
+      progress.value,
+      [0, 1],
+      [Math.min(SEARCH_GAP_TIGHT, listGap), hasMeta ? Math.min(SEARCH_GAP_TO_META, listGap) : listGap]
+    ),
+  }));
+
+  // Lifted over the list only once something can pass beneath it.
+  const shadowStyle = useAnimatedStyle(() => {
+    const lifted = 1 - progress.value;
+    return {
+      // interpolateColor, not a template string: near the end of the animation
+      // the alpha gets small enough to print as "2.2e-7", which Reanimated
+      // rejects as a colour and throws on.
+      borderBottomColor: interpolateColor(progress.value, [0, 1], ['rgba(90, 117, 157, 0.18)', 'rgba(90, 117, 157, 0)']),
+      shadowOpacity: 0.08 * lifted,
+      elevation: Platform.OS === 'android' ? 4 * lifted : 0,
+    };
+  });
+
   return (
-    <View>
-      <HomeHeader
-        name={name}
-        role={role}
-        avatarUrl={avatarUrl}
-        shift={shift}
-        onShiftChange={onShiftChange}
-      />
+    <Animated.View style={[styles.root, { backgroundColor: page }, shadowStyle]}>
+      <Animated.View style={[{ height: insets.top }, statusBarStyle]} />
 
-      {/* The design leaves 41px under the band before the field, and again
-          before the title — `4xl` is the 40px token, the nearest one. */}
-      {/* Without the title the search field would butt straight into the list,
-          so its row donates the bottom gap — the frame leaves ~32px under the
-          field either way (406-1783: field ends y=220, content starts y=253). */}
-      <View className={`px-xl pt-4xl ${titleHidden ? 'pb-3xl' : ''}`}>
-        <SearchAndFilterBar
-          size="large"
-          value={searchQuery}
-          onChangeText={onSearch}
-          onFilterPress={onFilterPress}
-          placeholderLead="Search"
-          placeholderRest="Rooms, Guests,Floors etc"
-        />
+      {showProfile ? (
+        <Collapsible progress={progress} clipTop={insets.top}>
+          <HomeHeader name={name} role={role} avatarUrl={avatarUrl} shift={shift} onShiftChange={onShiftChange} />
+        </Collapsible>
+      ) : null}
 
-        {!titleHidden && (
-          // Half the frame's spacing: it leaves 41px above the title and 32
-          // below, which is a lot of air on a 402pt screen. `xl`/`lg` are the
-          // 20 and 16 tokens.
-          <View className="flex-row items-center gap-md pb-lg pt-xl">
-            {/* Node 3883:5764 sits at x=34 while the field starts at 20. */}
-            <Text className="pl-[14px] font-hestia-primary text-hestia-4xl font-bold text-ink-primary">
-              Rooms
-            </Text>
-            {progress && <RoomsProgressPill finished={progress.finished} total={progress.total} />}
+      {/* Reanimated's View takes no className; the gutter is on the inner one. */}
+      <Animated.View style={searchStyle}>
+        <View className="px-xl">
+          <SearchAndFilterBar
+            size="large"
+            value={searchQuery}
+            onChangeText={onSearch}
+            onFilterPress={onFilterPress}
+            filterOpen={filterOpen}
+            filtersApplied={filtersApplied}
+            placeholderLead="Search"
+            placeholderRest="Rooms, Guests,Floors etc"
+          />
+        </View>
+      </Animated.View>
+
+      {hasMeta ? (
+        <Collapsible progress={progress}>
+          <View className="gap-md px-xl pb-lg">
+            {progressPill || accessory ? (
+              <View className="flex-row items-center gap-md">
+                {progressPill ? (
+                  <>
+                    <Text
+                      style={{
+                        fontFamily: typography.fontFamily.primary,
+                        fontSize: 13,
+                        fontWeight: '600',
+                        color: pm?.textMuted ?? colors.text.accent,
+                      }}
+                    >
+                      Rooms finished
+                    </Text>
+                    <RoomsProgressPill finished={progressPill.finished} total={progressPill.total} />
+                  </>
+                ) : null}
+                {accessory}
+              </View>
+            ) : null}
+            {summary}
           </View>
-        )}
-      </View>
-    </View>
+        </Collapsible>
+      ) : null}
+
+      {footer}
+    </Animated.View>
   );
 }
+
+/**
+ * Folds its child away as `progress` goes to 0: height and opacity, the
+ * child laid out at its natural size inside and clipped.
+ *
+ * `clipTop` hides that much of the child's top for good — the status-bar
+ * padding HomeHeader carries, which the header's own strip stands in for.
+ */
+function Collapsible({
+  progress,
+  clipTop = 0,
+  children,
+}: {
+  progress: SharedValue<number>;
+  clipTop?: number;
+  children: React.ReactNode;
+}) {
+  const [height, setHeight] = useState(0);
+  const style = useAnimatedStyle(() => ({
+    // Natural height until measured, so the first frame is never empty.
+    ...(height > 0 ? { height: height * progress.value } : null),
+    opacity: interpolate(progress.value, [0, 0.6], [0, 1], 'clamp'),
+  }));
+  return (
+    <Animated.View style={[styles.clip, style]}>
+      <View
+        style={clipTop ? { marginTop: -clipTop } : undefined}
+        onLayout={(e) => setHeight(Math.max(0, e.nativeEvent.layout.height - clipTop))}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: {
+    // Above the list, so the shadow falls on the cards.
+    zIndex: 2,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    shadowColor: '#1e2a3a',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 8,
+  },
+  clip: {
+    overflow: 'hidden',
+  },
+});
 
 export default RoomsHeader;

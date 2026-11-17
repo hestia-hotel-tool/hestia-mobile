@@ -8,7 +8,7 @@ import type { Session } from '@supabase/supabase-js';
 import { authService } from '../services/auth';
 import { isSupabaseConfigured } from '@/lib/supabase';
 import { registerAndSyncPushToken, unregisterPushToken } from '@/lib/notifications';
-import { clearCachedHotelId, getMyHotelId } from '@/lib/tenant';
+import { AccountDisabledError, clearCachedHotelId, getMyHotelId } from '@/lib/tenant';
 import { resetTenantScopedStores } from '@/store/resetTenantScopedStores';
 
 interface AuthState {
@@ -109,8 +109,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
             if (!hotelId) set({ error: 'This account is not assigned to a hotel.' });
             set({ hotelId: hotelId ?? null });
           })
-          .catch(() => {
-            set({ error: 'Could not load hotel assignment.' });
+          .catch((e) => {
+            set({ error: e instanceof AccountDisabledError ? e.message : 'Could not load hotel assignment.' });
           });
       }
     }).catch(() => {
@@ -151,8 +151,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           if (!hotelId) set({ error: 'This account is not assigned to a hotel.' });
           set({ hotelId: hotelId ?? null });
         })
-        .catch(() => {
-          set({ error: 'Could not load hotel assignment.' });
+        .catch((e) => {
+          set({ error: e instanceof AccountDisabledError ? e.message : 'Could not load hotel assignment.' });
         });
     });
     return () => subscription.unsubscribe();

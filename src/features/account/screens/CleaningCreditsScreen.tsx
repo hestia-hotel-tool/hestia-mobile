@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Stack, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -11,6 +11,7 @@ import { formatMinutesSpan } from '@/utils/formatting';
 import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
 import { SETTINGS_COLORS as C } from '../components/SettingsList';
 import { listRoomCategories, setCategoryCredit, type RoomCategory } from '../services/hotel';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 const PRESETS = [30, 45, 60, 75, 90, 120];
 const STEP = 5;
@@ -34,6 +35,17 @@ export default function CleaningCreditsScreen() {
   const [categories, setCategories] = useState<RoomCategory[] | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<RoomCategory | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () =>
+      (categories ?? []).map((c) => ({
+        label: `Room type ${c.category ?? 'Uncategorised'} (${c.rooms} rooms)`,
+        value: c.minCredit === c.maxCredit ? `${c.minCredit ?? '—'} min` : `${c.minCredit}–${c.maxCredit} min`,
+      })),
+    [categories]
+  );
+  useAssistantScreen('Cleaning credits', assistantFacts);
 
   const load = useCallback(async () => {
     try {

@@ -1,6 +1,6 @@
 import type { IconName } from '@/components/Icon';
 
-export type MoreMenuItemId = 'lostAndFound' | 'staff' | 'settings';
+export type MoreMenuItemId = 'lostAndFound' | 'staff';
 
 export interface MoreMenuOption {
   id: MoreMenuItemId;
@@ -31,12 +31,5 @@ export const MORE_MENU_OPTIONS: MoreMenuOption[] = [
     iconName: 'nav-staff',
     iconHeight: 25,
     navigationTarget: 'Staff',
-  },
-  {
-    id: 'settings',
-    label: 'Settings',
-    iconName: 'nav-settings',
-    iconHeight: 29,
-    navigationTarget: 'Settings',
   },
 ];

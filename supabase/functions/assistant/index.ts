@@ -55,7 +55,7 @@ import {
   type AnthropicMessage,
   type ContentBlock,
 } from "./anthropic.ts";
-import { buildSystemPrompt } from "./systemPrompt.ts";
+import { buildSystemPrompt, type ScreenContext, type ScreenFact } from "./systemPrompt.ts";
 import { toolsFor, toWireFormat, type ToolDefinition } from "./tools.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
@@ -222,6 +222,12 @@ interface AssistantRequest {
   /** IANA zone from the device, so "today" means the user's today. */
   timeZone: string;
   /**
+   * What the screen behind the assistant shows — the app's own figures, e.g.
+   * Home's "Stayovers 18" (src/features/ai-agent/screenContext.ts). Optional;
+   * validated and capped in `parseScreen`.
+   */
+  screen?: ScreenContext;
+  /**
    * Stream synthetic text instead of calling Anthropic.
    *
    * React Native's networking is the one part of this that could not be taken
@@ -232,6 +238,33 @@ interface AssistantRequest {
    * a hotel basement.
    */
   probe?: boolean;
+}
+
+/**
+ * The screen block, kept small and inert: at most 40 facts, labels up to 60
+ * characters and values up to 400 (a band's room numbers, a roster section),
+ * control characters stripped. It is what the person can already see,
+ * so it grants nothing; the prompt presents it as data, not instructions.
+ * Anything malformed is dropped rather than failing the question.
+ */
+function parseScreen(raw: unknown): ScreenContext | undefined {
+  if (!raw || typeof raw !== "object") return undefined;
+  const r = raw as { screen?: unknown; facts?: unknown };
+  const clean = (v: unknown, max: number) =>
+    String(v ?? "").replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, max);
+  const screen = clean(r.screen, 40);
+  if (!screen || !Array.isArray(r.facts)) return undefined;
+  const facts = r.facts
+    .slice(0, 40)
+    .map((f) => {
+      const fact = f as { label?: unknown; value?: unknown } | null;
+      const value = fact?.value;
+      if (typeof value !== "string" && typeof value !== "number") return null;
+      const label = clean(fact?.label, 60);
+      return label ? { label, value: typeof value === "number" ? value : clean(value, 400) } : null;
+    })
+    .filter((f): f is ScreenFact => f !== null);
+  return facts.length > 0 ? { screen, facts } : undefined;
 }
 
 function parseRequest(body: unknown): AssistantRequest {
@@ -272,6 +305,7 @@ function parseRequest(body: unknown): AssistantRequest {
   return {
     messages: cleaned,
     timeZone: String(raw?.timeZone ?? "UTC"),
+    screen: parseScreen(raw?.screen),
     probe: raw?.probe === true,
   };
 }
@@ -501,7 +535,7 @@ serve(async (req) => {
 
     const caller = await resolveCaller(req);
     const body = await req.json().catch(() => null);
-    const { messages, timeZone, probe } = parseRequest(body);
+    const { messages, timeZone, screen, probe } = parseRequest(body);
 
     if (!probe && !ANTHROPIC_API_KEY) {
       /*
@@ -520,6 +554,7 @@ serve(async (req) => {
       fullName: caller.fullName,
       jobTitle: caller.jobTitle,
       timeZone,
+      screen,
     });
 
     /*

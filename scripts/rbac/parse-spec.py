@@ -94,9 +94,42 @@ EXTRA_GRANTS = {
     "rooms.rush.toggle": ["fo_agent"],
     # Engineering opens a room from its ticket activity (Home → Recent activity).
     "rooms.read": ["engineering"],
+    # The back office (hestia-backoffice, docs/04-backend-changes.md §B1).
+    # Signing in is for leadership; property setup and the activity log are
+    # admin-only; front office data and reports are shared with ops_senior.
+    "backoffice.access": ["full_access", "ops_senior"],
+    "rooms.manage": ["full_access"],
+    "reservations.manage": ["full_access", "ops_senior"],
+    "guests.manage": ["full_access", "ops_senior"],
+    "reports.view": ["full_access", "ops_senior"],
+    "audit.view": ["full_access"],
+    # Porters check rooms (rubbish, items left behind) and mark them Checked —
+    # separate from cleaning status (migration 20261019130000). Leadership may
+    # correct a porter's mark.
+    "rooms.porter.check": ["hk_houseman", "full_access"],
+    # Delete anyone's room notes and tasks (an author may always delete their
+    # own) — supervisors and managers keep the room's instructions correct.
+    "rooms.notes.manage": ["full_access", "ops_senior"],
+    # See every lost & found item. Housekeeping line staff (attendants, porters,
+    # laundry, public area) are left out: they see only what they registered or
+    # found, today (migration 20261026240000). Everyone handling returns —
+    # Front Office, Concierge — and every leader keeps the full list.
+    "lost_and_found.read_all": [
+        "full_access", "ops_senior", "fo_agent", "concierge_agent",
+        "ird_service", "technical", "fnb_kitchen", "engineering",
+    ],
 }
 
 PERMISSION_DESCRIPTIONS = {
+    "backoffice.access": "Sign in to the back office",
+    "rooms.manage": "Create, edit and delete rooms, room types, floors and public areas",
+    "reservations.manage": "Create, edit and check reservations in and out",
+    "guests.manage": "Create and edit guests",
+    "reports.view": "Open reports and dashboard charts",
+    "audit.view": "Open the activity log",
+    "rooms.porter.check": "Mark a room checked on the porter round",
+    "rooms.notes.manage": "Delete anyone's notes and tasks on a room",
+    "lost_and_found.read_all": "See every lost & found item, not only your own from today",
     "tab.home.view": "See the Home (Dashboard) tab",
     "tab.rooms.view": "See the Rooms tab",
     "tab.chat.view": "See the Chat tab",
@@ -145,9 +178,14 @@ DEPARTMENTS = [
     ("in_room_dining", "In Room Dining",               "Room service and in-suite dining"),
     ("engineering",    "Engineering",                  "Maintenance, repairs and facility operations"),
     ("it",             "IT",                           "Information technology and technical support"),
-    ("executive",      "Executive and Administration", "General management and hotel administration"),
-    ("food_beverage",  "Food & Beverage / Kitchen",    "Restaurants, bars, banquets and kitchen brigade"),
+    ("laundry",        "Laundry",                      "Linen, uniforms and guest laundry"),
 ]
+# Executive and Administration became Laundry (2026-11-09, migration
+# 20261109090000): its staff and its last title, Hotel Manager, were removed,
+# and the laundry attendants moved in from Housekeeping (TITLE_MOVES).
+# Food & Beverage / Kitchen is in the PDF but not used by the client
+# (2026-10-19): its one title is in REMOVED_TITLES and the department is not
+# seeded. PDF_DEPT_MAP still names it so the PDF parses.
 
 # PDF department header -> our department key.
 PDF_DEPT_MAP = {
@@ -176,13 +214,66 @@ TITLE_FIXES = {
     "Housekeeping Portier/Houseman": "Housekeeping Porter / Houseman",
 }
 
+# Titles in the PDF the client does not use (2026-10-19): dropped from the
+# matrix, so they are never seeded or offered when adding staff. Keyed by the
+# title's slug, after TITLE_FIXES. Migrations 20261019140000 to 20261019200000
+# remove them from databases seeded before this.
+REMOVED_TITLES = {
+    # Housekeeping
+    "housekeeping_manager",
+    "assistant_housekeeping_manager",
+    "senior_supervisor",
+    "coordinator",
+    # Front Office
+    "assistant_director_of_rooms",
+    "director_of_front_office",
+    "assistant_front_office_manager",
+    "front_office_trainee",
+    "night_auditor",
+    "guest_relations_manager",
+    "guest_relations_supervisor",
+    "guest_relations_agent",
+    # Concierge (migration 20261019150000)
+    "chief_concierge",
+    "concierge_manager",
+    "assistant_concierge_manager",
+    "concierge_supervisor",
+    "valet_supervisor",
+    "valet_attendant",
+    # In Room Dining (migration 20261019160000)
+    "director_of_in_room_dining",
+    "in_room_dining_assistant_manager",
+    "in_room_dining_order_taker",
+    "butler_in_room_dining",
+    # Engineering (migration 20261019170000)
+    "assistant_director_of_engineering",
+    "engineering_supervisor",
+    # IT (migration 20261019180000)
+    "it_manager",
+    "assistant_it_manager",
+    "it_supervisor",
+    "it_agent",
+    # Executive and Administration (migration 20261019190000)
+    "general_manager",
+    "assistant_to_general_and_hotel_manager",
+    # ...and the last one, with the department itself (migration 20261109090000)
+    "hotel_manager",
+    # Food & Beverage / Kitchen — the whole department (migration 20261019200000)
+    "fandb_kitchen_staff",
+}
+
+# Titles moved to another department, and renamed, after the spec: key ->
+# (department key, display name).
+TITLE_MOVES = {
+    # Laundry is its own department (migration 20261109090000).
+    "housekeeping_laundry_attendant": ("laundry", "Laundry Attendant"),
+}
+
 # HomeScreen layout variants live on the job title, not the role: they describe
 # what a person's day looks like, not what they are allowed to do.
 HOME_VARIANTS = {
     "housekeeping_porter_houseman": "hsk_portier",
     "director_of_engineering": "engineering",
-    "assistant_director_of_engineering": "engineering",
-    "engineering_supervisor": "engineering",
     "shift_engineer": "engineering",
     # In Room Dining reads the same ticket dashboard as engineering, over its
     # own department's tickets — Figma 3859:3355, which is the engineering frame
@@ -190,19 +281,15 @@ HOME_VARIANTS = {
     #
     # The whole department, following engineering: all four titles of the
     # engineering department took that variant while IT, a separate department
-    # on the same spec vector, stayed on `default`. These seven share one
+    # on the same spec vector, stayed on `default`. These three share one
     # department and already hold the frame's exact tab set — Home, Tickets,
     # Chat, Rooms, Lost & Found and no Staff — so splitting them by seniority
     # would be arbitrary. The dashboard counts the reader's own assigned
-    # tickets, which is as meaningful for an order taker as for the manager the
+    # tickets, which is as meaningful for a waiter as for the manager the
     # frame happens to name.
-    "director_of_in_room_dining": "dining",
     "in_room_dining_manager": "dining",
-    "in_room_dining_assistant_manager": "dining",
     "in_room_dining_supervisor": "dining",
     "in_room_dining_waiter_waitress": "dining",
-    "in_room_dining_order_taker": "dining",
-    "butler_in_room_dining": "dining",
 }
 
 # Rooms list layout, same reasoning as HOME_VARIANTS: a presentation concern
@@ -212,20 +299,19 @@ HOME_VARIANTS = {
 # supervisors get the In Progress band pinned to the top, because they work the
 # floor from it. Everyone else reads the flat list.
 #
-# The three leadership titles are listed explicitly even though they were once
-# left to the `default` fallback: they were later given the banded screen by
-# hand in matrix.json, and omitting them here meant re-running this parser
-# silently reverted that.
+# The leadership title is listed explicitly even though it was once left to
+# the `default` fallback: it was later given the banded screen by hand in
+# matrix.json, and omitting it here meant re-running this parser silently
+# reverted that.
 ROOMS_VARIANTS = {
     "executive_housekeeper": "leadership",
-    "housekeeping_manager": "leadership",
-    "assistant_housekeeping_manager": "leadership",
-    "senior_supervisor": "supervisor",
     "supervisor": "supervisor",
-    "coordinator": "supervisor",
     # Attendants get the same banded list, over their own rooms only.
     "housekeeping_room_attendant": "attendant",
-    "housekeeping_laundry_attendant": "attendant",
+    # Laundry is never assigned rooms: they read every room on the shift that
+    # is on now, read-only, with the shift's linen workload above the list
+    # (`laundry`). An assigned-only list would always be empty for them.
+    "housekeeping_laundry_attendant": "laundry",
     "housekeeping_public_area_attendant": "attendant",
     # The porter is the exception among the attendant titles: they work the
     # whole floor rather than a room list of their own, so they read every room.
@@ -237,30 +323,23 @@ ROOMS_VARIANTS = {
     # They keep no Home tab, which is a right (`dashboard`) and independent of
     # this.
     "housekeeping_porter_houseman": "leadership",
-    # The whole Front Office department reads the same banded screen as
-    # housekeeping leadership — Figma 3859:1919, which is the executive
-    # housekeeper's frame (3883:5570) duplicated with the header text changed,
-    # down to its duplicated "Paused" heading.
+    # The whole Front Office department reads the banded screen housekeeping
+    # leadership does, in its own dress — Figma 3859:1919: a coloured status cap
+    # on Paused / In Progress cards, the finished bands gathered in a tray,
+    # minutes rather than credits, and pills without the menu chevron. Its own
+    # variant (`front_office`) so those differences stay out of housekeeping's.
     #
-    # All 14 titles in the department, not just the front desk: they share two
+    # All the titles in the department, not just the front desk: they share two
     # roles and one department, so splitting them would be arbitrary. Reading
     # the banded list is not the same as being allowed to act on it — none of
     # them holds `rooms.status.update`, and the status pill is gated on that
     # permission in AllRoomsScreen rather than on the variant.
-    "director_of_rooms": "leadership",
-    "assistant_director_of_rooms": "leadership",
-    "director_of_front_office": "leadership",
-    "front_office_manager": "leadership",
-    "assistant_front_office_manager": "leadership",
-    "front_office_supervisor": "leadership",
-    "front_office_agent": "leadership",
-    "front_office_trainee": "leadership",
-    "night_manager": "leadership",
-    "night_auditor": "leadership",
-    "night_agent": "leadership",
-    "guest_relations_manager": "leadership",
-    "guest_relations_supervisor": "leadership",
-    "guest_relations_agent": "leadership",
+    "director_of_rooms": "front_office",
+    "front_office_manager": "front_office",
+    "front_office_supervisor": "front_office",
+    "front_office_agent": "front_office",
+    "night_manager": "front_office",
+    "night_agent": "front_office",
 }
 
 # Rights we knowingly set differently from the signed-off PDF.
@@ -329,7 +408,7 @@ ROLE_DESCRIPTIONS = {
 # and overrides the part that differs.
 #
 # DELIBERATE SPEC DRIFT, same standing as RIGHT_OVERRIDES: the signed-off PDF
-# grants these four titles Rooms. Do not remove without checking with whoever
+# grants these titles Rooms. Do not remove without checking with whoever
 # owns the spec.
 DERIVED_ROLES = {
     "engineering": {
@@ -407,6 +486,11 @@ def main():
         else:
             dept_key = PDF_DEPT_MAP[dept_label]
         tkey = slug(display)
+        if tkey in REMOVED_TITLES:
+            continue
+        # Moved after the spec was signed off; the key stays, so permissions
+        # and the Rooms variant keep following it.
+        dept_key, display = TITLE_MOVES.get(tkey, (dept_key, display))
         # A title may be moved off the role its vector resolves to — see
         # ROLE_TITLE_OVERRIDES.
         role_key = ROLE_TITLE_OVERRIDES.get(tkey, role_key)

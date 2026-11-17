@@ -31,6 +31,10 @@ export type RootStackParamList = {
     guestImageUrl?: string;
     isPublicArea?: boolean;
     publicAreaName?: string;
+    /** Opened from Room Detail → Tickets: go back there after submitting, not to the Tickets tab. */
+    returnToRoom?: boolean;
+    /** Tickets → Drafts: reopen this draft (see store/ticketDrafts). */
+    draftId?: string;
   };
   'user-profile/index': { user: import('@features/home/types/home.types').UserProfile };
 };
@@ -41,8 +45,7 @@ export type ReturnToTab =
   | '(chats)/index'
   | '(tickets)/index'
   | '(lost_and_found)/index'
-  | '(staff)/index'
-  | '(settings)/index';
+  | '(staff)/index';
 
 export type MainTabsParamList = {
   '(home)/index': undefined;
@@ -55,5 +58,4 @@ export type MainTabsParamList = {
     preselectedRoomId?: string;
   } | undefined;
   '(staff)/index': { returnToTab?: ReturnToTab } | undefined;
-  '(settings)/index': { returnToTab?: ReturnToTab } | undefined;
 };

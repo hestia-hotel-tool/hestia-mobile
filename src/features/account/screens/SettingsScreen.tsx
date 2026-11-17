@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActionSheetIOS,
   Alert,
@@ -16,7 +16,6 @@ import Constants from 'expo-constants';
 import * as Notifications from 'expo-notifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import BottomTabBar from '@/components/layout/BottomTabBar';
 import { Avatar } from '@/components/ui/Avatar';
 import { useMessageModal } from '@/contexts/MessageModalContext';
 import { usePermissions } from '@/domain/rbac/usePermissions';
@@ -29,6 +28,7 @@ import { useAuth } from '@features/auth/hooks/useAuth';
 import { SettingsRow, SettingsSection, SETTINGS_COLORS as C } from '../components/SettingsList';
 import { fetchMyAccount, type MyAccount } from '../services/account';
 import { MyShiftCard } from '../components/MyShiftCard';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 
 /** Each language in its own words, so anyone can find theirs. */
 const LANGUAGE_NAMES: Record<LanguageCode, string> = {
@@ -57,10 +57,28 @@ export default function SettingsScreen() {
   const canManageStaff = can(PERMISSIONS.STAFF_MANAGE);
   const canManageHotel = can(PERMISSIONS.SETTINGS_MANAGE);
   const canManageCredits = can(PERMISSIONS.ROOMS_CREDITS_MANAGE);
+  const canManageStorage = can(PERMISSIONS.LOST_AND_FOUND_MANAGE);
   const now = useNow();
 
   const [account, setAccount] = useState<MyAccount | null>(null);
   const [push, setPush] = useState<PushStatus | null>(null);
+
+  /** What this page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(
+    () =>
+      account
+        ? [
+            { label: 'Name', value: account.fullName },
+            { label: 'Job title', value: account.jobTitle ?? '—' },
+            { label: 'Department', value: account.department ?? '—' },
+            { label: 'Shift', value: account.shift ? `${account.shift.name}${account.shift.start ? ` ${account.shift.start}–${account.shift.end}` : ''}` : 'Not assigned' },
+            { label: 'Hotel', value: account.hotelName ?? '—' },
+            { label: 'Push notifications', value: push ?? 'unknown' },
+          ]
+        : [],
+    [account, push]
+  );
+  useAssistantScreen('Account', assistantFacts);
   const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
@@ -137,16 +155,29 @@ export default function SettingsScreen() {
 
   const version = Constants.expoConfig?.version ?? '—';
   const appEnv = (Constants.expoConfig?.extra as { appEnv?: string } | undefined)?.appEnv;
-  const subtitle = [account?.jobTitle, account?.department].filter(Boolean).join(' · ');
+  // The job title alone — "Executive Housekeeper · Housekeeping" repeated itself and
+  // was cut off. The department only stands in when there is no title.
+  const subtitle = account?.jobTitle || account?.department || '';
 
   return (
     <View style={styles.screen}>
+      {/* A pushed screen now — opened from your profile on Home and Rooms — so it has a way back. */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Pressable
+          onPress={() => (router.canGoBack() ? router.back() : router.replace('/(tabs)/(home)'))}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+          style={styles.backButton}
+        >
+          <Ionicons name="chevron-back" size={26} color={C.title} />
+        </Pressable>
+        {/* "Account": your profile, preferences and sign-out — opened from your profile, not a tab. */}
+        <Text style={styles.headerTitle}>Account</Text>
       </View>
 
       <ScrollView
-        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 140 }]}
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 40 }]}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -184,7 +215,7 @@ export default function SettingsScreen() {
           />
         ) : null}
 
-        {canManageStaff || canManageHotel || canManageCredits ? (
+        {canManageStaff || canManageHotel || canManageCredits || canManageStorage ? (
           <SettingsSection title="Management">
             {canManageStaff ? (
               <SettingsRow
@@ -200,6 +231,14 @@ export default function SettingsScreen() {
                 label="Cleaning credits"
                 detail="How long each room type takes to clean"
                 onPress={() => router.push('/settings/credits')}
+              />
+            ) : null}
+            {canManageStorage ? (
+              <SettingsRow
+                icon="archive-outline"
+                label="Lost & Found storage"
+                detail="Where found items are kept"
+                onPress={() => router.push('/settings/storage-locations')}
               />
             ) : null}
             {canManageHotel ? (
@@ -255,14 +294,14 @@ export default function SettingsScreen() {
         </SettingsSection>
       </ScrollView>
 
-      <BottomTabBar />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: C.screen },
-  header: { backgroundColor: C.header, paddingHorizontal: 20, paddingBottom: 14 },
+  header: { backgroundColor: C.header, paddingHorizontal: 20, paddingBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  backButton: { marginLeft: -6 },
   headerTitle: { fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 28, color: C.title },
   content: { paddingHorizontal: 16, paddingTop: 16 },
   pressed: { opacity: 0.75 },

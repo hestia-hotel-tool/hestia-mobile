@@ -1,17 +1,15 @@
 import React from 'react';
 import { View as RNView } from 'react-native';
 import { View, Pressable } from '@/tw';
-import { PRIORITY_FRAME, type RoomCardSpec } from './roomCardLayout';
+import { CARD_BORDER, CARD_BORDER_WIDTH, PRIORITY_CARD, ROOM_CARD } from './roomCardLayout';
 
 export type RoomCardShellProps = {
   children: React.ReactNode;
-  /** The card's ground, border and radius, and how far it sits in from the list. */
-  spec: RoomCardSpec;
   /**
-   * Priority rooms sit in a red frame — Figma 3883:5765: a 422 #f9fafc card
-   * with a #f92424 hairline at radius 12, holding the card 15 in, 22 down.
+   * A priority room still to be started — Figma 4577:72: the same card, tinted
+   * #feefef with a 1pt #f92424 border (PRIORITY_CARD).
    */
-  framed?: boolean;
+  priority?: boolean;
   onPress?: () => void;
   onLayout?: (e: import('react-native').LayoutChangeEvent) => void;
   /**
@@ -25,54 +23,39 @@ export type RoomCardShellProps = {
    * out of the native tree and `measureInWindow` then reports zeros.
    */
   measureRef?: React.Ref<RNView>;
+  /** Front Office's coloured status band, drawn inside the card above everything else (StatusCap). */
+  cap?: React.ReactNode;
 };
 
 /**
- * The frame every room card sits in — Figma 3883:5570.
- *
- * Its ground, hairline and radius come from the card's spec: #f9fafc with a
- * blue-grey hairline at 12 for the 422 cards, white or #f9fafc with #e3e3e3
- * at 9 for the 392 ones, which also sit 15 further in from the list's edge.
- * No coloured cap: every state shows by its status pill alone.
+ * The frame every room card sits in — Figma 4553:854: white, a #e3e3e3
+ * hairline, radius 9, 427 wide on the 440 frame; a priority room #feefef
+ * with a #f92424 hairline (4577:73).
  *
  * `overflow-hidden` keeps children inside the rounded corners on Android.
  */
-export function RoomCardShell({ children, spec, framed, onPress, onLayout, measureRef }: RoomCardShellProps) {
+export function RoomCardShell({ children, priority, onPress, onLayout, measureRef, cap }: RoomCardShellProps) {
   const Container = onPress ? Pressable : View;
-
-  const card = (
-    <View
-      className="w-full overflow-hidden"
-      style={{
-        backgroundColor: spec.background,
-        borderRadius: spec.radius,
-        borderWidth: spec.border ? 1 : 0,
-        borderColor: spec.border ?? undefined,
-      }}
-    >
-      {children}
-    </View>
-  );
-
   return (
     <RNView ref={measureRef} collapsable={false} onLayout={onLayout}>
-      <Container
-        {...(onPress ? { onPress, accessibilityRole: 'button' as const } : {})}
-        style={
-          framed
-            ? {
-                backgroundColor: PRIORITY_FRAME.background,
-                borderWidth: 1,
-                borderColor: PRIORITY_FRAME.border,
-                borderRadius: PRIORITY_FRAME.radius,
-                paddingHorizontal: PRIORITY_FRAME.paddingX,
-                paddingTop: PRIORITY_FRAME.paddingTop,
-                paddingBottom: PRIORITY_FRAME.paddingBottom,
-              }
-            : { marginHorizontal: spec.inset }
-        }
-      >
-        {card}
+      <Container {...(onPress ? { onPress, accessibilityRole: 'button' as const } : {})}>
+        <View
+          className="w-full overflow-hidden"
+          style={{
+            backgroundColor: priority ? PRIORITY_CARD.background : '#ffffff',
+            borderRadius: ROOM_CARD.radius,
+            borderWidth: CARD_BORDER_WIDTH,
+            borderColor: priority ? PRIORITY_CARD.border : CARD_BORDER,
+          }}
+        >
+          {/* Pulled out over the hairline, so every offset counts from the
+              card's outer edge as Figma measures it (the number 12 down, the
+              panel 9 in) rather than from inside the border, 1 further. */}
+          <View style={{ margin: -CARD_BORDER_WIDTH }}>
+            {cap}
+            {children}
+          </View>
+        </View>
       </Container>
     </RNView>
   );

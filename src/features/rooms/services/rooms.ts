@@ -6,6 +6,7 @@
 import { supabase } from '@/lib/supabase';
 import { getMyHotelId } from '@/lib/tenant';
 import { formatClockTime } from '@/utils/formatting';
+import { normalizeVipCode } from '@/domain/vip';
 import type {
   AllRoomsScreenData,
   RoomCardData,
@@ -42,7 +43,32 @@ type RoomRow = {
   dnd_checked_at?: string | null;
   dnd_check_count?: number | null;
   dnd_next_check_at?: string | null;
+  /** Back office setup (migration 20261014120000); absent on older databases. */
+  active?: boolean | null;
+  out_of_order_from?: string | null;
+  out_of_order_to?: string | null;
+  out_of_order_reason?: string | null;
 };
+
+/**
+ * Inactive rooms are hidden everywhere (the back office deactivates rather than
+ * deletes rooms with history). Rows from a database without the column stay.
+ */
+const isActiveRoom = (room: { active?: boolean | null }) => room.active !== false;
+
+/** Today's date on the device, "yyyy-mm-dd" (the phone is in the hotel). */
+function localDateString(now = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+/** The room's out-of-order period when today falls inside it (dates are inclusive). */
+function outOfOrderToday(room: RoomRow, today = localDateString()): RoomCardData['outOfOrder'] {
+  const from = room.out_of_order_from;
+  const to = room.out_of_order_to;
+  if (!from || !to || today < from || today > to) return null;
+  return { from, to, reason: room.out_of_order_reason ?? null };
+}
 
 /** Aggregated note info per room (from room_notes table) */
 type RoomNotesAggregate = {
@@ -308,7 +334,8 @@ function mapToGuestInfo(
     time: time === 'N/A' || !time ? 'N/A' : time,
     timeLabel: timeLabel as 'ETA' | 'EDT' | 'N/A',
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
-    vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
+    // Text, 1–10: anything else is a regular guest (no parseInt — it dropped non-numbers silently).
+    vipCode: normalizeVipCode(guest?.vip_code) ?? undefined,
     arrivalDate: res.arrival_date,
     // Ensure every guest has an image on cards (fallback to deterministic placeholder).
     imageUrl: guest?.image_url ?? undefined, // no stock photo: the row draws its own placeholder
@@ -403,6 +430,7 @@ function mapRoomToCard(
     dndCheckedAt: room.dnd_checked_at ?? null,
     dndCheckCount: room.dnd_check_count ?? 0,
     dndNextCheckAt: room.dnd_next_check_at ?? null,
+    outOfOrder: outOfOrderToday(room),
     promiseTimeAt: room.promise_time_at ?? null,
     cleaningStartedAt: room.cleaning_started_at ?? null,
     cleaningElapsedSeconds: room.cleaning_elapsed_seconds ?? 0,
@@ -497,36 +525,42 @@ export async function listRoomsWithReservationGuests(roomIds?: string[]): Promis
    */
   if (roomIds && roomIds.length === 0) return [];
 
-  let query = supabase
-    .from('rooms')
-    .select(
-      `
-        id,
-        room_number,
-        linen_status,
-        reservations (
-          guests (
-            id,
-            full_name,
-            vip_code,
-            image_url,
-            primary_email
-          ),
-          arrival_date,
-          departure_date,
-          adults,
-          kids,
-          front_office_status
-        )
-      `
-    )
-    .order('room_number', { ascending: true });
+  const { data, error } = await withoutClosedStays((filter) => {
+    let query = supabase
+      .from('rooms')
+      .select(
+        `
+          id,
+          room_number,
+          linen_status,
+          active,
+          reservations (
+            guests (
+              id,
+              full_name,
+              vip_code,
+              image_url,
+              primary_email
+            ),
+            arrival_date,
+            departure_date,
+            eta,
+            adults,
+            kids,
+            front_office_status
+          )
+        `
+      )
+      .order('room_number', { ascending: true });
 
-  if (roomIds) query = query.in('id', roomIds);
+    if (roomIds) query = query.in('id', roomIds);
+    // Only the stays that hold the room, not cancelled or no-show ones.
+    if (filter) query = query.not('reservations.stay_status', 'in', CLOSED_STAYS);
+    return query;
+  });
 
-  const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as any[];
+  return ((data ?? []) as any[]).filter(isActiveRoom);
 }
 
 /** Resolve a set of room ids to a `roomId → room_number` map. */
@@ -548,6 +582,18 @@ export async function getRoomNumbersByIds(ids: string[]): Promise<Map<string, st
  * reservation the hotel ever had — the largest payload in the app, re-read on
  * every Rooms and Home open, and growing every day.
  */
+/**
+ * Cancelled and no-show stays don't belong on a room (back office, migration
+ * 20261015140000: reservations.stay_status). A database without that column
+ * answers 42703; then there is nothing to filter, so the query runs again
+ * without the filter.
+ */
+export const CLOSED_STAYS = '(cancelled,no_show)';
+export async function withoutClosedStays<T extends { error: { code?: string } | null }>(run: (filter: boolean) => PromiseLike<T>): Promise<T> {
+  const first = await run(true);
+  return first.error?.code === '42703' ? run(false) : first;
+}
+
 const RESERVATION_WINDOW_DAYS = 30;
 function reservationWindowStart(): string {
   const d = new Date(Date.now() - RESERVATION_WINDOW_DAYS * 86_400_000);
@@ -582,7 +628,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     ({ data, error } = await supabase
       .from('rooms')
       .select(
-        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
+        'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, active, out_of_order_from, out_of_order_to, out_of_order_reason'
       )
       .order('room_number', { ascending: true }));
 
@@ -594,7 +640,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     }
 
     if (error) throw error;
-    return (data ?? []) as RoomRow[];
+    return ((data ?? []) as RoomRow[]).filter(isActiveRoom);
   };
 
   // Wave 1: rooms, and the shift id nothing depends on.
@@ -611,13 +657,16 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
     fetchRoomNotesAggregate(roomIds),
     fetchRoomAssignmentsForShiftId(shiftId),
     (async () => {
-      const { data: resData, error: resError } = await supabase
-        .from('reservations')
-        .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
-        .in('room_id', roomIds)
-        // Stays still relevant (see RESERVATION_WINDOW_DAYS), not every booking ever.
-        .gte('departure_date', reservationWindowStart())
-        .order('arrival_date', { ascending: false });
+      const { data: resData, error: resError } = await withoutClosedStays((filter) => {
+        let q = supabase
+          .from('reservations')
+          .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
+          .in('room_id', roomIds)
+          // Stays still relevant (see RESERVATION_WINDOW_DAYS), not every booking ever.
+          .gte('departure_date', reservationWindowStart());
+        if (filter) q = q.not('stay_status', 'in', CLOSED_STAYS);
+        return q.order('arrival_date', { ascending: false });
+      });
       if (resError) throw resError;
       return (resData ?? []) as ReservationRow[];
     })(),
@@ -779,6 +828,8 @@ export interface RoomNote {
   text: string;
   staff: { name: string; avatar?: unknown };
   createdAt: string;
+  /** The author: they may delete it, as may rooms.notes.manage. */
+  createdById?: string | null;
 }
 
 /**
@@ -790,7 +841,7 @@ export async function getRoomNotes(roomId: string): Promise<RoomNote[]> {
   const { data, error } = await supabase
     .from('room_notes')
     // Be explicit about the author FK to avoid incorrect/ambiguous joins.
-    .select('id, text, created_at, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
+    .select('id, text, created_at, created_by_id, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
     .eq('room_id', roomId)
     .order('created_at', { ascending: false });
 
@@ -805,6 +856,7 @@ export async function getRoomNotes(roomId: string): Promise<RoomNote[]> {
       avatar: row.users?.avatar_url ?? undefined,
     },
     createdAt: row.created_at,
+    createdById: row.created_by_id,
   }));
 }
 
@@ -865,7 +917,7 @@ export async function addRoomNote(roomId: string, text: string): Promise<RoomNot
   const { data: full, error: fetchError } = await supabase
     .from('room_notes')
     // Be explicit about the author FK to avoid incorrect/ambiguous joins.
-    .select('id, text, created_at, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
+    .select('id, text, created_at, created_by_id, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
     .eq('id', inserted.id)
     .single();
 
@@ -879,7 +931,17 @@ export async function addRoomNote(roomId: string, text: string): Promise<RoomNot
       avatar: row.users?.avatar_url ?? undefined,
     },
     createdAt: row.created_at,
+    createdById: row.created_by_id,
   };
+}
+
+/**
+ * Delete a room note (migration 20261026160000): its author, or anyone with
+ * rooms.notes.manage. Recorded in the room's History. Throws a readable message.
+ */
+export async function deleteRoomNote(noteId: string): Promise<void> {
+  const { error } = await supabase.rpc('room_note_delete' as never, { p_note_id: noteId } as never);
+  if (error) throw new Error((error as { message?: string }).message || 'The note could not be deleted.');
 }
 
 /**
@@ -1283,6 +1345,8 @@ export interface RoomNoteDetail {
   text: string;
   created_at: string;
   staff: { name: string; avatar_url: string | null };
+  /** The author: they may delete it, as may rooms.notes.manage. */
+  created_by_id: string | null;
 }
 
 export interface AssignedStaffDetail {
@@ -1385,7 +1449,8 @@ function mapReservationDetailToGuestInfo(
     time: time === 'N/A' || !time ? 'N/A' : time,
     timeLabel: timeLabel as 'ETA' | 'EDT' | 'N/A',
     guestCount: { adults: res.adults ?? 0, kids: res.kids ?? 0 },
-    vipCode: guest?.vip_code != null ? parseInt(String(guest.vip_code), 10) : undefined,
+    // Text, 1–10: anything else is a regular guest (no parseInt — it dropped non-numbers silently).
+    vipCode: normalizeVipCode(guest?.vip_code) ?? undefined,
     arrivalDate: res.arrival_date,
     imageUrl: guest?.image_url ?? undefined, // no stock photo: the row draws its own placeholder
     isVacant: isVacant || undefined,
@@ -1474,6 +1539,7 @@ export function fullRoomDetailsToRoomCardData(
     reservationStatus: reservationStatus as ReservationStatus,
     promisedTime: (promisedTime === '12:00' || promisedTime === '13:00' ? promisedTime : null) as PromisedTime,
     returnLaterAt: (room.return_later_at ?? null) as string | null,
+    outOfOrder: outOfOrderToday(room),
     pausedAt: ((room as any).paused_at ?? null) as string | null,
     promiseTimeAt: ((room as any).promise_time_at ?? null) as string | null,
     cleaningStartedAt: ((room as any).cleaning_started_at ?? null) as string | null,
@@ -1529,7 +1595,7 @@ export async function getFullRoomDetails(
   const roomsQueryWithReturnLater = supabase
     .from('rooms')
     .select(
-      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at'
+      'id, room_number, category, credit, linen_status, priority, flagged, flag_reason, special_instructions, house_keeping_status, return_later_at, return_later_reason, paused_at, refuse_service_at, refuse_service_reason, promise_time_at, cleaning_started_at, cleaning_elapsed_seconds, in_progress_started_at, dnd_at, dnd_checked_at, dnd_check_count, dnd_next_check_at, active, out_of_order_from, out_of_order_to, out_of_order_reason'
     )
     .order('room_number', { ascending: true });
   const roomsQueryBase = supabase
@@ -1562,7 +1628,7 @@ export async function getFullRoomDetails(
   }
 
   if (roomsError) throw roomsError;
-  const rooms = (roomsData ?? []) as RoomRow[];
+  const rooms = ((roomsData ?? []) as RoomRow[]).filter(isActiveRoom);
   if (rooms.length === 0) {
     // An empty result is a normal state, not something to log on every call.
     return [];
@@ -1571,15 +1637,18 @@ export async function getFullRoomDetails(
   const roomIds = rooms.map((r) => r.id);
 
   const [reservationsRes, notesRes, assignmentsRes, lfRes, ticketsRes] = await Promise.all([
-    supabase
-      .from('reservations')
-      .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
-      .in('room_id', roomIds)
-      .gte('departure_date', reservationWindowStart())
-      .order('arrival_date', { ascending: false }),
+    withoutClosedStays((filter) => {
+      let q = supabase
+        .from('reservations')
+        .select('id, room_id, arrival_date, departure_date, eta, adults, kids, reservation_status, front_office_status, promised_time')
+        .in('room_id', roomIds)
+        .gte('departure_date', reservationWindowStart());
+      if (filter) q = q.not('stay_status', 'in', CLOSED_STAYS);
+      return q.order('arrival_date', { ascending: false });
+    }),
     supabase
       .from('room_notes')
-      .select('id, room_id, text, created_at, users(full_name, avatar_url)')
+      .select('id, room_id, text, created_at, created_by_id, users:users!room_notes_created_by_id_fkey(full_name, avatar_url)')
       .in('room_id', roomIds)
       .order('created_at', { ascending: false }),
     supabase
@@ -1649,7 +1718,7 @@ export async function getFullRoomDetails(
     resWithGuestsByRoom.set(rid, list);
   }
 
-  type NoteRow = { id: string; room_id: string; text: string; created_at: string; users: { full_name: string | null; avatar_url: string | null } | null };
+  type NoteRow = { id: string; room_id: string; text: string; created_at: string; created_by_id: string | null; users: { full_name: string | null; avatar_url: string | null } | null };
   const notesRows = (notesRes.data ?? []) as NoteRow[];
   const notesByRoom = new Map<string, RoomNoteDetail[]>();
   for (const rid of roomIds) {
@@ -1660,6 +1729,7 @@ export async function getFullRoomDetails(
         text: n.text,
         created_at: n.created_at,
         staff: { name: n.users?.full_name ?? 'Staff', avatar_url: n.users?.avatar_url ?? null },
+        created_by_id: n.created_by_id,
       }));
     notesByRoom.set(rid, roomNotes);
   }

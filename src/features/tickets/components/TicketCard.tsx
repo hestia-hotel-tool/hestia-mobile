@@ -1,199 +1,196 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
-// expo-image: cached in memory and on disk, unlike react-native's Image.
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
-import { Icon } from '@/components/Icon';
-import { scaleX } from '@/utils/responsive';
+import { Icon, type IconName } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';
-import { TICKET_CARD_LAYOUT as L } from './ticketCardLayout';
-import { TicketData } from '../types/tickets.types';
+import { scaleX } from '@/utils/responsive';
 import { formatDueAtCalendarLabel } from '@/utils/ticketDue';
+import { departmentGlyphHeight, departmentIconName } from '@/lib/departments';
+import type { TicketData, TicketStatus } from '../types/tickets.types';
 
 export type TicketStatusAnchorLayout = { x: number; y: number; width: number; height: number };
 
-interface TicketCardProps {
+export interface TicketCardProps {
   ticket: TicketData;
   onPress?: () => void;
+  /**
+   * The status pill was tapped, with where it is on screen (the Tickets list
+   * opens its status popover there). Without it the pill is part of the card.
+   */
   onStatusPress?: (anchor?: TicketStatusAnchorLayout) => void;
+  /** The tagged person was tapped (reassign). Without it they are part of the card. */
   onAssigneePress?: () => void;
 }
 
+const PRIORITY = {
+  urgent: { label: 'High Priority', flags: 3, color: '#f92424' },
+  medium: { label: 'Normal', flags: 2, color: '#f0be1b' },
+  notUrgent: { label: 'Low Priority', flags: 1, color: '#9797a3' },
+} as const;
+
+/** The full-width status pill — Figma 4664:886 (377 x 61, radius 30.5). */
+const STATUS: Record<TicketStatus, { label: string; color: string; icon: IconName | null }> = {
+  unsolved: { label: 'Unsolved', color: '#f92424', icon: 'action-thumbs-down-line' },
+  inProgress: { label: 'In Progress', color: '#f0be1b', icon: 'action-in-progress' },
+  done: { label: 'Solved', color: '#41d541', icon: 'action-thumbs-up-line' },
+  ofo: { label: 'OFT', color: '#c6c5c5', icon: null },
+};
+
+function formatCreatedAt(iso?: string): string | undefined {
+  if (!iso) return undefined;
+  const dt = new Date(iso);
+  if (!Number.isFinite(dt.getTime())) return undefined;
+  const pad2 = (n: number) => String(n).padStart(2, '0');
+  return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}, ${pad2(dt.getDate())}/${pad2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
+}
+
+/** "Dimotia Mavros" -> "Dimotia. M", as the frame labels a tagged person. */
+function shortName(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length < 2) return parts[0] ?? '';
+  return `${parts[0]}. ${parts[parts.length - 1][0].toUpperCase()}`;
+}
+
+/**
+ * One ticket — Figma 667:3068 (Tickets, card 4664:875) and 285:4037 (Room
+ * Detail → Tickets, card 4664:877): one design.
+ *
+ * The department disc and the title with priority and due line, the room as a
+ * blue pill; the photos; who raised it → who is tagged; then the status as a
+ * full-width pill. The card opens the ticket.
+ */
 export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneePress }: TicketCardProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
-
-  const getInitials = (name: string) => {
-    const parts = (name || '').trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return '?';
-    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
-    return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
-  };
-
-  const dueAtLine = useMemo(() => {
-    if (!ticket.dueAt) return undefined;
-    return formatDueAtCalendarLabel(ticket.dueAt);
-  }, [ticket.dueAt]);
-
-  const createdAtText = useMemo(() => {
-    if (!ticket.createdAt) return undefined;
-    const dt = new Date(ticket.createdAt);
-    if (!Number.isFinite(dt.getTime())) return undefined;
-
-    const pad2 = (n: number) => String(n).padStart(2, '0');
-    const hh = pad2(dt.getHours());
-    const mm = pad2(dt.getMinutes());
-    const dd = pad2(dt.getDate());
-    const mo = pad2(dt.getMonth() + 1);
-    const yyyy = dt.getFullYear();
-    return `${hh}:${mm}, ${dd}/${mo}/${yyyy}`;
-  }, [ticket.createdAt]);
-
-  const statusPillRef = useRef<View>(null);
-
-  const handleStatusPress = () => {
-    if (!onStatusPress) return;
-    statusPillRef.current?.measureInWindow?.((x, y, width, height) => {
-      onStatusPress({ x, y, width, height });
-    });
-  };
-
-  const isDone = ticket.status === 'done';
-  const isOfo = ticket.status === 'ofo';
-  const hasImages = !!ticket.images?.length;
+  const statusRef = useRef<View>(null);
+  const departmentIcon: IconName | null = departmentIconName(ticket.category);
+  const priority = PRIORITY[ticket.priority ?? 'medium'];
+  const status = STATUS[ticket.status] ?? STATUS.unsolved;
+  const dueLine = useMemo(() => (ticket.dueAt ? formatDueAtCalendarLabel(ticket.dueAt) : ''), [ticket.dueAt]);
+  const createdAt = useMemo(() => formatCreatedAt(ticket.createdAt), [ticket.createdAt]);
+  const images = (ticket.images ?? []).slice(0, 3);
 
   return (
-    <TouchableOpacity
-      style={[styles.card, !hasImages && styles.cardNoImages]}
-      onPress={onPress}
-      activeOpacity={0.7}
-    >
-      <View style={styles.topRow}>
-        <View style={styles.topRowLeft}>
-          <View style={styles.titleRow}>
-            {/*
-              Shrink to fit rather than ellipsize. Figma 667-3068 sets the title
-              at Helvetica Bold 27 and its two mock titles ("Deliver Laundry",
-              "Tv Broken") fit at that size, but real ones do not — "Stain
-              carpet living room" rendered as "Stain carpet li...". The frame
-              shows a whole title, so the size gives way before the words do.
-              `minimumFontScale` floors it at 27 * 0.55 ~ 15 so a very long
-              title still degrades to an ellipsis instead of becoming unreadable.
-            */}
-            <Text
-              style={[styles.title, isDone ? styles.titleDone : isOfo ? styles.titleOfo : styles.titleOpen]}
-              numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.55}
-            >
-              {ticket.title}
-            </Text>
-            {/* With no guest row to sit in, the room chip follows the title. */}
-            {!!ticket.roomNumber && !ticket.guest?.name && <RoomChip room={ticket.roomNumber} />}
-          </View>
-
-          {!!dueAtLine && (
-            <Text style={styles.dueAtLine} numberOfLines={1}>
-              {dueAtLine}
-            </Text>
-          )}
-
-          {!!ticket.guest?.name && (
-            <View style={styles.guestRow}>
-              {ticket.guest.imageUrl ? (
-                <Image source={{ uri: ticket.guest.imageUrl }} style={styles.guestThumb} contentFit="cover" cachePolicy="memory-disk" />
-              ) : (
-                <View style={styles.guestThumbPlaceholder}>
-                  <Text style={styles.guestThumbInitial}>{getInitials(ticket.guest.name)}</Text>
-                </View>
-              )}
-              <View style={styles.guestTextCol}>
-                {/* Figma 4352:2979–2981: the name, then the room as a small blue chip. */}
-                <View style={styles.guestNameRow}>
-                  <Text style={styles.guestName} numberOfLines={1} ellipsizeMode="tail">
-                    {ticket.guest.name}
-                  </Text>
-                  {!!ticket.roomNumber && <RoomChip room={ticket.roomNumber} />}
-                </View>
-                {!!ticket.guest.stayRange && (
-                  <Text style={styles.guestDates} numberOfLines={1} ellipsizeMode="tail">
-                    {ticket.guest.stayRange}
-                  </Text>
-                )}
-              </View>
+    <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8} accessibilityRole="button">
+      {/* Header — 4664:904 / 4664:930 */}
+      <View style={styles.header}>
+        <View style={styles.deptDisc}>
+          {departmentIcon ? (
+            <Icon name={departmentIcon} size={departmentGlyphHeight(departmentIcon) * 0.8 * scaleX} color="#f92424" />
+          ) : null}
+        </View>
+        <View style={styles.headerText}>
+          <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+            {ticket.title}
+          </Text>
+          <View style={styles.metaRow}>
+            <View style={styles.flags}>
+              {Array.from({ length: priority.flags }, (_, i) => (
+                <Icon key={i} name="action-flag-priority" width={8.5 * scaleX} height={11 * scaleX} color={priority.color} />
+              ))}
             </View>
-          )}
+            <Text style={styles.meta} numberOfLines={1}>
+              {priority.label}
+              {dueLine ? `  |  ${dueLine}` : ''}
+            </Text>
+          </View>
         </View>
-
-        <View
-          ref={statusPillRef}
-          collapsable={false}
-          style={[styles.statusPill, isDone ? styles.statusPillDone : isOfo ? styles.statusPillOfo : styles.statusPillOpen]}
-        >
-          {/*
-            The glyphs are *children* of the touchable, not siblings painted over
-            it. This was a `StyleSheet.absoluteFill` Touchable rendered before
-            them, so the thumb and the chevron — which cover most of the pill —
-            sat on top of the tap target. They are not touchable themselves, so
-            a tap on either fell through to the card's own `onPress` and logged
-            "Ticket pressed" instead of opening the status popover. Only the
-            bare slivers between the glyphs actually worked.
-          */}
-          <TouchableOpacity
-            style={styles.statusPillPress}
-            onPress={handleStatusPress}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Change ticket status"
-          >
-          {isOfo ? (
-            <>
-              <View style={styles.ofoPillBadge}>
-                <Text style={styles.ofoPillLabel}>OFT</Text>
-              </View>
-              <View style={styles.statusChevron}>
-                <Icon name="action-chevron" size={10 * scaleX} color="#ffffff" />
-              </View>
-            </>
-          ) : (
-            <>
-              {/*
-                The *solid* thumb, not the outline one: Figma 667-3068 node
-                3147:58 fills the body and knocks the detail out in white. The
-                outline `action-thumbs-down` is the inverse of it and is
-                two-tone, so it cannot be tinted into this.
-              */}
-              <Icon
-                name={ticket.status === 'done' ? 'action-thumbs-up-solid' : 'action-thumbs-down-solid'}
-                size={17 * scaleX}
-                color={ticket.status === 'done' ? '#ffffff' : '#f92424'}
-              />
-              <View style={styles.statusChevron}>
-                <Icon
-                  name="action-chevron"
-                  size={10 * scaleX}
-                  color={isDone ? '#ffffff' : '#f92424'}
-                />
-              </View>
-            </>
-          )}
-          </TouchableOpacity>
-        </View>
+        {!!ticket.roomNumber && (
+          <View style={styles.roomPill}>
+            <Text style={styles.roomPillText} numberOfLines={1} adjustsFontSizeToFit>
+              {ticket.roomNumber}
+            </Text>
+          </View>
+        )}
       </View>
 
-      <View style={[styles.divider, !hasImages && styles.dividerNoImages]} />
-
-      {hasImages && (
-        <View style={styles.imagesRow}>
-          {(ticket.images ?? []).slice(0, 3).map((uri, idx) => (
-            <TouchableOpacity key={`${uri}-${idx}`} activeOpacity={0.7} onPress={() => setPreviewImage(uri)}>
-              <View style={styles.imageThumbWrap}>
-                <Image source={{ uri }} style={styles.imageThumb} contentFit="cover" cachePolicy="memory-disk" />
-              </View>
-            </TouchableOpacity>
-          ))}
-        </View>
+      {/* Photos — 4664:895, 93 x 92 thumbs 12 apart */}
+      {images.length > 0 && (
+        <>
+          <View style={styles.rule} />
+          <View style={styles.photos}>
+            <Text style={styles.sectionLabel}>Photos</Text>
+            <View style={styles.thumbs}>
+              {images.map((uri, idx) => (
+                <TouchableOpacity key={`${uri}-${idx}`} activeOpacity={0.8} onPress={() => setPreviewImage(uri)}>
+                  <Image source={{ uri }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        </>
       )}
+
+      <View style={styles.rule} />
+
+      {/* Created by → Tagged — 4664:879 / 4664:897 */}
+      <View style={styles.people}>
+        <View style={styles.personCol}>
+          <Text style={styles.sectionLabel}>Created by</Text>
+          <View style={styles.person}>
+            <Avatar
+              uri={typeof ticket.createdBy.avatar === 'string' ? ticket.createdBy.avatar : undefined}
+              name={ticket.createdBy.name}
+              size={28 * scaleX}
+            />
+            <View style={styles.personText}>
+              <Text style={styles.personName} numberOfLines={1}>
+                {ticket.createdBy.name}
+              </Text>
+              <Text style={styles.personSub} numberOfLines={1}>
+                {createdAt ?? '—'}
+              </Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.arrow}>
+          <Icon name="guest-arrow" size={10 * scaleX} color="#1e1e1e" />
+        </View>
+        <TouchableOpacity
+          style={[styles.personCol, styles.taggedCol]}
+          disabled={!onAssigneePress}
+          onPress={onAssigneePress}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Tagged staff"
+        >
+          <Text style={styles.sectionLabel}>Tagged</Text>
+          <View style={styles.person}>
+            <Avatar
+              uri={typeof ticket.assignedTo?.avatar === 'string' ? ticket.assignedTo.avatar : undefined}
+              name={ticket.assignedTo?.name}
+              size={27 * scaleX}
+            />
+            <View style={styles.personText}>
+              <Text style={styles.personName} numberOfLines={1}>
+                {ticket.assignedTo?.name ? shortName(ticket.assignedTo.name) : 'No one yet'}
+              </Text>
+              <Text style={styles.personSub} numberOfLines={1}>
+                {ticket.assignedTo?.departmentName ?? '—'}
+              </Text>
+            </View>
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* Status — 4664:883 */}
+      <View ref={statusRef} collapsable={false} style={[styles.statusPill, { backgroundColor: status.color }]}>
+        <TouchableOpacity
+          style={styles.statusPress}
+          disabled={!onStatusPress}
+          onPress={() =>
+            statusRef.current?.measureInWindow((x, y, width, height) => onStatusPress?.({ x, y, width, height }))
+          }
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Status: ${status.label}. Change status`}
+        >
+          {status.icon ? <Icon name={status.icon} size={20.6 * scaleX} color="#ffffff" /> : null}
+          <Text style={styles.statusLabel}>{status.label}</Text>
+          <Icon name="action-chevron-down-wide" width={20 * scaleX} height={10 * scaleX} color="#ffffff" />
+        </TouchableOpacity>
+      </View>
 
       <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
         <TouchableOpacity style={styles.previewOverlay} activeOpacity={1} onPress={() => setPreviewImage(null)}>
@@ -202,305 +199,177 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           )}
         </TouchableOpacity>
       </Modal>
-
-      <View style={styles.footerRow}>
-        <View style={styles.footerPerson}>
-          <Avatar
-            uri={typeof ticket.createdBy.avatar === 'string' ? ticket.createdBy.avatar : undefined}
-            name={ticket.createdBy.name}
-            size={L.footerAvatar.creator * scaleX}
-          />
-          <View style={styles.footerMeta}>
-            <Text style={styles.footerName} numberOfLines={1}>
-              {ticket.createdBy.name}
-            </Text>
-            <Text style={styles.footerSub} numberOfLines={1}>
-              {createdAtText ?? '—'}
-            </Text>
-          </View>
-        </View>
-
-        {/*
-          The same drawing as the frame's arrow (node 3129:1130): shaft plus a
-          round-capped head. `guest-arrow` points left and its own header
-          comment documents mirroring as the intended reuse, so this is a flip
-          rather than a near-duplicate export. Height 10 gives width 17.4
-          against the frame's 18.571 x 10.
-        */}
-        <View style={styles.footerArrow}>
-          <Icon name="guest-arrow" size={10 * scaleX} color="#1e1e1e" />
-        </View>
-
-        <TouchableOpacity style={styles.footerPerson} onPress={onAssigneePress} activeOpacity={0.7}>
-          <Avatar
-            uri={typeof ticket.assignedTo?.avatar === 'string' ? ticket.assignedTo.avatar : undefined}
-            name={ticket.assignedTo?.name}
-            size={L.footerAvatar.assignee * scaleX}
-          />
-          <View style={styles.footerMeta}>
-            <Text style={styles.footerName} numberOfLines={1}>
-              {ticket.assignedTo?.name ?? 'Tag staff'}
-            </Text>
-            <Text style={styles.footerSub} numberOfLines={1}>
-              {ticket.assignedTo?.departmentName ?? (ticket.assignedTo?.name ? '—' : 'Select staff')}
-            </Text>
-          </View>
-        </TouchableOpacity>
-      </View>
     </TouchableOpacity>
   );
 }
 
-/** The ticket's room, as Figma 667-3068 draws it beside the guest's name. */
-function RoomChip({ room }: { room: string }) {
-  return (
-    <View style={styles.roomChip} accessibilityLabel={`Room ${room}`}>
-      <Text style={styles.roomChipText} numberOfLines={1}>
-        {room}
-      </Text>
-    </View>
-  );
-}
+const androidText = Platform.select({ android: { includeFontPadding: false } as const, default: {} as const });
 
 const styles = StyleSheet.create({
+  /* 4664:878 — #f9fafc, 1px #bbb, radius 9, 409 wide. */
   card: {
-    // Not `width: 409`: with marginHorizontal 16 that totals 441 in a 440
-    // frame, so the card overflowed its own design. Stretching inside the
-    // gutter lands on 408 and survives any device width.
-    alignSelf: 'stretch',
     backgroundColor: '#f9fafc',
     borderWidth: 1,
-    borderColor: '#e3e3e3',
+    borderColor: '#bbbbbb',
     borderRadius: 9 * scaleX,
-    marginHorizontal: L.gutter * scaleX,
-    marginBottom: L.gapBetweenCards * scaleX,
-    position: 'relative',
-    paddingHorizontal: 22 * scaleX,
-    paddingTop: 18 * scaleX,
-    paddingBottom: 14 * scaleX,
+    paddingBottom: 21 * scaleX,
+    overflow: 'hidden',
   },
-  // Figma: no-image cards have a slightly tighter bottom padding and the divider sits lower.
-  cardNoImages: {
-    paddingBottom: 10 * scaleX,
-  },
-  /*
-   * Node 3129:1096 — `<path d="M0 0.5H409" stroke="#E4E4E4"/>`, i.e. the card's
-   * **full** 409 width, edge to edge. It was sitting inside the 22pt content
-   * padding and measured 362, so the negative margin cancels that padding.
-   */
-  divider: {
-    height: 1,
-    backgroundColor: '#e4e4e4',
-    marginHorizontal: -L.paddingHorizontal * scaleX,
-    marginTop: 16 * scaleX,
-    marginBottom: 12 * scaleX,
-  },
-  dividerNoImages: {
-    marginTop: 28 * scaleX,
-    marginBottom: 10 * scaleX,
-  },
-  topRow: {
+  header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 12 * scaleX,
+    paddingTop: 16 * scaleX,
+    paddingLeft: 17 * scaleX,
+    paddingRight: 21 * scaleX,
+    paddingBottom: 13 * scaleX,
   },
-  topRowLeft: {
-    flex: 1,
-    minWidth: 0,
-  },
-  titleRow: {
-    flexDirection: 'row',
+  deptDisc: {
+    width: 55.5 * scaleX,
+    height: 55.5 * scaleX,
+    borderRadius: 28 * scaleX,
+    backgroundColor: '#ffebeb',
+    justifyContent: 'center',
     alignItems: 'center',
-    flexWrap: 'nowrap',
-    gap: 10 * scaleX,
+    marginTop: 1 * scaleX,
   },
-  /** 866:561 — "Due in: 10 mins", light 11 in black. */
-  dueAtLine: {
-    marginTop: 6 * scaleX,
-    fontSize: 11 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-    includeFontPadding: false,
+  headerText: {
+    flex: 1,
+    marginLeft: 8.5 * scaleX,
+    paddingTop: 6 * scaleX,
   },
   title: {
-    flexShrink: 1,
-    fontSize: 27 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    includeFontPadding: false,
-  },
-  titleOpen: {
-    color: '#f92424',
-  },
-  /** Figma 3129:1362 — solved ticket title */
-  titleDone: {
-    color: '#7ae07c',
-  },
-  /** Figma 3147:114 — OFO / OFT ticket title */
-  titleOfo: {
-    color: '#c6c5c5',
-  },
-  /** 4352:2980 — 36 x 18, #3bc1f6 at 25%, radius 7; the number light 9 in black. */
-  roomChip: {
-    minWidth: 36 * scaleX,
-    height: 18 * scaleX,
-    paddingHorizontal: 8 * scaleX,
-    borderRadius: 7 * scaleX,
-    backgroundColor: 'rgba(59, 193, 246, 0.25)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  roomChipText: {
-    fontSize: 9 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-    includeFontPadding: false,
-  },
-  guestNameRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4 * scaleX,
-  },
-  /** The guest 22 under the title (866:555 → 4352:2977). */
-  guestRow: {
-    marginTop: 22 * scaleX,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12 * scaleX,
-  },
-  guestThumb: {
-    width: 34.6 * scaleX,
-    height: 34.6 * scaleX,
-    borderRadius: 5 * scaleX,
-  },
-  guestThumbPlaceholder: {
-    width: 34.6 * scaleX,
-    height: 34.6 * scaleX,
-    borderRadius: 5 * scaleX,
-    backgroundColor: '#e4eefe',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guestThumbInitial: {
-    fontSize: 12 * scaleX,
+    fontSize: 20 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#5a759d',
+    ...androidText,
   },
-  guestTextCol: {
-    flex: 1,
-    minWidth: 0,
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6 * scaleX,
+    paddingLeft: 4 * scaleX,
   },
-  /** 4352:2979 — bold 14, black. */
-  guestName: {
+  flags: {
+    flexDirection: 'row',
+    gap: 2 * scaleX,
+    marginRight: 8 * scaleX,
+  },
+  meta: {
     flexShrink: 1,
-    fontSize: 14 * scaleX,
-    lineHeight: 18 * scaleX,
+    fontSize: 10 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#000000',
+    color: '#898585',
+    ...androidText,
   },
-  /** 4352:2978 — light 14, black, 20 under the name's top. */
-  guestDates: {
-    marginTop: 2 * scaleX,
-    fontSize: 14 * scaleX,
-    lineHeight: 18 * scaleX,
+  /* 4664:931 — 71 x 49, #5a759d, "201" Helvetica Bold 26 white. */
+  roomPill: {
+    minWidth: 71 * scaleX,
+    height: 49 * scaleX,
+    borderRadius: 41 * scaleX,
+    paddingHorizontal: 12 * scaleX,
+    backgroundColor: '#5a759d',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8 * scaleX,
+  },
+  roomPillText: {
+    fontSize: 26 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#ffffff',
+    ...androidText,
+  },
+  rule: {
+    height: 1,
+    backgroundColor: '#e3e3e3',
+  },
+  photos: {
+    paddingTop: 10 * scaleX,
+    paddingLeft: 23 * scaleX,
+    paddingBottom: 16 * scaleX,
+  },
+  sectionLabel: {
+    fontSize: 10 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#898585',
+    ...androidText,
+  },
+  thumbs: {
+    flexDirection: 'row',
+    gap: 12 * scaleX,
+    marginTop: 10 * scaleX,
+    paddingLeft: 1 * scaleX,
+  },
+  thumb: {
+    width: 93 * scaleX,
+    height: 92 * scaleX,
+    borderRadius: 5 * scaleX,
+  },
+  people: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    paddingTop: 13 * scaleX,
+    paddingHorizontal: 11 * scaleX,
+  },
+  personCol: {
+    flex: 1,
+  },
+  taggedCol: {
+    flex: 0,
+    maxWidth: 130 * scaleX,
+  },
+  person: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12 * scaleX,
+  },
+  personText: {
+    flexShrink: 1,
+    marginLeft: 7 * scaleX,
+  },
+  personName: {
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#1e1e1e',
+    ...androidText,
+  },
+  personSub: {
+    fontSize: 12 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: '#000000',
+    ...androidText,
+  },
+  /* The arrow points right: guest-arrow points left and is mirrored (as on TicketCard). */
+  arrow: {
+    marginHorizontal: 12 * scaleX,
+    marginBottom: 12 * scaleX,
+    transform: [{ scaleX: -1 }],
   },
   statusPill: {
-    width: 67 * scaleX,
-    height: 44 * scaleX,
-    borderRadius: 75 * scaleX,
-    overflow: 'hidden',
+    height: 61 * scaleX,
+    borderRadius: 30.5 * scaleX,
+    marginTop: 28 * scaleX,
+    marginHorizontal: 21 * scaleX,
   },
-  /** Fills the pill so every glyph inside it is part of the tap target. */
-  statusPillPress: {
+  statusPress: {
     flex: 1,
-    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6 * scaleX,
-    paddingHorizontal: 12 * scaleX,
+    gap: 11 * scaleX,
   },
-  statusPillOpen: {
-    backgroundColor: '#f9edef',
-  },
-  /** Figma 3147:79 — solved status control */
-  statusPillDone: {
-    backgroundColor: '#41d541',
-  },
-  /** Figma 3147:147 — OFT pill (grey) */
-  statusPillOfo: {
-    backgroundColor: '#c6c5c5',
-    gap: 4 * scaleX,
-    paddingHorizontal: 10 * scaleX,
-  },
-  /** Figma 3147:229 — white 26×26 circle holding "OFT" */
-  ofoPillBadge: {
-    width: 26 * scaleX,
-    height: 26 * scaleX,
-    borderRadius: 13 * scaleX,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  /** Figma 3147:230 — "OFT" inside the white circle */
-  ofoPillLabel: {
-    fontSize: 9 * scaleX,
+  statusLabel: {
+    fontSize: 15 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#c6c5c5',
-    includeFontPadding: false,
-  },
-  statusChevron: {
-    width: 10 * scaleX,
-    height: 10 * scaleX,
-    alignItems: 'center',
-    justifyContent: 'center',
-    // The outer box keeps the unrotated footprint; a transform does not change
-    // layout size. Same idiom as RoomStatusPill / RoomHeaderStatusButton.
-    transform: [{ rotate: '-90deg' }],
-  },
-  /*
-   * Node 3129:994. The band the card never drew: 392 wide inside a 409 card,
-   * so it pulls back out past the 22pt content padding to sit 9 from the card
-   * edge, and carries its own radius.
-   */
-  footerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 10 * scaleX,
-    marginHorizontal: (L.footerBand.inset - L.paddingHorizontal) * scaleX,
-    paddingHorizontal: (L.paddingHorizontal - L.footerBand.inset) * scaleX,
-    minHeight: L.footerBand.height * scaleX,
-    borderRadius: L.footerBand.radius * scaleX,
-    backgroundColor: 'rgba(100,131,176,0.06)',
-  },
-  imagesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: L.photo.gap * scaleX,
-    marginTop: 10 * scaleX,
-    marginBottom: 8 * scaleX,
-  },
-  imageThumbWrap: {
-    width: L.photo.width * scaleX,
-    height: L.photo.height * scaleX,
-    borderRadius: L.photo.radius * scaleX,
-    overflow: 'hidden',
-    backgroundColor: '#e6e6e6',
-  },
-  imageThumb: {
-    width: '100%',
-    height: '100%',
+    color: '#ffffff',
+    marginRight: 2 * scaleX,
+    ...androidText,
   },
   previewOverlay: {
     flex: 1,
@@ -509,39 +378,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   previewImage: {
-    width: Dimensions.get('window').width - 40,
-    height: Dimensions.get('window').height - 120,
-  },
-  footerPerson: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    minWidth: 0,
-    gap: 8 * scaleX,
-  },
-  footerMeta: {
-    flex: 1,
-    minWidth: 0,
-  },
-  footerName: {
-    fontSize: 13 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#1e1e1e',
-  },
-  footerSub: {
-    marginTop: 2 * scaleX,
-    fontSize: 12 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000',
-  },
-  footerArrow: {
-    width: 18 * scaleX,
-    height: 18 * scaleX,
-    alignItems: 'center',
-    justifyContent: 'center',
-    transform: [{ scaleX: -1 }],
+    width: '100%',
+    height: '80%',
   },
 });
-

@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
-import { MAX_PHOTOS, pickPhotos } from '@/components/media/photoPicker';
+import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from '@/components/media/photoPicker';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/ui/SafeKeyboardAvoidingView';
 import { useToast } from '@/contexts/ToastContext';
@@ -34,6 +34,10 @@ import { RegisterConfirmStep } from './RegisterConfirmStep';
 import StatusDropdown, { StatusOption } from './StatusDropdown';
 import StoredLocationDropdown, { StoredLocationOption } from './StoredLocationDropdown';
 import type { StaffMember } from '@features/staff/types/staff.types';
+import { PERMISSIONS, usePermissions } from '@/domain/rbac';
+import { fetchTicketAccess } from '@features/tickets/services/ticketAccess';
+import { useStorageLocations } from '../hooks/useStorageLocations';
+import { storedLocationLabel } from '../utils/storedLocations';
 
 /** Figma 733:257 — the staff picker card (331) plus its 7px gap below the field. */
 const STAFF_PICKER_HEIGHT = (331 + 7) * scaleX;
@@ -163,6 +167,15 @@ export default function RegisterLostAndFoundModal({
   const [registeredBy, setRegisteredBy] = useState<string>('');
   const [status, setStatus] = useState<StatusOption>('stored');
   const [storedLocation, setStoredLocation] = useState<StoredLocationOption>('hskOffice');
+  // The hotel's locations (migration 20261026300000).
+  const { active: activeStorage } = useStorageLocations();
+  const storageOptions = useMemo(() => activeStorage.map((l) => ({ value: l.key, label: l.label })), [activeStorage]);
+  // A retired or renamed-away default: start on the hotel's first location instead.
+  useEffect(() => {
+    if (storageOptions.length > 0 && !storageOptions.some((o) => o.value === storedLocation)) {
+      setStoredLocation(storageOptions[0].value);
+    }
+  }, [storageOptions, storedLocation]);
   const [staff, setStaff] = useState<StaffMember[]>([]);
   /*
    * The signed-in user, straight off the session. Found by and Registered by
@@ -172,6 +185,13 @@ export default function RegisterLostAndFoundModal({
    */
   const { session } = useAuth();
   const currentUserId = session?.user?.id ?? null;
+  /*
+   * Housekeeping line staff (room attendants, porters, laundry, public area —
+   * no lost_and_found.read_all) register items as themselves: Found by and
+   * Registered by are fixed to them, no picker (client change, 2026-10-26;
+   * enforced by migration 20261026260000).
+   */
+  const peopleLocked = !usePermissions().can(PERMISSIONS.LOST_AND_FOUND_READ_ALL);
   const sessionProfile = session?.user?.user_metadata as
     | { full_name?: string; name?: string; avatar_url?: string }
     | undefined;
@@ -236,6 +256,32 @@ export default function RegisterLostAndFoundModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
 
+  /*
+   * Housekeeping (Supervisor, Executive Housekeepers) picks Found by /
+   * Registered by from Housekeeping only (client change, 2026-10-26; enforced
+   * by migration 20261026280000). Other departments keep everyone — a front
+   * desk registers what a housekeeper found — as does the Hotel Manager.
+   */
+  const [pickerDepartment, setPickerDepartment] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchTicketAccess(currentUserId).then((a) => {
+      if (cancelled) return;
+      const hsk = (a.departmentName ?? '').trim().toLowerCase() === 'housekeeping';
+      setPickerDepartment(hsk && !a.hotelWide ? a.departmentName : null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [currentUserId]);
+  const pickerStaff = useMemo(
+    () =>
+      pickerDepartment
+        ? staff.filter((m) => (m.department ?? '').trim().toLowerCase() === pickerDepartment.trim().toLowerCase())
+        : staff,
+    [staff, pickerDepartment]
+  );
+
   // The staff list backs the two pickers; the defaults above do not wait for it.
   // Loaded the first time the sheet opens: it is always mounted, and fetching
   // on mount downloaded every user on each visit to Lost & Found.
@@ -266,10 +312,11 @@ export default function RegisterLostAndFoundModal({
     setSelectedRoom(matchedRoom);
   }, [visible, preselectedRoomId, rooms]);
 
-  // Several at once, up to MAX_PHOTOS in all — the picker used to take one.
-  const handleAddPicture = async () => {
+  // The camera, or several at once from the library — up to MAX_PHOTOS in all.
+  const handleAddPicture = () => choosePhotoSource((source) => void addPictures(source));
+  const addPictures = async (source: PhotoSource) => {
     setShowPictureError(false);
-    const result = await pickPhotos('library', MAX_PHOTOS - pictures.length);
+    const result = await pickPhotos(source, MAX_PHOTOS - pictures.length);
     if ('error' in result) {
       toast.show(result.error, { type: 'error', title: 'Photos' });
       return;
@@ -400,6 +447,13 @@ export default function RegisterLostAndFoundModal({
     setSelectedMinute(minute);
   };
 
+  /*
+   * Step 1 needs a title and something to recognise the item by: a photo OR a
+   * description (Notes) — either is enough (client change, 2026-10-26).
+   */
+  const hasPhotoOrDescription = pictures.length > 0 || notes.trim().length > 0;
+  const step1Incomplete = title.trim() === '' || !hasPhotoOrDescription;
+
   const handleNext = () => {
     if (currentStep === 1) {
       const isTitleValid = title.trim().length > 0;
@@ -409,6 +463,11 @@ export default function RegisterLostAndFoundModal({
         return;
       }
       setShowTitleError(false);
+      if (!hasPhotoOrDescription) {
+        setShowPictureError(true);
+        toast.show('Add a photo or a description of the item', { type: 'error', title: 'Missing details' });
+        return;
+      }
       /*
        * Where the item was found is the one fact a Lost & Found record cannot
        * be useful without — it is how the guest who lost it is traced. Step 1
@@ -444,8 +503,9 @@ export default function RegisterLostAndFoundModal({
             selectedLocation,
             selectedRoom: selectedLocation === 'room' ? selectedRoom : undefined,
             selectedPublicArea: selectedLocation === 'publicArea' ? selectedPublicArea : undefined,
-            foundedBy,
-            registeredBy,
+            // Line staff are always both, whatever the form state says.
+            foundedBy: peopleLocked ? currentUserId ?? foundedBy : foundedBy,
+            registeredBy: peopleLocked ? currentUserId ?? registeredBy : registeredBy,
             status,
             storedLocation,
             sendEmailToGuest,
@@ -485,16 +545,8 @@ export default function RegisterLostAndFoundModal({
     return labels[status] || 'Stored';
   };
 
-  // Get stored location label
-  const getLocationLabel = (location: StoredLocationOption): string => {
-    const labels: { [key: string]: string } = {
-      hskOffice: 'Office',
-      frontDesk: 'Front Desk',
-      securityOffice: 'Security Office',
-      lostAndFoundRoom: 'Lost & Found Room',
-    };
-    return labels[location] || 'Office';
-  };
+  // The hotel's own name for a location (Account → Lost & Found storage).
+  const getLocationLabel = (location: StoredLocationOption): string => storedLocationLabel(location);
 
   return (
     <Modal
@@ -730,7 +782,10 @@ export default function RegisterLostAndFoundModal({
                   <View style={styles.notesIcon}>
                     <Icon name="action-add-note" size={16.4 * scaleX} color="#5A759D" />
                   </View>
-                  <Text style={styles.notesLabel}>Notes</Text>
+                  {/* A photo or a description is enough (client change): notes are optional once there is a photo. */}
+                  <Text style={styles.notesLabel}>
+                    Notes <Text style={styles.notesOptional}>{pictures.length > 0 ? '(optional)' : '(or add a photo)'}</Text>
+                  </Text>
                 </View>
                 <TextInput
                   style={styles.notesInput}
@@ -750,12 +805,14 @@ export default function RegisterLostAndFoundModal({
           {/* Step 2 Content */}
           {currentStep === 2 && (
             <>
-              {/* Founded By Section */}
-              <Text style={styles.step2LeadLabel}>Founded by</Text>
+              {/* Found By Section */}
+              <Text style={styles.step2LeadLabel}>Found by</Text>
               <TouchableOpacity
                 ref={foundedByFieldRef}
                 style={styles.step2Field}
                 activeOpacity={0.7}
+                disabled={peopleLocked}
+                accessibilityState={{ disabled: peopleLocked }}
                 onPress={() => {
                   measureFieldPosition(foundedByFieldRef, setFoundedByFieldPosition, () => {
                     setShowFoundedByModal(true);
@@ -772,7 +829,9 @@ export default function RegisterLostAndFoundModal({
                   </View>
                   <Text style={styles.step2FieldText}>{getStaffName(foundedBy)}</Text>
                 </View>
-                <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="rgba(90, 117, 157, 0.59)" style={styles.step2SearchIcon} />
+                {peopleLocked ? null : (
+                  <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="rgba(90, 117, 157, 0.59)" style={styles.step2SearchIcon} />
+                )}
               </TouchableOpacity>
 
               {/* Registered By Section */}
@@ -781,6 +840,8 @@ export default function RegisterLostAndFoundModal({
                 ref={registeredByFieldRef}
                 style={styles.step2Field}
                 activeOpacity={0.7}
+                disabled={peopleLocked}
+                accessibilityState={{ disabled: peopleLocked }}
                 onPress={() => {
                   measureFieldPosition(registeredByFieldRef, setRegisteredByFieldPosition, () => {
                     setShowRegisteredByModal(true);
@@ -797,7 +858,9 @@ export default function RegisterLostAndFoundModal({
                   </View>
                   <Text style={styles.step2FieldText}>{getStaffName(registeredBy)}</Text>
                 </View>
-                <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="rgba(90, 117, 157, 0.59)" style={styles.step2SearchIcon} />
+                {peopleLocked ? null : (
+                  <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="rgba(90, 117, 157, 0.59)" style={styles.step2SearchIcon} />
+                )}
               </TouchableOpacity>
 
               {/* Status Section */}
@@ -865,6 +928,7 @@ export default function RegisterLostAndFoundModal({
                 avatar: getStaffAvatar(foundedBy),
                 department: getStaffDepartment(foundedBy),
               }}
+              peopleLocked={peopleLocked}
               registeredBy={{
                 name: getStaffName(registeredBy),
                 avatar: getStaffAvatar(registeredBy),
@@ -887,18 +951,18 @@ export default function RegisterLostAndFoundModal({
               currentStep === 2 && styles.nextButtonStep2,
               currentStep === 3 && styles.nextButtonStep3,
               (currentStep === 1 &&
-                (pictures.length === 0 || notes.trim() === '' || title.trim() === '')) &&
+                step1Incomplete) &&
                 styles.nextButtonDisabled,
             ]}
             onPress={handleNext}
             activeOpacity={0.7}
-            disabled={currentStep === 1 && (pictures.length === 0 || notes.trim() === '' || title.trim() === '')}
+            disabled={currentStep === 1 && step1Incomplete}
           >
             <Text
               style={[
                 styles.nextButtonText,
                 (currentStep === 1 &&
-                  (pictures.length === 0 || notes.trim() === '' || title.trim() === '')) &&
+                  step1Incomplete) &&
                   styles.nextButtonTextDisabled,
               ]}
             >
@@ -931,8 +995,8 @@ export default function RegisterLostAndFoundModal({
           onClose={() => setShowFoundedByModal(false)}
           onSelect={setFoundedBy}
           selectedStaffId={foundedBy}
-          title="Founded by"
-          staff={staff}
+          title="Found by"
+          staff={pickerStaff}
           showMeOption={true}
           currentUserId={currentUserId ?? undefined}
           inputFieldPosition={foundedByFieldPosition}
@@ -943,7 +1007,7 @@ export default function RegisterLostAndFoundModal({
           onSelect={setRegisteredBy}
           selectedStaffId={registeredBy}
           title="Registered by"
-          staff={staff}
+          staff={pickerStaff}
           showMeOption={true}
           currentUserId={currentUserId ?? undefined}
           inputFieldPosition={registeredByFieldPosition}
@@ -961,6 +1025,7 @@ export default function RegisterLostAndFoundModal({
           onSelect={setStoredLocation}
           selectedLocation={storedLocation}
           inputFieldPosition={storedLocationFieldPosition}
+          options={storageOptions}
         />
       </View>
     </Modal>
@@ -1239,6 +1304,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     // Disc ends at x=60, "Notes" starts at x=68.
     marginRight: 8 * scaleX,
+  },
+  notesOptional: {
+    fontWeight: '400',
+    color: '#999999',
   },
   notesLabel: {
     fontSize: REGISTER_FORM.notes.label.fontSize * scaleX,

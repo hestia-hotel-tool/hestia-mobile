@@ -10,6 +10,7 @@ import { resolveGuestImageUrls, isHttpUrl } from '@/lib/guests';
 import type { RoomPickerGuest, RoomPickerRoom } from '../types/roomPicker.types';
 import type { GuestRowKind } from '../components/roomsList/GuestRow';
 import { listRoomsWithReservationGuests } from './rooms';
+import { formatClockTime } from '@/utils/formatting';
 
 /**
  * The reservation a room is on *now*.
@@ -148,6 +149,9 @@ async function mapRoomRows(rows: any[]): Promise<RoomPickerRoom[]> {
       checkIn: reservation?.arrival_date ?? null,
       checkOut: reservation?.departure_date ?? null,
       guestCount: adults + kids,
+      adults,
+      kids,
+      time: formatClockTime(reservation?.eta) || null,
       frontOfficeStatus: frontOfficeStatus || undefined,
       isDeparture:
         current.length >= 2 ||

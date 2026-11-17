@@ -17,6 +17,8 @@ export const TASK_NOTIFICATION_TYPES = [
   'room_started',
   'room_paused',
   'room_status_override',
+  // Taken off a room (unassigned, or reassigned before starting).
+  'room_unassigned',
   // Shift end: unfinished rooms went back to the unassigned pool.
   'room_pool',
   'room_overdue',
@@ -37,6 +39,7 @@ export const TASK_NOTIFICATION_TYPES = [
 /** The task types that are about a room — read by opening that room. */
 export const ROOM_TASK_NOTIFICATION_TYPES = [
   'room_assignment',
+  'room_unassigned',
   'room_flagged',
   'room_flag_updated',
   'room_unflagged',

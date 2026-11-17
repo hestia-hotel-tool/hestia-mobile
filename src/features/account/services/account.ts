@@ -43,10 +43,13 @@ export async function fetchMyAccount(): Promise<MyAccount | null> {
   const user = sessionData?.session?.user;
   if (!user) return null;
 
+  // `hotels` names its foreign key: backoffice_section_seen (user_id, hotel_id)
+  // is a second path from users to hotels, and a bare `hotels(name)` fails
+  // with PGRST201 "more than one relationship was found".
   const { data, error } = await supabase
     .from('users')
     .select(
-      'id, full_name, phone, avatar_url, created_at, shift_id, job_titles(name), departments(name), shifts(name, start_time, end_time), hotels(name)'
+      'id, full_name, phone, avatar_url, created_at, shift_id, job_titles(name), departments(name), shifts(name, start_time, end_time), hotels!users_hotel_id_fkey(name)'
     )
     .eq('id', user.id)
     .maybeSingle();

@@ -6,6 +6,7 @@ import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import { ChatMessage } from '@/types';
 import { scaleX } from '../constants/chatStyles';
 import { colors } from '@/theme';
+import { formatMessageTime } from '../utils/chatDates';
 
 const SWIPE_REPLY_THRESHOLD = 50;
 
@@ -24,6 +25,11 @@ function MessageBubble({ message, isCurrentUser, isGroup, onLongPress, onSwipeRe
   const handleLongPress = () => {
     onLongPress?.(message);
   };
+
+  // Only the time: the day is the chip above that day's messages (ChatDetailScreen).
+  const time = formatMessageTime(message.timestamp);
+  const hasText =
+    message.type !== 'file' && message.type !== 'image' && message.message != null && message.message !== '';
 
   const panGesture = React.useMemo(
     () =>
@@ -156,17 +162,22 @@ function MessageBubble({ message, isCurrentUser, isGroup, onLongPress, onSwipeRe
             body={typeof message.message === 'string' ? message.message : String(message.message)}
             taggedName={message.taggedUserName}
             isCurrentUser={isCurrentUser}
+            time={time}
           />
         )}
 
-        {/* Timestamp inside bubble - pill style */}
-        <View style={[styles.timestampRow, isCurrentUser ? styles.timestampRowSent : styles.timestampRowReceived]}>
-          <View style={[styles.timestampPill, isCurrentUser ? styles.timestampPillSent : styles.timestampPillReceived]}>
-            <Text style={[styles.timestamp, isCurrentUser ? styles.timestampSent : styles.timestampReceived]}>
-              {formatTime(message.timestamp)}
-            </Text>
-          </View>
-        </View>
+        {/* The time, WhatsApp style: small, bottom-right inside the bubble. With
+            text it shares the last line (the text ends in an invisible copy of
+            it, so a full last line wraps it below); without, its own row. */}
+        <Text
+          style={[
+            styles.timestamp,
+            isCurrentUser ? styles.timestampSent : styles.timestampReceived,
+            hasText ? styles.timestampOverlay : styles.timestampRow,
+          ]}
+        >
+          {time}
+        </Text>
       </View>
     </Wrapper>
   );
@@ -200,18 +211,35 @@ function MediaMentionCaption({
 }
 
 /** WhatsApp: @name flows inline with body — same line height / size as surrounding text, only color weight changes. */
+/**
+ * Room at the end of the text for the time pinned in the bubble's corner: an
+ * invisible copy of it, in the time's own size. Short last lines leave the
+ * time beside the words; a full one pushes the copy, and so the time, onto a
+ * line of its own — the WhatsApp layout, with no measuring.
+ */
+function TimeSpacer({ time }: { time: string }) {
+  return <Text style={styles.timeSpacer}>{`\u00A0\u00A0\u00A0${time}`}</Text>;
+}
+
 function MessageTextWithMention({
   body,
   taggedName,
   isCurrentUser,
+  time,
 }: {
   body: string;
   taggedName?: string;
   isCurrentUser: boolean;
+  time: string;
 }) {
   const baseStyle = [styles.messageText, isCurrentUser ? styles.currentUserText : styles.otherUserText];
   if (!taggedName?.trim()) {
-    return <Text style={baseStyle}>{body}</Text>;
+    return (
+      <Text style={baseStyle}>
+        {body}
+        <TimeSpacer time={time} />
+      </Text>
+    );
   }
   const label = `@${taggedName.trim()}`;
   const idx = body.indexOf(label);
@@ -221,6 +249,7 @@ function MessageTextWithMention({
       <Text style={baseStyle}>
         <Text style={mentionStyle}>{label} </Text>
         {body}
+        <TimeSpacer time={time} />
       </Text>
     );
   }
@@ -231,6 +260,7 @@ function MessageTextWithMention({
       {before}
       <Text style={mentionStyle}>{label}</Text>
       {after}
+      <TimeSpacer time={time} />
     </Text>
   );
 }
@@ -241,40 +271,6 @@ function formatVoiceDuration(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-function formatTime(timestamp: string): string {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
-  
-  // Format as HH:MM (24-hour format)
-  const hours24 = date.getHours();
-  const mins = date.getMinutes();
-  const formattedHours = hours24.toString().padStart(2, '0');
-  const formattedMins = mins.toString().padStart(2, '0');
-  
-  // If message is from today, show time only
-  const isToday = date.toDateString() === now.toDateString();
-  if (isToday) {
-    return `${formattedHours}:${formattedMins}`;
-  }
-  
-  // If message is from yesterday
-  const yesterday = new Date(now);
-  yesterday.setDate(yesterday.getDate() - 1);
-  if (date.toDateString() === yesterday.toDateString()) {
-    return `Yesterday ${formattedHours}:${formattedMins}`;
-  }
-  
-  // If message is from this week, show day name
-  const daysDiff = Math.floor(diff / 86400000);
-  if (daysDiff < 7) {
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    return `${dayNames[date.getDay()]} ${formattedHours}:${formattedMins}`;
-  }
-  
-  // Otherwise show date
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
-}
 
 const styles = StyleSheet.create({
   slideWrapper: {
@@ -426,39 +422,33 @@ const styles = StyleSheet.create({
     color: colors.text.primary,
     fontWeight: '400' as any,
   },
+  /** Under media (image, file, voice), where there is no text to share a line with. */
   timestampRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    alignSelf: 'flex-end',
     marginTop: 4 * scaleX,
   },
-  timestampRowSent: {
-    justifyContent: 'flex-end',
-  },
-  timestampRowReceived: {
-    justifyContent: 'flex-start',
-  },
-  timestampPill: {
-    paddingHorizontal: 8 * scaleX,
-    paddingVertical: 4 * scaleX,
-    borderRadius: 10 * scaleX,
-  },
-  timestampPillSent: {
-    backgroundColor: 'rgba(0,0,0,0.18)',
-  },
-  timestampPillReceived: {
-    backgroundColor: 'rgba(0,0,0,0.06)',
+  /** Pinned in the bubble's bottom-right corner, over the end of the text's spacer. */
+  timestampOverlay: {
+    position: 'absolute',
+    right: 12 * scaleX,
+    bottom: 7 * scaleX,
   },
   timestamp: {
-    fontSize: 10.5 * scaleX,
+    fontSize: 11 * scaleX,
+    lineHeight: 13 * scaleX,
     fontFamily: 'Helvetica',
-    fontWeight: '500' as any,
+    fontWeight: '400' as any,
   },
   timestampSent: {
-    color: 'rgba(255,255,255,0.92)',
+    color: 'rgba(255,255,255,0.75)',
   },
   timestampReceived: {
-    color: colors.text.tertiary,
+    color: '#8a94a6',
+  },
+  /** The invisible copy of the time at the end of the text (TimeSpacer): same size, no colour. */
+  timeSpacer: {
+    fontSize: 11 * scaleX,
+    color: 'transparent',
   },
   messageImage: {
     width: 260 * scaleX,

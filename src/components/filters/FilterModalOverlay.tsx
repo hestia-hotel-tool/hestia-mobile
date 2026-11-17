@@ -1,4 +1,5 @@
 import React from 'react';
+import { Platform } from 'react-native';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { View, Pressable } from '@/tw';
 import { colors } from '@/theme';
@@ -26,6 +27,12 @@ export type FilterModalOverlayProps = {
   onFilterIconPress?: () => void;
   /** Caps the sheet width so it does not stretch on a tablet. */
   maxWidth?: number;
+  /**
+   * The positions are window coordinates (`measureInWindow`), status bar
+   * included. On Android the modal then has to draw under the status bar too,
+   * or everything lands a status bar too low. iOS always does.
+   */
+  windowCoordinates?: boolean;
   children: React.ReactNode;
 };
 
@@ -49,10 +56,17 @@ export function FilterModalOverlay({
   filterIconTop,
   onFilterIconPress,
   maxWidth,
+  windowCoordinates = false,
   children,
 }: FilterModalOverlayProps) {
   return (
-    <Modal transparent visible={visible} animationType="fade" onRequestClose={onClose}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="fade"
+      onRequestClose={onClose}
+      statusBarTranslucent={windowCoordinates && Platform.OS === 'android'}
+    >
       <View className="flex-1">
         {/* Above the blur, so the glyph that opened this stays crisp. */}
         {onFilterIconPress && filterIconTop !== undefined && (

@@ -1,9 +1,10 @@
+import { existsSync } from "fs";
 import { ConfigContext, ExpoConfig } from "expo/config";
 
 const EAS_PROJECT_ID = "1ac5a146-2c0d-497b-b6c6-ddebcaed2b38";
 const PROJECT_SLUG = "hestia";
 const OWNER = "wallace-mua-2";
-const VERSION = "1.2.3";
+const VERSION = "1.3.0";
 
 const APP_NAME = "Hestia";
 const BUNDLE_IDENTIFIER = "com.hestiahotels.app";
@@ -11,6 +12,16 @@ const PACKAGE_NAME = "com.hestiahotels.app";
 const ICON = "./assets/app/icon.png";
 const ADAPTIVE_ICON = "./assets/app/adaptive-icon.png";
 const SCHEME = "hestia";
+
+/*
+ * Firebase config for Android push (FCM). Expo's push service delivers to
+ * Android through FCM, so without it `getExpoPushTokenAsync` fails on Android.
+ * One file covers all three package names (prod, .preview, .dev) once each is
+ * registered in the Firebase project. On EAS it can come from a file
+ * environment variable instead (GOOGLE_SERVICES_JSON). Left out when absent,
+ * so a checkout without it still builds — just without Android push.
+ */
+const GOOGLE_SERVICES_FILE = process.env.GOOGLE_SERVICES_JSON ?? "./google-services.json";
 
 export default ({ config }: ConfigContext): ExpoConfig => {
   console.log("⚙️ Building app for environment:", process.env.APP_ENV);
@@ -58,6 +69,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
       },
       package: packageName,
       softwareKeyboardLayoutMode: "resize",
+      ...(existsSync(GOOGLE_SERVICES_FILE) ? { googleServicesFile: GOOGLE_SERVICES_FILE } : {}),
     },
     web: {
       favicon: "./assets/app/favicon.png",
@@ -131,6 +143,20 @@ export default ({ config }: ConfigContext): ExpoConfig => {
             "Hestia uses the microphone so you can ask the assistant a question out loud.",
           speechRecognitionPermission:
             "Hestia uses speech recognition to turn what you say into a question for the assistant.",
+        },
+      ],
+      [
+        /*
+         * Every photo field offers Take Photo and Choose from Library
+         * (src/components/media/photoPicker.ts). iOS shows these strings in
+         * the permission prompt; App Review rejects generic ones.
+         */
+        "expo-image-picker",
+        {
+          cameraPermission:
+            "Hestia uses the camera so you can photograph lost & found items, room issues and tickets.",
+          photosPermission:
+            "Hestia uses your photos so you can attach pictures to lost & found items, tickets and chats.",
         },
       ],
       "expo-image",

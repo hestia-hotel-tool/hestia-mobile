@@ -12,6 +12,16 @@ export const STORED_LOCATIONS = [
 const LABEL: Record<string, string> = Object.fromEntries(STORED_LOCATIONS.map((o) => [o.value, o.label]));
 
 /**
+ * The hotel's own names (migration 20261026300000, editable under Account →
+ * Lost & Found storage), registered by services/storageLocations.ts once
+ * loaded. They win over the built-in four, which stay as the fallback.
+ */
+let hotelLabels: Record<string, string> = {};
+export function setStorageLocationLabels(labels: Record<string, string>): void {
+  hotelLabels = labels;
+}
+
+/**
  * A stored-location key as a person would read it — "hskOffice" → "HSK Office".
  *
  * Unknown values fall through unchanged rather than being mangled: a free-text
@@ -20,5 +30,5 @@ const LABEL: Record<string, string> = Object.fromEntries(STORED_LOCATIONS.map((o
 export function storedLocationLabel(value?: string | null): string {
   const raw = (value ?? '').trim();
   if (!raw) return '—';
-  return LABEL[raw] ?? raw;
+  return hotelLabels[raw] ?? LABEL[raw] ?? raw;
 }

@@ -16,6 +16,7 @@ type TicketsRow = {
   type: string | null;
   assigned_to_id: string | null;
   created_by_id: string;
+  department_id?: string | null;
   created_at: string;
   due_at?: string | null;
   photo_urls?: string[] | null;
@@ -48,6 +49,7 @@ const TICKET_SELECT = [
   'type',
   'assigned_to_id',
   'created_by_id',
+  'department_id',
   'created_at',
   'due_at',
   'photo_urls',
@@ -182,7 +184,7 @@ function mapRowToTicketData(
 
   /** Relative “mins” line is superseded by calendar due line on the card when `due_at` is set. */
   const dueTimeDisplay =
-    (status === 'unsolved' || status === 'ofo') && !dueAtIso && Number.isFinite(createdAtMs)
+    (status === 'unsolved' || status === 'inProgress' || status === 'ofo') && !dueAtIso && Number.isFinite(createdAtMs)
       ? formatElapsed((nowMs - createdAtMs) / 60000)
       : undefined;
 
@@ -214,6 +216,7 @@ function mapRowToTicketData(
         : undefined,
     assignedToId: row.assigned_to_id,
     createdById: row.created_by_id,
+    departmentId: row.department_id ?? null,
     viewerIsTagged: taggedTicketIds.has(row.id),
     priority: priority ?? undefined,
   };
@@ -227,8 +230,19 @@ function mapStatus(raw: string | null | undefined): TicketStatus {
   if (value === 'ofo' || value === 'out_of_order' || value === 'oof' || value === 'oft') {
     return 'ofo';
   }
+  if (value === 'in_progress' || value === 'inprogress') {
+    return 'inProgress';
+  }
   return 'unsolved';
 }
+
+/** The `tickets.status` value written for each state. */
+const STATUS_COLUMN: Record<TicketStatus, string> = {
+  done: 'done',
+  unsolved: 'unsolved',
+  inProgress: 'in_progress',
+  ofo: 'ofo',
+};
 
 /** Closed tickets the list keeps showing; open ones always show. */
 const TICKET_WINDOW_DAYS = 30;
@@ -242,20 +256,25 @@ function daysAgo(days: number): string {
 export type TicketCounts = { total: number; priority: number; unsolved: number; solved: number; outOfOrder: number };
 
 /**
- * Home's ticket dashboard: the signed-in user's tickets in their department,
- * counted by state. Reads only those rows — it used to download every ticket
- * in the hotel (with photos, people and guests) to count five numbers.
+ * The department's tickets, counted for a ticket dashboard (Engineering, In
+ * Room Dining): every open one, and the closed ones from the last
+ * TICKET_WINDOW_DAYS — the same window as the Tickets list, so tapping a
+ * number there shows the tickets it counted.
+ *
+ * Department-wide, not the viewer's own: a director or supervisor watches the
+ * team's queue, and an unassigned ticket is exactly the one that needs seeing.
  */
-export async function getTicketCountsForAssignee(userId: string, departmentName: string): Promise<TicketCounts> {
+export async function getTicketCountsForDepartment(departmentName: string): Promise<TicketCounts> {
   const zero = { total: 0, priority: 0, unsolved: 0, solved: 0, outOfOrder: 0 };
-  if (!isSupabaseConfigured || !userId) return zero;
+  if (!isSupabaseConfigured || !departmentName) return zero;
   const { data, error } = await supabase
     .from('tickets')
     .select('status, priority, departments!inner(name)')
-    .eq('assigned_to_id', userId)
-    .ilike('departments.name', departmentName);
+    .ilike('departments.name', departmentName)
+    .or(`status.not.in.(done,closed,resolved),created_at.gte.${daysAgo(TICKET_WINDOW_DAYS)}`)
+    .limit(TICKET_LIST_LIMIT);
   if (error || !data) {
-    console.warn('[tickets.getTicketCountsForAssignee]', error?.message);
+    console.warn('[tickets.getTicketCountsForDepartment]', error?.message);
     return zero;
   }
   const rows = data as unknown as { status: string | null; priority: string | null }[];
@@ -263,7 +282,8 @@ export async function getTicketCountsForAssignee(userId: string, departmentName:
   for (const r of rows) {
     const status = mapStatus(r.status);
     if ((r.priority ?? '').toLowerCase() === 'urgent') counts.priority += 1;
-    if (status === 'unsolved') counts.unsolved += 1;
+    // In Progress is not solved yet: the dashboards' four circles count it unsolved.
+    if (status === 'unsolved' || status === 'inProgress') counts.unsolved += 1;
     else if (status === 'done') counts.solved += 1;
     else if (status === 'ofo') counts.outOfOrder += 1;
   }
@@ -355,6 +375,28 @@ export async function getOpenTicketsForRoom(roomId: string): Promise<TicketData[
   const now = Date.now();
   // Guest hydration is skipped here, as it was for the single-room call: the
   // card in this slot shows the ticket, not the guest.
+  return (data as unknown as TicketsRow[]).map((row) =>
+    mapRowToTicketData(row, new Map(), now, new Set())
+  );
+}
+
+/**
+ * Every ticket on a room, open and closed, newest first — Room Detail →
+ * Tickets (Figma 285:4037), which filters them All / Open / Closed / by
+ * department on the client.
+ */
+export async function getTicketsForRoom(roomId: string): Promise<TicketData[]> {
+  if (!isSupabaseConfigured || !roomId) return [];
+
+  const { data, error } = await supabase
+    .from('tickets')
+    .select(TICKET_SELECT)
+    .eq('room_id', roomId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+
+  const now = Date.now();
   return (data as unknown as TicketsRow[]).map((row) =>
     mapRowToTicketData(row, new Map(), now, new Set())
   );
@@ -521,7 +563,7 @@ export async function updateTicketStatus(ticketId: string, status: TicketStatus)
   if (!isSupabaseConfigured) return;
   const { error } = await supabase
     .from('tickets')
-    .update({ status })
+    .update({ status: STATUS_COLUMN[status] })
     .eq('id', ticketId);
 
   if (error) {
@@ -567,6 +609,8 @@ export type TicketDetail = {
   /** "Room 203", or the public area's name. */
   locationText: string;
   departmentName: string | null;
+  /** The department the ticket was raised for: who may resolve and reassign it. */
+  departmentId: string | null;
   dueAt: string | null;
   createdAt: string;
   updatedAt: string | null;
@@ -585,6 +629,7 @@ type TicketDetailRow = {
   priority: string | null;
   type: string | null;
   room_id: string | null;
+  department_id: string | null;
   photo_urls: string[] | null;
   due_at: string | null;
   created_at: string;
@@ -632,6 +677,7 @@ export async function fetchTicketDetail(id: string): Promise<TicketDetail | null
         'resolved_at',
         'created_by_id',
         'assigned_to_id',
+        'department_id',
         'departments(name)',
         'rooms (room_number)',
         'created_by:users!tickets_created_by_id_fkey (full_name, avatar_url, departments(name))',
@@ -672,6 +718,7 @@ export async function fetchTicketDetail(id: string): Promise<TicketDetail | null
     room: row.room_id ? { id: row.room_id, number: roomNumber } : null,
     locationText: row.room_id ? `Room ${roomNumber}` : (row.type ?? 'Public Area'),
     departmentName: row.departments?.name ?? null,
+    departmentId: row.department_id ?? null,
     dueAt: row.due_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

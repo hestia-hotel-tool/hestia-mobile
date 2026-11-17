@@ -125,9 +125,10 @@ export const TICKETS_TABS = {
  * Change Status popover (Figma node 3129:1647 Union, Tickets frame 3129:1500).
  * W=396, left=21 on 440-wide artboard — narrower than the 409-wide card, not edge-aligned to card.
  */
+/** Figma 4649:1747 — the Change Status card, 436 wide at x=2. */
 export const TICKET_STATUS_POPOVER = {
-  width: 396,
-  left: 21,
+  width: 436,
+  left: 2,
 } as const;
 
 // Divider Styles
@@ -141,7 +142,7 @@ export const TICKET_DIVIDER = {
 
 // Spacing
 export const TICKETS_SPACING = {
-  contentPaddingTop: 220, // Header (133) + tabs (31) + spacing (56) = 220px
+  contentPaddingTop: 223, // Figma 667:3068: the first card at y=223 (chips 157–203, then 20)
   contentPaddingBottom: 152, // Bottom nav height
   cardSpacing: 16, // Space between cards
 } as const;

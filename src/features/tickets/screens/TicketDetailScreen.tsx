@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -21,7 +21,9 @@ import { typography } from '@/theme';
 import { formatMoment } from '@/utils/formatting';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { deleteTicket, fetchTicketDetail, updateTicketStatus, type TicketDetail } from '../services/tickets';
+import { useAssistantScreen, type ScreenFact } from '@features/ai-agent/screenContext';
 import type { TicketStatus } from '../types/tickets.types';
+import { useTicketAccess } from '../hooks/useTicketAccess';
 
 const C = {
   header: '#e4eefe',
@@ -34,10 +36,11 @@ const C = {
 /** The ticket card's colours (TicketCard), plus a label per status. */
 const STATUS: Record<TicketStatus, { label: string; color: string }> = {
   unsolved: { label: 'Unsolved', color: '#f92424' },
+  inProgress: { label: 'In Progress', color: '#e0a800' },
   done: { label: 'Solved', color: '#41d541' },
   ofo: { label: 'Out of Order', color: '#a3a2a2' },
 };
-const STATUS_ORDER: TicketStatus[] = ['unsolved', 'done', 'ofo'];
+const STATUS_ORDER: TicketStatus[] = ['unsolved', 'inProgress', 'done', 'ofo'];
 
 const PRIORITY: Record<NonNullable<TicketDetail['priority']>, { label: string; color: string }> = {
   urgent: { label: 'High priority', color: '#f92424' },
@@ -70,6 +73,9 @@ export default function TicketDetailScreen() {
   const [pendingStatus, setPendingStatus] = useState<TicketStatus | null>(null);
 
   const canEdit = canManage || (!!ticket && ticket.createdBy?.id === session?.user?.id);
+  // Resolve: the ticket's department only (migration 20261026090000).
+  const { canResolve } = useTicketAccess();
+  const mayResolve = !!ticket && canResolve({ departmentId: ticket.departmentId, createdById: ticket.createdBy?.id });
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -104,7 +110,8 @@ export default function TicketDetailScreen() {
       void Haptics.selectionAsync();
     } catch (e) {
       setTicket((t) => (t ? { ...t, status: previous } : t));
-      toast.show(e instanceof Error ? e.message : 'Please try again.', { type: 'error', title: 'Status not changed' });
+      const message = (e as { message?: string } | null)?.message;
+      toast.show(message || 'Please try again.', { type: 'error', title: 'Status not changed' });
     } finally {
       setPendingStatus(null);
     }
@@ -162,6 +169,28 @@ export default function TicketDetailScreen() {
       }}
     />
   );
+
+  /** What this ticket's page shows, for the assistant (see screenContext.ts). */
+  const assistantFacts = useMemo<ScreenFact[]>(() => {
+    if (!ticket) return [];
+    const facts: ScreenFact[] = [
+      { label: 'Ticket', value: ticket.title },
+      { label: 'Status', value: ticket.status },
+      { label: 'Priority', value: ticket.priority ?? 'none' },
+      { label: 'Location', value: ticket.locationText || '—' },
+      { label: 'Department', value: ticket.departmentName ?? '—' },
+      { label: 'Created', value: ticket.createdAt },
+      { label: 'Created by', value: ticket.createdBy?.name ?? '—' },
+      { label: 'Assigned to', value: ticket.assignedTo?.name ?? 'Nobody' },
+    ];
+    if (ticket.description) facts.push({ label: 'Description', value: ticket.description });
+    if (ticket.dueAt) facts.push({ label: 'Due', value: ticket.dueAt });
+    if (ticket.resolvedAt) facts.push({ label: 'Resolved', value: ticket.resolvedAt });
+    if (ticket.tagged.length) facts.push({ label: 'Tagged', value: ticket.tagged.map((p) => p.name).join(', ') });
+    if (ticket.photos.length) facts.push({ label: 'Photos', value: ticket.photos.length });
+    return facts;
+  }, [ticket]);
+  useAssistantScreen('Ticket detail', assistantFacts);
 
   if (loading) {
     return (
@@ -246,7 +275,7 @@ export default function TicketDetailScreen() {
                 <Pressable
                   key={key}
                   onPress={() => void changeStatus(key)}
-                  disabled={!!pendingStatus}
+                  disabled={!!pendingStatus || !mayResolve}
                   style={[styles.segmentItem, selected && { backgroundColor: s.color }]}
                   accessibilityRole="radio"
                   accessibilityState={{ selected, busy }}
@@ -263,6 +292,11 @@ export default function TicketDetailScreen() {
               );
             })}
           </View>
+          {!mayResolve ? (
+            <Text style={styles.statusNote}>
+              {ticket.departmentName ? `Only ${ticket.departmentName} can resolve this ticket.` : 'Only the person who raised this ticket or a manager can change its status.'}
+            </Text>
+          ) : null}
 
           <DetailCard>
             <DetailRow
@@ -363,6 +397,7 @@ const styles = StyleSheet.create({
   chipDot: { width: 7, height: 7, borderRadius: 4 },
   chipText: { fontFamily: typography.fontFamily.primary, fontWeight: '600', fontSize: 13, color: C.title },
   sectionTitle: { marginTop: 24, fontFamily: typography.fontFamily.primary, fontWeight: '700', fontSize: 15, color: C.ink },
+  statusNote: { marginTop: 8, marginHorizontal: 4, fontFamily: typography.fontFamily.primary, fontSize: 13, color: '#6b7a90' },
   segment: {
     marginTop: 10,
     flexDirection: 'row',

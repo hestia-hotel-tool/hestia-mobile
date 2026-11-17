@@ -34,17 +34,40 @@ export type RoomsListChrome = {
    * the single difference between `leadership` and `supervisor`.
    */
   stickyInProgress: boolean;
+  /**
+   * Front Office's dress for the banded list (Figma 3859:1919): a coloured
+   * status cap on Paused and In Progress cards, the other bands' cards in a
+   * tray, minutes in place of credits, and pills without the menu chevron.
+   */
+  frontOffice: boolean;
+  /**
+   * The shift's linen workload under the title — departures, linen stayovers
+   * and arrivals, each a one-tap filter — and a "View only" chip beside it, for
+   * readers who work from the list without acting on it (`LinenSummary`).
+   */
+  linenSummary: boolean;
 };
 
 export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
-  /** Everyone outside housekeeping operations: a flat list of every room. */
+  /**
+   * Everyone outside housekeeping operations — bellboys, concierge,
+   * engineering, IT, In Room Dining, the Hotel Manager: leadership's screen
+   * (Figma 4553:262), the profile header, collapsing search and banded list of
+   * every room. It was the legacy header (back arrow, "All Rooms") over a flat
+   * list until 2026-11-06 (client: "the updated UI applies to every other
+   * staff, not the old one"). What each can do still comes from their
+   * permissions, not from this row.
+   */
   default: {
-    profileHeader: false,
-    banded: false,
+    profileHeader: true,
+    banded: true,
     assignedOnly: false,
-    rebuiltCard: false,
+    rebuiltCard: true,
     stickyInProgress: false,
+    frontOffice: false,
+    linenSummary: false,
   },
+
   /** Housekeeping leadership — Figma 3883:5570. */
   leadership: {
     profileHeader: true,
@@ -52,6 +75,8 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     assignedOnly: false,
     rebuiltCard: true,
     stickyInProgress: false,
+    frontOffice: false,
+    linenSummary: false,
   },
   /**
    * Supervisors — Figma 3838:1117. The same screen as `leadership` bar one
@@ -63,6 +88,8 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     assignedOnly: false,
     rebuiltCard: true,
     stickyInProgress: true,
+    frontOffice: false,
+    linenSummary: false,
   },
   /**
    * The attendant titles — Room Attendant, Porter/Houseman, Laundry and Public
@@ -79,6 +106,38 @@ export const ROOMS_LIST_CHROME: Record<RoomsVariant, RoomsListChrome> = {
     assignedOnly: true,
     rebuiltCard: true,
     stickyInProgress: false,
+    frontOffice: false,
+    linenSummary: false,
+  },
+  /**
+   * The whole Front Office department — Figma 3859:1919. Leadership's banded
+   * list of every room, dressed as `frontOffice` describes.
+   */
+  front_office: {
+    profileHeader: true,
+    banded: true,
+    assignedOnly: false,
+    rebuiltCard: true,
+    stickyInProgress: false,
+    frontOffice: true,
+    linenSummary: false,
+  },
+  /**
+   * Laundry Attendants. Rooms are never assigned to them, so they read every
+   * room on the shift that is on now (no AM/PM toggle — useShiftLock), banded
+   * like leadership's list. They cannot change a status or assign anyone: the
+   * pill is a status badge, the card has no assign action. What they need from
+   * the list is the linen run, so the shift's departures, linen stayovers and
+   * arrivals sit above it.
+   */
+  laundry: {
+    profileHeader: true,
+    banded: true,
+    assignedOnly: false,
+    rebuiltCard: true,
+    stickyInProgress: false,
+    frontOffice: false,
+    linenSummary: true,
   },
 };
 
