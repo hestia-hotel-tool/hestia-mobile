@@ -1,0 +1,16 @@
+<svg viewBox="0 0 32.77 29" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!--
+  Figma 4702:2277 (Out of Order on the tickets overview): the outline bed of
+  checklist-bed, scaled to 32.77 wide and 6 down, with the 2px slash
+  (Vector 561) from (8, 29) to (24.74, 0) drawn over it.
+-->
+<g transform="translate(0 6) scale(1.2796)">
+<path d="M7.00562 0.505123H18.6047C20.9064 0.50516 22.8011 2.24234 23.0521 4.47704H2.55718C2.80813 2.24227 4.70381 0.505123 7.00562 0.505123Z" fill="white" stroke="currentColor"/>
+<rect x="6.02675" y="3.45822" width="3.67075" height="1.02399" stroke="currentColor"/>
+<rect x="14.9799" y="3.45822" width="3.67075" height="1.02399" stroke="currentColor"/>
+<rect x="0.5" y="4.85915" width="24.6113" height="6.39536" rx="3.16018" fill="#F9FAFC" stroke="currentColor"/>
+<rect x="2.19683" y="11.9278" width="0.353859" height="0.89878" fill="currentColor" stroke="currentColor" stroke-width="0.346754"/>
+<rect x="23.0598" y="11.9278" width="0.353859" height="0.89878" fill="currentColor" stroke="currentColor" stroke-width="0.346754"/>
+</g>
+<path d="M8 29L24.74 0" stroke-width="2" stroke="currentColor"/>
+</svg>

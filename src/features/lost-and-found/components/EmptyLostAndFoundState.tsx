@@ -19,8 +19,7 @@ interface EmptyLostAndFoundStateProps {
  * points at the way out. The other three can be empty while items exist
  * elsewhere, so they describe their own bucket and nothing more.
  *
- * "Returned" over "shipped" copy is the same deliberate clash the tab carries:
- * see `LOST_AND_FOUND_TAB_LABELS`.
+ * The `returned` tab reads "Shipped" (Figma 3128:32, redrawn 2026-11).
  */
 const MESSAGES: Record<LostAndFoundTab, { title: string; subtitle: string }> = {
   created: {
@@ -32,8 +31,12 @@ const MESSAGES: Record<LostAndFoundTab, { title: string; subtitle: string }> = {
     subtitle: 'Nothing is waiting in storage right now.',
   },
   returned: {
-    title: 'No Items Returned',
+    title: 'No Items Shipped',
     subtitle: 'Nothing has been shipped back to a guest yet.',
+  },
+  drafts: {
+    title: 'No Drafts',
+    subtitle: 'An item you start registering and leave is kept here, just for you.',
   },
   discarded: {
     title: 'No Items Discarded',

@@ -333,7 +333,7 @@ export default function RoomDetailScreen() {
     if (room.returnLaterAt) facts.push({ label: 'Return later', value: `${room.returnLaterAt}${room.returnLaterReason ? ` (${room.returnLaterReason})` : ''}` });
     if (room.refuseServiceReason || room.refuseServiceAt) facts.push({ label: 'Refused service', value: room.refuseServiceReason || 'Yes' });
     if (room.dndAt) facts.push({ label: 'Do not disturb since', value: room.dndAt });
-    if (room.outOfOrder) facts.push({ label: 'Out of order', value: `${room.outOfOrder.from} to ${room.outOfOrder.to}${room.outOfOrder.reason ? ` (${room.outOfOrder.reason})` : ''}` });
+    if (room.outOfOrder) facts.push({ label: 'Out of order', value: `${room.outOfOrder.from} to ${room.outOfOrder.to ?? 'further notice'}${room.outOfOrder.reason ? ` (${room.outOfOrder.reason})` : ''}` });
     if (room.specialInstructions) facts.push({ label: 'Special instructions', value: room.specialInstructions });
     if (room.lostAndFoundCount) facts.push({ label: 'Lost & found items stored', value: room.lostAndFoundCount });
     room.guests

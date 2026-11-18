@@ -45,9 +45,12 @@ export const TICKET_STATUS: Record<TicketStatusKey, StatusSpec> = {
   },
   outOfOrder: {
     label: 'Out of Order',
-    // No mark: node 3843:86 is a grey ring, a disc with a concentric hole.
-    toneClassName: 'bg-status-out-of-order',
-    holeFraction: 0.42,
+    // Figma 4702:2277: a pale #e7eaed disc with the outline bed struck
+    // through (was a grey ring, node 3843:86, before the frame was redrawn).
+    icon: 'ticket-out-of-order',
+    toneClassName: 'bg-status-out-of-order-soft',
+    glyphHeight: 28.5,
+    glyphColor: '#5a759d',
     badgeToneClassName: 'bg-surface-primary border border-border-medium',
     badgeTextClassName: 'text-ink-primary',
   },

@@ -94,6 +94,14 @@ EXTRA_GRANTS = {
     "rooms.rush.toggle": ["fo_agent"],
     # Engineering opens a room from its ticket activity (Home → Recent activity).
     "rooms.read": ["engineering"],
+    # ...and has the Rooms tab again (user, 2026-11-17): Home → Floors → View
+    # Rooms opens it on a floor (Figma 3843:52, 4684:62). Migration 20261117090000.
+    "tab.rooms.view": ["engineering"],
+    # Engineering takes a room out of order from its status menu, with a reason,
+    # and puts it back (Figma 4686:686). Only these out-of-order fields, through
+    # set_room_out_of_order(); full room setup stays rooms.manage. Migration
+    # 20261117100000.
+    "rooms.out_of_order.toggle": ["engineering", "full_access"],
     # The back office (hestia-backoffice, docs/04-backend-changes.md §B1).
     # Signing in is for leadership; property setup and the activity log are
     # admin-only; front office data and reports are shared with ops_senior.
@@ -153,6 +161,7 @@ PERMISSION_DESCRIPTIONS = {
     "rooms.reservation_status.view": "See reservation status on a room",
     "rooms.rush.toggle": "Mark a room as rush / priority",
     "rooms.flag.toggle": "Flag and unflag a room",
+    "rooms.out_of_order.toggle": "Take a room out of order (with a reason) and put it back",
     "chat.create": "Start a direct chat",
     "chat.groups.manage": "Create and administer group chats",
     "chat.announce": "Publish a General Announcement to all staff",

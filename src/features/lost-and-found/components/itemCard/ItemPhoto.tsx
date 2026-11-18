@@ -37,7 +37,7 @@ export function ItemPhoto({ source }: ItemPhotoProps) {
    *
    * There is also no effect resetting `loading` when `source` changes: the
    * parent keys this component on the source, so a new photo is a new
-   * component. See the note in `FoundInGuestRow`.
+   * component (`LostAndFoundCard` keys it).
    */
   const [pulse] = useState(() => new Animated.Value(0.35));
 

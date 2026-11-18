@@ -1,5 +1,11 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import {
+  useLostAndFoundDrafts,
+  newLostAndFoundDraftId,
+  lostAndFoundDraftHasContent,
+  type LostAndFoundDraft,
+} from '../store/lostAndFoundDrafts';
+import {
   View,
   Text,
   ScrollView,
@@ -46,7 +52,11 @@ interface RegisterLostAndFoundModalProps {
   visible: boolean;
   onClose: () => void;
   preselectedRoomId?: string;
+  /** Reopened from Lost & Found → Drafts: the sheet starts from it and keeps saving into it. */
+  draft?: LostAndFoundDraft | null;
   onNext?: (data: {
+    /** The draft this registration came from; the screen deletes it once the item is saved. */
+    draftId?: string;
     trackingNumber?: string;
     itemImage?: string;
     itemData: {
@@ -75,6 +85,7 @@ export default function RegisterLostAndFoundModal({
   visible,
   onClose,
   preselectedRoomId,
+  draft = null,
   onNext,
 }: RegisterLostAndFoundModalProps) {
   const toast = useToast();
@@ -98,6 +109,15 @@ export default function RegisterLostAndFoundModal({
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
+
+  // Drafts (Gmail-style): this user's, kept on this device (store/lostAndFoundDrafts).
+  const saveDraft = useLostAndFoundDrafts((st) => st.save);
+  const removeDraft = useLostAndFoundDrafts((st) => st.remove);
+  const draftIdRef = useRef<string>('');
+  /** Set on Submit, so closing the sheet afterwards never brings the item back as a draft. */
+  const submittedRef = useRef(false);
+  /** The edit the debounce has not written yet — flushed when the sheet closes. */
+  const pendingDraftRef = useRef<(() => void) | null>(null);
 
   /*
    * Rooms, and the picker that shows them, are shared with the ticket flow —
@@ -234,6 +254,8 @@ export default function RegisterLostAndFoundModal({
    */
   useEffect(() => {
     if (!visible) return;
+    draftIdRef.current = draft?.id ?? newLostAndFoundDraftId();
+    submittedRef.current = false;
     setCurrentStep(1);
     setSendEmailToGuest(false);
     setGuestEmail('');
@@ -252,6 +274,28 @@ export default function RegisterLostAndFoundModal({
     setNotes('');
     setFoundedBy(currentUserId ?? '');
     setRegisteredBy(currentUserId ?? '');
+    // A draft picks up where it was left (Lost & Found → Drafts).
+    if (draft) {
+      setCurrentStep(Math.min(Math.max(draft.step || 1, 1), 3));
+      setSelectedLocation(draft.selectedLocation);
+      setSelectedRoom(draft.selectedRoom);
+      setSelectedPublicArea(draft.selectedPublicArea);
+      const found = new Date(draft.foundAt);
+      if (Number.isFinite(found.getTime())) {
+        setSelectedDate(found);
+        setSelectedHour(found.getHours());
+        setSelectedMinute(found.getMinutes());
+      }
+      setTitle(draft.title);
+      setNotes(draft.notes);
+      if (draft.foundedBy) setFoundedBy(draft.foundedBy);
+      if (draft.registeredBy) setRegisteredBy(draft.registeredBy);
+      setStatus(draft.status as StatusOption);
+      setStoredLocation(draft.storedLocation as StoredLocationOption);
+      setPictures(draft.pictures);
+      setSendEmailToGuest(draft.sendEmailToGuest);
+      setGuestEmail(draft.guestEmail);
+    }
     // Deliberately keyed on opening alone — see above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible]);
@@ -454,6 +498,80 @@ export default function RegisterLostAndFoundModal({
   const hasPhotoOrDescription = pictures.length > 0 || notes.trim().length > 0;
   const step1Incomplete = title.trim() === '' || !hasPhotoOrDescription;
 
+  /*
+   * Autosave while the sheet is open: anything typed or photographed is kept as
+   * a draft until the item is registered. Debounced; the last edit is flushed
+   * when the sheet closes, so backing out right after typing still keeps it.
+   */
+  useEffect(() => {
+    if (!visible || submittedRef.current || !draftIdRef.current) return;
+    const id = draftIdRef.current;
+    const write = () => {
+      pendingDraftRef.current = null;
+      if (submittedRef.current) return;
+      if (!lostAndFoundDraftHasContent({ title, notes, pictures })) {
+        removeDraft(id);
+        return;
+      }
+      const foundAt = new Date(selectedDate);
+      foundAt.setHours(selectedHour, selectedMinute, 0, 0);
+      saveDraft({
+        id,
+        updatedAt: new Date().toISOString(),
+        step: currentStep,
+        selectedLocation,
+        selectedRoom: selectedLocation === 'room' ? selectedRoom : null,
+        selectedPublicArea: selectedLocation === 'publicArea' ? selectedPublicArea : null,
+        foundAt: foundAt.toISOString(),
+        title,
+        notes,
+        foundedBy,
+        registeredBy,
+        status,
+        storedLocation,
+        pictures,
+        sendEmailToGuest,
+        guestEmail,
+      });
+    };
+    pendingDraftRef.current = write;
+    const timer = setTimeout(write, 600);
+    return () => clearTimeout(timer);
+  }, [
+    visible,
+    currentStep,
+    selectedLocation,
+    selectedRoom,
+    selectedPublicArea,
+    selectedDate,
+    selectedHour,
+    selectedMinute,
+    title,
+    notes,
+    foundedBy,
+    registeredBy,
+    status,
+    storedLocation,
+    pictures,
+    sendEmailToGuest,
+    guestEmail,
+    saveDraft,
+    removeDraft,
+  ]);
+  // Closing (or unmounting): write the edit the debounce was still holding.
+  useEffect(() => {
+    if (visible) return;
+    pendingDraftRef.current?.();
+    pendingDraftRef.current = null;
+  }, [visible]);
+  useEffect(
+    () => () => {
+      pendingDraftRef.current?.();
+      pendingDraftRef.current = null;
+    },
+    []
+  );
+
   const handleNext = () => {
     if (currentStep === 1) {
       const isTitleValid = title.trim().length > 0;
@@ -495,7 +613,10 @@ export default function RegisterLostAndFoundModal({
     } else if (currentStep === 3) {
       // Submit; tracking number is assigned by DB (trigger)
       if (onNext) {
+        submittedRef.current = true;
+        pendingDraftRef.current = null;
         onNext({
+          draftId: draftIdRef.current || undefined,
           itemImage: pictures.length > 0 ? pictures[0] : undefined,
           itemData: {
             title,

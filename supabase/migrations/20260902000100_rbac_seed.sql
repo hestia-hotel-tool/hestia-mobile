@@ -87,6 +87,7 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'tickets.manage',
   'rooms.inspect',
   'rooms.status.override',
+  'rooms.out_of_order.toggle',
   'backoffice.access',
   'rooms.manage',
   'reservations.manage',
@@ -168,6 +169,7 @@ INSERT INTO public.permissions (name, description) VALUES
   ('tickets.manage', 'Edit or delete any ticket'),
   ('rooms.inspect', 'Inspect cleaned rooms and send rooms back'),
   ('rooms.status.override', 'Act on a room for its attendant (reason required)'),
+  ('rooms.out_of_order.toggle', 'Take a room out of order (with a reason) and put it back'),
   ('backoffice.access', 'Sign in to the back office'),
   ('rooms.manage', 'Create, edit and delete rooms, room types, floors and public areas'),
   ('reservations.manage', 'Create, edit and check reservations in and out'),
@@ -242,6 +244,7 @@ SELECT r.id, p.id
   ('full_access', 'tickets.manage'),
   ('full_access', 'rooms.inspect'),
   ('full_access', 'rooms.status.override'),
+  ('full_access', 'rooms.out_of_order.toggle'),
   ('full_access', 'backoffice.access'),
   ('full_access', 'rooms.manage'),
   ('full_access', 'reservations.manage'),
@@ -464,6 +467,8 @@ SELECT r.id, p.id
   ('engineering', 'rooms.rush.toggle'),
   ('engineering', 'rooms.flag.toggle'),
   ('engineering', 'rooms.read'),
+  ('engineering', 'tab.rooms.view'),
+  ('engineering', 'rooms.out_of_order.toggle'),
   ('engineering', 'lost_and_found.read_all')
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
@@ -552,11 +557,11 @@ BEGIN
   IF n_titles <> 22 THEN
     RAISE EXCEPTION 'expected 22 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 47 THEN
-    RAISE EXCEPTION 'expected 47 permissions, found %', n_perms;
+  IF n_perms  <> 48 THEN
+    RAISE EXCEPTION 'expected 48 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 261 THEN
-    RAISE EXCEPTION 'expected 261 role_permissions, found %', n_grants;
+  IF n_grants <> 264 THEN
+    RAISE EXCEPTION 'expected 264 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

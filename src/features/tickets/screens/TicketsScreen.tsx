@@ -19,6 +19,8 @@ import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import TicketsHeader from '../components/TicketsHeader';
 import TicketCard from '../components/TicketCard';
 import TicketDraftCard from '../components/TicketDraftCard';
+import DaySeparator from '@/components/ui/DaySeparator';
+import { dayLabel, isSameCalendarDay } from '@/utils/calendarDays';
 import EmptyTicketsState from '../components/EmptyTicketsState';
 import type { TicketStatusAnchorLayout } from '../components/TicketCard';
 import { useTicketDrafts, type TicketDraft } from '../store/ticketDrafts';
@@ -650,8 +652,20 @@ export default function TicketsScreen() {
           ]}
           data={filteredTickets}
           keyExtractor={(ticket) => ticket.id}
-          renderItem={({ item: ticket }) => (
+          renderItem={({ item: ticket, index }) => {
+            // A line above each day's first ticket — "Today", "Yesterday", a
+            // weekday or a date (as Lost & Found, Figma 4735:346). Tickets are
+            // newest first by when they were raised, so each day is one run.
+            const prev = index > 0 ? filteredTickets[index - 1] : null;
+            const newDay =
+              !!ticket.createdAt &&
+              (!prev?.createdAt || !isSameCalendarDay(prev.createdAt, ticket.createdAt));
+            const label = newDay ? dayLabel(ticket.createdAt!) : '';
+            return (
             <View style={styles.cardSlot}>
+            {label ? (
+              <DaySeparator label={label} style={[styles.daySeparator, index === 0 && styles.daySeparatorFirst]} />
+            ) : null}
             <TicketCard
               ticket={ticket}
               onPress={() => handleTicketPress(ticket)}
@@ -669,7 +683,8 @@ export default function TicketsScreen() {
               onAssigneePress={canReassign(ticket) ? () => handleAssigneePress(ticket) : undefined}
             />
             </View>
-          )}
+            );
+          }}
           ListHeaderComponent={
             activeFilterParts.length > 0 ? (
               <View style={styles.searchWrap}>
@@ -1019,6 +1034,15 @@ const styles = StyleSheet.create({
     marginRight: 27 * scaleX,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  /* Inside a card slot: 34 under the card above (its 14 + 20), 36 over the next. */
+  daySeparator: {
+    marginTop: 20 * scaleX,
+    marginBottom: 36 * scaleX,
+  },
+  /* The list's own top padding already sits above the first one. */
+  daySeparatorFirst: {
+    marginTop: 0,
   },
   /* Cards 409 wide (x=10.5); 14 between them. */
   cardSlot: {

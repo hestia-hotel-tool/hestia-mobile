@@ -1,4 +1,5 @@
-export type LostAndFoundTab = 'created' | 'stored' | 'returned' | 'discarded';
+/** `drafts`: this person's unfinished registrations, kept on the device (store/lostAndFoundDrafts). */
+export type LostAndFoundTab = 'created' | 'stored' | 'returned' | 'drafts' | 'discarded';
 
 export type LostAndFoundStatus = 'stored' | 'shipped' | 'returned' | 'discarded';
 

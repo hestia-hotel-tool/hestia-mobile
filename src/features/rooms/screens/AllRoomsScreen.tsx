@@ -9,6 +9,7 @@ import type { ShiftType } from '@/types/shift.types';
 import { logRoomHistoryEvent } from '../services/roomHistory';
 import { submitCleaningReport, type CleaningReport } from '../services/cleaningReports';
 import { useRoomsStore } from '../store/useRoomsStore';
+import { setRoomOutOfOrder } from '../services/roomActions';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import {
@@ -18,6 +19,7 @@ import {
 } from '../types/allRooms.types';
 import AllRoomsHeader from '../components/allRooms/AllRoomsHeader';
 import { RoomsHeader } from '../components/allRooms/RoomsHeader';
+import FloorPickerBar from '../components/allRooms/FloorPickerBar';
 import { LINEN_FOCI, LinenSummary, ViewOnlyChip, type LinenFocus } from '../components/allRooms/LinenSummary';
 import { useUser } from '@features/account/hooks/useUser';
 import RoomCard from '../components/allRooms/RoomCard';
@@ -253,6 +255,7 @@ export default function AllRoomsScreen() {
    */
   const canSetPriority = can(PERMISSIONS.ROOMS_RUSH_TOGGLE);
   const canFlag = can(PERMISSIONS.ROOMS_FLAG_TOGGLE);
+  const canToggleOutOfOrder = can(PERMISSIONS.ROOMS_OUT_OF_ORDER_TOGGLE);
   /*
    * The status pill is a button for anyone who can do something in the menu:
    * a status step (their own rooms, inspecting, acting for an attendant),
@@ -476,6 +479,30 @@ export default function AllRoomsScreen() {
     [activeFilters, searchQuery]
   );
 
+  /*
+   * Engineering's floor bar (Figma 4684:62): the floor comes from the floor
+   * filter — Home → Floors → View Rooms sets it, the bar's menu changes it,
+   * "All floors" clears it. The filter bar then leaves the floor out.
+   */
+  const showFloorBar = homeVariant === 'engineering';
+  const selectedFloor = useMemo(() => {
+    const on = Object.entries(activeFilters?.floors ?? {}).filter(([k, v]) => v && k !== 'all');
+    return on.length === 1 ? on[0][0] : null;
+  }, [activeFilters]);
+  const handleFloorSelect = useCallback(
+    (floor: string | null) => {
+      setLocalFilters((prev) => {
+        const base: FilterState = prev ??
+          activeFilters ?? {
+            roomStates: { dirty: false, inProgress: false, cleaned: false, inspected: false, priority: false },
+            guests: { arrivals: false, departures: false, turnDown: false, stayOver: false },
+          };
+        return { ...base, floors: floor === null ? { all: false } : { all: false, [floor]: true } };
+      });
+    },
+    [activeFilters]
+  );
+
   /** What the filter bar lists — the Home category first, then the sheet's selection. */
   const activeFilterParts = useMemo(() => {
     const parts = describeActiveFilters(activeFilters, routeCategoryFilter?.category ?? null);
@@ -652,6 +679,21 @@ export default function AllRoomsScreen() {
 
     return { roomStates, guests, reservations, floors, vip, totalRooms };
   }, [displayData.rooms, displayData.roomsPM, uiShift]);
+
+  /** Engineering's floor bar: room floors with counts, highest first. */
+  const floorOptions = useMemo(
+    () =>
+      Object.entries(filterCounts.floors ?? {})
+        .filter(([key, count]) => key !== 'all' && count > 0 && !Number.isNaN(Number(key)))
+        .sort(([a], [b]) => Number(b) - Number(a))
+        .map(([label, count]) => ({ label, count })),
+    [filterCounts.floors]
+  );
+  /** The filter chips without the floor, which the floor bar already shows. */
+  const nonFloorFilterParts = useMemo(
+    () => activeFilterParts.filter((part) => !/^Floor \S+$|^\d+ floors$/.test(part)),
+    [activeFilterParts]
+  );
 
   /**
    * Back to every room: the sheet's selection, and the Home category / filters
@@ -1325,7 +1367,26 @@ export default function AllRoomsScreen() {
                 ) : undefined
               }
               footer={
-                !statusOverlayActive && activeFilterParts.length > 0 ? (
+                showFloorBar && !statusOverlayActive ? (
+                  <>
+                    <FloorPickerBar
+                      floors={floorOptions}
+                      selected={selectedFloor}
+                      roomCount={filteredRooms.length}
+                      onSelectFloor={handleFloorSelect}
+                    />
+                    {nonFloorFilterParts.length > 0 ? (
+                      <View style={{ paddingBottom: 8 * scaleX }}>
+                        <ActiveFiltersBar
+                          parts={nonFloorFilterParts}
+                          resultCount={filteredRooms.length}
+                          onClear={clearAllFilters}
+                          scaleX={scaleX}
+                        />
+                      </View>
+                    ) : null}
+                  </>
+                ) : !statusOverlayActive && activeFilterParts.length > 0 ? (
                   <View style={{ paddingBottom: 8 * scaleX }}>
                     <ActiveFiltersBar
                       parts={activeFilterParts}
@@ -1573,6 +1634,34 @@ export default function AllRoomsScreen() {
         allowedOptions={selectedRoomForStatusChange ? accessFor(selectedRoomForStatusChange).allowed : undefined}
         canSetPromise={canInspect}
         overrideFor={selectedRoomForStatusChange?.roomAttendantAssigned?.name ?? null}
+        engineering={
+          homeVariant !== 'engineering'
+            ? undefined
+            : {
+                // Figma 4686:686 — repair states are UI-only until the logic pass (user, 2026-11-17).
+                onStatus: () =>
+                  toast.show('Room repair status is coming soon.', { type: 'info', title: 'Change Status' }),
+                onOutOfOrderToggle: !canToggleOutOfOrder
+                  ? undefined
+                  : async (outOfOrder, reason) => {
+                      const target = selectedRoomForStatusChange;
+                      if (!target) return;
+                      try {
+                        await setRoomOutOfOrder(target.id, outOfOrder, reason);
+                      } catch (e) {
+                        toast.show(e instanceof Error ? e.message : 'The room could not be updated.', {
+                          type: 'error',
+                        });
+                        throw e; // keeps the menu open with the text as typed
+                      }
+                      toast.show(
+                        outOfOrder ? `Room ${target.roomNumber} is out of order.` : `Room ${target.roomNumber} is back in order.`,
+                        { type: 'success' }
+                      );
+                      void fetchRooms(uiShift, { force: true, silent: true });
+                    },
+              }
+        }
         onCleanComplete={(report) => {
           const target = selectedRoomForStatusChange;
           if (!target) return;

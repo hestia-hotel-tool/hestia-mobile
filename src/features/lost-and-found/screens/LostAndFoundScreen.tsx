@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl, TextInput, Text, Pressable } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, TextInput, Text, Pressable, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Icon } from '@/components/Icon';
 import { matchesLostAndFoundQuery } from '../utils/searchLostAndFound';
@@ -12,7 +12,12 @@ import LostAndFoundStatusPopover from '../components/LostAndFoundStatusPopover';
 import { rankShippedLocations } from '../utils/shippedLocationSuggestions';
 import BottomTabBar from '@/components/layout/BottomTabBar';
 import LostAndFoundHeader from '../components/LostAndFoundHeader';
-import LostAndFoundTabs from '../components/LostAndFoundTabs';
+import LostAndFoundTabs, { LOST_AND_FOUND_TAB_LABELS } from '../components/LostAndFoundTabs';
+import DaySeparator from '@/components/ui/DaySeparator';
+import LostAndFoundDraftCard from '../components/LostAndFoundDraftCard';
+import { useLostAndFoundDrafts, type LostAndFoundDraft } from '../store/lostAndFoundDrafts';
+import { useAuth } from '@features/auth/hooks/useAuth';
+import { dayLabel, isSameCalendarDay } from '@/utils/calendarDays';
 import LostAndFoundItemCard, { type LostAndFoundStatusAnchorLayout } from '../components/LostAndFoundItemCard';
 import EmptyLostAndFoundState from '../components/EmptyLostAndFoundState';
 import RegisterLostAndFoundModal from '../components/RegisterLostAndFoundModal';
@@ -69,15 +74,12 @@ const TAB_STATUS: Record<LostAndFoundTab, LostAndFoundStatus[] | null> = {
   created: null,
   stored: ['stored'],
   returned: ['shipped', 'returned'],
+  // Drafts are not items yet: they come from the drafts store, not this list.
+  drafts: [],
   discarded: ['discarded'],
 };
 
-const TAB_LABEL: Record<LostAndFoundTab, string> = {
-  created: 'Created',
-  stored: 'Stored',
-  returned: 'Returned',
-  discarded: 'Discarded',
-};
+const TAB_LABEL = LOST_AND_FOUND_TAB_LABELS;
 
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
@@ -127,6 +129,32 @@ export default function LostAndFoundScreen() {
    */
   const [headerHeight, setHeaderHeight] = useState(0);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Drafts (Gmail-style): this user's unfinished registrations, on this device.
+  const { session } = useAuth();
+  const drafts = useLostAndFoundDrafts((st) => st.drafts);
+  const loadDrafts = useLostAndFoundDrafts((st) => st.load);
+  const removeDraft = useLostAndFoundDrafts((st) => st.remove);
+  const draftsUserId = session?.user?.id;
+  useEffect(() => {
+    void loadDrafts(draftsUserId);
+  }, [loadDrafts, draftsUserId]);
+  /** The draft the Register sheet is continuing, or null for a new item. */
+  const [draftToOpen, setDraftToOpen] = useState<LostAndFoundDraft | null>(null);
+  const openDraft = (draft: LostAndFoundDraft) => {
+    setDraftToOpen(draft);
+    setShowRegisterModal(true);
+  };
+  const discardDraft = (draft: LostAndFoundDraft) => {
+    Alert.alert(
+      'Discard draft?',
+      draft.title.trim() ? `“${draft.title.trim()}” will be deleted.` : 'This draft will be deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => removeDraft(draft.id) },
+      ]
+    );
+  };
   const [preselectedRoomIdForRegister, setPreselectedRoomIdForRegister] = useState<string | undefined>(undefined);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [successData, setSuccessData] = useState<{
@@ -348,6 +376,7 @@ export default function LostAndFoundScreen() {
     if (params?.openRegisterModal) {
       setPreselectedRoomIdForRegister(params?.preselectedRoomId);
       returnToRoomRef.current = params?.returnToRoomId ?? null;
+      setDraftToOpen(null);
       setShowRegisterModal(true);
       // Clear the param to prevent reopening on subsequent renders
       navigation.setParams({ openRegisterModal: false, preselectedRoomId: undefined, returnToRoomId: undefined } as any);
@@ -387,6 +416,7 @@ export default function LostAndFoundScreen() {
   };
 
   const handleRegisterPress = () => {
+    setDraftToOpen(null);
     setShowRegisterModal(true);
   };
 
@@ -408,6 +438,7 @@ export default function LostAndFoundScreen() {
   };
 
   const handleRegisterNext = async (data: {
+    draftId?: string;
     trackingNumber?: string;
     itemImage?: string;
     itemData: any;
@@ -437,6 +468,8 @@ export default function LostAndFoundScreen() {
           imageUri: firstImageUri,
         });
         if (result.trackingNumber) trackingNumberFromDb = result.trackingNumber;
+        // Registered: the draft it came from is done. On failure it stays in Drafts.
+        if (result.id && !result.error && data.draftId) removeDraft(data.draftId);
         if (result.id) {
           pendingInsertedItemIdRef.current = result.id;
           insertedId = result.id;
@@ -672,9 +705,12 @@ export default function LostAndFoundScreen() {
         onHeightChange={setHeaderHeight}
       />
 
-      <View style={styles.tabRow}>
-        <LostAndFoundTabs selectedTab={selectedTab} onTabPress={handleTabChange} onSearchPress={toggleSearch} />
-      </View>
+      <LostAndFoundTabs
+        selectedTab={selectedTab}
+        onTabPress={handleTabChange}
+        onSearchPress={toggleSearch}
+        draftsCount={drafts.length}
+      />
 
       {searchOpen ? (
         <View style={styles.searchRow}>
@@ -716,7 +752,20 @@ export default function LostAndFoundScreen() {
           }
         >
           {/* Item cards — Figma 3128:32. Spacing is the list's, not the card's. */}
-          {filteredItems.length === 0 ? (
+          {selectedTab === 'drafts' ? (
+            drafts.length === 0 ? (
+              <EmptyLostAndFoundState selectedTab="drafts" />
+            ) : (
+              drafts.map((draft) => (
+                <LostAndFoundDraftCard
+                  key={draft.id}
+                  draft={draft}
+                  onPress={() => openDraft(draft)}
+                  onDiscard={() => discardDraft(draft)}
+                />
+              ))
+            )
+          ) : filteredItems.length === 0 ? (
             /*
              * Gated on the loading flags as well as the count. The overlay
              * above is full-screen so it would hide this anyway, but on the
@@ -760,15 +809,27 @@ export default function LostAndFoundScreen() {
             {ownTodayOnly ? (
               <Text style={styles.scopeNote}>Showing items you registered or found today.</Text>
             ) : null}
-            {filteredItems.map((item) => (
-              <LostAndFoundItemCard
-                key={item.id}
-                item={item}
-                onPress={() => handleItemPress(item)}
-                onStatusPress={(anchor) => handleStatusPress(item, anchor)}
-                statusUpdating={statusUpdating && statusUpdatingItemId === item.id}
-              />
-            ))}
+            {/* A line above each day's first item — "Today", "Yesterday", a
+                weekday or a date (Figma 3128:32, 4735:346). Items are newest
+                first by when they were found, so each day is one run. */}
+            {filteredItems.map((item, index) => {
+              const when = item.storedAt ?? item.createdAt;
+              const prev = index > 0 ? filteredItems[index - 1] : null;
+              const prevWhen = prev ? prev.storedAt ?? prev.createdAt : null;
+              const newDay = !prevWhen || !when || !isSameCalendarDay(prevWhen, when);
+              const label = newDay && when ? dayLabel(when) : '';
+              return (
+                <React.Fragment key={item.id}>
+                  {label ? <DaySeparator label={label} /> : null}
+                  <LostAndFoundItemCard
+                    item={item}
+                    onPress={() => handleItemPress(item)}
+                    onStatusPress={(anchor) => handleStatusPress(item, anchor)}
+                    statusUpdating={statusUpdating && statusUpdatingItemId === item.id}
+                  />
+                </React.Fragment>
+              );
+            })}
             </>
           )}
         </ScrollView>
@@ -784,6 +845,7 @@ export default function LostAndFoundScreen() {
         onClose={handleCloseRegisterModal}
         onNext={handleRegisterNext}
         preselectedRoomId={preselectedRoomIdForRegister}
+        draft={draftToOpen}
       />
 
       {/* Success Modal */}
@@ -837,12 +899,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   /** The frame insets the labels 32 from the left and the search glyph 47 from the right. */
-  tabRow: {
-    paddingLeft: SCREEN_LAYOUT.tabRow.paddingLeft * scaleX,
-    paddingRight: SCREEN_LAYOUT.tabRow.paddingRight * scaleX,
-    paddingTop: SCREEN_LAYOUT.bandToTabs * scaleX,
-    backgroundColor: LOST_AND_FOUND_COLORS.background,
-  },
   scrollView: {
     flex: 1,
   },
@@ -914,27 +970,12 @@ const styles = StyleSheet.create({
     color: '#5a759d',
   },
   scrollContent: {
-    /*
-     * `dividerToFirstCard`, not `contentPaddingTop: 213`.
-     *
-     * 213 was header (133) + tab row (39) + gap (41) — three things this screen
-     * no longer has to know about, because they are siblings above it now. All
-     * that is left is the frame's own 18 between the divider and the first card.
-     */
-    paddingTop: SCREEN_LAYOUT.dividerToFirstCard * scaleX,
+    // Figma 3128:32: the first card 15 under the chip band.
+    paddingTop: 15 * scaleX,
     paddingBottom: SCREEN_LAYOUT.listBottomInset * scaleX,
-    /*
-     * The gutter and the inter-card gap moved here from the card.
-     *
-     * The card used to carry `width: 409` plus its own horizontal and bottom
-     * margins, which is why it clipped inside any container narrower than the
-     * frame (409 + 16 + 16 = 441 against a 440 frame). It now stretches, so the
-     * list owns the spacing — `LOST_AND_FOUND_CARD_LAYOUT.gutter` and
-     * `.gapBetweenCards`, the latter being 18 per Figma 3128:32, not the 16 the
-     * old constant claimed.
-     */
-    paddingHorizontal: CARD_LAYOUT.gutter * scaleX,
-    gap: CARD_LAYOUT.gapBetweenCards * scaleX,
+    // Cards 409 wide (x=15.5) and 16 apart (4661:176 → 4661:201).
+    paddingHorizontal: 15.5 * scaleX,
+    gap: 16 * scaleX,
     minHeight: '100%',
   },
 });

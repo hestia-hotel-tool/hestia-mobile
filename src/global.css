@@ -25,6 +25,8 @@
     --color-status-priority: #ffebeb;
     --color-status-priority-text: #f92424;
     --color-status-out-of-order: #c6c5c5;
+    /* Figma 4702:2278 — the Out of Order disc on the tickets overview. */
+    --color-status-out-of-order-soft: #e7eaed;
 
     /* Background */
     --color-surface-primary: #ffffff;
