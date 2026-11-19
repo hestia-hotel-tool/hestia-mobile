@@ -14,7 +14,8 @@ const STALE_AFTER_BACKGROUND_MS = 30_000;
 let channelSeq = 0;
 
 export type RoomChange = {
-  table: 'rooms' | 'room_assignments';
+  /** `room_department_states`: a department's own round (engineering, migration 20261118100000). */
+  table: 'rooms' | 'room_assignments' | 'room_department_states';
   event: 'INSERT' | 'UPDATE' | 'DELETE';
   /** The row after the change, or before it for a delete. */
   row: Record<string, unknown>;
@@ -136,6 +137,7 @@ export function useLiveRoomChanges(onChange: () => void, options: UseLiveRoomCha
       .channel(`live-rooms:${hotelId}:${(channelSeq += 1)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'rooms', filter }, handle('rooms'))
       .on('postgres_changes', { event: '*', schema: 'public', table: 'room_assignments', filter }, handle('room_assignments'))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_department_states', filter }, handle('room_department_states'))
       .subscribe();
 
     return () => {

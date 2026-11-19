@@ -21,7 +21,7 @@ import AddTaskModal from '../components/roomDetail/AddTaskModal';
 import ViewTaskModal from '../components/roomDetail/ViewTaskModal';
 import RoomDetailContent from '../components/roomDetail/RoomDetailContent';
 import { mapFrontOfficeToRoomType } from '../utils/roomType';
-import type { RoomCardData, StatusChangeOption, RoomActivityState } from '../types/allRooms.types';
+import type { RoomCardData, StatusChangeOption, RoomActivityState, DepartmentRoomState } from '../types/allRooms.types';
 import { deriveRoomActivityState } from '../types/allRooms.types';
 import type { Note, Task, RoomType, HistoryEvent } from '../types/roomDetail.types';
 import { groupHistoryEvents } from '../utils/groupHistoryEvents';
@@ -39,6 +39,10 @@ import { usePermissions } from '@/domain/rbac/usePermissions';
 import { useLiveRoomChanges } from '@/hooks/useLiveRoomChanges';
 import { useRoomStatusAccess } from '../hooks/useRoomStatusAccess';
 import { askReason } from '../utils/askReason';
+import InspectionSection from '../components/roomDetail/InspectionSection';
+import { useAssignmentDepartment } from '@/domain/useAssignmentDepartment';
+import { DEPARTMENT_STATUS_APPEARANCE } from '../constants/departmentStatus';
+import { runRoomDepartmentAction, type DepartmentRoundAction } from '../services/roomActions';
 import { useSendBackSheet } from '../components/SendBackSheet';
 import { OVERRIDE_REASONS, workStatusAfter } from '../utils/roomStatusMachine';
 import { PERMISSIONS } from '@/domain/rbac';
@@ -120,7 +124,16 @@ export default function RoomDetailScreen() {
    * is assigned to. Without it every Reassign control is withheld, not just
    * disabled, so the attendant sees who has the room and nothing to tap.
    */
-  const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
+  /*
+   * Whose layer this reader works in (migration 20261118090000): engineering
+   * sees the technician, its own round in the header (Figma 4759:820) and
+   * assigns technicians; everyone else, housekeeping's attendant and status.
+   * Reassign is for whoever may assign in that layer.
+   */
+  const assignment = useAssignmentDepartment();
+  const isEngineeringView = assignment.key === 'engineering';
+  const assigneeRole = isEngineeringView ? assignment.assigneeNoun.one : undefined;
+  const canReassign = assignment.canAssign;
   /*
    * The same rule as the Rooms list: the status row opens the sheet only for
    * someone who can do something in it — a status step, priority or the flag.
@@ -262,14 +275,15 @@ export default function RoomDetailScreen() {
             createdById: n.created_by_id,
           }))
         );
-        const assignment = full.assignedStaff[0];
-        if (assignment) {
+        // The reader's layer: the room attendant, or the technician.
+        const held = full.assignedStaff.find((a) => a.department === assignment.key);
+        if (held) {
           setFetchedAssignedStaff({
-            id: assignment.user_id,
-            name: assignment.staff.full_name,
-            avatar: assignment.staff.avatar_url ?? undefined,
-            initials: assignment.staff.full_name.split(/\s+/).map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '?',
-            department: assignment.staff.department_name,
+            id: held.user_id,
+            name: held.staff.full_name,
+            avatar: held.staff.avatar_url ?? undefined,
+            initials: held.staff.full_name.split(/\s+/).map((s) => s[0]).join('').slice(0, 2).toUpperCase() || '?',
+            department: assigneeRole ?? held.staff.department_name,
           });
         } else {
           setFetchedAssignedStaff(null);
@@ -278,7 +292,7 @@ export default function RoomDetailScreen() {
       })
       .catch(() => setLoadingDetails(false));
     return () => { cancelled = true; };
-  }, [roomId, shift]);
+  }, [roomId, shift, assignment.key, assigneeRole]);
 
   /*
    * Stands in until the real room arrives, and is never null.
@@ -444,20 +458,22 @@ export default function RoomDetailScreen() {
     initials?: string;
     avatarColor?: string;
     department?: string;
-  } | undefined>(
-    room.roomAttendantAssigned
+  } | undefined>(() => {
+    // The card's assignee in the reader's layer.
+    const held = room.assignees?.[assignment.key] ?? (isEngineeringView ? null : room.roomAttendantAssigned);
+    return held
       ? {
           // The real user id: the status rules use it to tell the attendant
           // from everyone else (it was a placeholder '1').
-          id: room.roomAttendantAssigned.userId ?? '',
-          name: room.roomAttendantAssigned.name,
-          avatar: room.roomAttendantAssigned.avatar || require('../../../../assets/icons/profile-avatar.png'),
-          initials: room.roomAttendantAssigned.initials,
-          avatarColor: room.roomAttendantAssigned.avatarColor,
-          department: undefined,
+          id: held.userId ?? '',
+          name: held.name,
+          avatar: held.avatar || require('../../../../assets/icons/profile-avatar.png'),
+          initials: held.initials,
+          avatarColor: held.avatarColor,
+          department: assigneeRole,
         }
-      : undefined
-  );
+      : undefined;
+  });
   
   /** Who the status rules treat as this room's attendant: Room Detail's own load, else the card's. */
   const assigneeId = assignedStaff ? assignedStaff.id || room.roomAttendantAssigned?.userId || null : null;
@@ -746,6 +762,26 @@ export default function RoomDetailScreen() {
         setLocalRoom((prev) => ({ ...prev, ...applied }));
         if (applied.houseKeepingStatus) setCurrentStatus(applied.houseKeepingStatus);
         setActivity(deriveRoomActivityState({ ...localRoomRef.current, ...applied }));
+      }
+      // This room's engineering round changed elsewhere (the technician, a
+      // lead, the daily reset). Engineering is the only department with a round
+      // today, so a row here is engineering's.
+      if (change.table === 'room_department_states' && change.event !== 'DELETE' && change.row.room_id === room.id) {
+        const r = change.row as Record<string, unknown>;
+        setLocalRoom((prev) => ({
+          ...prev,
+          departmentStates: {
+            ...prev.departmentStates,
+            engineering: {
+              status: r.status as DepartmentRoomState['status'],
+              priority: !!r.priority,
+              startedAt: (r.started_at as string | null) ?? null,
+              resumedAt: (r.resumed_at as string | null) ?? null,
+              elapsedSeconds: (r.elapsed_seconds as number | null) ?? 0,
+              checkedAt: (r.checked_at as string | null) ?? null,
+            },
+          },
+        }));
       }
       return false;
     },
@@ -1168,7 +1204,7 @@ export default function RoomDetailScreen() {
       name,
       avatar: member?.avatar ? { uri: member.avatar } : undefined,
       initials,
-      department: member?.department,
+      department: assigneeRole ?? member?.department,
       avatarColor: member?.avatarColor,
     });
     closeReassign();
@@ -1176,17 +1212,17 @@ export default function RoomDetailScreen() {
     (async () => {
       try {
         setIsAssigningStaff(true);
-        const info = await assignRoomToStaff(room.id, staffId, shift as 'AM' | 'PM');
+        const info = await assignRoomToStaff(room.id, staffId, shift as 'AM' | 'PM', assignment.key);
         if (info) {
           setAssignedStaff({
             id: staffId,
             name: info.name,
             avatar: info.avatar ? { uri: info.avatar } : undefined,
             initials: info.initials,
-            department: member?.department,
+            department: assigneeRole ?? member?.department,
           });
-          // The Rooms list shows the new attendant too, without a refetch.
-          useRoomsStore.getState().setRoomAttendant(room.id, info);
+          // The Rooms list shows the new assignee too, without a refetch.
+          useRoomsStore.getState().setRoomAssignee(room.id, assignment.key, info);
         }
       } catch (e) {
         console.warn('[RoomDetailScreen] Failed to persist assignment', e);
@@ -1201,6 +1237,43 @@ export default function RoomDetailScreen() {
         void refreshHistory();
       }
     })();
+  };
+
+  /*
+   * A move in engineering's round, from the header's menu. The technician acts
+   * on their own room; a lead acting on someone else's says why (they are
+   * told). The card and this screen read the room's state back afterwards.
+   */
+  /** Re-read the room's engineering round (header, list) and its history after a change. */
+  const refreshEngineeringRound = async () => {
+    await useRoomsStore.getState().fetchRooms(shift as 'AM' | 'PM', { force: true, silent: true });
+    const fresh = useRoomsStore.getState().data?.rooms.find((r) => r.id === room.id);
+    if (fresh) setLocalRoom((prev) => ({ ...prev, departmentStates: fresh.departmentStates }));
+    void refreshHistory();
+  };
+
+  const handleEngineeringAction = async (action: DepartmentRoundAction) => {
+    let reason: string | null = null;
+    const forSomeoneElse = !!assignedStaff?.id && assignedStaff.id !== myUserId;
+    if (!action.startsWith('priority') && forSomeoneElse) {
+      reason = await askReason(
+        messageModal,
+        `Act for ${assignedStaff?.name ?? 'the technician'}?`,
+        `This is ${assignedStaff?.name ?? 'the technician'}'s room. It is recorded as done for them, and they are told.`,
+        OVERRIDE_REASONS
+      );
+      if (!reason) return;
+    }
+    try {
+      await runRoomDepartmentAction(room.id, 'engineering', action, reason);
+      await refreshEngineeringRound();
+    } catch (e) {
+      messageModal.show({
+        title: 'Not changed',
+        message: e instanceof Error ? e.message : 'The room could not be updated. Please try again.',
+        buttons: [{ text: 'OK' }],
+      });
+    }
   };
 
   const handleAutoAssign = () => {
@@ -1224,6 +1297,15 @@ export default function RoomDetailScreen() {
     console.warn('RoomDetailScreen: No room data provided');
     return null;
   }
+
+  // Engineering's round in the header (Figma 4759:820): its status, or the red
+  // Priority while a priority room is still unchecked.
+  const engineeringRound = localRoom.departmentStates?.engineering;
+  const engineeringHeaderStatus = !isEngineeringView
+    ? undefined
+    : engineeringRound?.priority && (engineeringRound.status ?? 'unchecked') === 'unchecked'
+      ? { label: 'Priority', color: '#f92424', icon: 'action-priority' as const, glyphHeight: 26 }
+      : DEPARTMENT_STATUS_APPEARANCE[engineeringRound?.status ?? 'unchecked'];
 
   /*
    * What the header shows: the committed activity, unless a modal is open for a
@@ -1296,6 +1378,20 @@ export default function RoomDetailScreen() {
         onHeaderHeightChange={setHeaderDesignHeight}
         onClearRefuseService={handleClearRefuseService}
         serviceActions={serviceActions}
+        departmentStatus={engineeringHeaderStatus}
+        checklistContent={
+          isEngineeringView ? (
+            <InspectionSection
+              roomId={room.id}
+              roomNumber={room.roomNumber}
+              department={assignment.key}
+              canWork={assignment.canAssign || (!!assignedStaff?.id && assignedStaff.id === myUserId)}
+              actsForAssignee={assignment.canAssign && assignedStaff?.id !== myUserId}
+              roundChecked={engineeringRound?.status === 'checked'}
+              onRoundChanged={() => void refreshEngineeringRound()}
+            />
+          ) : undefined
+        }
         initialTab={initialTab}
         departmentName={departmentName}
         activity={effectiveActivity}
@@ -1326,6 +1422,15 @@ export default function RoomDetailScreen() {
         overrideFor={assignedStaff?.name ?? null}
         canSetPromise={canInspectRooms}
         onCleanComplete={handleCleanComplete}
+        engineering={
+          isEngineeringView
+            ? {
+                round: localRoom.departmentStates?.engineering,
+                canSetPriority: assignment.canAssign,
+                onAction: (action) => void handleEngineeringAction(action),
+              }
+            : undefined
+        }
         onFlagToggle={!can(PERMISSIONS.ROOMS_FLAG_TOGGLE) ? undefined : async (flagged, reason, mentionIds) => {
           const flagReason = flagged ? reason : null;
           // One write for the flag, its reason and the tags. Awaited: the menu
@@ -1398,6 +1503,7 @@ export default function RoomDetailScreen() {
         currentAssignedStaffId={assignedStaff?.id}
         roomNumber={room.roomNumber}
         shift={shift === 'PM' ? 'PM' : 'AM'}
+        assignmentDepartment={assignment.key}
       />
 
       <AddNoteModal

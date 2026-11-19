@@ -8,6 +8,7 @@ import type { AllRoomsScreenData , StaffInfo } from '../types/allRooms.types';
 import type { TicketsScreenData } from '@features/tickets/types/tickets.types';
 import type { ChatItemData } from '@features/chat/components/ChatItem';
 import { isSupabaseConfigured, supabase } from '@/lib/supabase';
+import type { AssignmentDepartment } from '@/domain/assignments';
 import { fetchAllRooms, updateRoom, assignRoomToStaff as roomsAssignRoomToStaff, type RoomClock, type RoomStateUpdate } from './rooms';
 import { getTicketsData as getTicketsDataFromSupabase } from '@features/tickets/services/tickets';
 import { getShiftFromTime } from '@/utils/shiftUtils';
@@ -35,7 +36,12 @@ const dashboard = {
    * When both roomId and userId are UUIDs and Supabase is configured, persists to room_assignments.
    * Always returns StaffInfo when we have a valid user selection so the room card can update (from API or by fetching user).
    */
-  async assignRoomToStaff(roomId: string, userId: string, shift: 'AM' | 'PM'): Promise<StaffInfo | null> {
+  async assignRoomToStaff(
+    roomId: string,
+    userId: string,
+    shift: 'AM' | 'PM',
+    department: AssignmentDepartment = 'housekeeping'
+  ): Promise<StaffInfo | null> {
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     // Build StaffInfo from Supabase user when staff was selected from Supabase list (UUID)
@@ -60,7 +66,7 @@ const dashboard = {
       // A refused assignment is an error, not an attendant: the card used to
       // show the person the database had just refused, so In Progress was
       // offered and then failed. The screen reports the message.
-      const info = await roomsAssignRoomToStaff(roomId, userId, shift);
+      const info = await roomsAssignRoomToStaff(roomId, userId, shift, department);
       return info ?? (await buildStaffInfoFromSupabase());
     }
 

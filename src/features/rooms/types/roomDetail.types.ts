@@ -193,6 +193,13 @@ export interface RoomDetailScreenProps {
    * measured and handed on.
    */
   onHeaderHeightChange?: (designPx: number) => void;
+  /** Engineering's round in the header instead of housekeeping's status — see RoomDetailHeader. */
+  departmentStatus?: { label: string; color: string; icon: import('@/components/Icon').IconName; glyphHeight: number };
+  /**
+   * The Checklist tab's content when the reader's department keeps its own
+   * (engineering's inspection, Figma 4759:225); housekeeping's count otherwise.
+   */
+  checklistContent?: import('react').ReactNode;
   /** Clear Refuse Service and return to normal UI. */
   onClearRefuseService?: () => void;
   /** Do Not Disturb / Refused / Return Later actions for the panel at the top of Overview. */

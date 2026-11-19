@@ -61,6 +61,8 @@ export type RoomRowProps = {
   /** Room under a VIP disc before its popover opens — useRevealBelow (stable callbacks from the screen). */
   revealVip?: import('../../hooks/useRevealBelow').RevealBelow;
   endVipReveal?: () => void;
+  /** Whose layer the card shows: housekeeping (default) or engineering — see RoomListCard. */
+  layer?: import('@/domain/assignments').AssignmentDepartment;
 };
 
 function RoomRowInner({
@@ -83,6 +85,7 @@ function RoomRowInner({
   frontOffice,
   revealVip,
   endVipReveal,
+  layer,
 }: RoomRowProps) {
   const handlePress = useCallback(() => onPress(room), [onPress, room]);
   const handleStatusPress = useCallback(() => onStatusPress(room), [onStatusPress, room]);
@@ -116,6 +119,7 @@ function RoomRowInner({
           onAssigneePress={onAssigneePress ? handleAssigneePress : undefined}
           porter={porter}
           frontOffice={frontOffice}
+          layer={layer}
           revealVip={revealVip}
           endVipReveal={endVipReveal}
           isChangingStatus={isChangingStatus}

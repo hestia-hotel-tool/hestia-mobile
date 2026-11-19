@@ -7,6 +7,7 @@ import { supabase } from '@/lib/supabase';
 import { getMyHotelId } from '@/lib/tenant';
 import { formatClockTime } from '@/utils/formatting';
 import { normalizeVipCode } from '@/domain/vip';
+import { asAssignmentDepartment, type AssignmentDepartment } from '@/domain/assignments';
 import type {
   AllRoomsScreenData,
   RoomCardData,
@@ -17,6 +18,7 @@ import type {
   ReservationStatus,
   PromisedTime,
   NoteMadeBy,
+  DepartmentRoomState,
 } from '../types/allRooms.types';
 
 type RoomRow = {
@@ -116,7 +118,12 @@ type RoomAssignmentRow = {
   shift_id: string;
   work_status: string | null;
   users: { full_name: string; avatar_url: string | null } | null;
+  /** Whose layer the row is (migration 20261118090000): housekeeping or engineering. */
+  departments: { key: string } | null;
 };
+
+/** A room's assignee in each department's layer, for one shift. */
+export type RoomAssignees = Partial<Record<AssignmentDepartment, StaffInfo>>;
 
 
 /** Map `room_assignments.work_status` + user row to `StaffInfo` (incl. paused). */
@@ -239,20 +246,21 @@ async function getShiftIdByName(shiftName: string): Promise<string | null> {
 }
 
 /**
- * Fetch room assignments for a shift and map room_id -> StaffInfo.
- * Returns a Map; rooms not in the map have no assignment (null).
+ * Fetch room assignments for a shift and map room_id -> each department's
+ * assignee (the room attendant, the technician). Rooms not in the map have no
+ * assignment in any department.
  *
  * Takes a resolved shift id rather than a name so `fetchAllRooms` can start the
  * shift lookup alongside the rooms query instead of after it.
  */
-async function fetchRoomAssignmentsForShiftId(shiftId: string | null): Promise<Map<string, StaffInfo>> {
-  const map = new Map<string, StaffInfo>();
+async function fetchRoomAssignmentsForShiftId(shiftId: string | null): Promise<Map<string, RoomAssignees>> {
+  const map = new Map<string, RoomAssignees>();
   if (!shiftId) return map;
 
   const { data, error } = await supabase
     .from('room_assignments')
     // `!room_assignments_user_id_fkey`: since `assigned_by_id` there are two links to users; this is the assignee.
-    .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url)')
+    .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url), departments(key)')
     .eq('shift_id', shiftId);
 
   if (error) {
@@ -262,9 +270,57 @@ async function fetchRoomAssignmentsForShiftId(shiftId: string | null): Promise<M
     return map;
   }
 
-  const rows = (data ?? []) as RoomAssignmentRow[];
+  const rows = (data ?? []) as unknown as RoomAssignmentRow[];
   for (const row of rows) {
-    map.set(row.room_id, staffInfoFromAssignment(row));
+    // A row from before the department column reads as housekeeping, as the database defaults it.
+    const department = asAssignmentDepartment(row.departments?.key) ?? 'housekeeping';
+    const assignees = map.get(row.room_id) ?? {};
+    assignees[department] = staffInfoFromAssignment(row);
+    map.set(row.room_id, assignees);
+  }
+  return map;
+}
+
+/** Each room's department rounds (engineering), by room. */
+export type RoomDepartmentStates = Partial<Record<AssignmentDepartment, DepartmentRoomState>>;
+
+/**
+ * Departments' own rounds on rooms (migration 20261118100000): room_id -> each
+ * department's state. A room with no row is Unchecked. Before the table exists
+ * this logs and returns nothing, so the list still renders.
+ */
+async function fetchRoomDepartmentStates(): Promise<Map<string, RoomDepartmentStates>> {
+  const map = new Map<string, RoomDepartmentStates>();
+  const { data, error } = await supabase
+    .from('room_department_states' as never)
+    .select('room_id, status, priority, started_at, resumed_at, elapsed_seconds, checked_at, departments(key)');
+  if (error) {
+    console.warn('[fetchRoomDepartmentStates]', error.message);
+    return map;
+  }
+  type Row = {
+    room_id: string;
+    status: DepartmentRoomState['status'];
+    priority: boolean;
+    started_at: string | null;
+    resumed_at: string | null;
+    elapsed_seconds: number | null;
+    checked_at: string | null;
+    departments: { key: string } | null;
+  };
+  for (const row of (data ?? []) as unknown as Row[]) {
+    const department = asAssignmentDepartment(row.departments?.key);
+    if (!department) continue;
+    const states = map.get(row.room_id) ?? {};
+    states[department] = {
+      status: row.status,
+      priority: row.priority,
+      startedAt: row.started_at,
+      resumedAt: row.resumed_at,
+      elapsedSeconds: row.elapsed_seconds ?? 0,
+      checkedAt: row.checked_at,
+    };
+    map.set(row.room_id, states);
   }
   return map;
 }
@@ -375,7 +431,8 @@ function mapRoomToCard(
   reservations: { res: ReservationRow; guest: GuestRow | null }[],
   attendant: StaffInfo | null,
   notesAgg: RoomNotesAggregate | null,
-  lostAndFoundCount = 0
+  lostAndFoundCount = 0,
+  assignees: RoomAssignees = attendant ? { housekeeping: attendant } : {}
 ): RoomCardData {
   const firstRes = reservations[0]?.res;
   const rawFrontOffice = firstRes?.front_office_status ?? 'Stayover';
@@ -441,6 +498,7 @@ function mapRoomToCard(
     inProgressStartedAt: room.in_progress_started_at ?? null,
     guests: guestsForCard,
     roomAttendantAssigned: attendant,
+    assignees,
     isPriority: room.priority === 'high',
     flagged: room.flagged ?? false,
     flagReason: room.flag_reason ?? null,
@@ -657,7 +715,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
   const roomIds = rooms.map((r) => r.id);
 
   // Wave 2: the three room-keyed queries.
-  const [notesByRoom, assignmentByRoom, reservations, lostAndFoundByRoom] = await Promise.all([
+  const [notesByRoom, assignmentByRoom, reservations, lostAndFoundByRoom, statesByRoom] = await Promise.all([
     fetchRoomNotesAggregate(roomIds),
     fetchRoomAssignmentsForShiftId(shiftId),
     (async () => {
@@ -675,6 +733,7 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
       return (resData ?? []) as ReservationRow[];
     })(),
     fetchStoredLostAndFoundCounts(roomIds),
+    fetchRoomDepartmentStates(),
   ]);
 
   // Wave 3: the one query that genuinely depends on a previous result.
@@ -744,8 +803,12 @@ export async function fetchAllRooms(shift: 'AM' | 'PM'): Promise<AllRoomsScreenD
   const cards: RoomCardData[] = rooms.map((room) => {
     const resList = resByRoom.get(room.id) ?? [];
     const notesAgg = notesByRoom.get(room.id) ?? null;
-    const attendant = assignmentByRoom.get(room.id) ?? null;
-    return mapRoomToCard(room, resList, attendant, notesAgg, lostAndFoundByRoom.get(room.id) ?? 0);
+    const assignees = assignmentByRoom.get(room.id) ?? {};
+    // `roomAttendantAssigned` stays housekeeping's assignee: the cleaning flow reads it.
+    const attendant = assignees.housekeeping ?? null;
+    const card = mapRoomToCard(room, resList, attendant, notesAgg, lostAndFoundByRoom.get(room.id) ?? 0, assignees);
+    const departmentStates = statesByRoom.get(room.id);
+    return departmentStates ? { ...card, departmentStates } : card;
   });
 
   return {
@@ -1212,15 +1275,19 @@ export async function unassignRoomsFromStaff(roomIds: string[], userId: string, 
 }
 
 /**
- * Assign a room to a staff member for the given shift.
- * Uses room_assignments table: upserts by (room_id, shift_id) so one assignee per room per shift.
- * Always returns StaffInfo for the user when both IDs are valid UUIDs (so the room card can update);
- * persists to DB only when shift_id exists.
+ * Assign a room to a staff member for the given shift, in one department's
+ * layer — the room attendant (housekeeping, the default) or the technician
+ * (engineering). One assignee per room, shift and department.
+ *
+ * Through `assign_rooms()` (migration 20261118090000), which checks the
+ * department's permission, that a technician is in Engineering, and sends the
+ * assignee's notification. Returns the StaffInfo the room card shows.
  */
 export async function assignRoomToStaff(
   roomId: string,
   userId: string,
-  shift: 'AM' | 'PM'
+  shift: 'AM' | 'PM',
+  department: AssignmentDepartment = 'housekeeping'
 ): Promise<StaffInfo | null> {
   if (!isValidUUID(roomId) || !isValidUUID(userId)) return null;
 
@@ -1256,65 +1323,23 @@ export async function assignRoomToStaff(
     throw new Error(`No ${shift} shift is set up for this hotel, so the room could not be assigned.`);
   }
 
-  // Tenant-scoped RLS requires `room_assignments.hotel_id = auth_hotel_id()`.
-  // Derive it from the room so inserts work regardless of client auth metadata.
-  const { data: roomRow, error: roomHotelErr } = await supabase
-    .from('rooms')
-    .select('hotel_id')
-    .eq('id', roomId)
-    .limit(1)
-    .maybeSingle();
-  if (roomHotelErr) throw roomHotelErr;
-  const hotelId = (roomRow as { hotel_id?: string | null } | null)?.hotel_id ?? null;
-  if (!hotelId || !isValidUUID(hotelId)) {
-    throw new Error('Missing hotel_id for room; cannot assign staff under tenant RLS.');
-  }
-  if (myHotelId !== hotelId) {
-    throw new Error('Tenant mismatch: you cannot assign staff to a room from a different hotel.');
-  }
-
-  const { error } = await supabase
-    .from('room_assignments')
-    .upsert(
-      { room_id: roomId, shift_id: shiftId, user_id: userId, hotel_id: hotelId },
-      { onConflict: 'room_id,shift_id' }
-    );
-
+  // Cast: the generated types predate assign_rooms(p_department).
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => PromiseLike<{ error: { message?: string; code?: string } | null }>;
+  const { error } = await rpc('assign_rooms', {
+    p_room_ids: [roomId],
+    p_user_id: userId,
+    p_shift_id: shiftId,
+    p_department: department,
+  });
   if (error) {
-    const isNoConflictConstraint =
-      error.code === '42P10' || (error.message != null && /unique|on conflict/i.test(error.message));
-    if (isNoConflictConstraint) {
-      // Fallback when unique constraint doesn't exist yet (run migration 20250628000000_room_assignments_upsert_and_anon.sql)
-      const { data: existing } = await supabase
-        .from('room_assignments')
-        .select('id')
-        .eq('room_id', roomId)
-        .eq('shift_id', shiftId)
-        .maybeSingle();
-      if (existing) {
-        const updateResult = await supabase
-          .from('room_assignments')
-          .update({ user_id: userId })
-          .eq('room_id', roomId)
-          .eq('shift_id', shiftId);
-        if (updateResult.error) throw updateResult.error;
-      } else {
-        const insertResult = await supabase.from('room_assignments').insert({
-          room_id: roomId,
-          shift_id: shiftId,
-          user_id: userId,
-          hotel_id: hotelId,
-        });
-        if (insertResult.error) throw insertResult.error;
-      }
-    } else {
-      console.error('[assignRoomToStaff] Supabase error:', error.message, error.code);
-      throw error;
-    }
+    console.error('[assignRoomToStaff] Supabase error:', error.message, error.code);
+    throw new Error(error.message || 'The room could not be assigned.');
   }
 
-  // The assignee's notification is written by a database trigger
-  // (20260925000100_task_notifications.sql), with the hotel and who assigned it.
+  // assign_rooms() writes the assignee's notification itself.
 
   // Defer so tab bar listeners run after Supabase write is visible to the next read.
 
@@ -1356,6 +1381,8 @@ export interface RoomNoteDetail {
 export interface AssignedStaffDetail {
   user_id: string;
   shift_name: string;
+  /** Whose layer: the room attendant (housekeeping) or the technician (engineering). */
+  department: AssignmentDepartment;
   work_status: string | null;
   staff: {
     full_name: string;
@@ -1514,17 +1541,17 @@ export function fullRoomDetailsToRoomCardData(
     return Array.from(new Set(ordered)).slice(0, 2);
   })();
 
-  const assignment = full.assignedStaff.find((a) => a.shift_name === shift);
-  const attendant: StaffInfo | null = assignment
-    ? staffInfoFromAssignment({
-        user_id: assignment.user_id,
-        work_status: assignment.work_status,
-        users: {
-          full_name: assignment.staff.full_name,
-          avatar_url: assignment.staff.avatar_url,
-        },
-      })
-    : null;
+  // Each department's assignee on this shift; the room attendant is housekeeping's.
+  const assignees: RoomAssignees = {};
+  for (const a of full.assignedStaff) {
+    if (a.shift_name !== shift || assignees[a.department]) continue;
+    assignees[a.department] = staffInfoFromAssignment({
+      user_id: a.user_id,
+      work_status: a.work_status,
+      users: { full_name: a.staff.full_name, avatar_url: a.staff.avatar_url },
+    });
+  }
+  const attendant: StaffInfo | null = assignees.housekeeping ?? null;
 
   const noteCount = full.notes.length;
   const lastNote = full.notes[0];
@@ -1557,6 +1584,7 @@ export function fullRoomDetailsToRoomCardData(
     dndNextCheckAt: ((room as any).dnd_next_check_at ?? null) as string | null,
     guests: guestsForCard,
     roomAttendantAssigned: attendant,
+    assignees,
     isPriority: room.priority === 'high',
     flagged: room.flagged ?? false,
     flagReason: room.flag_reason ?? null,
@@ -1658,7 +1686,7 @@ export async function getFullRoomDetails(
     supabase
       .from('room_assignments')
       // `!room_assignments_user_id_fkey`: since `assigned_by_id` there are two links to users; this is the assignee.
-      .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url), shifts(name)')
+      .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url), shifts(name), departments(key)')
       .in('room_id', roomIds),
     supabase
       .from('lost_and_found_items')
@@ -1744,8 +1772,9 @@ export async function getFullRoomDetails(
     work_status: string | null;
     users: { full_name: string; avatar_url: string | null } | null;
     shifts: { name: string } | null;
+    departments: { key: string } | null;
   };
-  const assignmentRows = (assignmentsRes.data ?? []) as AssignmentRow[];
+  const assignmentRows = (assignmentsRes.data ?? []) as unknown as AssignmentRow[];
   const assignmentsByRoom = new Map<string, AssignedStaffDetail[]>();
   for (const rid of roomIds) {
     const roomAssignments = assignmentRows
@@ -1753,6 +1782,7 @@ export async function getFullRoomDetails(
       .map((a) => ({
         user_id: a.user_id,
         shift_name: a.shifts?.name ?? 'Unknown',
+        department: asAssignmentDepartment(a.departments?.key) ?? 'housekeeping',
         work_status: a.work_status,
         staff: {
           full_name: a.users?.full_name ?? 'Staff',

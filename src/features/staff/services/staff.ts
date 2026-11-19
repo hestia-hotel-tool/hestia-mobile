@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { ASSIGNMENT_DEPARTMENTS, type AssignmentDepartment } from '@/domain/assignments';
 import type { StaffMember } from '../types/staff.types';
 import { fetchOpenBreaks } from '@features/account/services/breaks';
 
@@ -289,8 +290,8 @@ export async function fetchStaffTicketStats(
 }
 
 
-/** The only job title rooms are assigned to — see `fetchRoomAttendants`. */
-export const ROOM_ATTENDANT_JOB_TITLE_KEY = 'housekeeping_room_attendant';
+/** Housekeeping's assignee title — see `fetchRoomAttendants`. */
+export const ROOM_ATTENDANT_JOB_TITLE_KEY = ASSIGNMENT_DEPARTMENTS.housekeeping.assigneeJobTitle;
 
 /**
  * Housekeeping Room Attendants — the only staff a room can be assigned to.
@@ -302,16 +303,25 @@ export const ROOM_ATTENDANT_JOB_TITLE_KEY = 'housekeeping_room_attendant';
  * each attendant's real shift from `users.shift_id`.
  */
 export async function fetchRoomAttendants(): Promise<StaffMember[]> {
+  return fetchAssignableStaff('housekeeping');
+}
+
+/**
+ * The staff a department assigns rooms to — Room Attendants (housekeeping) or
+ * Technicians (engineering, Shift Engineers) — with each one's real shift.
+ * The Assign / Reassign sheets list these for the reader's department.
+ */
+export async function fetchAssignableStaff(department: AssignmentDepartment): Promise<StaffMember[]> {
   if (!isSupabaseConfigured) return [];
 
   const { data, error } = await supabase
     .from('users')
     .select('id, full_name, avatar_url, departments(name), job_titles!inner(key, name), shifts(name)')
-    .eq('job_titles.key', ROOM_ATTENDANT_JOB_TITLE_KEY)
+    .eq('job_titles.key', ASSIGNMENT_DEPARTMENTS[department].assigneeJobTitle)
     .order('full_name', { ascending: true });
 
   if (error || !data) {
-    console.warn('[staff] fetchRoomAttendants', error);
+    console.warn('[staff] fetchAssignableStaff', department, error);
     return [];
   }
 

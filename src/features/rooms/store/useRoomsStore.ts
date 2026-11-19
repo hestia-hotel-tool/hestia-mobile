@@ -11,6 +11,7 @@ import type { AllRoomsScreenData, RoomCardData, StaffInfo } from '../types/allRo
 import type { ShiftType } from '@/types/shift.types';
 import { getShiftFromTime } from '@/utils/shiftUtils';
 import { ensureHotelShifts } from '@/lib/hotelShifts';
+import type { AssignmentDepartment } from '@/domain/assignments';
 
 /**
  * How long a fetched list is served without going back to the network.
@@ -76,6 +77,12 @@ interface RoomsState {
   ) => Promise<RoomActionResult>;
   /** Set assigned staff for a room (optimistic update after assign from modal). */
   setRoomAttendant: (roomId: string, staff: StaffInfo | null) => void;
+  /**
+   * Set a room's assignee in one department's layer (optimistic, after an
+   * assign or unassign): the technician for engineering, the room attendant —
+   * `roomAttendantAssigned` too — for housekeeping.
+   */
+  setRoomAssignee: (roomId: string, department: AssignmentDepartment, staff: StaffInfo | null) => void;
   /**
    * Re-read one room's note and lost & found counts and patch its card, so
    * the bell and lost-and-found tiles appear (or go) as soon as a note is
@@ -156,6 +163,26 @@ export const useRoomsStore = create<RoomsState>((set, get) => ({
     if (!data) return;
     const update = (room: RoomCardData): RoomCardData =>
       room.id === roomId ? { ...room, roomAttendantAssigned: staff } : room;
+    set({
+      data: {
+        ...data,
+        rooms: data.rooms.map(update),
+        roomsPM: data.roomsPM?.map(update) ?? data.roomsPM,
+      },
+    });
+  },
+
+  setRoomAssignee: (roomId, department, staff) => {
+    const { data } = get();
+    if (!data) return;
+    const update = (room: RoomCardData): RoomCardData =>
+      room.id === roomId
+        ? {
+            ...room,
+            assignees: { ...room.assignees, [department]: staff ?? undefined },
+            ...(department === 'housekeeping' ? { roomAttendantAssigned: staff } : null),
+          }
+        : room;
     set({
       data: {
         ...data,

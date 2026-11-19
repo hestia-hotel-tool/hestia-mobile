@@ -6,7 +6,8 @@ import { Icon } from '@/components/Icon';
 import { getDepartments } from '@/lib/departments';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
-import { fetchRoomAttendants } from '@features/staff/services/staff';
+import { fetchAssignableStaff } from '@features/staff/services/staff';
+import type { AssignmentDepartment } from '@/domain/assignments';
 import type { StaffMember } from '@features/staff/types/staff.types';
 import type { StaffRosterPerson } from '@features/staff/types/staffRoster.types';
 import { useStaffRoster } from '@features/staff/hooks/useStaffRoster';
@@ -32,6 +33,11 @@ interface ReassignModalProps {
    * only the attendants rostered on that shift.
    */
   shift?: 'AM' | 'PM';
+  /**
+   * Whose people to offer: Room Attendants (housekeeping, the default) or
+   * Technicians (engineering) — migration 20261118090000.
+   */
+  assignmentDepartment?: AssignmentDepartment;
 }
 
 type Tab = 'am' | 'pm';
@@ -57,6 +63,7 @@ export default function ReassignModal({
   roomNumber,
   showAutoAssign = true,
   shift,
+  assignmentDepartment = 'housekeeping',
 }: ReassignModalProps) {
   const s = (n: number) => n * scaleX;
   const [tab, setTab] = useState<Tab>(shift === 'PM' ? 'pm' : 'am');
@@ -69,19 +76,19 @@ export default function ReassignModal({
   useEffect(() => {
     if (!visible) return;
     let cancelled = false;
-    void Promise.all([fetchRoomAttendants(), getDepartments()]).then(([people, depts]) => {
+    void Promise.all([fetchAssignableStaff(assignmentDepartment), getDepartments()]).then(([people, depts]) => {
       if (cancelled) return;
       setAttendants(people);
       const rows = depts.data ?? [];
       const hk =
-        rows.find((d) => (d as { key?: string | null }).key === 'housekeeping') ??
-        rows.find((d) => (d.name ?? '').trim().toLowerCase() === 'housekeeping');
-      setDepartment(hk ? { id: hk.id, name: hk.name ?? 'Housekeeping' } : null);
+        rows.find((d) => (d as { key?: string | null }).key === assignmentDepartment) ??
+        rows.find((d) => (d.name ?? '').trim().toLowerCase() === assignmentDepartment);
+      setDepartment(hk ? { id: hk.id, name: hk.name ?? assignmentDepartment } : null);
     });
     return () => {
       cancelled = true;
     };
-  }, [visible]);
+  }, [visible, assignmentDepartment]);
 
   // Reopen on the room's shift, with no search.
   useEffect(() => {

@@ -86,6 +86,8 @@ export default function RoomDetailContent({
   onHeaderHeightChange,
   onClearRefuseService,
   serviceActions,
+  departmentStatus,
+  checklistContent,
   activity = { kind: 'none' },
   showWithLinenBadge = false,
   initialTab,
@@ -175,6 +177,7 @@ export default function RoomDetailContent({
         onReturnLaterElapsed={onReturnLaterElapsed}
         cleaning={cleaning}
         onHeightChange={onHeaderHeightChange}
+        departmentStatus={departmentStatus}
         onClearRefuseService={onClearRefuseService}
         flagged={flagged}
         frontOfficeLabel={frontOfficeStatus === 'Stayover' ? 'Stayover' : undefined}
@@ -193,7 +196,7 @@ export default function RoomDetailContent({
       />
 
       {activeTab === 'Checklist' ? (
-        roomId ? <ChecklistSection roomId={roomId} roomNumber={roomNumber} roomCode={roomCode} /> : null
+        checklistContent ?? (roomId ? <ChecklistSection roomId={roomId} roomNumber={roomNumber} roomCode={roomCode} /> : null)
       ) : activeTab === 'Tickets' ? (
         <RoomTicketsSection
           roomId={roomId}

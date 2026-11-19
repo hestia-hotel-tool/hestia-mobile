@@ -66,6 +66,8 @@ export const PERMISSIONS = {
   ROOMS_STATUS_OVERRIDE: 'rooms.status.override',
   /** Take a room out of order (with a reason) and put it back */
   ROOMS_OUT_OF_ORDER_TOGGLE: 'rooms.out_of_order.toggle',
+  /** Assign and reassign rooms to engineering technicians */
+  ROOMS_ENGINEERING_ASSIGN: 'rooms.engineering.assign',
   /** Create, edit and delete rooms, room types, floors and public areas */
   ROOMS_MANAGE: 'rooms.manage',
   /** Mark a room checked on the porter round */

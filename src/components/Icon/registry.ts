@@ -36,6 +36,8 @@ import ActionFlag from '@assets/icons/actions/action-flag.svg';
 import ActionGroup from '@assets/icons/actions/action-group.svg';
 import ActionInProgress from '@assets/icons/actions/action-in-progress.svg';
 import ActionInfo from '@assets/icons/actions/action-info.svg';
+import ActionInspectCross from '@assets/icons/actions/action-inspect-cross.svg';
+import ActionInspectTick from '@assets/icons/actions/action-inspect-tick.svg';
 import ActionMic from '@assets/icons/actions/action-mic.svg';
 import ActionNewChat from '@assets/icons/actions/action-new-chat.svg';
 import ActionPauseCleaning from '@assets/icons/actions/action-pause-cleaning.svg';
@@ -54,6 +56,7 @@ import ActionThumbsDown from '@assets/icons/actions/action-thumbs-down.svg';
 import ActionThumbsUpLine from '@assets/icons/actions/action-thumbs-up-line.svg';
 import ActionThumbsUpSolid from '@assets/icons/actions/action-thumbs-up-solid.svg';
 import ActionThumbsUp from '@assets/icons/actions/action-thumbs-up.svg';
+import ActionTimeReset from '@assets/icons/actions/action-time-reset.svg';
 import ActionTooltipTail from '@assets/icons/actions/action-tooltip-tail.svg';
 import ActionUnassignRooms from '@assets/icons/actions/action-unassign-rooms.svg';
 // departments
@@ -137,6 +140,8 @@ export const icons = {
   'action-group': ActionGroup,
   'action-in-progress': ActionInProgress,
   'action-info': ActionInfo,
+  'action-inspect-cross': ActionInspectCross,
+  'action-inspect-tick': ActionInspectTick,
   'action-mic': ActionMic,
   'action-new-chat': ActionNewChat,
   'action-pause-cleaning': ActionPauseCleaning,
@@ -155,6 +160,7 @@ export const icons = {
   'action-thumbs-up-line': ActionThumbsUpLine,
   'action-thumbs-up-solid': ActionThumbsUpSolid,
   'action-thumbs-up': ActionThumbsUp,
+  'action-time-reset': ActionTimeReset,
   'action-tooltip-tail': ActionTooltipTail,
   'action-unassign-rooms': ActionUnassignRooms,
   // departments
@@ -246,6 +252,8 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-group': 1.1154,
   'action-in-progress': 1,
   'action-info': 1,
+  'action-inspect-cross': 1,
+  'action-inspect-tick': 1.1475,
   'action-mic': 0.7727,
   'action-new-chat': 1,
   'action-pause-cleaning': 0.9677,
@@ -264,6 +272,7 @@ export const ICON_ASPECT: Record<IconName, number> = {
   'action-thumbs-up-line': 1.1251,
   'action-thumbs-up-solid': 1.1265,
   'action-thumbs-up': 1.1265,
+  'action-time-reset': 1,
   'action-tooltip-tail': 2.5831,
   'action-unassign-rooms': 1.1111,
   'dept-concierge': 0.6403,
@@ -345,6 +354,8 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-group',
   'action-in-progress',
   'action-info',
+  'action-inspect-cross',
+  'action-inspect-tick',
   'action-mic',
   'action-new-chat',
   'action-phone',
@@ -360,6 +371,7 @@ export const TINTABLE_ICONS: ReadonlySet<IconName> = new Set([
   'action-thumbs-down-solid',
   'action-thumbs-up-line',
   'action-thumbs-up-solid',
+  'action-time-reset',
   'action-tooltip-tail',
   'action-unassign-rooms',
   'dept-concierge',

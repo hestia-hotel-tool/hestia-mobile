@@ -93,15 +93,19 @@ EXTRA_GRANTS = {
     "rooms.status.override": ["full_access"],
     "rooms.rush.toggle": ["fo_agent"],
     # Engineering opens a room from its ticket activity (Home → Recent activity).
-    "rooms.read": ["engineering"],
+    "rooms.read": ["engineering", "engineering_lead"],
     # ...and has the Rooms tab again (user, 2026-11-17): Home → Floors → View
     # Rooms opens it on a floor (Figma 3843:52, 4684:62). Migration 20261117090000.
-    "tab.rooms.view": ["engineering"],
+    "tab.rooms.view": ["engineering", "engineering_lead"],
     # Engineering takes a room out of order from its status menu, with a reason,
     # and puts it back (Figma 4686:686). Only these out-of-order fields, through
     # set_room_out_of_order(); full room setup stays rooms.manage. Migration
     # 20261117100000.
-    "rooms.out_of_order.toggle": ["engineering", "full_access"],
+    "rooms.out_of_order.toggle": ["engineering", "engineering_lead", "full_access"],
+    # Engineering leads (Director, Supervisor) assign rooms to technicians — the
+    # engineering layer of room_assignments, beside housekeeping's (which stays
+    # rooms.reassign). Migration 20261118090000.
+    "rooms.engineering.assign": ["engineering_lead"],
     # The back office (hestia-backoffice, docs/04-backend-changes.md §B1).
     # Signing in is for leadership; property setup and the activity log are
     # admin-only; front office data and reports are shared with ops_senior.
@@ -124,7 +128,7 @@ EXTRA_GRANTS = {
     # Front Office, Concierge — and every leader keeps the full list.
     "lost_and_found.read_all": [
         "full_access", "ops_senior", "fo_agent", "concierge_agent",
-        "ird_service", "technical", "fnb_kitchen", "engineering",
+        "ird_service", "technical", "fnb_kitchen", "engineering", "engineering_lead",
     ],
 }
 
@@ -162,6 +166,7 @@ PERMISSION_DESCRIPTIONS = {
     "rooms.rush.toggle": "Mark a room as rush / priority",
     "rooms.flag.toggle": "Flag and unflag a room",
     "rooms.out_of_order.toggle": "Take a room out of order (with a reason) and put it back",
+    "rooms.engineering.assign": "Assign and reassign rooms to engineering technicians",
     "chat.create": "Start a direct chat",
     "chat.groups.manage": "Create and administer group chats",
     "chat.announce": "Publish a General Announcement to all staff",
@@ -254,9 +259,9 @@ REMOVED_TITLES = {
     "in_room_dining_assistant_manager",
     "in_room_dining_order_taker",
     "butler_in_room_dining",
-    # Engineering (migration 20261019170000)
+    # Engineering (migration 20261019170000). engineering_supervisor came back
+    # 2026-11-18 (Director > Supervisor > Technician, migration 20261118090000).
     "assistant_director_of_engineering",
-    "engineering_supervisor",
     # IT (migration 20261019180000)
     "it_manager",
     "assistant_it_manager",
@@ -283,6 +288,7 @@ TITLE_MOVES = {
 HOME_VARIANTS = {
     "housekeeping_porter_houseman": "hsk_portier",
     "director_of_engineering": "engineering",
+    "engineering_supervisor": "engineering",
     "shift_engineer": "engineering",
     # In Room Dining reads the same ticket dashboard as engineering, over its
     # own department's tickets — Figma 3859:3355, which is the engineering frame
@@ -401,7 +407,8 @@ ROLE_DESCRIPTIONS = {
     "concierge_agent": "Concierge, bell desk and valet floor staff.",
     "ird_service": "In-room dining order takers and butlers.",
     "technical": "IT. Ticket-driven.",
-    "engineering": "Engineering. Ticket-driven, works from Home rather than Rooms.",
+    "engineering": "Engineering technicians. Work their assigned rooms and tickets.",
+    "engineering_lead": "Engineering leadership (Director, Supervisor). Assigns rooms to technicians.",
     "fnb_kitchen": "Chat, tickets and lost & found only.",
 }
 
@@ -425,15 +432,23 @@ DERIVED_ROLES = {
         "name": "Engineering",
         "rights": {"rooms": False},
     },
+    # Director > Supervisor > Technician (2026-11-18): the leads assign rooms to
+    # technicians, which a right on the shared role would also give the
+    # technicians. Same vector; the difference is rooms.engineering.assign.
+    "engineering_lead": {
+        "from": "technical",
+        "name": "Engineering Lead",
+        "rights": {"rooms": False},
+    },
 }
 
 # Titles moved off the role their spec vector resolves to, onto a derived one.
 # Applied after the vector lookup, so re-running the parser cannot silently put
 # Engineering back on `technical` and hand them the Rooms tab again.
 ROLE_TITLE_OVERRIDES = {
-    "director_of_engineering": "engineering",
-    "assistant_director_of_engineering": "engineering",
-    "engineering_supervisor": "engineering",
+    "director_of_engineering": "engineering_lead",
+    "assistant_director_of_engineering": "engineering_lead",
+    "engineering_supervisor": "engineering_lead",
     "shift_engineer": "engineering",
 }
 

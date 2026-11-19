@@ -100,6 +100,24 @@ export interface NoteMadeBy {
   avatar?: any;
 }
 
+/**
+ * A department's own round on a room (migration 20261118100000) — engineering:
+ * Unchecked → In Progress ⇄ Paused → Checked, plus its own priority. Separate
+ * from housekeeping's status, which stays on `houseKeepingStatus`.
+ */
+export type DepartmentRoomStatus = 'unchecked' | 'in_progress' | 'paused' | 'checked';
+
+export interface DepartmentRoomState {
+  status: DepartmentRoomStatus;
+  priority: boolean;
+  startedAt: string | null;
+  /** Running since (null while paused or not started). */
+  resumedAt: string | null;
+  /** Seconds worked before the current run. */
+  elapsedSeconds: number;
+  checkedAt: string | null;
+}
+
 export interface RoomCardData {
   id: string;
   roomNumber: string; // "201", "202", etc.
@@ -150,6 +168,14 @@ export interface RoomCardData {
   guests: GuestInfo[]; // Array to support Arrival/Departure rooms with 2 guests
   /** When null, room card shows "Assign Staff" button; when set, shows staff info. */
   roomAttendantAssigned: StaffInfo | null;
+  /**
+   * Each department's assignee for the shift (migration 20261118090000): the
+   * room attendant (housekeeping) and the technician (engineering), on the same
+   * room. `roomAttendantAssigned` is `assignees.housekeeping`.
+   */
+  assignees?: Partial<Record<import('@/domain/assignments').AssignmentDepartment, StaffInfo>>;
+  /** Each department's own round on the room (engineering). Absent: never started, i.e. Unchecked. */
+  departmentStates?: Partial<Record<import('@/domain/assignments').AssignmentDepartment, DepartmentRoomState>>;
   isPriority: boolean; // Must be true or false; red border for priority rooms when true
   flagged: boolean; // Must be true or false; when true, room contributes to "Flagged" category on Home
   /** Why it is flagged — Flag Room > Reason/note (Figma 406-1783). */

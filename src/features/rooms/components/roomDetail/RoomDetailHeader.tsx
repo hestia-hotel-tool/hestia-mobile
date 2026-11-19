@@ -3,7 +3,7 @@ import { View as RNView, type LayoutChangeEvent } from 'react-native';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Pressable, View } from '@/tw';
-import { Icon } from '@/components/Icon';
+import { Icon, type IconName } from '@/components/Icon';
 import { scaleX } from '@/utils/responsive';
 import { resolveRoomDetailHeader } from '../../constants/roomDetailHeaderTheme';
 import type { RoomStatus, RoomActivityState } from '../../types/allRooms.types';
@@ -33,6 +33,12 @@ export interface RoomDetailHeaderProps {
   onBackPress?: () => void;
   onStatusPress?: () => void;
   statusButtonRef?: React.Ref<RNView>;
+  /**
+   * Another department's status in place of housekeeping's (engineering's
+   * round, Figma 4759:820: "Uncheck" on red). The header takes its colour,
+   * mark and label; no activity line.
+   */
+  departmentStatus?: { label: string; color: string; icon: IconName; glyphHeight: number };
   /**
    * **Currently unreachable.** Figma 2333-132 has no Resume button, so the
    * paused chrome row sets `inlineAction: null` and nothing renders this. The
@@ -102,9 +108,26 @@ export default function RoomDetailHeader({
   frontOfficeLabel,
   showWithLinenBadge = false,
   onHeightChange,
+  departmentStatus,
 }: RoomDetailHeaderProps) {
   const insets = useSafeAreaInsets();
-  const { chrome, theme, label, mark } = resolveRoomDetailHeader(activity, status);
+  const resolved = resolveRoomDetailHeader(activity, status);
+  const { chrome, theme, label, mark } = departmentStatus
+    ? {
+        chrome: { ...resolved.chrome, subtitle: false, inlineAction: null, labelEmphasis: 'regular' as const },
+        theme: {
+          ...resolved.theme,
+          headerBackground: departmentStatus.color,
+          backArrowTint: '#ffffff',
+          roomNumberColor: '#ffffff',
+          roomCodeColor: '#ffffff',
+          statusTextAndIconColor: '#ffffff',
+          subtitleColor: '#ffffff',
+        },
+        label: departmentStatus.label,
+        mark: { icon: departmentStatus.icon, glyphHeight: departmentStatus.glyphHeight, disc: null, glyph: null },
+      }
+    : resolved;
   // One shared tick for every live label; times are shown to the minute.
   const now = useNow();
   const clock = cleaning ? cleaningClock(cleaning, now) : null;

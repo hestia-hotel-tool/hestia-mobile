@@ -159,6 +159,10 @@
       "description": "Take a room out of order (with a reason) and put it back"
     },
     {
+      "key": "rooms.engineering.assign",
+      "description": "Assign and reassign rooms to engineering technicians"
+    },
+    {
       "key": "backoffice.access",
       "description": "Sign in to the back office"
     },
@@ -364,14 +368,20 @@
       "fo_agent"
     ],
     "rooms.read": [
-      "engineering"
+      "engineering",
+      "engineering_lead"
     ],
     "tab.rooms.view": [
-      "engineering"
+      "engineering",
+      "engineering_lead"
     ],
     "rooms.out_of_order.toggle": [
       "engineering",
+      "engineering_lead",
       "full_access"
+    ],
+    "rooms.engineering.assign": [
+      "engineering_lead"
     ],
     "backoffice.access": [
       "full_access",
@@ -411,7 +421,8 @@
       "ird_service",
       "technical",
       "fnb_kitchen",
-      "engineering"
+      "engineering",
+      "engineering_lead"
     ]
   },
   "departments": [
@@ -741,7 +752,33 @@
     {
       "key": "engineering",
       "name": "Engineering",
-      "description": "Engineering. Ticket-driven, works from Home rather than Rooms.",
+      "description": "Engineering technicians. Work their assigned rooms and tickets.",
+      "titleCount": 1,
+      "rights": {
+        "dashboard": true,
+        "rooms": false,
+        "chat": true,
+        "tickets": true,
+        "lostAndFound": true,
+        "staff": false,
+        "settings": true,
+        "reassign": false,
+        "changeHousekeepingStatus": false,
+        "notes": true,
+        "specialInstructions": true,
+        "history": true,
+        "checklist": false,
+        "credits": false,
+        "frontOfficeStatus": true,
+        "reservationStatus": true,
+        "rush": true,
+        "flagged": true
+      }
+    },
+    {
+      "key": "engineering_lead",
+      "name": "Engineering Lead",
+      "description": "Engineering leadership (Director, Supervisor). Assigns rooms to technicians.",
       "titleCount": 2,
       "rights": {
         "dashboard": true,
@@ -922,7 +959,15 @@
       "key": "director_of_engineering",
       "name": "Director of Engineering",
       "department": "engineering",
-      "role": "engineering",
+      "role": "engineering_lead",
+      "homeVariant": "engineering",
+      "roomsVariant": "default"
+    },
+    {
+      "key": "engineering_supervisor",
+      "name": "Engineering Supervisor",
+      "department": "engineering",
+      "role": "engineering_lead",
       "homeVariant": "engineering",
       "roomsVariant": "default"
     },

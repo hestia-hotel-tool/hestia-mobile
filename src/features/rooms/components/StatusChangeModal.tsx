@@ -9,6 +9,7 @@ import {
   RoomCardData,
   deriveRoomActivityState,
   type RoomActivityKind,
+  type DepartmentRoomState,
 } from '../types/allRooms.types';
 import { scaleX } from '../constants/allRoomsStyles';
 import { colors, typography } from '@/theme';
@@ -17,6 +18,8 @@ import { Avatar } from '@/components/ui/Avatar';
 import { formatDueTime } from '@/utils/formatting';
 import { fetchStaffFromSupabase } from '@features/staff/services/staff';
 import StatusOptionItem from './StatusOptionItem';
+import { DEPARTMENT_STATUS_APPEARANCE } from '../constants/departmentStatus';
+import type { DepartmentRoundAction } from '../services/roomActions';
 import FlagToggle from './FlagToggle';
 import StatusPopover, { type PopoverAnchor } from './StatusPopover';
 import RoomChecklistPanel, { type ChecklistItem } from './RoomChecklistPanel';
@@ -40,21 +43,39 @@ const STATUS_OPTION_IDS: StatusChangeOption[] = ['Dirty', 'InProgress', 'Cleaned
  */
 const NEEDS_ATTENDANT: StatusChangeOption[] = ['InProgress', 'Pause'];
 
-/** Engineering's repair states for a room — Figma 4686:686. */
-export type EngineeringRoomStatus = 'unsolved' | 'inProgress' | 'solved';
-
-/** The grid after Priority on engineering's menu: the ticket colours and marks. */
-const ENGINEERING_OPTIONS: {
-  id: EngineeringRoomStatus;
+/**
+ * Engineering's round on the menu (user, 2026-11-18): Unchecked, In Progress —
+ * Pause while it runs, Resume while paused — and Checked; Priority first for
+ * the leads. Housekeeping's analogy; the looks are DEPARTMENT_STATUS_APPEARANCE.
+ */
+type EngineeringOption = {
+  id: string;
   label: string;
+  action: DepartmentRoundAction;
   iconName: React.ComponentProps<typeof Icon>['name'];
   glyphHeight: number;
   circleColor: string;
-}[] = [
-  { id: 'unsolved', label: 'Unsolved', iconName: 'action-thumbs-down-solid', glyphHeight: 24, circleColor: '#f92424' },
-  { id: 'inProgress', label: 'In Progress', iconName: 'action-in-progress', glyphHeight: 26, circleColor: '#f0be1b' },
-  { id: 'solved', label: 'Solved', iconName: 'action-thumbs-up-solid', glyphHeight: 24, circleColor: '#41d541' },
-];
+  /** Where the room is already: shown, but nothing to do. */
+  current: boolean;
+  /** Not possible from here (Checked before it was started). */
+  blocked: boolean;
+};
+
+function engineeringOptions(round: DepartmentRoomState | undefined): EngineeringOption[] {
+  const status = round?.status ?? 'unchecked';
+  const look = DEPARTMENT_STATUS_APPEARANCE;
+  const middle: EngineeringOption =
+    status === 'in_progress'
+      ? { id: 'pause', label: 'Pause', action: 'pause', iconName: look.paused.icon, glyphHeight: 24, circleColor: look.paused.color, current: false, blocked: false }
+      : status === 'paused'
+        ? { id: 'resume', label: 'Resume', action: 'resume', iconName: look.in_progress.icon, glyphHeight: 22, circleColor: look.in_progress.color, current: false, blocked: false }
+        : { id: 'start', label: 'In Progress', action: 'start', iconName: look.in_progress.icon, glyphHeight: 22, circleColor: look.in_progress.color, current: false, blocked: false };
+  return [
+    { id: 'uncheck', label: 'Uncheck', action: 'uncheck', iconName: look.unchecked.icon, glyphHeight: 25.5, circleColor: look.unchecked.color, current: status === 'unchecked', blocked: false },
+    middle,
+    { id: 'check', label: 'Checked', action: 'check', iconName: look.checked.icon, glyphHeight: 25.5, circleColor: look.checked.color, current: status === 'checked', blocked: status === 'unchecked' },
+  ];
+}
 
 /** The two reason-carrying switches on the menu: Flag Room, and engineering's Out of Order. */
 type ReasonKind = 'flag' | 'outOfOrder';
@@ -268,11 +289,16 @@ interface StatusChangeModalProps {
   /** Set / remove promise time — managers and supervisors only. Hides the row. */
   canSetPromise?: boolean;
   /**
-   * Engineering's menu (Figma 4686:686): Priority, Unsolved, In Progress,
-   * Solved, then Out of Order and Flag Room. Replaces the housekeeping grid.
+   * Engineering's menu (Figma 4686:686, statuses per the user 2026-11-18):
+   * Priority, Unchecked, In Progress / Pause / Resume, Checked, then Out of
+   * Order and Flag Room. Replaces the housekeeping grid.
    */
   engineering?: {
-    onStatus: (status: EngineeringRoomStatus) => void;
+    /** The room's engineering round now. */
+    round?: DepartmentRoomState;
+    /** Leads set engineering's own priority. */
+    canSetPriority: boolean;
+    onAction: (action: DepartmentRoundAction) => void;
     /** Out of order from today with a reason, or back in order. Without it, no row. */
     onOutOfOrderToggle?: (outOfOrder: boolean, reason: string | null) => Promise<void>;
   };
@@ -385,7 +411,7 @@ export default function StatusChangeModal({
           : isFlagEditor || isOutOfOrderEditor
             ? FLAG_EDITOR_HEIGHT
             : engineering
-              ? statusSheetHeight(ENGINEERING_OPTIONS.length + (canSetPriority ? 1 : 0), hasFlagRow) +
+              ? statusSheetHeight(3 + (engineering.canSetPriority ? 1 : 0), hasFlagRow) +
                 (hasOutOfOrderRow ? 80 : 0)
               : statusSheetHeight(options.length, hasFlagRow) + (canSetPromise ? PROMISE_ROW_HEIGHT : 0)
       }
@@ -450,18 +476,20 @@ export default function StatusChangeModal({
           <>
             <Text style={styles.headerText}>Change Status</Text>
             <View style={styles.optionsGrid}>
-              {canSetPriority && priorityOption ? (
+              {engineering.canSetPriority && priorityOption ? (
                 <StatusOptionItem
                   key="Priority"
                   iconName={priorityOption.iconName}
                   glyphHeight={priorityOption.glyphHeight}
                   circleColor={priorityOption.circleColor}
                   glyphColor={priorityOption.glyphColor}
-                  label={priorityOption.label}
-                  onPress={() => dismiss(() => onStatusSelect('Priority'))}
+                  label={engineering.round?.priority ? 'Not priority' : priorityOption.label}
+                  onPress={() =>
+                    dismiss(() => engineering.onAction(engineering.round?.priority ? 'priority_off' : 'priority_on'))
+                  }
                 />
               ) : null}
-              {ENGINEERING_OPTIONS.map((option) => (
+              {engineeringOptions(engineering.round).map((option) => (
                 <StatusOptionItem
                   key={option.id}
                   iconName={option.iconName}
@@ -469,7 +497,11 @@ export default function StatusChangeModal({
                   circleColor={option.circleColor}
                   glyphColor="#ffffff"
                   label={option.label}
-                  onPress={() => dismiss(() => engineering.onStatus(option.id))}
+                  disabled={option.current || option.blocked}
+                  onPress={() => {
+                    if (option.current || option.blocked) return;
+                    dismiss(() => engineering.onAction(option.action));
+                  }}
                 />
               ))}
             </View>

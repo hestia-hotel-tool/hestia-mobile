@@ -9,11 +9,13 @@ import type { ShiftType } from '@/types/shift.types';
 import { logRoomHistoryEvent } from '../services/roomHistory';
 import { submitCleaningReport, type CleaningReport } from '../services/cleaningReports';
 import { useRoomsStore } from '../store/useRoomsStore';
-import { setRoomOutOfOrder } from '../services/roomActions';
+import { setRoomOutOfOrder, runRoomDepartmentAction, type DepartmentRoundAction } from '../services/roomActions';
+import { useAssignmentDepartment } from '@/domain/useAssignmentDepartment';
 import { dashboardService } from '../services/dashboard';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import {
   RoomCardData,
+  StaffInfo,
   StatusChangeOption,
   isRoomPaused,
 } from '../types/allRooms.types';
@@ -140,7 +142,7 @@ export default function AllRoomsScreen() {
   const initialShift = shiftLock.locked ? shiftLock.shift : routeShift || getShiftFromTime();
   // Only the fields this screen uses: a whole-store subscription re-rendered it
   // on every change, including the per-update "saving" flag.
-  const { data: allRoomsData, loading, refreshing, lastFetchedShift, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAttendant } = useRoomsStore(
+  const { data: allRoomsData, loading, refreshing, lastFetchedShift, fetchRooms, updateRoom, runRoomAction, applyRoomRow, setSelectedShift, setRoomAssignee } = useRoomsStore(
     useShallow((st) => ({
       data: st.data,
       loading: st.loading,
@@ -151,8 +153,21 @@ export default function AllRoomsScreen() {
       runRoomAction: st.runRoomAction,
       applyRoomRow: st.applyRoomRow,
       setSelectedShift: st.setSelectedShift,
-      setRoomAttendant: st.setRoomAttendant,
+      setRoomAssignee: st.setRoomAssignee,
     }))
+  );
+  /*
+   * Whose assignment layer this reader works in (migration 20261118090000):
+   * engineering sees and assigns technicians and runs its own round; everyone
+   * else, housekeeping's room attendants. Same rooms, same cards.
+   */
+  const assignment = useAssignmentDepartment();
+  const assigneeOf = useCallback(
+    (room: RoomCardData | null | undefined): StaffInfo | null =>
+      !room
+        ? null
+        : room.assignees?.[assignment.key] ?? (assignment.key === 'housekeeping' ? room.roomAttendantAssigned : null) ?? null,
+    [assignment.key]
   );
 
   /*
@@ -247,7 +262,6 @@ export default function AllRoomsScreen() {
    */
   const { accessFor, canChangeAnyStatus, canInspect } = useRoomStatusAccess();
   /** Assigning / reassigning a room — withheld from room attendants (no rooms.reassign). */
-  const canReassign = can(PERMISSIONS.ROOMS_REASSIGN);
   /*
    * What the status menu offers this reader. Room attendants get neither
    * Priority (no rooms.rush.toggle) nor Inspected (inspection is a supervisor's
@@ -562,8 +576,8 @@ export default function AllRoomsScreen() {
     setAssigningStaffRoomId(roomToAssign.id);
     
     try {
-      const staffInfo = await dashboardService.assignRoomToStaff(roomToAssign.id, staffId, shift);
-      if (staffInfo) setRoomAttendant(roomToAssign.id, staffInfo);
+      const staffInfo = await dashboardService.assignRoomToStaff(roomToAssign.id, staffId, shift, assignment.key);
+      if (staffInfo) setRoomAssignee(roomToAssign.id, assignment.key, staffInfo);
     } catch (e) {
       console.warn('Assign room failed', e);
       toast.show(
@@ -876,8 +890,39 @@ export default function AllRoomsScreen() {
     endRevealForMenu();
   };
 
+  /*
+   * A move in engineering's round. The technician acts on their own room; a
+   * lead acting on someone else's says why (they are told), as housekeeping's
+   * supervisors do. Priority is the leads' and needs no reason.
+   */
+  const handleEngineeringAction = async (action: DepartmentRoundAction) => {
+    const target = selectedRoomForStatusChange;
+    if (!target) return;
+    let reason: string | null = null;
+    const technician = assigneeOf(target);
+    const forSomeoneElse = !!technician?.userId && technician.userId !== session?.user?.id;
+    if (!action.startsWith('priority') && forSomeoneElse) {
+      reason = await askReason(
+        messageModal,
+        `Act for ${technician?.name ?? 'the technician'}?`,
+        `This is ${technician?.name ?? 'the technician'}'s room. It is recorded as done for them, and they are told.`,
+        OVERRIDE_REASONS
+      );
+      if (!reason) return;
+    }
+    setChangingStatusRoomId(target.id);
+    try {
+      await runRoomDepartmentAction(target.id, 'engineering', action, reason);
+      await fetchRooms(uiShift, { force: true, silent: true });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'The room could not be updated.', { type: 'error', duration: 4500 });
+    } finally {
+      setChangingStatusRoomId(null);
+    }
+  };
+
   const unassignRoom = async (room: RoomCardData) => {
-    const staff = room.roomAttendantAssigned;
+    const staff = assigneeOf(room);
     const shift = displayData.selectedShift === 'PM' ? 'PM' : 'AM';
     if (!staff?.userId) {
       toast.show(`Room ${room.roomNumber} could not be unassigned. Pull to refresh and try again.`, { type: 'error' });
@@ -886,7 +931,7 @@ export default function AllRoomsScreen() {
     setAssigningStaffRoomId(room.id);
     try {
       await unassignRoomsFromStaff([room.id], staff.userId, shift);
-      setRoomAttendant(room.id, null);
+      setRoomAssignee(room.id, assignment.key, null);
     } catch (e) {
       toast.show(
         `Room ${room.roomNumber} was not unassigned. ${e instanceof Error ? e.message : 'Please try again.'}`,
@@ -905,7 +950,7 @@ export default function AllRoomsScreen() {
       // After the menu has faded: iOS shows one modal at a time.
       setTimeout(() => handleAssignStaffPress(room), 350);
     } else if (action === 'unassign') {
-      const who = room.roomAttendantAssigned?.name ?? 'the attendant';
+      const who = assigneeOf(room)?.name ?? `the ${assignment.assigneeNoun.one.toLowerCase()}`;
       Alert.alert(`Unassign Room ${room.roomNumber}?`, `It will no longer be ${who}'s this shift.`, [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Unassign', style: 'destructive', onPress: () => void unassignRoom(room) },
@@ -1489,8 +1534,9 @@ export default function AllRoomsScreen() {
                 porter={
                   isPorter ? { status: porterChecks.statusOf(room.id), guestIn: isGuestIn(room) } : undefined
                 }
-                onAssignPress={canReassign ? handleAssignStaffPress : undefined}
-                onAssigneePress={canReassign ? handleAssigneePress : undefined}
+                onAssignPress={assignment.canAssign ? handleAssignStaffPress : undefined}
+                onAssigneePress={assignment.canAssign ? handleAssigneePress : undefined}
+                layer={assignment.key}
                 registerCardRef={registerCardRef}
                 registerPillRef={registerPillRef}
                 RebuiltCard={RoomListCard}
@@ -1638,9 +1684,11 @@ export default function AllRoomsScreen() {
           homeVariant !== 'engineering'
             ? undefined
             : {
-                // Figma 4686:686 — repair states are UI-only until the logic pass (user, 2026-11-17).
-                onStatus: () =>
-                  toast.show('Room repair status is coming soon.', { type: 'info', title: 'Change Status' }),
+                // Engineering's round (migration 20261118100000): Unchecked → In
+                // Progress ⇄ Paused → Checked, and its own Priority (leads).
+                round: selectedRoomForStatusChange?.departmentStates?.engineering,
+                canSetPriority: assignment.canAssign,
+                onAction: (action) => void handleEngineeringAction(action),
                 onOutOfOrderToggle: !canToggleOutOfOrder
                   ? undefined
                   : async (outOfOrder, reason) => {
@@ -1705,7 +1753,8 @@ export default function AllRoomsScreen() {
         roomNumber={roomToAssign?.roomNumber}
         showAutoAssign={false}
         shift={uiShift === 'PM' ? 'PM' : 'AM'}
-        currentAssignedStaffId={roomToAssign?.roomAttendantAssigned?.userId}
+        currentAssignedStaffId={assigneeOf(roomToAssign)?.userId}
+        assignmentDepartment={assignment.key}
       />
 
       {/* Reassign / Unassign for one room, from its attendant (StaffActionMenu, as on Staff). */}

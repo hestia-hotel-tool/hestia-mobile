@@ -149,3 +149,36 @@ export async function setRoomOutOfOrder(
     throw err;
   }
 }
+
+/** A move in a department's round (engineering, migration 20261118100000). */
+export type DepartmentRoundAction = 'start' | 'pause' | 'resume' | 'check' | 'uncheck' | 'priority_on' | 'priority_off';
+
+/**
+ * Change a room's round in one department's layer, through
+ * `room_department_action()`: the assigned technician starts, pauses and
+ * checks; an engineering lead may act for them with a `reason` (they are told)
+ * and sets priority. The database's message is passed through as the error.
+ */
+export async function runRoomDepartmentAction(
+  roomId: string,
+  department: 'engineering',
+  action: DepartmentRoundAction,
+  reason?: string | null
+): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => PromiseLike<{ error: { message?: string; code?: string } | null }>;
+  const { error } = await rpc('room_department_action', {
+    p_room_id: roomId,
+    p_department: department,
+    p_action: action,
+    p_reason: reason ?? null,
+  });
+  if (error) {
+    const err = new Error(error.message || 'The room could not be updated.');
+    (err as Error & { code?: string }).code = error.code;
+    throw err;
+  }
+}

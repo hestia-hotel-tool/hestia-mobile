@@ -4,8 +4,8 @@
 -- Do not edit by hand — run `npm run rbac:generate` instead.
 --
 -- Source spec: hestia-roles-2026-01-03.pdf
--- 22 job titles across 7 departments,
--- collapsing to 12 distinct permission profiles.
+-- 23 job titles across 7 departments,
+-- collapsing to 13 distinct permission profiles.
 --
 -- Idempotent: safe to re-run. Reference data is upserted by key, and
 -- role_permissions is rebuilt from scratch so a revoked grant is actually
@@ -88,6 +88,7 @@ DELETE FROM public.permissions WHERE name NOT IN (
   'rooms.inspect',
   'rooms.status.override',
   'rooms.out_of_order.toggle',
+  'rooms.engineering.assign',
   'backoffice.access',
   'rooms.manage',
   'reservations.manage',
@@ -170,6 +171,7 @@ INSERT INTO public.permissions (name, description) VALUES
   ('rooms.inspect', 'Inspect cleaned rooms and send rooms back'),
   ('rooms.status.override', 'Act on a room for its attendant (reason required)'),
   ('rooms.out_of_order.toggle', 'Take a room out of order (with a reason) and put it back'),
+  ('rooms.engineering.assign', 'Assign and reassign rooms to engineering technicians'),
   ('backoffice.access', 'Sign in to the back office'),
   ('rooms.manage', 'Create, edit and delete rooms, room types, floors and public areas'),
   ('reservations.manage', 'Create, edit and check reservations in and out'),
@@ -194,7 +196,8 @@ INSERT INTO public.roles (key, name, description) VALUES
   ('ird_service', 'In-Room Dining Service', 'In-room dining order takers and butlers.'),  -- 0 titles
   ('technical', 'Technical', 'IT. Ticket-driven.'),  -- 1 title
   ('fnb_kitchen', 'F&B / Kitchen', 'Chat, tickets and lost & found only.'),  -- 0 titles
-  ('engineering', 'Engineering', 'Engineering. Ticket-driven, works from Home rather than Rooms.')  -- 2 titles
+  ('engineering', 'Engineering', 'Engineering technicians. Work their assigned rooms and tickets.'),  -- 1 title
+  ('engineering_lead', 'Engineering Lead', 'Engineering leadership (Director, Supervisor). Assigns rooms to technicians.')  -- 2 titles
 ON CONFLICT (key) DO UPDATE
   SET name = EXCLUDED.name, description = EXCLUDED.description;
 
@@ -469,7 +472,32 @@ SELECT r.id, p.id
   ('engineering', 'rooms.read'),
   ('engineering', 'tab.rooms.view'),
   ('engineering', 'rooms.out_of_order.toggle'),
-  ('engineering', 'lost_and_found.read_all')
+  ('engineering', 'lost_and_found.read_all'),
+  ('engineering_lead', 'tab.home.view'),
+  ('engineering_lead', 'tab.chat.view'),
+  ('engineering_lead', 'chat.create'),
+  ('engineering_lead', 'chat.groups.manage'),
+  ('engineering_lead', 'tab.tickets.view'),
+  ('engineering_lead', 'tickets.create'),
+  ('engineering_lead', 'tickets.update'),
+  ('engineering_lead', 'tab.lost_and_found.view'),
+  ('engineering_lead', 'lost_and_found.read'),
+  ('engineering_lead', 'lost_and_found.register'),
+  ('engineering_lead', 'tab.settings.view'),
+  ('engineering_lead', 'rooms.notes.view'),
+  ('engineering_lead', 'rooms.notes.create'),
+  ('engineering_lead', 'rooms.special_instructions.view'),
+  ('engineering_lead', 'rooms.history.view'),
+  ('engineering_lead', 'rooms.history.export'),
+  ('engineering_lead', 'rooms.front_office_status.view'),
+  ('engineering_lead', 'rooms.reservation_status.view'),
+  ('engineering_lead', 'rooms.rush.toggle'),
+  ('engineering_lead', 'rooms.flag.toggle'),
+  ('engineering_lead', 'rooms.read'),
+  ('engineering_lead', 'tab.rooms.view'),
+  ('engineering_lead', 'rooms.out_of_order.toggle'),
+  ('engineering_lead', 'rooms.engineering.assign'),
+  ('engineering_lead', 'lost_and_found.read_all')
  )
 ON CONFLICT (role_id, permission_id) DO NOTHING;
 
@@ -496,7 +524,8 @@ SELECT v.key, v.name, d.id, r.id, v.home_variant, v.rooms_variant
     ('in_room_dining_manager', 'In Room Dining Manager', 'in_room_dining', 'ops_senior', 'dining', 'default'),
     ('in_room_dining_supervisor', 'In Room Dining Supervisor', 'in_room_dining', 'ops_senior', 'dining', 'default'),
     ('in_room_dining_waiter_waitress', 'In Room Dining Waiter/Waitress', 'in_room_dining', 'ops_senior', 'dining', 'default'),
-    ('director_of_engineering', 'Director of Engineering', 'engineering', 'engineering', 'engineering', 'default'),
+    ('director_of_engineering', 'Director of Engineering', 'engineering', 'engineering_lead', 'engineering', 'default'),
+    ('engineering_supervisor', 'Engineering Supervisor', 'engineering', 'engineering_lead', 'engineering', 'default'),
     ('shift_engineer', 'Shift Engineer', 'engineering', 'engineering', 'engineering', 'default'),
     ('director_of_information_technology', 'Director Of Information Technology', 'it', 'technical', 'default', 'default')
   ) AS v(key, name, department_key, role_key, home_variant, rooms_variant)
@@ -551,17 +580,17 @@ BEGIN
   SELECT count(*) INTO n_titles FROM public.job_titles;
   SELECT count(*) INTO n_perms  FROM public.permissions;
   SELECT count(*) INTO n_grants FROM public.role_permissions;
-  IF n_roles  <> 12 THEN
-    RAISE EXCEPTION 'expected 12 roles, found %', n_roles;
+  IF n_roles  <> 13 THEN
+    RAISE EXCEPTION 'expected 13 roles, found %', n_roles;
   END IF;
-  IF n_titles <> 22 THEN
-    RAISE EXCEPTION 'expected 22 job titles, found %', n_titles;
+  IF n_titles <> 23 THEN
+    RAISE EXCEPTION 'expected 23 job titles, found %', n_titles;
   END IF;
-  IF n_perms  <> 48 THEN
-    RAISE EXCEPTION 'expected 48 permissions, found %', n_perms;
+  IF n_perms  <> 49 THEN
+    RAISE EXCEPTION 'expected 49 permissions, found %', n_perms;
   END IF;
-  IF n_grants <> 264 THEN
-    RAISE EXCEPTION 'expected 264 role_permissions, found %', n_grants;
+  IF n_grants <> 289 THEN
+    RAISE EXCEPTION 'expected 289 role_permissions, found %', n_grants;
   END IF;
 END $$;
 

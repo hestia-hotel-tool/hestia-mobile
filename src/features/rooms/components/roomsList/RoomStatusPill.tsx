@@ -28,6 +28,11 @@ export type RoomStatusPillProps = {
    * and Paused (FRONT_OFFICE_GLYPHS).
    */
   frontOffice?: boolean;
+  /**
+   * Another department's status on the same pill (engineering's round: see
+   * DEPARTMENT_STATUS_APPEARANCE). Replaces housekeeping's look for `status`.
+   */
+  appearance?: { label: string; color: string; icon: IconName; glyphHeight: number };
 };
 
 /**
@@ -47,13 +52,17 @@ export function RoomStatusPill({
   loading = false,
   measureRef,
   frontOffice = false,
+  appearance,
 }: RoomStatusPillProps) {
-  const config = STATUS_CONFIGS[status];
+  const base = STATUS_CONFIGS[status];
+  const config = appearance
+    ? { ...base, color: appearance.color, label: appearance.label, iconName: appearance.icon, glyphHeight: appearance.glyphHeight, foreground: undefined }
+    : base;
   if (!config) return null;
 
   const isPriority = tone === 'priority';
   const glyphColor = isPriority ? colors.text.white : (config.foreground ?? colors.text.white);
-  const label = isPriority ? 'Priority' : (PILL_LABEL[status] ?? config.label ?? status);
+  const label = isPriority ? 'Priority' : appearance ? appearance.label : (PILL_LABEL[status] ?? config.label ?? status);
 
   /*
    * The chevron means "this opens the status menu", so it appears only where
@@ -65,7 +74,7 @@ export function RoomStatusPill({
     ? PRIORITY.glyph
     : (frontOffice && FRONT_OFFICE_GLYPHS[status]) || {
         icon: config.iconName,
-        height: PILL_GLYPH_HEIGHT[status] ?? config.glyphHeight ?? 25.4,
+        height: (appearance ? undefined : PILL_GLYPH_HEIGHT[status]) ?? config.glyphHeight ?? 25.4,
       };
   const at = isPriority ? PRIORITY.at : (GLYPH[status] ?? DEFAULT_GLYPH);
 
@@ -124,7 +133,7 @@ export function RoomStatusPill({
                 fontSize: LABEL.size,
                 lineHeight: LABEL.line,
                 fontWeight: '700',
-                color: PILL_LABEL_COLOR[status] ?? glyphColor,
+                color: (appearance ? undefined : PILL_LABEL_COLOR[status]) ?? glyphColor,
               }}
             >
               {label}

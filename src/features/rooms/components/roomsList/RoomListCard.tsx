@@ -25,6 +25,9 @@ import { VipInfoPopover, VIP_ASSISTANT_QUESTION, VIP_POPOVER_SPACE, type VipAnch
 import type { MeasureAnchor, RevealBelow, WindowRect } from '../../hooks/useRevealBelow';
 import { useAIChatOverlay } from '@features/ai-agent';
 import { useVipTiers } from '@/store/vipTiers';
+import type { AssignmentDepartment } from '@/domain/assignments';
+import { DEPARTMENT_STATUS_APPEARANCE } from '../../constants/departmentStatus';
+import { departmentAssigneeStatus, roundHasLiveClock } from '../../utils/departmentRound';
 
 export type RoomListCardProps = {
   room: RoomCardData;
@@ -59,6 +62,13 @@ export type RoomListCardProps = {
   revealVip?: RevealBelow;
   /** Releases what `revealVip` held (list padding, frozen header) once the popover closes. */
   endVipReveal?: () => void;
+  /**
+   * Whose layer the card shows (migration 20261118090000): housekeeping (the
+   * room attendant and the cleaning status, the default) or engineering (the
+   * technician and the engineering round — Unchecked, In Progress, Paused,
+   * Checked, Priority). Same room, same card.
+   */
+  layer?: AssignmentDepartment;
 };
 
 /**
@@ -84,10 +94,13 @@ export function RoomListCard({
   frontOffice = false,
   revealVip,
   endVipReveal,
+  layer = 'housekeeping',
 }: RoomListCardProps) {
+  const isEngineering = layer === 'engineering';
+  const round = room.departmentStates?.engineering;
   // Live: "Credits", "Return at" and the promise move with the clock.
   // Only cards with a running clock follow the tick (see roomHasLiveClock).
-  const now = useNow(roomHasLiveClock(room));
+  const now = useNow(isEngineering ? roundHasLiveClock(round) : roomHasLiveClock(room));
   // Subscribed, so a hotel's own tiers repaint this card once they load.
   const vipTiers = useVipTiers();
   // The guest whose VIP popover was opened (their disc or its ⓘ), by index,
@@ -152,18 +165,23 @@ export function RoomListCard({
     setVipCard((v) => (v ? { ...v, open: false } : v));
     endVipReveal?.();
   };
-  const status = assigneeStatus(room, now, { minutes: frontOffice });
-  const promise = promiseLine(room, now);
+  const status = isEngineering ? departmentAssigneeStatus(round, now) : assigneeStatus(room, now, { minutes: frontOffice });
+  // The promise time is housekeeping's (ready by); engineering's round has none.
+  const promise = isEngineering ? null : promiseLine(room, now);
   const displayStatus = getRoomCardStatus(room);
   // The red frame and rush pill are for a priority room still to be started
   // (Figma 3883:5765, "Not Started"). Once it is In Progress, paused, DND or
   // anything else, the card shows that state and its pill, like any room.
-  const priority = porter
-    ? !!room.isPriority && porter.status === 'unchecked'
-    : isActivePriority(room) && displayStatus === 'Dirty';
+  // Engineering's own priority shows while the room is still Unchecked — the
+  // same rule, in its own layer.
+  const priority = isEngineering
+    ? !!round?.priority && (round?.status ?? 'unchecked') === 'unchecked'
+    : porter
+      ? !!room.isPriority && porter.status === 'unchecked'
+      : isActivePriority(room) && displayStatus === 'Dirty';
   // Front Office caps a Paused or In Progress card (3859:2876 / 3859:2426).
-  const capped = frontOffice && !porter && !priority && hasStatusCap(displayStatus);
-  const staff = room.roomAttendantAssigned;
+  const capped = !isEngineering && frontOffice && !porter && !priority && hasStatusCap(displayStatus);
+  const staff = isEngineering ? room.assignees?.engineering ?? null : room.roomAttendantAssigned;
   // Index 0 is the arriving guest and index 1 the departing one.
   const guests = room.guests.slice(0, room.frontOfficeStatus === 'Arrival/Departure' ? 2 : 1);
 
@@ -209,7 +227,7 @@ export function RoomListCard({
 
       <RoomCardFooter
         // Unassigned: the Assign Room pill, centred on the status pill, no label (4577:228).
-        label={porter || !staff?.name ? undefined : 'Room Attendant'}
+        label={porter || !staff?.name ? undefined : isEngineering ? 'Technician' : 'Room Attendant'}
         centered={!porter && !staff?.name}
         tight={guests.length > 1}
         left={
@@ -238,6 +256,7 @@ export function RoomListCard({
             <RoomStatusPill
               status={displayStatus}
               tone={priority ? 'priority' : 'solid'}
+              appearance={isEngineering ? DEPARTMENT_STATUS_APPEARANCE[round?.status ?? 'unchecked'] : undefined}
               frontOffice={frontOffice}
               onPress={onStatusPress}
               loading={isChangingStatus}
