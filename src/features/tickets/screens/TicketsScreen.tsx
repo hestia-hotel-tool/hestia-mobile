@@ -57,12 +57,14 @@ import { FilterModalOverlay, RoomsFilterSheet } from '@/components/filters';
 
 /**
  * Figma 667:3068 (4702:2175): All / Open / Closed / Drafts (n) as chips, the
- * filter glyph at the end. My Tickets is kept first (the frame drops it; the
- * screen opens on it for porters and laundry).
+ * filter glyph at the end — no My Tickets (user, 2026-11-19). "Assigned to me"
+ * is still reachable from Home's ticket counts (the `assignedToMeOnly` param).
  */
-const TICKET_TABS: readonly TicketTab[] = ['myTickets', 'all', 'open', 'closed', 'drafts'];
+const TICKET_TABS: readonly TicketTab[] = ['all', 'open', 'closed', 'drafts'];
+/** A tab from a route or a stored selection; the retired 'myTickets' (older links) opens All. */
+const asTicketTab = (tab: unknown): TicketTab | undefined =>
+  typeof tab === 'string' && (TICKET_TABS as readonly string[]).includes(tab) ? (tab as TicketTab) : tab ? 'all' : undefined;
 const TICKET_TAB_LABELS: Record<TicketTab, string> = {
-  myTickets: 'My Tickets',
   all: 'All',
   open: 'Open',
   closed: 'Closed',
@@ -102,7 +104,7 @@ export default function TicketsScreen() {
   const { worksFromTickets, departmentId, inLaundry } = usePermissions();
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
-  const [selectedTab, setSelectedTab] = useState<TicketTab>('myTickets');
+  const [selectedTab, setSelectedTab] = useState<TicketTab>('all');
   /*
    * Filter (Figma 667:3068: the glyph at the end of the chip row — no search
    * field): a filter sheet (Department, Priority) and the "Filtered: … — Clear"
@@ -178,14 +180,11 @@ export default function TicketsScreen() {
       setTicketsData(data);
       // If we came here with an explicit initial tab (e.g. after creating a ticket),
       // prefer that over the stored/dashboard selection.
-      if (overrideInitialTab) {
-        setSelectedTab(overrideInitialTab);
-      } else if (data.selectedTab) {
-        setSelectedTab(data.selectedTab);
-      }
+      const wanted = asTicketTab(overrideInitialTab) ?? asTicketTab(data.selectedTab);
+      if (wanted) setSelectedTab(wanted);
     } catch (e) {
       console.warn('[TicketsScreen] Failed to load tickets', e);
-      const fallbackTab = overrideInitialTab ?? 'myTickets';
+      const fallbackTab = asTicketTab(overrideInitialTab) ?? 'all';
       setTicketsData({ selectedTab: fallbackTab, tickets: [] });
       setSelectedTab(fallbackTab);
     } finally {
@@ -518,10 +517,7 @@ export default function TicketsScreen() {
       }
     }
 
-    if (selectedTab === 'myTickets') {
-      if (!currentUserId) return false;
-      return ticket.assignedToId === currentUserId;
-    } else if (selectedTab === 'open') {
+    if (selectedTab === 'open') {
       return ticket.status === 'unsolved' || ticket.status === 'inProgress' || ticket.status === 'ofo';
     } else if (selectedTab === 'closed') {
       return ticket.status === 'done';

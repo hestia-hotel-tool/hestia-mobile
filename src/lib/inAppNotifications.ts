@@ -34,6 +34,9 @@ export const TASK_NOTIFICATION_TYPES = [
   'room_return_overdue',
   'ticket_assigned',
   'ticket_tag',
+  // Engineering checklist (Figma 4783:2223): to the leads.
+  'checklist_submitted',
+  'ticket_created',
 ] as const;
 
 /** The task types that are about a room — read by opening that room. */
@@ -61,6 +64,7 @@ export const ROOM_TASK_NOTIFICATION_TYPES = [
   'room_return_later',
   'room_return_due',
   'room_return_overdue',
+  'checklist_submitted',
 ] as const;
 
 const badgeInvalidateListeners = new Set<() => void>();

@@ -1,7 +1,7 @@
 import { TicketsScreenData } from '@features/tickets/types/tickets.types';
 
 export const mockTicketsData: TicketsScreenData = {
-  selectedTab: 'myTickets',
+  selectedTab: 'all',
   tickets: [
     {
       id: 'ticket-1',

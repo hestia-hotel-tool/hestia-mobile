@@ -5,11 +5,9 @@ import { useMessageModal } from '@/contexts/MessageModalContext';
 import type { AssignmentDepartment } from '@/domain/assignments';
 import { typography } from '@/theme';
 import { scaleX } from '@/utils/responsive';
-import { INSPECTION_CATEGORY_ORDER, inspectionCategoryLabel } from '../../constants/inspectionImages';
 import {
   fetchRoomInspection,
   finishRoomInspection,
-  raiseRoomInspectionTickets,
   setRoomInspectionResult,
   type InspectionItem,
   type InspectionResult,
@@ -18,11 +16,14 @@ import {
 import { askReason } from '../../utils/askReason';
 import { OVERRIDE_REASONS } from '../../utils/roomStatusMachine';
 import InspectionIssueSheet from './InspectionIssueSheet';
+import InspectionCategoryChips, { inspectionCategories, inspectionItemsIn } from './InspectionCategoryChips';
 import InspectionItemRow from './InspectionItemRow';
+import InspectionTicketsPanel from './InspectionTicketsPanel';
 
 export type InspectionSectionProps = {
   roomId: string;
   roomNumber: string;
+  roomCode?: string;
   department: AssignmentDepartment;
   /** The room's technician this shift, or a lead: may mark and finish. */
   canWork: boolean;
@@ -34,16 +35,11 @@ export type InspectionSectionProps = {
   onRoundChanged: () => void;
 };
 
-const time = (iso: string) => {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-};
-
 /**
  * Engineering's Checklist tab — Figma 4759:225. "Room Check List", the
  * category chips, the category's items (Good / Issue), and Next, which steps
  * through the categories; on the last it is Submit (Figma 4759:1432): everything marked →
- * the round goes Checked, then the issues can become tickets.
+ * the round goes Checked, and the tab becomes InspectionTicketsPanel (4759:1554).
  *
  * Each mark is saved as it is made (no draft to lose); the technician's first
  * mark starts the round. A new service day starts a new checklist.
@@ -51,6 +47,7 @@ const time = (iso: string) => {
 export default function InspectionSection({
   roomId,
   roomNumber,
+  roomCode,
   department,
   canWork,
   actsForAssignee,
@@ -80,20 +77,10 @@ export default function InspectionSection({
     void load();
   }, [load]);
 
-  const categories = useMemo(() => {
-    const keys = [...new Set((data?.items ?? []).map((i) => i.category))];
-    const rank = (k: string) => {
-      const i = INSPECTION_CATEGORY_ORDER.indexOf(k);
-      return i < 0 ? 99 : i;
-    };
-    return keys.sort((a, b) => rank(a) - rank(b));
-  }, [data]);
+  const categories = useMemo(() => inspectionCategories(data?.items ?? []), [data]);
 
   const current = category && categories.includes(category) ? category : (categories[0] ?? null);
-  const items = useMemo(
-    () => (data?.items ?? []).filter((i) => i.category === current).sort((a, b) => a.sortOrder - b.sortOrder),
-    [data, current]
-  );
+  const items = useMemo(() => inspectionItemsIn(data?.items ?? [], current), [data, current]);
   const isLast = current === categories[categories.length - 1];
   const unchecked = (data?.items ?? []).filter((i) => !i.result);
 
@@ -116,28 +103,6 @@ export default function InspectionSection({
       setData(before);
       toast.show(e instanceof Error ? e.message : 'That could not be saved.', { type: 'error', title: 'Not saved' });
     }
-  };
-
-  const raiseTickets = async (count: number) => {
-    messageModal.show({
-      title: count === 1 ? '1 issue found' : `${count} issues found`,
-      message: `Raise an Engineering ticket for ${count === 1 ? 'it' : 'each'}? The note becomes the ticket.`,
-      buttons: [
-        {
-          text: count === 1 ? 'Raise ticket' : 'Raise tickets',
-          onPress: async () => {
-            try {
-              const n = await raiseRoomInspectionTickets(roomId, department);
-              toast.show(n === 1 ? '1 ticket raised.' : `${n} tickets raised.`, { type: 'success' });
-              await load();
-            } catch (e) {
-              toast.show(e instanceof Error ? e.message : 'The tickets could not be raised.', { type: 'error' });
-            }
-          },
-        },
-        { text: 'Not now', style: 'cancel' as const },
-      ],
-    });
   };
 
   const finish = async () => {
@@ -163,10 +128,9 @@ export default function InspectionSection({
     try {
       await finishRoomInspection(roomId, department, reason);
       onRoundChanged();
+      // The tab turns into the completed view (Figma 4759:1554): the report and the issues' tickets.
       await load();
-      const openIssues = (data?.items ?? []).filter((i) => i.result === 'issue' && !i.ticketId).length;
-      if (openIssues > 0) void raiseTickets(openIssues);
-      else toast.show(`Room ${roomNumber} checked.`, { type: 'success' });
+      toast.show(`Room ${roomNumber} checked.`, { type: 'success' });
     } catch (e) {
       toast.show(e instanceof Error ? e.message : 'The checklist could not be submitted.', { type: 'error' });
     } finally {
@@ -192,15 +156,25 @@ export default function InspectionSection({
     );
   }
 
+  if (data.completedAt) {
+    return (
+      <InspectionTicketsPanel
+        roomId={roomId}
+        roomNumber={roomNumber}
+        roomCode={roomCode}
+        department={department}
+        inspection={data}
+        canWork={canWork}
+        onTicketsRaised={() => void load()}
+      />
+    );
+  }
+
   return (
     <View style={styles.container}>
       <ScrollView ref={scrollRef} style={styles.fill} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Room Check List</Text>
-        {data.completedAt ? (
-          <Text style={styles.status}>
-            {`Completed${data.completedBy ? ` by ${data.completedBy}` : ''} at ${time(data.completedAt)}`}
-          </Text>
-        ) : !canWork ? (
+        {!canWork ? (
           <Text style={styles.status}>Only the room&apos;s technician or a lead can fill this in.</Text>
         ) : null}
 
@@ -208,24 +182,7 @@ export default function InspectionSection({
           <Text style={styles.message}>No checklist items are set up for this hotel yet.</Text>
         ) : (
           <>
-            <View style={styles.band}>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {categories.map((key) => {
-                  const active = key === current;
-                  return (
-                    <TouchableOpacity
-                      key={key}
-                      style={[styles.chip, active && styles.chipActive]}
-                      onPress={() => goTo(key)}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: active }}
-                    >
-                      <Text style={[styles.chipText, active && styles.chipTextActive]}>{inspectionCategoryLabel(key)}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-            </View>
+            <InspectionCategoryChips categories={categories} current={current} onSelect={goTo} />
 
             <View style={styles.list}>
               {items.map((item) => (
@@ -298,29 +255,6 @@ const styles = StyleSheet.create({
     fontWeight: '300',
     color: '#8e8888',
   },
-  /* 4759:1411 — #f1f6fc pill, 58 tall, 10 from each side. */
-  band: {
-    height: 58 * scaleX,
-    marginTop: 15 * scaleX,
-    marginHorizontal: 10 * scaleX,
-    borderRadius: 65 * scaleX,
-    backgroundColor: '#f1f6fc',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  chips: { alignItems: 'center', gap: 15 * scaleX, paddingHorizontal: 14 * scaleX },
-  chip: {
-    paddingHorizontal: 10 * scaleX,
-    height: 37 * scaleX,
-    minWidth: 59 * scaleX,
-    borderRadius: 33 * scaleX,
-    backgroundColor: '#ffffff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  chipActive: { backgroundColor: '#5a759d' },
-  chipText: { fontSize: 15 * scaleX, fontFamily: typography.fontFamily.primary, color: '#5a759d' },
-  chipTextActive: { fontWeight: '700', color: '#ffffff' },
   list: { marginTop: 33 * scaleX, paddingLeft: 29 * scaleX, paddingRight: 39 * scaleX },
   /* 4759:1373 — #5a759d bar, 370 x 70, square corners, centred. */
   footer: { alignItems: 'center', paddingTop: 8 * scaleX, paddingBottom: 16 * scaleX, backgroundColor: '#ffffff' },

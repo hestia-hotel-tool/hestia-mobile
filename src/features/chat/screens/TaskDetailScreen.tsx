@@ -120,10 +120,17 @@ export default function TaskDetailScreen() {
             }
           : { label: 'View tickets', go: () => router.navigate('/(tabs)/(tickets)' as never) }
         : item.roomId
-          ? {
-              label: 'View room',
-              go: () => router.push({ pathname: '/room/[roomId]', params: { roomId: item.roomId } } as never),
-            }
+          ? item.type === 'checklist_submitted'
+            ? {
+                // Straight to the submitted checklist: the report and its tickets.
+                label: 'View checklist',
+                go: () =>
+                  router.push({ pathname: '/room/[roomId]', params: { roomId: item.roomId, initialTab: 'Checklist' } } as never),
+              }
+            : {
+                label: 'View room',
+                go: () => router.push({ pathname: '/room/[roomId]', params: { roomId: item.roomId } } as never),
+              }
           : null
       : null;
 

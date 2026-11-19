@@ -17,6 +17,7 @@ import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { User } from '@/types';
 import TicketStaffSelectorModal from './TicketStaffSelectorModal';
+import UrgencyPicker, { urgencyToTicketPriority, type TicketUrgency } from './UrgencyPicker';
 import { createTicket } from '../services/tickets';
 import {
   getDepartments,
@@ -34,7 +35,7 @@ const DESIGN_WIDTH = 440;
 const scaleX = SCREEN_WIDTH / DESIGN_WIDTH;
 const TWO_COL_GAP = 12 * scaleX;
 
-type Priority = 'high' | 'medium' | 'low';
+type Priority = TicketUrgency;
 
 const FREQUENT_CASES = [
   'Broken Shower',
@@ -98,7 +99,6 @@ export default function TicketForm({
   const [selectedDepartmentId, setSelectedDepartmentId] = useState<string | null>(null);
   const [assignedStaff, setAssignedStaff] = useState<string[]>(draft?.taggedStaffIds ?? []);
   const [priority, setPriority] = useState<Priority>(draft?.priority ?? 'high');
-  const [showUrgencyOptions, setShowUrgencyOptions] = useState(true);
   const [pictures, setPictures] = useState<string[]>(draft?.pictures ?? []);
   const [photoGridWidth, setPhotoGridWidth] = useState<number | null>(null);
   const [description, setDescription] = useState(draft?.description ?? '');
@@ -292,7 +292,7 @@ export default function TicketForm({
       await createTicket({
         title: ticketName,
         description: combinedDescription,
-        priority: priority === 'high' ? 'urgent' : priority === 'medium' ? 'medium' : 'notUrgent',
+        priority: urgencyToTicketPriority(priority),
         departmentId: selectedDepartmentId,
         departmentName: selectedDepartmentName,
         assignedToId,
@@ -419,41 +419,7 @@ export default function TicketForm({
 
       {/* Urgency — the choice in a pink frame; its chevron opens the three options. */}
       <Text style={styles.priorityTitle}>Urgency</Text>
-      <TouchableOpacity
-        style={[styles.pinkBox, styles.priorityBox]}
-        onPress={() => setShowUrgencyOptions((open) => !open)}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={`Urgency: ${PRIORITY[priority].label}`}
-        accessibilityState={{ expanded: showUrgencyOptions }}
-      >
-        <PriorityFlags priority={priority} />
-        <Text style={styles.priorityBoxLabel}>{PRIORITY[priority].label}</Text>
-        <View style={showUrgencyOptions ? undefined : styles.chevronClosed}>
-          <Icon name="action-chevron-down-wide" width={21 * scaleX} height={10 * scaleX} color={INK} />
-        </View>
-      </TouchableOpacity>
-      {showUrgencyOptions ? (
-      <View style={styles.priorityOptions}>
-        {PRIORITY_ORDER.map((p) => (
-          <TouchableOpacity
-            key={p}
-            style={[styles.priorityRow, { backgroundColor: PRIORITY[p].tint }]}
-            onPress={() => setPriority(p)}
-            activeOpacity={0.7}
-            accessibilityRole="radio"
-            accessibilityLabel={PRIORITY[p].label}
-            accessibilityState={{ selected: priority === p }}
-          >
-            <PriorityFlags priority={p} />
-            <Text style={styles.priorityRowLabel}>{PRIORITY[p].label}</Text>
-            {priority === p ? (
-              <Icon name="action-check" width={CHECK.width} height={CHECK.height} color={INK} />
-            ) : null}
-          </TouchableOpacity>
-        ))}
-      </View>
-      ) : null}
+      <UrgencyPicker value={priority} onChange={setPriority} initiallyOpen style={styles.priorityBox} />
 
       {/* Tag Staff */}
       <View style={[styles.card, styles.tagStaffCard]}>
@@ -604,18 +570,6 @@ export default function TicketForm({
   );
 }
 
-/** One, two or three flags in the priority's colour, in a slot wide enough for three. */
-function PriorityFlags({ priority }: { priority: Priority }) {
-  const { flags, color } = PRIORITY[priority];
-  return (
-    <View style={styles.flagSlot}>
-      {Array.from({ length: flags }, (_, i) => (
-        <Icon key={i} name="action-flag-priority" width={FLAG.width} height={FLAG.height} color={color} />
-      ))}
-    </View>
-  );
-}
-
 /** Figma 2186:2044: the photo frame, the gradient "+" on its top-right corner. */
 function AddPhotoMark() {
   return (
@@ -654,14 +608,6 @@ const CHECK = { width: 15.5 * scaleX, height: 13.1 * scaleX };
 /** Department glyphs (4630:148 …): red on the pink disc, white on the chosen one. */
 const DEPT_RED = '#f92424';
 const GUTTER = 26;
-
-const PRIORITY: Record<Priority, { label: string; flags: number; color: string; tint: string }> = {
-  // The row tints are Figma's fills at its 20% layer opacity, flattened.
-  high: { label: 'High Priority', flags: 3, color: '#f92424', tint: 'rgba(249, 36, 36, 0.056)' },
-  medium: { label: 'Normal', flags: 2, color: '#f0be1b', tint: 'rgba(240, 190, 27, 0.072)' },
-  low: { label: 'Low Priority', flags: 1, color: '#9797a3', tint: 'rgba(217, 217, 217, 0.2)' },
-};
-const PRIORITY_ORDER: Priority[] = ['high', 'medium', 'low'];
 
 const card = {
   backgroundColor: '#f9fafc',
@@ -789,57 +735,15 @@ const styles = StyleSheet.create({
 
   // Priority
   /* 4649:480 — the same heading as "Whats the Issue?". */
+  priorityBox: {
+    marginTop: 24 * scaleX,
+  },
   priorityTitle: {
     marginTop: 23 * scaleX,
     fontSize: 20 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#607aa1',
-  },
-  priorityBox: {
-    marginTop: 24 * scaleX,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'flex-start',
-    paddingLeft: 15 * scaleX,
-    paddingRight: 27 * scaleX,
-  },
-  /* Down while the options show (as drawn); right while they are folded away. */
-  chevronClosed: {
-    transform: [{ rotate: '-90deg' }],
-  },
-  priorityBoxLabel: {
-    flex: 1,
-    marginLeft: 22 * scaleX,
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  priorityOptions: {
-    marginTop: 19 * scaleX,
-    gap: 8 * scaleX,
-  },
-  priorityRow: {
-    height: 46 * scaleX,
-    borderRadius: 5 * scaleX,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: 14 * scaleX,
-    paddingRight: 20 * scaleX,
-  },
-  priorityRowLabel: {
-    flex: 1,
-    marginLeft: 22 * scaleX,
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-  },
-  flagSlot: {
-    width: 54 * scaleX,
-    flexDirection: 'row',
-    gap: 6 * scaleX,
   },
 
   // Cards

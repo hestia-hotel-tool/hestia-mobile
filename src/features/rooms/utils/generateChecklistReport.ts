@@ -27,61 +27,82 @@ export async function generateChecklistReport({
       checklistData,
     });
 
-    const { uri } = await Print.printToFileAsync({
-      html: htmlContent,
-      base64: false,
-    });
-
     const timestamp = new Date().toISOString().split('T')[0].replace(/-/g, '');
-    const filename = `Room_${roomNumber}_Checklist_Report_${timestamp}.pdf`;
-
-    const documentsUri = `${FileSystem.documentDirectory}${filename}`;
-    await FileSystem.copyAsync({
-      from: uri,
-      to: documentsUri,
-    });
-
-    getMessageModal()?.show({
-      title: 'Download Report',
-      message: 'Choose how you want to save the report:',
-      buttons: [
-        {
-          text: 'Download to Device',
-          onPress: async () => {
-            try {
-              await downloadToDevice(documentsUri, filename, roomNumber);
-            } catch (error) {
-              console.error('Error downloading to device:', error);
-              getToast()?.show('Failed to download to device. Please try sharing instead.', { type: 'error', title: 'Error' });
-            }
-          },
-        },
-        {
-          text: 'Share',
-          onPress: async () => {
-            try {
-              if (await Sharing.isAvailableAsync()) {
-                await Sharing.shareAsync(documentsUri, {
-                  mimeType: 'application/pdf',
-                  dialogTitle: `Room ${roomNumber} Checklist Report`,
-                });
-              } else {
-                getToast()?.show('Sharing is not available on this device.', { type: 'error', title: 'Sharing not available' });
-              }
-            } catch (error) {
-              console.error('Error sharing:', error);
-              getToast()?.show('Failed to share report. Please try again.', { type: 'error', title: 'Error' });
-            }
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ],
-      cancelable: true,
+    await exportReportPdf({
+      html: htmlContent,
+      filename: `Room_${roomNumber}_Checklist_Report_${timestamp}.pdf`,
+      roomNumber,
+      title: `Room ${roomNumber} Checklist Report`,
     });
   } catch (error) {
     console.error('Error generating checklist PDF report:', error);
     throw error;
   }
+}
+
+/**
+ * Render report HTML to a PDF and offer to download or share it — shared by
+ * housekeeping's checklist report and engineering's inspection report.
+ */
+export async function exportReportPdf({
+  html,
+  filename,
+  roomNumber,
+  title,
+}: {
+  html: string;
+  filename: string;
+  roomNumber: string;
+  title: string;
+}): Promise<void> {
+  const { uri } = await Print.printToFileAsync({
+    html,
+    base64: false,
+  });
+
+  const documentsUri = `${FileSystem.documentDirectory}${filename}`;
+  await FileSystem.copyAsync({
+    from: uri,
+    to: documentsUri,
+  });
+
+  getMessageModal()?.show({
+    title: 'Download Report',
+    message: 'Choose how you want to save the report:',
+    buttons: [
+      {
+        text: 'Download to Device',
+        onPress: async () => {
+          try {
+            await downloadToDevice(documentsUri, filename, roomNumber);
+          } catch (error) {
+            console.error('Error downloading to device:', error);
+            getToast()?.show('Failed to download to device. Please try sharing instead.', { type: 'error', title: 'Error' });
+          }
+        },
+      },
+      {
+        text: 'Share',
+        onPress: async () => {
+          try {
+            if (await Sharing.isAvailableAsync()) {
+              await Sharing.shareAsync(documentsUri, {
+                mimeType: 'application/pdf',
+                dialogTitle: title,
+              });
+            } else {
+              getToast()?.show('Sharing is not available on this device.', { type: 'error', title: 'Sharing not available' });
+            }
+          } catch (error) {
+            console.error('Error sharing:', error);
+            getToast()?.show('Failed to share report. Please try again.', { type: 'error', title: 'Error' });
+          }
+        },
+      },
+      { text: 'Cancel', style: 'cancel' },
+    ],
+    cancelable: true,
+  });
 }
 
 async function downloadToDevice(

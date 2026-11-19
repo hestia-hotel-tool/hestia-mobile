@@ -83,7 +83,27 @@ export function finishRoomInspection(
   });
 }
 
-/** One ticket per issue that has none yet. Returns how many were raised. */
-export function raiseRoomInspectionTickets(roomId: string, department: AssignmentDepartment): Promise<number> {
-  return call<number>('raise_room_inspection_tickets', { p_room_id: roomId, p_department: department });
+export type InspectionTicketDraft = {
+  itemId: string;
+  title: string;
+  priority: 'urgent' | 'medium' | 'notUrgent';
+  /** Already uploaded (uploadTicketPhotos). */
+  photoUrls: string[];
+};
+
+/**
+ * One ticket per issue that has none yet (Figma 4759:1554's "Create Ticket").
+ * With `tickets`, only those issues, each with its own title, urgency and
+ * photos; without, every open issue from its note. Returns how many were raised.
+ */
+export function raiseRoomInspectionTickets(
+  roomId: string,
+  department: AssignmentDepartment,
+  tickets?: InspectionTicketDraft[]
+): Promise<number> {
+  return call<number>('raise_room_inspection_tickets', {
+    p_room_id: roomId,
+    p_department: department,
+    p_tickets: tickets ?? null,
+  });
 }

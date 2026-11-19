@@ -30,7 +30,7 @@ const PRIORITY = {
   notUrgent: { label: 'Low Priority', flags: 1, color: '#9797a3' },
 } as const;
 
-/** The full-width status pill — Figma 4664:886 (377 x 61, radius 30.5). */
+/** The status pill — Figma 4799:648 (174.8 x 59.1). */
 const STATUS: Record<TicketStatus, { label: string; color: string; icon: IconName | null }> = {
   unsolved: { label: 'Unsolved', color: '#f92424', icon: 'action-thumbs-down-line' },
   inProgress: { label: 'In Progress', color: '#f0be1b', icon: 'action-in-progress' },
@@ -38,28 +38,15 @@ const STATUS: Record<TicketStatus, { label: string; color: string; icon: IconNam
   ofo: { label: 'OFT', color: '#c6c5c5', icon: null },
 };
 
-function formatCreatedAt(iso?: string): string | undefined {
-  if (!iso) return undefined;
-  const dt = new Date(iso);
-  if (!Number.isFinite(dt.getTime())) return undefined;
-  const pad2 = (n: number) => String(n).padStart(2, '0');
-  return `${pad2(dt.getHours())}:${pad2(dt.getMinutes())}, ${pad2(dt.getDate())}/${pad2(dt.getMonth() + 1)}/${dt.getFullYear()}`;
-}
-
-/** "Dimotia Mavros" -> "Dimotia. M", as the frame labels a tagged person. */
-function shortName(name: string): string {
-  const parts = name.trim().split(/\s+/);
-  if (parts.length < 2) return parts[0] ?? '';
-  return `${parts[0]}. ${parts[parts.length - 1][0].toUpperCase()}`;
-}
-
 /**
- * One ticket — Figma 667:3068 (Tickets, card 4664:875) and 285:4037 (Room
- * Detail → Tickets, card 4664:877): one design.
+ * One ticket — Figma 667:3068 (Tickets, card 4799:646) and 285:4037 (Room
+ * Detail → Tickets): one design.
  *
- * The department disc and the title with priority and due line, the room as a
- * blue pill; the photos; who raised it → who is tagged; then the status as a
- * full-width pill. The card opens the ticket.
+ * The first photo as a 60 thumbnail (a "+n" disc on its corner for the rest),
+ * or the department disc when there is none; the title with priority and due
+ * line; the room as "Room / 401" on the right. Then the description, and the
+ * footer: who has it (or "Assign Ticket") beside the status pill. The card
+ * opens the ticket.
  */
 export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneePress }: TicketCardProps) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
@@ -68,18 +55,35 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
   const priority = PRIORITY[ticket.priority ?? 'medium'];
   const status = STATUS[ticket.status] ?? STATUS.unsolved;
   const dueLine = useMemo(() => (ticket.dueAt ? formatDueAtCalendarLabel(ticket.dueAt) : ''), [ticket.dueAt]);
-  const createdAt = useMemo(() => formatCreatedAt(ticket.createdAt), [ticket.createdAt]);
-  const images = (ticket.images ?? []).slice(0, 3);
+  const images = ticket.images ?? [];
+  const description = ticket.description?.trim();
+  const assignee = ticket.assignedTo?.name ? ticket.assignedTo : null;
 
   return (
     <TouchableOpacity style={styles.card} onPress={onPress} activeOpacity={0.8} accessibilityRole="button">
-      {/* Header — 4664:904 / 4664:930 */}
+      {/* Header — 4799:671 */}
       <View style={styles.header}>
-        <View style={styles.deptDisc}>
-          {departmentIcon ? (
-            <Icon name={departmentIcon} size={departmentGlyphHeight(departmentIcon) * 0.8 * scaleX} color="#f92424" />
-          ) : null}
-        </View>
+        {images.length > 0 ? (
+          <TouchableOpacity
+            onPress={() => setPreviewImage(images[0])}
+            activeOpacity={0.8}
+            accessibilityRole="imagebutton"
+            accessibilityLabel={images.length > 1 ? `Photos, ${images.length}` : 'Photo'}
+          >
+            <Image source={{ uri: images[0] }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
+            {images.length > 1 ? (
+              <View style={styles.more}>
+                <Text style={styles.moreText}>{`+${images.length - 1}`}</Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.thumb, styles.deptDisc]}>
+            {departmentIcon ? (
+              <Icon name={departmentIcon} size={departmentGlyphHeight(departmentIcon) * 0.8 * scaleX} color="#f92424" />
+            ) : null}
+          </View>
+        )}
         <View style={styles.headerText}>
           <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
             {ticket.title}
@@ -87,109 +91,89 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
           <View style={styles.metaRow}>
             <View style={styles.flags}>
               {Array.from({ length: priority.flags }, (_, i) => (
-                <Icon key={i} name="action-flag-priority" width={8.5 * scaleX} height={11 * scaleX} color={priority.color} />
+                <Icon key={i} name="action-flag-priority" width={6.4 * scaleX} height={9.2 * scaleX} color={priority.color} />
               ))}
             </View>
             <Text style={styles.meta} numberOfLines={1}>
-              {priority.label}
+              <Text style={{ color: priority.color }}>{priority.label}</Text>
               {dueLine ? `  |  ${dueLine}` : ''}
             </Text>
           </View>
         </View>
         {!!ticket.roomNumber && (
-          <View style={styles.roomPill}>
-            <Text style={styles.roomPillText} numberOfLines={1} adjustsFontSizeToFit>
+          <View style={styles.room}>
+            <Text style={styles.roomLabel}>Room</Text>
+            <Text style={styles.roomNumber} numberOfLines={1} adjustsFontSizeToFit>
               {ticket.roomNumber}
             </Text>
           </View>
         )}
       </View>
 
-      {/* Photos — 4664:895, 93 x 92 thumbs 12 apart */}
-      {images.length > 0 && (
-        <>
-          <View style={styles.rule} />
-          <View style={styles.photos}>
-            <Text style={styles.sectionLabel}>Photos</Text>
-            <View style={styles.thumbs}>
-              {images.map((uri, idx) => (
-                <TouchableOpacity key={`${uri}-${idx}`} activeOpacity={0.8} onPress={() => setPreviewImage(uri)}>
-                  <Image source={{ uri }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          </View>
-        </>
-      )}
-
       <View style={styles.rule} />
 
-      {/* Created by → Tagged — 4664:879 / 4664:897 */}
-      <View style={styles.people}>
-        <View style={styles.personCol}>
-          <Text style={styles.sectionLabel}>Created by</Text>
-          <View style={styles.person}>
-            <Avatar
-              uri={typeof ticket.createdBy.avatar === 'string' ? ticket.createdBy.avatar : undefined}
-              name={ticket.createdBy.name}
-              size={28 * scaleX}
-            />
-            <View style={styles.personText}>
-              <Text style={styles.personName} numberOfLines={1}>
-                {ticket.createdBy.name}
-              </Text>
-              <Text style={styles.personSub} numberOfLines={1}>
-                {createdAt ?? '—'}
-              </Text>
-            </View>
-          </View>
+      {/* Description — 4799:669 */}
+      {description ? (
+        <View style={styles.description}>
+          <Text style={styles.sectionLabel}>Description</Text>
+          <Text style={styles.descriptionText} numberOfLines={3}>
+            {description}
+          </Text>
         </View>
-        <View style={styles.arrow}>
-          <Icon name="guest-arrow" size={10 * scaleX} color="#1e1e1e" />
-        </View>
+      ) : null}
+
+      {/* Footer — who has it, then the status (4799:658 / 4799:200, 4799:648) */}
+      <View style={[styles.footer, !description && styles.footerTight]}>
         <TouchableOpacity
-          style={[styles.personCol, styles.taggedCol]}
+          style={styles.assignee}
           disabled={!onAssigneePress}
           onPress={onAssigneePress}
           activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Tagged staff"
+          accessibilityRole={onAssigneePress ? 'button' : undefined}
+          accessibilityLabel={assignee ? `Assigned to ${assignee.name}` : onAssigneePress ? 'Assign ticket' : 'Not assigned'}
         >
-          <Text style={styles.sectionLabel}>Tagged</Text>
-          <View style={styles.person}>
-            <Avatar
-              uri={typeof ticket.assignedTo?.avatar === 'string' ? ticket.assignedTo.avatar : undefined}
-              name={ticket.assignedTo?.name}
-              size={27 * scaleX}
-            />
-            <View style={styles.personText}>
-              <Text style={styles.personName} numberOfLines={1}>
-                {ticket.assignedTo?.name ? shortName(ticket.assignedTo.name) : 'No one yet'}
-              </Text>
-              <Text style={styles.personSub} numberOfLines={1}>
-                {ticket.assignedTo?.departmentName ?? '—'}
-              </Text>
-            </View>
-          </View>
+          {assignee ? (
+            <>
+              <Avatar uri={typeof assignee.avatar === 'string' ? assignee.avatar : undefined} name={assignee.name} size={30 * scaleX} />
+              <View style={styles.assigneeText}>
+                <Text style={styles.assigneeName} numberOfLines={1}>
+                  {assignee.name}
+                </Text>
+                {assignee.departmentName ? (
+                  <Text style={styles.assigneeSub} numberOfLines={1}>
+                    {assignee.departmentName}
+                  </Text>
+                ) : null}
+              </View>
+            </>
+          ) : onAssigneePress ? (
+            <>
+              <Icon name="action-assign-rooms" size={19.4 * scaleX} color="#5a759d" />
+              <Text style={styles.assignLabel}>Assign Ticket</Text>
+            </>
+          ) : (
+            <Text style={[styles.assignLabel, styles.unassigned]}>Unassigned</Text>
+          )}
         </TouchableOpacity>
-      </View>
 
-      {/* Status — 4664:883 */}
-      <View ref={statusRef} collapsable={false} style={[styles.statusPill, { backgroundColor: status.color }]}>
-        <TouchableOpacity
-          style={styles.statusPress}
-          disabled={!onStatusPress}
-          onPress={() =>
-            statusRef.current?.measureInWindow((x, y, width, height) => onStatusPress?.({ x, y, width, height }))
-          }
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel={`Status: ${status.label}. Change status`}
-        >
-          {status.icon ? <Icon name={status.icon} size={20.6 * scaleX} color="#ffffff" /> : null}
-          <Text style={styles.statusLabel}>{status.label}</Text>
-          <Icon name="action-chevron-down-wide" width={20 * scaleX} height={10 * scaleX} color="#ffffff" />
-        </TouchableOpacity>
+        <View ref={statusRef} collapsable={false} style={[styles.statusPill, { backgroundColor: status.color }]}>
+          <TouchableOpacity
+            style={styles.statusPress}
+            disabled={!onStatusPress}
+            onPress={() =>
+              statusRef.current?.measureInWindow((x, y, width, height) => onStatusPress?.({ x, y, width, height }))
+            }
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel={`Status: ${status.label}. Change status`}
+          >
+            {status.icon ? <Icon name={status.icon} size={19.6 * scaleX} color="#ffffff" /> : null}
+            <Text style={styles.statusLabel} numberOfLines={1} adjustsFontSizeToFit>
+              {status.label}
+            </Text>
+            <Icon name="action-chevron-down-wide" width={21 * scaleX} height={10 * scaleX} color="#ffffff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
@@ -206,36 +190,56 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
 const androidText = Platform.select({ android: { includeFontPadding: false } as const, default: {} as const });
 
 const styles = StyleSheet.create({
-  /* 4664:878 — #f9fafc, 1px #bbb, radius 9, 409 wide. */
+  /* 4799:647 — #f9fafc, 1px #b0c0c6, radius 9, 409 wide. */
   card: {
     backgroundColor: '#f9fafc',
     borderWidth: 1,
-    borderColor: '#bbbbbb',
+    borderColor: '#b0c0c6',
     borderRadius: 9 * scaleX,
-    paddingBottom: 21 * scaleX,
     overflow: 'hidden',
   },
+  /* The thumbnail 19 in and 13 down; 13 under it to the rule. */
   header: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingTop: 16 * scaleX,
-    paddingLeft: 17 * scaleX,
-    paddingRight: 21 * scaleX,
+    paddingTop: 13 * scaleX,
+    paddingLeft: 19 * scaleX,
+    paddingRight: 19 * scaleX,
     paddingBottom: 13 * scaleX,
   },
+  thumb: {
+    width: 60 * scaleX,
+    height: 59 * scaleX,
+    borderRadius: 5 * scaleX,
+  },
   deptDisc: {
-    width: 55.5 * scaleX,
-    height: 55.5 * scaleX,
-    borderRadius: 28 * scaleX,
     backgroundColor: '#ffebeb',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 1 * scaleX,
   },
+  /* 4799:692 — white 20 disc over the thumbnail's corner, 2 in from its right, 4 up from its bottom. */
+  more: {
+    position: 'absolute',
+    right: 2 * scaleX,
+    bottom: 4 * scaleX,
+    width: 20 * scaleX,
+    height: 20 * scaleX,
+    borderRadius: 10 * scaleX,
+    backgroundColor: '#ffffff',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moreText: {
+    fontSize: 7 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    color: '#000000',
+    ...androidText,
+  },
+  /* Title 8 right of the thumbnail and 10 down; the priority line 29 under it. */
   headerText: {
     flex: 1,
-    marginLeft: 8.5 * scaleX,
-    paddingTop: 6 * scaleX,
+    marginLeft: 8 * scaleX,
+    paddingTop: 10 * scaleX,
   },
   title: {
     fontSize: 20 * scaleX,
@@ -252,8 +256,8 @@ const styles = StyleSheet.create({
   },
   flags: {
     flexDirection: 'row',
-    gap: 2 * scaleX,
-    marginRight: 8 * scaleX,
+    gap: 4 * scaleX,
+    marginRight: 7 * scaleX,
   },
   meta: {
     flexShrink: 1,
@@ -263,32 +267,35 @@ const styles = StyleSheet.create({
     color: '#898585',
     ...androidText,
   },
-  /* 4664:931 — 71 x 49, #5a759d, "201" Helvetica Bold 26 white. */
-  roomPill: {
-    minWidth: 71 * scaleX,
-    height: 49 * scaleX,
-    borderRadius: 41 * scaleX,
-    paddingHorizontal: 12 * scaleX,
-    backgroundColor: '#5a759d',
-    justifyContent: 'center',
-    alignItems: 'center',
+  /* 4799:688 — "Room" Light 10 grey over the number, Bold 36 #5a759d. */
+  room: {
     marginLeft: 8 * scaleX,
+    paddingTop: 8 * scaleX,
+    alignItems: 'flex-start',
   },
-  roomPillText: {
-    fontSize: 26 * scaleX,
+  roomLabel: {
+    marginLeft: 2 * scaleX,
+    fontSize: 10 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#898585',
+    ...androidText,
+  },
+  roomNumber: {
+    fontSize: 36 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
-    color: '#ffffff',
+    color: '#5a759d',
+    lineHeight: 41 * scaleX,
     ...androidText,
   },
   rule: {
     height: 1,
     backgroundColor: '#e3e3e3',
   },
-  photos: {
-    paddingTop: 10 * scaleX,
-    paddingLeft: 23 * scaleX,
-    paddingBottom: 16 * scaleX,
+  description: {
+    paddingTop: 9 * scaleX,
+    paddingHorizontal: 19 * scaleX,
   },
   sectionLabel: {
     fontSize: 10 * scaleX,
@@ -297,78 +304,82 @@ const styles = StyleSheet.create({
     color: '#898585',
     ...androidText,
   },
-  thumbs: {
-    flexDirection: 'row',
-    gap: 12 * scaleX,
+  descriptionText: {
     marginTop: 10 * scaleX,
-    paddingLeft: 1 * scaleX,
+    maxWidth: 330 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+    ...androidText,
   },
-  thumb: {
-    width: 93 * scaleX,
-    height: 92 * scaleX,
-    borderRadius: 5 * scaleX,
-  },
-  people: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingTop: 13 * scaleX,
-    paddingHorizontal: 11 * scaleX,
-  },
-  personCol: {
-    flex: 1,
-  },
-  taggedCol: {
-    flex: 0,
-    maxWidth: 130 * scaleX,
-  },
-  person: {
+  /* 17 under the description (13 under the rule without one); 19 to the card's foot. */
+  footer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 12 * scaleX,
+    justifyContent: 'space-between',
+    paddingTop: 17 * scaleX,
+    paddingLeft: 24 * scaleX,
+    paddingRight: 38 * scaleX,
+    paddingBottom: 19 * scaleX,
   },
-  personText: {
-    flexShrink: 1,
-    marginLeft: 7 * scaleX,
+  footerTight: { paddingTop: 13 * scaleX },
+  /* 4799:661 — white, 143 x 52, fully round. */
+  assignee: {
+    width: 143.2 * scaleX,
+    height: 52.3 * scaleX,
+    borderRadius: 26.2 * scaleX,
+    backgroundColor: '#ffffff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 9 * scaleX,
+    paddingRight: 10 * scaleX,
   },
-  personName: {
+  assigneeText: { flexShrink: 1, marginLeft: 5 * scaleX },
+  assigneeName: {
     fontSize: 13 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#1e1e1e',
     ...androidText,
   },
-  personSub: {
+  assigneeSub: {
+    marginTop: 2 * scaleX,
     fontSize: 12 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
     color: '#000000',
     ...androidText,
   },
-  /* The arrow points right: guest-arrow points left and is mirrored (as on TicketCard). */
-  arrow: {
-    marginHorizontal: 12 * scaleX,
-    marginBottom: 12 * scaleX,
-    transform: [{ scaleX: -1 }],
+  assignLabel: {
+    marginLeft: 10 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#334866',
+    ...androidText,
   },
+  unassigned: { marginLeft: 0, flex: 1, textAlign: 'center', color: '#8a94a6' },
+  /* 4799:650 — 174.8 x 59.1, fully round; the chevron 18 from its right. */
   statusPill: {
-    height: 61 * scaleX,
-    borderRadius: 30.5 * scaleX,
-    marginTop: 28 * scaleX,
-    marginHorizontal: 21 * scaleX,
+    width: 174.8 * scaleX,
+    height: 59.1 * scaleX,
+    borderRadius: 29.55 * scaleX,
   },
   statusPress: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 11 * scaleX,
+    paddingLeft: 26 * scaleX,
+    paddingRight: 18 * scaleX,
+    gap: 14 * scaleX,
   },
   statusLabel: {
+    flex: 1,
     fontSize: 15 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#ffffff',
-    marginRight: 2 * scaleX,
     ...androidText,
   },
   previewOverlay: {

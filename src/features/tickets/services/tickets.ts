@@ -292,7 +292,7 @@ export async function getTicketCountsForDepartment(departmentName: string): Prom
 
 export async function getTicketsData(): Promise<TicketsScreenData> {
   if (!isSupabaseConfigured) {
-    return { selectedTab: 'myTickets', tickets: [] };
+    return { selectedTab: 'all', tickets: [] };
   }
 
   /*
@@ -318,7 +318,7 @@ export async function getTicketsData(): Promise<TicketsScreenData> {
   if (error || !data) {
     // On failure, surface an empty, non-crashing state
     console.warn('[tickets.getTicketsData] Failed to fetch tickets from Supabase:', error);
-    return { selectedTab: 'myTickets', tickets: [] };
+    return { selectedTab: 'all', tickets: [] };
   }
 
   const rows = data as unknown as TicketsRow[];
@@ -340,7 +340,7 @@ export async function getTicketsData(): Promise<TicketsScreenData> {
   );
 
   return {
-    selectedTab: 'myTickets',
+    selectedTab: 'all',
     tickets,
   };
 }

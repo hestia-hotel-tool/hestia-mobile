@@ -1384,6 +1384,7 @@ export default function RoomDetailScreen() {
             <InspectionSection
               roomId={room.id}
               roomNumber={room.roomNumber}
+              roomCode={`${room.roomCategory} - ${room.credit}`}
               department={assignment.key}
               canWork={assignment.canAssign || (!!assignedStaff?.id && assignedStaff.id === myUserId)}
               actsForAssignee={assignment.canAssign && assignedStaff?.id !== myUserId}

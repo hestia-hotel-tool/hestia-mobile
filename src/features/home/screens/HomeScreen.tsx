@@ -1153,7 +1153,7 @@ export default function HomeScreen() {
                     outOfOrder={ticketCounts.outOfOrder}
                     onPressPriority={() => {
                       navigation.navigate('(tickets)/index' as any, {
-                        initialTab: 'myTickets',
+                        initialTab: 'all',
                         assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'priority',
@@ -1161,7 +1161,7 @@ export default function HomeScreen() {
                     }}
                     onPressUnsolved={() => {
                       navigation.navigate('(tickets)/index' as any, {
-                        initialTab: 'myTickets',
+                        initialTab: 'all',
                         assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'unsolved',
@@ -1169,7 +1169,7 @@ export default function HomeScreen() {
                     }}
                     onPressSolved={() => {
                       navigation.navigate('(tickets)/index' as any, {
-                        initialTab: 'myTickets',
+                        initialTab: 'all',
                         assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'done',
@@ -1177,7 +1177,7 @@ export default function HomeScreen() {
                     }}
                     onPressOutOfOrder={() => {
                       navigation.navigate('(tickets)/index' as any, {
-                        initialTab: 'myTickets',
+                        initialTab: 'all',
                         assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'ofo',

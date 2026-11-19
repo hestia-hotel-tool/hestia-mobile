@@ -55,6 +55,9 @@ const META: Record<string, TaskMeta> = {
   // Figma 4378:174: a ticket is red.
   ticket_assigned: { label: 'Ticket assigned', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
   ticket_tag: { label: 'Tagged on a ticket', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
+  // Figma 4783:2223: a submitted checklist is the green thumbs-up; a ticket made from it is red.
+  checklist_submitted: { label: 'Checklist submitted', icon: 'action-thumbs-up-solid', iconSize: 20, target: 'room', colour: '#41d541' },
+  ticket_created: { label: 'Ticket created', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
 };
 
 /** Whether a type has its own entry above (rather than the generic "Task"). */
@@ -86,6 +89,12 @@ export function taskHeadline(type: string, title: string, body: string): string 
     const verb = said === 'cleaned' ? 'Cleaned' : said === 'inspected' ? 'Inspected' : said;
     return `${firstName(actor[1])} ${verb} ${room ?? ''}`.trim();
   }
+  // Figma 4783:2223 keeps the whole name: "Martin Loose submitted Checklist Room 201",
+  // "Martin Loose Created a ticket Room 201".
+  const checklist = body.match(/^(.+?)\s+submitted the checklist for Room/i);
+  if (type === 'checklist_submitted' && checklist) return `${checklist[1]} submitted Checklist Room ${room ?? ''}`.trim();
+  const created = body.match(/^(.+?)\s+created a ticket for Room/i);
+  if (type === 'ticket_created' && created) return `${created[1]} Created a ticket Room ${room ?? ''}`.trim();
   switch (type) {
     case 'room_flagged':
       return room ? `Room ${room} Flagged` : title;

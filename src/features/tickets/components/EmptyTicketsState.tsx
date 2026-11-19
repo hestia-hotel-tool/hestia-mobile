@@ -10,10 +10,6 @@ interface EmptyTicketsStateProps {
 }
 
 const MESSAGES = {
-  myTickets: {
-    title: 'No Tickets Assigned',
-    subtitle: 'You don\'t have any tickets assigned to you yet.',
-  },
   all: {
     title: 'No Tickets Available',
     subtitle: 'There are no tickets in the system yet.',
