@@ -42,6 +42,7 @@ import TimePickerModal from './TimePickerModal';
 import { AllStaffModal } from './StaffSelectorModal';
 import { StaffPickerCard } from './register/StaffPickerCard';
 import { RegisterStatusList } from './register/RegisterStatusList';
+import { EmailGuestSheet, type EmailGuestChoice } from './register/EmailGuestSheet';
 import { LocationDropdown, LOCATION_ROOM } from '@/components/ui/LocationDropdown';
 import { StaffAvatar } from './StaffAvatar';
 import { RegisterConfirmStep } from './RegisterConfirmStep';
@@ -238,6 +239,8 @@ export default function RegisterLostAndFoundModal({
    * Filled from the guest's `primary_email` when the box is ticked; editable.
    */
   const [guestEmail, setGuestEmail] = useState('');
+  /** Figma 4649:3178 — the "Send Email to Guest?" sheet over Confirm. */
+  const [showEmailSheet, setShowEmailSheet] = useState(false);
 
   // Validation state
   const [showPictureError, setShowPictureError] = useState(false);
@@ -259,6 +262,7 @@ export default function RegisterLostAndFoundModal({
     setCurrentStep(0);
     setSendEmailToGuest(false);
     setGuestEmail('');
+    setShowEmailSheet(false);
     setPictures([]);
     setShowPictureError(false);
     setShowTitleError(false);
@@ -575,6 +579,9 @@ export default function RegisterLostAndFoundModal({
     []
   );
 
+  /** The guest the item may belong to — only an item found in an occupied room has one. */
+  const emailableGuest = selectedLocation === 'room' ? selectedRoom?.primaryGuest : undefined;
+
   const handleNext = () => {
     if (currentStep === 0) {
       /*
@@ -616,36 +623,48 @@ export default function RegisterLostAndFoundModal({
     } else if (currentStep === 2) {
       setCurrentStep(3);
     } else if (currentStep === 3) {
-      // Submit; tracking number is assigned by DB (trigger)
-      if (onNext) {
-        submittedRef.current = true;
-        pendingDraftRef.current = null;
-        onNext({
-          draftId: draftIdRef.current || undefined,
-          itemImage: pictures.length > 0 ? pictures[0] : undefined,
-          itemData: {
-            title,
-            notes,
-            selectedLocation,
-            selectedRoom: selectedLocation === 'room' ? selectedRoom : undefined,
-            selectedPublicArea: selectedLocation === 'publicArea' ? selectedPublicArea : undefined,
-            // Line staff are always both, whatever the form state says.
-            foundedBy: peopleLocked ? currentUserId ?? foundedBy : foundedBy,
-            registeredBy: peopleLocked ? currentUserId ?? registeredBy : registeredBy,
-            storedBy: peopleLocked ? currentUserId ?? storedBy : storedBy,
-            status,
-            storedLocation,
-            sendEmailToGuest,
-            guestEmail: guestEmail.trim() || undefined,
-            selectedDate,
-            selectedHour,
-            selectedMinute,
-            pictures,
-          },
-        });
+      // Figma 4649:3178 — a guest to tell exists only for an item found in a room.
+      if (emailableGuest) {
+        setShowEmailSheet(true);
+        return;
       }
-      // Parent handles closing + success flow (avoids iOS modal race).
+      submitItem({ send: false, email: '' });
     }
+  };
+
+  /** Saves the item; tracking number is assigned by DB (trigger). */
+  const submitItem = (choice: EmailGuestChoice) => {
+    setShowEmailSheet(false);
+    setSendEmailToGuest(choice.send);
+    setGuestEmail(choice.email);
+    if (onNext) {
+      submittedRef.current = true;
+      pendingDraftRef.current = null;
+      onNext({
+        draftId: draftIdRef.current || undefined,
+        itemImage: pictures.length > 0 ? pictures[0] : undefined,
+        itemData: {
+          title,
+          notes,
+          selectedLocation,
+          selectedRoom: selectedLocation === 'room' ? selectedRoom : undefined,
+          selectedPublicArea: selectedLocation === 'publicArea' ? selectedPublicArea : undefined,
+          // Line staff are always both, whatever the form state says.
+          foundedBy: peopleLocked ? currentUserId ?? foundedBy : foundedBy,
+          registeredBy: peopleLocked ? currentUserId ?? registeredBy : registeredBy,
+          storedBy: peopleLocked ? currentUserId ?? storedBy : storedBy,
+          status,
+          storedLocation,
+          sendEmailToGuest: choice.send,
+          guestEmail: choice.send ? choice.email || undefined : undefined,
+          selectedDate,
+          selectedHour,
+          selectedMinute,
+          pictures,
+        },
+      });
+    }
+    // Parent handles closing + success flow (avoids iOS modal race).
   };
 
   /** The signed-in user can be shown before the staff list has arrived. */
@@ -1075,6 +1094,16 @@ export default function RegisterLostAndFoundModal({
           )}
           </ScrollView>
         </KeyboardAvoidingView>
+
+        {/* Figma 4649:3178 — over Confirm, under the screen's header. */}
+        {currentStep === 3 && showEmailSheet ? (
+        <EmailGuestSheet
+          initialEmail={guestEmail || emailableGuest?.email || ''}
+          initialSend={guestEmail ? sendEmailToGuest : !!emailableGuest?.email}
+          onSubmit={submitItem}
+          onDismiss={() => setShowEmailSheet(false)}
+        />
+        ) : null}
 
         {/* Date Picker Modal */}
         <DatePickerModal
