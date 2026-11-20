@@ -27,6 +27,8 @@ export interface LostAndFoundDraft {
   notes: string;
   foundedBy: string;
   registeredBy: string;
+  /** Who stored it (Stored only); missing on drafts saved before step 2's redesign. */
+  storedBy?: string;
   status: string;
   storedLocation: string;
   pictures: string[];

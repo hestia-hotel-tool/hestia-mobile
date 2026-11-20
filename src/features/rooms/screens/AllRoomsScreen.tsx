@@ -306,8 +306,13 @@ export default function AllRoomsScreen() {
    * makes the popover fall back to blurring from below the screen header.
    */
 
-  /** Banded by housekeeping status with In Progress pinned — Figma 3838:1117 / 3838:1623. */
-  const isGroupedRooms = chrome.banded;
+  /**
+   * Banded by housekeeping status with In Progress pinned — Figma 3838:1117 / 3838:1623.
+   * Not for engineering: its rooms carry their own round, so housekeeping's
+   * Dirty / In Progress / … sections mean nothing there (user, 2026-11-19) —
+   * one flat list.
+   */
+  const isGroupedRooms = chrome.banded && assignment.key !== 'engineering';
   const isAttendant = chrome.assignedOnly;
 
   const prioritizeMyAssignedRooms =

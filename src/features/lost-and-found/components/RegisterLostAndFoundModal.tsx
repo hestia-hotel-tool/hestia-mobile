@@ -26,18 +26,26 @@ import { typography } from '@/theme';
 import { REGISTER_FORM, scaleX } from '../constants/lostAndFoundStyles';
 import { fetchStaffFromSupabase } from '@features/staff/services/staff';
 import { useAuth } from '@features/auth/hooks/useAuth';
-import { RoomNumberSelector } from '@features/rooms/components/roomPicker';
+import { RoomSearchField } from '@features/rooms/components/roomPicker';
+import { RoomListCard } from '@features/rooms/components/roomsList';
+import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
+import type { RoomCardData } from '@features/rooms/types/allRooms.types';
+import CreateTicketButton from '@features/tickets/components/CreateTicketButton';
 import { AddPhotosField } from '@/components/media/AddPhotosField';
-import { LostAndFoundStatusDisc } from './LostAndFoundStatusDisc';
+import { AddPhotoMark } from '@/components/media/AddPhotoMark';
+import { GradientText } from '@/components/ui/GradientText';
 import { useRoomPickerRooms } from '@features/rooms/hooks/useRoomPickerRooms';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
 import { fetchPublicAreas } from '../services/lostAndFound';
 import DatePickerModal from './DatePickerModal';
 import TimePickerModal from './TimePickerModal';
-import StaffSelectorModal from './StaffSelectorModal';
+import { AllStaffModal } from './StaffSelectorModal';
+import { StaffPickerCard } from './register/StaffPickerCard';
+import { RegisterStatusList } from './register/RegisterStatusList';
+import { LocationDropdown, LOCATION_ROOM } from '@/components/ui/LocationDropdown';
 import { StaffAvatar } from './StaffAvatar';
 import { RegisterConfirmStep } from './RegisterConfirmStep';
-import StatusDropdown, { StatusOption } from './StatusDropdown';
+import StatusDropdown, { type StatusOption } from './StatusDropdown';
 import StoredLocationDropdown, { StoredLocationOption } from './StoredLocationDropdown';
 import type { StaffMember } from '@features/staff/types/staff.types';
 import { PERMISSIONS, usePermissions } from '@/domain/rbac';
@@ -45,8 +53,8 @@ import { fetchTicketAccess } from '@features/tickets/services/ticketAccess';
 import { useStorageLocations } from '../hooks/useStorageLocations';
 import { storedLocationLabel } from '../utils/storedLocations';
 
-/** Figma 733:257 — the staff picker card (331) plus its 7px gap below the field. */
-const STAFF_PICKER_HEIGHT = (331 + 7) * scaleX;
+/** The three people step 2 names (Figma 4649:2427). */
+type PersonField = 'found' | 'registered' | 'stored';
 
 interface RegisterLostAndFoundModalProps {
   visible: boolean;
@@ -67,6 +75,8 @@ interface RegisterLostAndFoundModalProps {
       selectedPublicArea?: string | null;
       foundedBy: string;
       registeredBy: string;
+      /** Who stored it — Stored only (migration 20261119120000). */
+      storedBy: string;
       status: StatusOption;
       storedLocation: StoredLocationOption;
       /** Step 3's "Send Email to Guest for reclamation?". Not persisted yet. */
@@ -104,7 +114,8 @@ export default function RegisterLostAndFoundModal({
     const now = new Date();
     return now.getMinutes();
   });
-  const [currentStep, setCurrentStep] = useState<number>(1);
+  /** 0 = where it was found (Figma 733:7), 1–2 = the form (4649:2379 / 4649:2427), 3 = confirm (4649:3262). */
+  const [currentStep, setCurrentStep] = useState<number>(0);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [title, setTitle] = useState('');
@@ -179,12 +190,13 @@ export default function RegisterLostAndFoundModal({
   const [selectedRoom, setSelectedRoom] = useState<RoomPickerRoom | null>(null);
   
   // Step 2 state
-  const [showFoundedByModal, setShowFoundedByModal] = useState(false);
-  const [showRegisteredByModal, setShowRegisteredByModal] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showStoredLocationDropdown, setShowStoredLocationDropdown] = useState(false);
   const [foundedBy, setFoundedBy] = useState<string>(''); 
   const [registeredBy, setRegisteredBy] = useState<string>('');
+  const [storedBy, setStoredBy] = useState<string>('');
+  /** Which person's inline picker is open (Figma 4649:2427), and which one "see all" is choosing for. */
+  const [openPicker, setOpenPicker] = useState<PersonField | null>(null);
+  const [seeAllFor, setSeeAllFor] = useState<PersonField | null>(null);
   const [status, setStatus] = useState<StatusOption>('stored');
   const [storedLocation, setStoredLocation] = useState<StoredLocationOption>('hskOffice');
   // The hotel's locations (migration 20261026300000).
@@ -227,18 +239,6 @@ export default function RegisterLostAndFoundModal({
    */
   const [guestEmail, setGuestEmail] = useState('');
 
-  /*
-   * Ticking "Send Email to Guest" loads the guest's address into the field.
-   * Only into a blank field: an address the user typed or corrected is kept
-   * if they untick and tick again.
-   */
-  const handleToggleSendEmail = () => {
-    const next = !sendEmailToGuest;
-    setSendEmailToGuest(next);
-    const email = selectedRoom?.primaryGuest?.email;
-    if (next && email && !guestEmail.trim()) setGuestEmail(email);
-  };
-  
   // Validation state
   const [showPictureError, setShowPictureError] = useState(false);
   const [showTitleError, setShowTitleError] = useState(false);
@@ -256,7 +256,7 @@ export default function RegisterLostAndFoundModal({
     if (!visible) return;
     draftIdRef.current = draft?.id ?? newLostAndFoundDraftId();
     submittedRef.current = false;
-    setCurrentStep(1);
+    setCurrentStep(0);
     setSendEmailToGuest(false);
     setGuestEmail('');
     setPictures([]);
@@ -274,9 +274,12 @@ export default function RegisterLostAndFoundModal({
     setNotes('');
     setFoundedBy(currentUserId ?? '');
     setRegisteredBy(currentUserId ?? '');
+    setStoredBy(currentUserId ?? '');
+    setOpenPicker(null);
+    setSeeAllFor(null);
     // A draft picks up where it was left (Lost & Found → Drafts).
     if (draft) {
-      setCurrentStep(Math.min(Math.max(draft.step || 1, 1), 3));
+      setCurrentStep(Math.min(Math.max(draft.step ?? 0, 0), 3));
       setSelectedLocation(draft.selectedLocation);
       setSelectedRoom(draft.selectedRoom);
       setSelectedPublicArea(draft.selectedPublicArea);
@@ -290,6 +293,7 @@ export default function RegisterLostAndFoundModal({
       setNotes(draft.notes);
       if (draft.foundedBy) setFoundedBy(draft.foundedBy);
       if (draft.registeredBy) setRegisteredBy(draft.registeredBy);
+      if (draft.storedBy) setStoredBy(draft.storedBy);
       setStatus(draft.status as StatusOption);
       setStoredLocation(draft.storedLocation as StoredLocationOption);
       setPictures(draft.pictures);
@@ -388,15 +392,12 @@ export default function RegisterLostAndFoundModal({
   const scrollViewRef = useRef<ScrollView>(null);
   /** Live scroll offset, so a dropdown's scroll correction is relative to it. */
   const scrollOffsetRef = useRef(0);
-  const foundedByFieldRef = useRef<View>(null);
-  const registeredByFieldRef = useRef<View>(null);
-  const statusFieldRef = useRef<View>(null);
   const storedLocationFieldRef = useRef<View>(null);
+  const statusPillRef = useRef<View>(null);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [statusPillPosition, setStatusPillPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   
   // Input field positions for dropdown positioning
-  const [foundedByFieldPosition, setFoundedByFieldPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [registeredByFieldPosition, setRegisteredByFieldPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
-  const [statusFieldPosition, setStatusFieldPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   const [storedLocationFieldPosition, setStoredLocationFieldPosition] = useState<{ x: number; y: number; width: number; height: number } | null>(null);
   
   // Helper function to measure field position and scroll if needed
@@ -527,6 +528,7 @@ export default function RegisterLostAndFoundModal({
         notes,
         foundedBy,
         registeredBy,
+        storedBy,
         status,
         storedLocation,
         pictures,
@@ -550,6 +552,7 @@ export default function RegisterLostAndFoundModal({
     notes,
     foundedBy,
     registeredBy,
+    storedBy,
     status,
     storedLocation,
     pictures,
@@ -573,19 +576,7 @@ export default function RegisterLostAndFoundModal({
   );
 
   const handleNext = () => {
-    if (currentStep === 1) {
-      const isTitleValid = title.trim().length > 0;
-      if (!isTitleValid) {
-        setShowTitleError(true);
-        toast.show('Title is required', { type: 'error', title: 'Missing title' });
-        return;
-      }
-      setShowTitleError(false);
-      if (!hasPhotoOrDescription) {
-        setShowPictureError(true);
-        toast.show('Add a photo or a description of the item', { type: 'error', title: 'Missing details' });
-        return;
-      }
+    if (currentStep === 0) {
       /*
        * Where the item was found is the one fact a Lost & Found record cannot
        * be useful without — it is how the guest who lost it is traced. Step 1
@@ -605,6 +596,20 @@ export default function RegisterLostAndFoundModal({
           type: 'error',
           title: 'Missing location',
         });
+        return;
+      }
+      setCurrentStep(1);
+    } else if (currentStep === 1) {
+      const isTitleValid = title.trim().length > 0;
+      if (!isTitleValid) {
+        setShowTitleError(true);
+        toast.show('Title is required', { type: 'error', title: 'Missing title' });
+        return;
+      }
+      setShowTitleError(false);
+      if (!hasPhotoOrDescription) {
+        setShowPictureError(true);
+        toast.show('Add a photo or a description of the item', { type: 'error', title: 'Missing details' });
         return;
       }
       setCurrentStep(2);
@@ -627,6 +632,7 @@ export default function RegisterLostAndFoundModal({
             // Line staff are always both, whatever the form state says.
             foundedBy: peopleLocked ? currentUserId ?? foundedBy : foundedBy,
             registeredBy: peopleLocked ? currentUserId ?? registeredBy : registeredBy,
+            storedBy: peopleLocked ? currentUserId ?? storedBy : storedBy,
             status,
             storedLocation,
             sendEmailToGuest,
@@ -669,6 +675,91 @@ export default function RegisterLostAndFoundModal({
   // The hotel's own name for a location (Account → Lost & Found storage).
   const getLocationLabel = (location: StoredLocationOption): string => storedLocationLabel(location);
 
+  /* Step 2's location dropdown: "Room" or one of the hotel's public areas. */
+  const locationOptions = useMemo(() => [LOCATION_ROOM, ...publicAreas], [publicAreas]);
+  const locationValue = selectedLocation === 'room' ? LOCATION_ROOM : selectedPublicArea ?? LOCATION_ROOM;
+  const locationChosen = selectedLocation === 'room' ? !!selectedRoom : !!selectedPublicArea;
+  /*
+   * Results are the Rooms list's own card (733:7), which needs the list's card
+   * data. Loaded once if nobody has yet; never refetched over a list the Rooms
+   * tab already holds — the same as Create Ticket → Select Location.
+   */
+  const roomsData = useRoomsStore((st) => st.data);
+  const fetchRoomCards = useRoomsStore((st) => st.fetchRooms);
+  useEffect(() => {
+    if (visible && !useRoomsStore.getState().data) void fetchRoomCards();
+  }, [visible, fetchRoomCards]);
+  const cardsById = useMemo(() => {
+    const map = new Map<string, RoomCardData>();
+    const list = roomsData?.selectedShift === 'PM' ? roomsData.roomsPM ?? roomsData.rooms : roomsData?.rooms ?? [];
+    for (const r of list) map.set(r.id, r);
+    return map;
+  }, [roomsData]);
+  const renderRoomResult = (room: RoomPickerRoom, choose: () => void) => {
+    const card = cardsById.get(room.id);
+    return card ? <RoomListCard room={card} onPress={choose} /> : null;
+  };
+  const chooseLocation = (value: string) => {
+    if (value === LOCATION_ROOM) {
+      setSelectedLocation('room');
+      setSelectedPublicArea(null);
+    } else {
+      setSelectedLocation('publicArea');
+      setSelectedPublicArea(value);
+      setSelectedRoom(null);
+    }
+  };
+
+  const personFor: Record<PersonField, { id: string; set: (id: string) => void; title: string }> = {
+    found: { id: foundedBy, set: setFoundedBy, title: 'Found by' },
+    registered: { id: registeredBy, set: setRegisteredBy, title: 'Registered by' },
+    stored: { id: storedBy, set: setStoredBy, title: 'Stored by' },
+  };
+  const togglePicker = (field: PersonField) => setOpenPicker((open) => (open === field ? null : field));
+  const pickPerson = (field: PersonField, id: string) => {
+    personFor[field].set(id);
+    setOpenPicker(null);
+    setSeeAllFor(null);
+  };
+  const meInPicker = pickerStaff.find((m) => m.id === currentUserId);
+  const renderPicker = (field: PersonField) =>
+    openPicker === field && !peopleLocked ? (
+      <StaffPickerCard
+        staff={pickerStaff}
+        selectedId={personFor[field].id}
+        onPick={(id) => pickPerson(field, id)}
+        onSeeAll={() => setSeeAllFor(field)}
+        style={field === 'stored' ? styles.pickerCardStored : styles.pickerCard}
+      />
+    ) : null;
+  /** A person row in the grey panel — 4649:2560: avatar 36, name, "me" under it, Edit. */
+  const renderPersonRow = (field: PersonField, rowStyle: object) => {
+    const id = personFor[field].id;
+    return (
+      <View style={[styles.personRow, rowStyle]}>
+        <StaffAvatar name={getStaffName(id)} avatar={getStaffAvatar(id)} size={36 * scaleX} />
+        <View style={styles.personText}>
+          <Text style={styles.personName} numberOfLines={1}>
+            {getStaffName(id)}
+          </Text>
+          {isMe(id) ? <Text style={styles.personMe}>me</Text> : null}
+        </View>
+        {peopleLocked ? null : (
+          <TouchableOpacity
+            onPress={() => togglePicker(field)}
+            hitSlop={10}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${personFor[field].title}`}
+            accessibilityState={{ expanded: openPicker === field }}
+          >
+            <Text style={styles.personEdit}>Edit</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
+
   return (
     <Modal
       transparent={false}
@@ -709,26 +800,122 @@ export default function RegisterLostAndFoundModal({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Title */}
-            <Text style={styles.title}>
-              {currentStep === 3 ? 'Confirm Registration' : 'Register'}
-            </Text>
+            {/*
+              4649:2381 / 4649:2382 — "Register" and the "1/2" counter, Bold 16;
+              4649:2383 — one 3-tall track, filled 237 of 397 on step 1. The
+              location moved to step 2 (user, 2026-11-19), so the form is two
+              steps plus the confirm page.
+            */}
+            {currentStep === 0 ? null : currentStep === 3 ? (
+              /* 4649:3318 — a 9 x 18 chevron at x=25 back to step 2, "Confirm and submit" Bold 16 at x=49. */
+              <TouchableOpacity
+                style={styles.confirmHeading}
+                onPress={() => setCurrentStep(2)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel="Back to step 2"
+              >
+                <Icon name="action-chevron" size={18 * scaleX} color="#000000" />
+                <Text style={[styles.title, styles.confirmHeadingText]}>Confirm and submit</Text>
+              </TouchableOpacity>
+            ) : (
+              <>
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>Register</Text>
+                  <Text style={styles.title}>{`${currentStep}/2`}</Text>
+                </View>
+                <View style={styles.progressTrack}>
+                  <View style={[styles.progressFill, currentStep === 1 && styles.progressFillHalf]} />
+                </View>
+              </>
+            )}
 
-          {/* Step Indicator */}
-          <Text style={styles.stepIndicator}>Step {currentStep}</Text>
-
-          {/* Progress Bar */}
-            <View style={styles.progressBarContainer}>
-            <View style={[styles.progressBar, currentStep >= 1 ? styles.progressBarActive : styles.progressBarInactive]} />
-            <View style={[styles.progressBar, currentStep >= 2 ? styles.progressBarActive : styles.progressBarInactive]} />
-            <View style={[styles.progressBar, currentStep >= 3 ? styles.progressBarActive : styles.progressBarInactive]} />
-            </View>
-
-          {/* Step 1 Content */}
-          {currentStep === 1 && (
+          {/*
+            Step 0 — Figma 733:7, the page Register opens on: the "Register
+            Item" AI pill, "Where did you find the Item?" as Create Ticket's
+            location dropdown, then the room search on the #f9fafc panel with
+            results drawn as the Rooms list's cards.
+          */}
+          {currentStep === 0 && (
             <>
-              {/* Title Field (Figma: "Wrist Watch") */}
-              <Text style={styles.sectionLabel}>Title</Text>
+              <View style={styles.aiPill}>
+                <CreateTicketButton label="Register Item" scaleX={scaleX} />
+              </View>
+              <Text style={styles.whereLabel}>Where did you find the Item?</Text>
+              <LocationDropdown
+                value={locationValue}
+                options={locationOptions}
+                onChange={chooseLocation}
+                style={styles.whereDropdown}
+              />
+              {/* 4649:2092 — the panel, rounded on top, running to the bottom. */}
+              <View style={styles.wherePanel}>
+                {selectedLocation === 'room' ? (
+                  <RoomSearchField
+                    rooms={rooms}
+                    loading={roomsLoading}
+                    value={selectedRoom}
+                    onChange={(room) => {
+                      // A new room is a new guest: drop the previous guest's address.
+                      if (room?.id !== selectedRoom?.id) {
+                        setSendEmailToGuest(false);
+                        setGuestEmail('');
+                      }
+                      setSelectedRoom(room);
+                    }}
+                    scaleX={scaleX}
+                    renderResult={renderRoomResult}
+                  />
+                ) : null}
+                <TouchableOpacity
+                  style={[styles.nextButton, styles.nextButtonStep0, !locationChosen && styles.nextButtonDisabled]}
+                  onPress={handleNext}
+                  disabled={!locationChosen}
+                  activeOpacity={0.7}
+                  accessibilityRole="button"
+                >
+                  <Text style={[styles.nextButtonText, !locationChosen && styles.nextButtonTextDisabled]}>Next</Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          )}
+
+          {/* Step 1 — Figma 4649:2379: date and time, the item's name, photos and notes. */}
+          {currentStep === 1 && (
+            <View style={styles.step1}>
+              <Text style={[styles.step1Label, styles.step1LabelDate]}>Date and time</Text>
+              {/* 4649:2380 — a #a3a0a0 9% bar, 402 x 52; date and time at 39%, "Edit" in blue. */}
+              <View style={styles.dateTimeBar}>
+                <TouchableOpacity
+                  style={styles.dateSlot}
+                  activeOpacity={0.7}
+                  onPress={() => setShowDatePicker(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Date: ${formatDate(selectedDate)}`}
+                >
+                  <Text style={styles.dateTimeText}>{formatDate(selectedDate)}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.timeSlot}
+                  activeOpacity={0.7}
+                  onPress={() => setShowTimePicker(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Time: ${formatTime(selectedHour, selectedMinute)}`}
+                >
+                  <Text style={styles.dateTimeText}>{formatTime(selectedHour, selectedMinute)}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setShowDatePicker(true)}
+                  activeOpacity={0.7}
+                  hitSlop={10}
+                  accessibilityRole="button"
+                  accessibilityLabel="Edit date and time"
+                >
+                  <Text style={styles.dateTimeEdit}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+
+              <Text style={[styles.step1Label, styles.step1LabelName]}>Name item</Text>
               <View style={[styles.titleInputContainer, showTitleError && styles.titleInputError]}>
                 <TextInput
                   style={styles.titleInput}
@@ -740,335 +927,130 @@ export default function RegisterLostAndFoundModal({
                     if (showTitleError && v.trim().length > 0) setShowTitleError(false);
                   }}
                   returnKeyType="done"
+                  accessibilityLabel="Name item"
                 />
               </View>
 
-              {/* Date and Time Section */}
-              <Text style={styles.sectionLabel}>Date and time</Text>
-              <View style={styles.dateTimeContainer}>
-                <TouchableOpacity
-                  style={styles.dateInput}
-                  activeOpacity={0.7}
-                  onPress={() => setShowDatePicker(true)}
-                >
-                  <Text style={styles.dateTimeText}>{formatDate(selectedDate)}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.timeInput}
-                  activeOpacity={0.7}
-                  onPress={() => setShowTimePicker(true)}
-                >
-                  <Text style={styles.dateTimeText}>{formatTime(selectedHour, selectedMinute)}</Text>
-                </TouchableOpacity>
-              </View>
-            </>
-          )}
-
-          {/* Step 1 Content - Location Section */}
-          {currentStep === 1 && (
-            <>
-              {/* Location Section */}
-              <Text style={[styles.sectionLabel, styles.locationLabel]}>Location</Text>
-              <View style={styles.locationContainer}>
-            <TouchableOpacity
-              style={styles.locationOption}
-              onPress={() => setSelectedLocation('room')}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  selectedLocation === 'room' && styles.checkboxSelected,
-                ]}
-              >
-                {selectedLocation === 'room' && (
-                  <Icon name="action-check-bold" size={14 * scaleX} color="#5a759d" />
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.locationText,
-                  selectedLocation === 'room' && styles.locationTextSelected,
-                ]}
-              >
-                Room
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.locationOption}
-              onPress={() => setSelectedLocation('publicArea')}
-              activeOpacity={0.7}
-            >
-              <View
-                style={[
-                  styles.checkbox,
-                  selectedLocation === 'publicArea' && styles.checkboxSelected,
-                ]}
-              >
-                {selectedLocation === 'publicArea' && (
-                  <Icon name="action-check-bold" size={14 * scaleX} color="#5a759d" />
-                )}
-              </View>
-              <Text
-                style={[
-                  styles.locationText,
-                  selectedLocation === 'publicArea' && styles.locationTextSelected,
-                ]}
-              >
-                Public Area
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Room Number Section */}
-          {selectedLocation === 'room' && currentStep === 1 && (
-            <>
-              <Text style={styles.sectionLabelLight}>Room Number</Text>
-              <RoomNumberSelector
-                rooms={rooms}
-                loading={roomsLoading}
-                value={selectedRoom}
-                onChange={(room) => {
-                  // A new room is a new guest: drop the previous guest's address.
-                  if (room?.id !== selectedRoom?.id) {
-                    setSendEmailToGuest(false);
-                    setGuestEmail('');
-                  }
-                  setSelectedRoom(room);
-                }}
-                scaleX={scaleX}
-                style={styles.roomSelectorWrapper}
-              />
-            </>
-          )}
-
-          {/* Public Area Selection */}
-          {selectedLocation === 'publicArea' && currentStep === 1 && (
-            <>
-              <Text style={styles.sectionLabelLight}>Select Public Area</Text>
-              <View style={styles.publicAreasContainer}>
-                {publicAreas.length === 0 ? (
-                  <View style={styles.publicAreaItem}>
-                    <Text style={styles.publicAreaText}>
-                      No public areas configured for this hotel.
-                    </Text>
-                  </View>
-                ) : null}
-                {publicAreas.map((area) => (
+              <Text style={[styles.step1Label, styles.step1LabelPhotos]}>Photos and Notes</Text>
+              {/*
+                4649:2399 — one 406 x 400 card (#f9fafc, #5a759d 23% outline,
+                radius 12) holding the photos and, under the rule at 304, the
+                description. The same card as Create Ticket's (4649:476).
+              */}
+              <View style={[styles.photosCard, showPictureError && styles.photosCardError]}>
+                {pictures.length === 0 ? (
                   <TouchableOpacity
-                    key={area}
-                    style={styles.publicAreaItem}
-                    onPress={() => setSelectedPublicArea(area)}
+                    style={styles.addPhotoEmpty}
+                    onPress={handleAddPicture}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add photo"
                   >
-                    <View style={styles.publicAreaContent}>
-                      <Icon name="location-pin" size={16 * scaleX} color="#999" style={styles.publicAreaIcon} />
-                      <Text style={styles.publicAreaText}>{area}</Text>
+                    <AddPhotoMark />
+                    <View style={styles.addPhotoTitle}>
+                      <GradientText text="Add Photo" textStyle={styles.addPhotoTitleText} direction="vertical" />
                     </View>
-                    {selectedPublicArea === area ? (
-                      <Text style={styles.publicAreaCheckmark}>✓</Text>
-                    ) : null}
+                    <Text style={styles.addPhotoSubtitle}>Add photos of the item and our AI will do the rest</Text>
                   </TouchableOpacity>
-                ))}
-              </View>
-            </>
-          )}
-            </>
-          )}
-
-          {/* Pictures Section */}
-          {currentStep === 1 && (
-            <>
-              <Text style={[styles.sectionLabel, styles.picturesLabel]}>Pictures</Text>
-              {/* The Create Ticket photo field, shared (AddPhotosField). */}
-              <View style={styles.picturesContainer}>
-                <AddPhotosField
-                  photos={pictures}
-                  onAdd={handleAddPicture}
-                  onRemove={handleRemovePicture}
-                  error={showPictureError}
-                />
-              </View>
-            </>
-          )}
-
-          {/* Step 1 Content - End */}
-          {currentStep === 1 && (
-            <>
-              {/* Notes Section */}
-              <View style={styles.notesContainer}>
-                <View style={styles.notesLabelContainer}>
-                  {/* Node 1102:3222 — a 32px #ebe7e7 disc holding a 16.4px pencil. */}
-                  <View style={styles.notesIcon}>
-                    <Icon name="action-add-note" size={16.4 * scaleX} color="#5A759D" />
+                ) : (
+                  <View style={styles.photosGrid}>
+                    <AddPhotosField photos={pictures} onAdd={handleAddPicture} onRemove={handleRemovePicture} />
                   </View>
-                  {/* A photo or a description is enough (client change): notes are optional once there is a photo. */}
-                  <Text style={styles.notesLabel}>
-                    Notes <Text style={styles.notesOptional}>{pictures.length > 0 ? '(optional)' : '(or add a photo)'}</Text>
-                  </Text>
-                </View>
+                )}
+
+                {/* A photo or a description is enough (client change): optional once there is a photo. */}
+                <Text style={styles.descriptionLabel}>
+                  {pictures.length > 0 ? 'Description (optional)' : 'Description (or add a photo)'}
+                </Text>
+                <View style={styles.descriptionRule} />
                 <TextInput
-                  style={styles.notesInput}
+                  style={styles.descriptionInput}
                   value={notes}
-                  onChangeText={setNotes}
+                  onChangeText={(v) => {
+                    setNotes(v);
+                    if (showPictureError && v.trim().length > 0) setShowPictureError(false);
+                  }}
                   multiline
+                  textAlignVertical="top"
                   inputAccessoryViewID={KEYBOARD_DONE_BAR_ID}
-                  placeholder="Wrist watch found in guest bathroom whole cleaning"
-                  placeholderTextColor="#999999"
+                  placeholder="Wrist watch found in the guest bathroom while cleaning."
+                  placeholderTextColor="rgba(90, 117, 157, 0.5)"
+                  accessibilityLabel="Description"
                 />
                 <KeyboardDoneBar />
-                <View style={styles.notesDivider} />
               </View>
-            </>
+            </View>
           )}
 
-          {/* Step 2 Content */}
+          {/*
+            Step 2 — Figma 4649:2427: Found by and Registered by in one grey
+            panel (each with an inline picker under its Edit), then Status.
+          */}
           {currentStep === 2 && (
-            <>
-              {/* Found By Section */}
-              <Text style={styles.step2LeadLabel}>Found by</Text>
-              <TouchableOpacity
-                ref={foundedByFieldRef}
-                style={styles.step2Field}
-                activeOpacity={0.7}
-                disabled={peopleLocked}
-                accessibilityState={{ disabled: peopleLocked }}
-                onPress={() => {
-                  measureFieldPosition(foundedByFieldRef, setFoundedByFieldPosition, () => {
-                    setShowFoundedByModal(true);
-                  }, STAFF_PICKER_HEIGHT);
-                }}
-              >
-                <View style={styles.step2FieldContent}>
-                  <View style={styles.staffAvatarSlot}>
-                    <StaffAvatar
-                      name={getStaffName(foundedBy)}
-                      avatar={getStaffAvatar(foundedBy)}
-                      size={REGISTER_FORM.step2.foundedBy.avatar.size * scaleX}
-                    />
-                  </View>
-                  <Text style={styles.step2FieldText}>{getStaffName(foundedBy)}</Text>
-                </View>
-                {peopleLocked ? null : (
-                  <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="rgba(90, 117, 157, 0.59)" style={styles.step2SearchIcon} />
-                )}
-              </TouchableOpacity>
+            <View style={styles.step2}>
+              <Text style={[styles.step1Label, styles.step1LabelDate]}>Found by:</Text>
+              {/* 4649:2428 — x=21, 402 wide, #a3a0a0 9%, radius 8. */}
+              <View style={styles.peoplePanel}>
+                {renderPersonRow('found', styles.personRowFound)}
+                {renderPicker('found')}
+                <Text style={[styles.step1Label, styles.registeredLabel]}>Registered by</Text>
+                {renderPersonRow('registered', styles.personRowRegistered)}
+                {renderPicker('registered')}
+              </View>
 
-              {/* Registered By Section */}
-              <Text style={[styles.step2Label, styles.step2RegisteredByLabel]}>Registered by</Text>
-              <TouchableOpacity
-                ref={registeredByFieldRef}
-                style={styles.step2Field}
-                activeOpacity={0.7}
-                disabled={peopleLocked}
-                accessibilityState={{ disabled: peopleLocked }}
-                onPress={() => {
-                  measureFieldPosition(registeredByFieldRef, setRegisteredByFieldPosition, () => {
-                    setShowRegisteredByModal(true);
-                  }, STAFF_PICKER_HEIGHT);
-                }}
-              >
-                <View style={styles.step2FieldContent}>
-                  <View style={styles.staffAvatarSlot}>
-                    <StaffAvatar
-                      name={getStaffName(registeredBy)}
-                      avatar={getStaffAvatar(registeredBy)}
-                      size={REGISTER_FORM.step2.foundedBy.avatar.size * scaleX}
-                    />
-                  </View>
-                  <Text style={styles.step2FieldText}>{getStaffName(registeredBy)}</Text>
-                </View>
-                {peopleLocked ? null : (
-                  <Icon name="action-search" size={REGISTER_FORM.step2.foundedBy.searchIcon.height * scaleX} color="rgba(90, 117, 157, 0.59)" style={styles.step2SearchIcon} />
-                )}
-              </TouchableOpacity>
-
-              {/* Status Section */}
-              <Text style={styles.step2Label}>Status</Text>
-              <TouchableOpacity
-                ref={statusFieldRef}
-                style={[styles.step2Field, styles.step2StatusField]}
-                activeOpacity={0.7}
-                onPress={() => {
-                  measureFieldPosition(statusFieldRef, setStatusFieldPosition, () => {
-                    setShowStatusDropdown(true);
-                  });
-                }}
-              >
-                <View style={styles.step2FieldContent}>
-                  <View style={styles.step2StatusCircle}>
-                    <LostAndFoundStatusDisc
-                      status={status === 'shipped' || status === 'discarded' ? status : 'stored'}
-                      size={REGISTER_FORM.step2.status.icon.size * scaleX}
-                    />
-                  </View>
-                  <Text style={styles.step2FieldText}>{getStatusLabel(status)}</Text>
-                </View>
-                <View style={styles.step2Chevron}>
-                  <View style={{ transform: [{ rotate: '-90deg' }] }}>
-                    <Icon name="action-chevron" size={REGISTER_FORM.step2.status.chevron.width * scaleX} color="#5a759d" />
-                  </View>
-                </View>
-              </TouchableOpacity>
-
-              {/* Stored Location Section */}
-              <Text style={styles.step2Label}>Stored Location</Text>
-              <TouchableOpacity
-                ref={storedLocationFieldRef}
-                style={[styles.step2Field, styles.step2StoredLocationField]}
-                activeOpacity={0.7}
-                onPress={() => {
+              <Text style={[styles.step1Label, styles.statusLabel]}>Status</Text>
+              <RegisterStatusList
+                status={status}
+                onChange={setStatus}
+                storedHint={storageOptions.length > 0 ? storageOptions.map((o) => o.label).join(', ') : undefined}
+                storedLocationLabel={getLocationLabel(storedLocation)}
+                storedLocationRef={storedLocationFieldRef}
+                onPressStoredLocation={() => {
                   measureFieldPosition(storedLocationFieldRef, setStoredLocationFieldPosition, () => {
                     setShowStoredLocationDropdown(true);
                   });
                 }}
-              >
-                <Text style={styles.step2FieldText}>{getLocationLabel(storedLocation)}</Text>
-                <View style={styles.step2Chevron}>
-                  <View style={{ transform: [{ rotate: '-90deg' }] }}>
-                    <Icon name="action-chevron" size={REGISTER_FORM.step2.status.chevron.width * scaleX} color="#5a759d" />
-                  </View>
-                </View>
-              </TouchableOpacity>
-            </>
+                storedBy={{
+                  name: getStaffName(storedBy),
+                  avatar: getStaffAvatar(storedBy),
+                  department: getStaffDepartment(storedBy),
+                }}
+                storedByLocked={peopleLocked}
+                onPressStoredBy={() => togglePicker('stored')}
+                storedByPicker={renderPicker('stored')}
+              />
+            </View>
           )}
 
-          {/* Step 3 — Confirm Registration (Figma 733:448) */}
+          {/* Step 3 — Confirm and submit (Figma 4649:3262) */}
           {currentStep === 3 && (
             <RegisterConfirmStep
+              title={title.trim()}
+              foundDate={formatDate(selectedDate)}
+              foundTime={formatTime(selectedHour, selectedMinute)}
+              photo={pictures[0]}
               location={selectedLocation}
               room={selectedRoom}
               publicArea={selectedPublicArea}
-              sendEmail={sendEmailToGuest}
-              onToggleSendEmail={handleToggleSendEmail}
-              guestEmail={guestEmail}
-              onGuestEmailChange={setGuestEmail}
-              foundedBy={{
-                name: getStaffName(foundedBy),
-                avatar: getStaffAvatar(foundedBy),
-                department: getStaffDepartment(foundedBy),
-              }}
-              peopleLocked={peopleLocked}
-              registeredBy={{
-                name: getStaffName(registeredBy),
-                avatar: getStaffAvatar(registeredBy),
-                department: getStaffDepartment(registeredBy),
-              }}
+              foundedBy={{ name: getStaffName(foundedBy), avatar: getStaffAvatar(foundedBy) }}
+              registeredBy={{ name: getStaffName(registeredBy), avatar: getStaffAvatar(registeredBy) }}
+              storedBy={{ name: getStaffName(storedBy), avatar: getStaffAvatar(storedBy) }}
               statusLabel={getStatusLabel(status)}
               statusKey={status === 'shipped' || status === 'discarded' ? status : 'stored'}
               storedLocationLabel={getLocationLabel(storedLocation)}
-              pictures={pictures}
-              onEditLocation={() => setCurrentStep(1)}
-              onEditDetails={() => setCurrentStep(2)}
-              onAddPhoto={handleAddPicture}
+              statusRef={statusPillRef}
+              onPressStatus={() => {
+                measureFieldPosition(statusPillRef, setStatusPillPosition, () => setShowStatusDropdown(true));
+              }}
             />
           )}
 
-          {/* Next/Done Button */}
+          {/* Next/Submit — step 0 draws its own on the panel. */}
+          {currentStep === 0 ? null : (
           <TouchableOpacity
             style={[
               styles.nextButton,
+              currentStep === 1 && styles.nextButtonStep1,
               currentStep === 2 && styles.nextButtonStep2,
               currentStep === 3 && styles.nextButtonStep3,
               (currentStep === 1 &&
@@ -1087,9 +1069,10 @@ export default function RegisterLostAndFoundModal({
                   styles.nextButtonTextDisabled,
               ]}
             >
-              {currentStep === 3 ? 'Done' : 'Next'}
+              {currentStep === 3 ? 'Submit' : 'Next'}
             </Text>
           </TouchableOpacity>
+          )}
           </ScrollView>
         </KeyboardAvoidingView>
 
@@ -1110,35 +1093,23 @@ export default function RegisterLostAndFoundModal({
           initialMinute={selectedMinute}
         />
 
-        {/* Step 2 Modals */}
-        <StaffSelectorModal
-          visible={showFoundedByModal}
-          onClose={() => setShowFoundedByModal(false)}
-          onSelect={setFoundedBy}
-          selectedStaffId={foundedBy}
-          title="Found by"
-          staff={pickerStaff}
-          showMeOption={true}
-          currentUserId={currentUserId ?? undefined}
-          inputFieldPosition={foundedByFieldPosition}
+        {/* Step 2 — "see all" from an inline picker: everyone, full screen, with search. */}
+        <AllStaffModal
+          visible={seeAllFor !== null}
+          title={seeAllFor ? personFor[seeAllFor].title : ''}
+          me={meInPicker}
+          others={pickerStaff.filter((m) => m.id !== currentUserId)}
+          selectedStaffId={seeAllFor ? personFor[seeAllFor].id : undefined}
+          onPick={(id) => seeAllFor && pickPerson(seeAllFor, id)}
+          onBack={() => setSeeAllFor(null)}
         />
-        <StaffSelectorModal
-          visible={showRegisteredByModal}
-          onClose={() => setShowRegisteredByModal(false)}
-          onSelect={setRegisteredBy}
-          selectedStaffId={registeredBy}
-          title="Registered by"
-          staff={pickerStaff}
-          showMeOption={true}
-          currentUserId={currentUserId ?? undefined}
-          inputFieldPosition={registeredByFieldPosition}
-        />
+        {/* Step 3 — the status pill's choice. */}
         <StatusDropdown
           visible={showStatusDropdown}
           onClose={() => setShowStatusDropdown(false)}
           onSelect={setStatus}
           selectedStatus={status}
-          inputFieldPosition={statusFieldPosition}
+          inputFieldPosition={statusPillPosition}
         />
         <StoredLocationDropdown
           visible={showStoredLocationDropdown}
@@ -1198,260 +1169,310 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: (REGISTER_FORM.title.top - REGISTER_FORM.header.height) * scaleX,
+    // 4649:2381 — "Register" at y=153, 20 under the header.
+    paddingTop: 20 * scaleX,
     paddingHorizontal: 27 * scaleX,
     // Extra space so Notes can scroll above keyboard (iOS + Android)
     paddingBottom: 240 * scaleX,
   },
-  title: {
-    fontSize: REGISTER_FORM.title.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.title.fontWeight as any,
-    color: REGISTER_FORM.title.color,
-    // The container has 27px horizontal padding; Figma title starts at x=31.
-    marginLeft: (REGISTER_FORM.title.left - 27) * scaleX,
-    marginBottom: 9 * scaleX,
-  },
-  stepIndicator: {
-    fontSize: REGISTER_FORM.stepIndicator.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.stepIndicator.fontWeight as any,
-    color: REGISTER_FORM.stepIndicator.color,
-    // The container has 27px horizontal padding; Figma step label starts at x=32.
-    marginLeft: (REGISTER_FORM.stepIndicator.left - 27) * scaleX,
-    marginBottom: 19 * scaleX,
-  },
-  progressBarContainer: {
+  /* "Register" at x=25, "1/2" ending at x=422 — the content box is 27..413. */
+  /* Chevron at x=25, text at x=49, 8 lower than step 1's title (y=161). */
+  confirmHeading: {
     flexDirection: 'row',
-    height: REGISTER_FORM.progressBar.height * scaleX,
-    // 733:7: bars end at y=222, "Title" starts at y=241.
-    marginBottom: 19 * scaleX,
+    alignItems: 'center',
+    marginTop: 8 * scaleX,
+    marginLeft: -2 * scaleX,
   },
-  progressBar: {
-    height: REGISTER_FORM.progressBar.height * scaleX,
-    // Nodes 1102:3193-3195 are plain rectangles — no corner radius.
+  confirmHeadingText: {
+    marginLeft: 15 * scaleX,
   },
-  progressBarActive: {
-    width: REGISTER_FORM.progressBar.bars[0].width * scaleX,
-    backgroundColor: REGISTER_FORM.progressBar.activeColor,
-    marginRight: 9 * scaleX,
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginLeft: -2 * scaleX,
+    marginRight: -9 * scaleX,
   },
-  progressBarInactive: {
-    width: REGISTER_FORM.progressBar.bars[1].width * scaleX,
-    backgroundColor: REGISTER_FORM.progressBar.inactiveColor,
-    marginRight: 9 * scaleX,
-  },
-  sectionLabel: {
-    fontSize: REGISTER_FORM.dateTime.label.fontSize * scaleX,
+  title: {
+    fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.dateTime.label.fontWeight as any,
-    color: REGISTER_FORM.dateTime.label.color,
-    marginBottom: 16 * scaleX, // Relative spacing from label to input
+    fontWeight: '700',
+    color: '#000000',
   },
-  titleInputContainer: {
+  /* 4649:2383 — x=26, 397 wide, 3 tall, 19 under the title; square ends. */
+  progressTrack: {
+    width: 397 * scaleX,
+    height: 3 * scaleX,
+    marginLeft: -1 * scaleX,
+    marginTop: 19 * scaleX,
+    // The track ends at y=193; "Date and time" starts at y=216.
+    marginBottom: 23 * scaleX,
+    backgroundColor: REGISTER_FORM.progressBar.inactiveColor,
+  },
+  progressFill: {
     width: '100%',
+    height: '100%',
+    backgroundColor: REGISTER_FORM.progressBar.activeColor,
+  },
+  progressFillHalf: {
+    width: 237 * scaleX,
+  },
+  /* Step 1 runs x=17..423 (406), 10 wider each side than the padded content. */
+  step1: {
+    marginHorizontal: -10 * scaleX,
+  },
+  /* 4649:2417 / 2391 / 2392 — Helvetica Bold 18, black. */
+  step1Label: {
+    fontSize: 18 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  /* x=25; the bar starts 13 under it (y=248). */
+  step1LabelDate: {
+    marginLeft: 8 * scaleX,
+    marginBottom: 13 * scaleX,
+  },
+  /* x=23 at y=331; the box starts at y=368. */
+  step1LabelName: {
+    marginLeft: 6 * scaleX,
+    marginBottom: 18 * scaleX,
+  },
+  /* x=22 at y=475; the card starts at y=514. */
+  step1LabelPhotos: {
+    marginLeft: 5 * scaleX,
+    marginBottom: 20 * scaleX,
+  },
+  /* 4649:2390 — 406 x 68, #afa9ad, radius 8; text at x=38. Ends at y=436. */
+  titleInputContainer: {
     height: 68 * scaleX,
     borderRadius: 8 * scaleX,
     borderWidth: 1,
     borderColor: '#afa9ad',
     backgroundColor: '#ffffff',
     justifyContent: 'center',
-    // Node 2970:392 — text at x=39 in a box at x=28.
-    paddingHorizontal: 11 * scaleX,
-    // Box ends at y=339, "Date and time" starts at y=353.
-    marginBottom: 14 * scaleX,
+    paddingHorizontal: 20 * scaleX,
+    marginBottom: 39 * scaleX,
   },
   titleInputError: {
     borderColor: '#ff0000',
     borderWidth: 2,
   },
+  /* 4649:2393 — Inter Regular 16, black. */
   titleInput: {
-    // Node 2970:392 — Helvetica Bold 18, black.
-    fontSize: 18 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700' as any,
+    padding: 0,
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.secondary,
+    fontWeight: '400',
     color: '#000000',
   },
-  dateTimeContainer: {
+  /* 4649:2380 — x=21, 402 x 52, ends at y=300; "Name item" at y=331. */
+  dateTimeBar: {
+    height: 52 * scaleX,
+    marginLeft: 4 * scaleX,
+    marginBottom: 31 * scaleX,
+    borderRadius: 8 * scaleX,
+    backgroundColor: 'rgba(163, 160, 160, 0.09)',
     flexDirection: 'row',
-    // Boxes end at y=461, "Location" starts at y=476.
-    marginBottom: 15 * scaleX,
-  },
-  dateInput: {
-    width: REGISTER_FORM.dateTime.dateInput.width * scaleX,
-    height: REGISTER_FORM.dateTime.dateInput.height * scaleX,
-    borderRadius: REGISTER_FORM.dateTime.dateInput.borderRadius * scaleX,
-    borderWidth: REGISTER_FORM.dateTime.dateInput.borderWidth,
-    borderColor: REGISTER_FORM.dateTime.dateInput.borderColor,
-    justifyContent: 'center',
-    paddingLeft: 15 * scaleX,
-    marginRight: 14 * scaleX,
-  },
-  timeInput: {
-    width: REGISTER_FORM.dateTime.timeInput.width * scaleX,
-    height: REGISTER_FORM.dateTime.timeInput.height * scaleX,
-    borderRadius: REGISTER_FORM.dateTime.timeInput.borderRadius * scaleX,
-    borderWidth: REGISTER_FORM.dateTime.timeInput.borderWidth,
-    borderColor: REGISTER_FORM.dateTime.timeInput.borderColor,
-    justifyContent: 'center',
-    // Node 733:176 — "15:00" is centred in the 99-wide box (x=267 in 237..336).
     alignItems: 'center',
+  },
+  /* Date at x=35, time at x=214, "Edit" ending at x=399 (24 from the bar's end). */
+  dateSlot: {
+    width: 193 * scaleX,
+    height: '100%',
+    justifyContent: 'center',
+    paddingLeft: 14 * scaleX,
+  },
+  timeSlot: {
+    flex: 1,
+    height: '100%',
+    justifyContent: 'center',
   },
   dateTimeText: {
-    fontSize: REGISTER_FORM.dateTime.dateText.fontSize * scaleX,
+    fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.dateTime.dateText.fontWeight as any,
-    color: REGISTER_FORM.dateTime.dateText.color,
+    color: '#1e1e1e',
+    opacity: 0.39,
   },
-  locationLabel: {
-    marginTop: 0,
-    // "Location" ends at y=495, checkboxes start at y=519.
-    marginBottom: 24 * scaleX,
-  },
-  locationContainer: {
-    flexDirection: 'row',
-    // Checkboxes end at y=547, "Room Number" starts at y=584.
-    marginBottom: 37 * scaleX,
-  },
-  locationOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    // "Room" ends at x=109, the Public Area checkbox starts at x=130.
-    marginRight: 21 * scaleX,
-  },
-  checkbox: {
-    // Nodes 1102:3214 / 1102:3216 — 28x28 squares, 2px #5a759d outline.
-    width: REGISTER_FORM.location.roomOption.checkboxSize * scaleX,
-    height: REGISTER_FORM.location.roomOption.checkboxSize * scaleX,
-    borderWidth: REGISTER_FORM.location.roomOption.checkboxBorderWidth,
-    borderColor: REGISTER_FORM.location.roomOption.checkboxBorderColor,
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Checkbox ends at x=56, its label starts at x=66.
-    marginRight: 10 * scaleX,
-  },
-  checkboxSelected: {
-    // Checked is the same outline with a #5a759d tick (1102:3215) — not filled.
-  },
-  locationText: {
-    fontSize: REGISTER_FORM.location.roomOption.fontSize * scaleX,
+  dateTimeEdit: {
+    fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.location.roomOption.fontWeight as any,
     color: '#5a759d',
+    marginRight: 24 * scaleX,
   },
-  locationTextSelected: {
-    color: REGISTER_FORM.location.roomOption.checkboxBorderColor,
-  },
-  sectionLabelLight: {
-    fontSize: REGISTER_FORM.roomNumber.label.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.roomNumber.label.fontWeight as any,
-    color: REGISTER_FORM.roomNumber.label.color,
-    marginTop: 0, // Already accounted in locationContainer marginBottom
-    marginBottom: 12 * scaleX, // Relative spacing from label to selector
-  },
-  /*
-   * Spacing only: `RoomNumberSelector` owns its own stacking, because the
-   * dropdown that needs it lives inside the control.
-   */
-  roomSelectorWrapper: {
-    // Card ends at y=712, "Pictures" starts at y=738.
-    marginBottom: 26 * scaleX,
-  },
-
-  publicAreasContainer: {
-    backgroundColor: '#f9f9f9',
+  /* 4649:2400 — #f9fafc, #5a759d 23% outline, radius 12, 400 tall. */
+  photosCard: {
+    minHeight: 400 * scaleX,
     borderRadius: 12 * scaleX,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
-    width: '100%',
-    maxWidth: REGISTER_FORM.roomNumber.selector.width * scaleX,
-    marginBottom: 24 * scaleX,
+    borderColor: 'rgba(90, 117, 157, 0.23)',
+    backgroundColor: '#f9fafc',
+    // Card ends at y=914, Next starts at y=937.
+    marginBottom: 23 * scaleX,
   },
-  publicAreaItem: {
-    flexDirection: 'row',
+  photosCardError: {
+    borderColor: '#f92424',
+  },
+  /* 4649:2404: the frame 75 down, the title 14 under it, the hint 7 under that. */
+  addPhotoEmpty: {
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18 * scaleX,
-    paddingHorizontal: 20 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingTop: 75 * scaleX,
+    paddingBottom: 72 * scaleX,
   },
-  publicAreaContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  addPhotoTitle: {
+    marginTop: 14 * scaleX,
   },
-  publicAreaIcon: {
-    marginRight: 16 * scaleX,
+  addPhotoTitleText: {
+    fontSize: 19 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
   },
-  publicAreaText: {
+  addPhotoSubtitle: {
+    marginTop: 7 * scaleX,
+    width: 160 * scaleX,
+    fontSize: 13 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+    textAlign: 'center',
+  },
+  photosGrid: {
+    padding: 16 * scaleX,
+    paddingBottom: 24 * scaleX,
+  },
+  /* 4649:2403 — Bold 14 at x=42 (25 in), 12 above the rule. */
+  descriptionLabel: {
+    // 24 + the 1px outline = x 42.
+    paddingLeft: 24 * scaleX,
+    marginBottom: 12 * scaleX,
+    fontSize: 14 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  /* 4649:2401 — inset ~3 each side, #5a759d 9%. */
+  descriptionRule: {
+    height: 1,
+    marginHorizontal: 3 * scaleX,
+    backgroundColor: 'rgba(90, 117, 157, 0.09)',
+  },
+  /* 4649:2402 — Light 14 at x=51 (34 in), 24 under the rule, 274 wide. */
+  descriptionInput: {
+    minHeight: 60 * scaleX,
+    maxWidth: 308 * scaleX,
+    marginTop: 24 * scaleX,
+    marginBottom: 11 * scaleX,
+    marginLeft: 33 * scaleX,
+    padding: 0,
     fontSize: 14 * scaleX,
     fontFamily: typography.fontFamily.primary,
     fontWeight: '300',
-    color: '#000',
+    color: '#000000',
+    lineHeight: 16 * scaleX,
   },
-  publicAreaCheckmark: {
-    fontSize: 18 * scaleX,
-    color: '#5a759d',
-    fontWeight: 'bold',
+
+  /* 733:7 — the pill at x=27, 26 under the header (the content pads 20). */
+  aiPill: {
+    alignItems: 'flex-start',
+    marginTop: 6 * scaleX,
   },
-  picturesLabel: {
-    marginTop: 0, // Already accounted in roomSelector marginBottom
-    marginBottom: 16 * scaleX, // Relative spacing from label to images
+  /* 4649:2099 — Inter Medium 16 at x=31, 31 under the pill's box. */
+  whereLabel: {
+    marginTop: 31 * scaleX,
+    marginLeft: 4 * scaleX,
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.secondary,
+    fontWeight: '500',
+    color: '#000000',
   },
-  picturesContainer: {
-    position: 'relative',
-    // Pictures end at y=932, the Notes row starts at y=969.
-    marginBottom: 37 * scaleX,
+  /* 4731:151 — x=27, 22 under the question; the panel starts 34 below. */
+  whereDropdown: {
+    marginTop: 22 * scaleX,
+    marginBottom: 34 * scaleX,
   },
-  notesContainer: {
-    marginTop: 0,
-    // Divider at y=1090, Next starts at y=1122.
-    marginBottom: 32 * scaleX,
+  /* 4649:2092 — #f9fafc, rounded top, the frame's full width; search 16 in. */
+  wherePanel: {
+    marginHorizontal: -27 * scaleX,
+    paddingHorizontal: 27 * scaleX,
+    paddingTop: 16 * scaleX,
+    // Runs to the bottom: cancels the scroll content's bottom padding.
+    paddingBottom: 280 * scaleX,
+    marginBottom: -240 * scaleX,
+    minHeight: 600 * scaleX,
+    borderTopLeftRadius: 24 * scaleX,
+    borderTopRightRadius: 24 * scaleX,
+    backgroundColor: '#f9fafc',
   },
-  notesLabelContainer: {
+  /* Step 2 runs x=17..423, like step 1. */
+  step2: {
+    marginHorizontal: -10 * scaleX,
+  },
+  /* 4649:2428 — x=21, 402 wide, #a3a0a0 9%, radius 8; 13 under "Found by:". */
+  peoplePanel: {
+    width: 402 * scaleX,
+    marginLeft: 4 * scaleX,
+    paddingTop: 15 * scaleX,
+    paddingBottom: 18 * scaleX,
+    borderRadius: 8 * scaleX,
+    backgroundColor: 'rgba(163, 160, 160, 0.09)',
+  },
+  personRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    // Row ends at y=1001, the note text starts at y=1051.
-    marginBottom: 50 * scaleX,
   },
-  notesIcon: {
-    width: 32 * scaleX,
-    height: 32 * scaleX,
-    borderRadius: 16 * scaleX,
-    backgroundColor: '#ebe7e7',
-    alignItems: 'center',
-    justifyContent: 'center',
-    // Disc ends at x=60, "Notes" starts at x=68.
-    marginRight: 8 * scaleX,
+  /* 4649:2560 — the avatar at x=35, "Edit" ending ~30 from the panel's edge. */
+  personRowFound: {
+    paddingLeft: 14 * scaleX,
+    paddingRight: 30 * scaleX,
   },
-  notesOptional: {
-    fontWeight: '400',
-    color: '#999999',
+  /* 4649:2616 — the avatar at x=31, 19 under its label; "Edit" ~34 from the edge. */
+  personRowRegistered: {
+    marginTop: 19 * scaleX,
+    paddingLeft: 10 * scaleX,
+    paddingRight: 34 * scaleX,
   },
-  notesLabel: {
-    fontSize: REGISTER_FORM.notes.label.fontSize * scaleX,
+  /* Name 7 after the avatar. */
+  personText: {
+    flex: 1,
+    marginLeft: 7 * scaleX,
+  },
+  /* 4649:2561 — Regular 16, #1e1e1e. */
+  personName: {
+    fontSize: 16 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.notes.label.fontWeight as any,
-    color: REGISTER_FORM.notes.label.color,
+    color: '#1e1e1e',
   },
-  notesInput: {
-    width: '100%',
-    maxWidth: REGISTER_FORM.notes.text.width * scaleX,
-    fontSize: REGISTER_FORM.notes.text.fontSize * scaleX,
+  /* 4649:2563 — Bold 11, #5a759d. */
+  personMe: {
+    marginLeft: 1 * scaleX,
+    fontSize: 11 * scaleX,
     fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.notes.text.fontWeight as any,
-    color: REGISTER_FORM.notes.text.color,
-    textAlignVertical: 'top',
-    // Text ends at y=1067, the divider sits at y=1090.
-    marginBottom: 23 * scaleX,
+    fontWeight: '700',
+    color: '#5a759d',
   },
-  notesDivider: {
-    width: REGISTER_FORM.notes.divider.width * scaleX,
-    height: 1,
-    // Node 1102:3231 strokes #e3e3e3.
-    backgroundColor: '#e3e3e3',
+  personEdit: {
+    fontSize: 16 * scaleX,
+    fontFamily: typography.fontFamily.primary,
+    color: '#5a759d',
+  },
+  /* 4649:2565 — the picker hangs 2 under the row (tab tip), x=20. */
+  pickerCard: {
+    marginTop: (2 + 7.2) * scaleX,
+    marginLeft: -1 * scaleX,
+  },
+  /* Under the Stored box, its tab on the Stored by chevron. */
+  pickerCardStored: {
+    marginTop: (2 + 7.2) * scaleX,
+  },
+  /* 4649:2615 — x=33, 21 under the row or picker above it. */
+  registeredLabel: {
+    marginTop: 21 * scaleX,
+    marginLeft: 12 * scaleX,
+  },
+  /* 4649:2624 — x=22, 23 under the panel; the first pill 25 under it. */
+  statusLabel: {
+    marginTop: 23 * scaleX,
+    marginLeft: 5 * scaleX,
+    marginBottom: 25 * scaleX,
   },
   nextButton: {
     width: REGISTER_FORM.nextButton.width * scaleX,
@@ -1465,16 +1486,28 @@ const styles = StyleSheet.create({
     marginLeft: (REGISTER_FORM.nextButton.left - 27) * scaleX,
     marginTop: 0,
   },
+  /** 4649:2420 — step 1's Next: x=19, 404 wide. */
+  nextButtonStep0: {
+    marginTop: 24 * scaleX,
+    marginLeft: 0,
+    width: 387 * scaleX,
+  },
+  nextButtonStep1: {
+    width: 404 * scaleX,
+    marginLeft: -8 * scaleX,
+  },
   /** Step 2: the last field ends at y=1036, Next starts at y=1119. */
   nextButtonStep2: {
-    marginTop: 83 * scaleX,
-    // Node 733:445 — x=45 on steps 2 and 3 (step 1's sits at x=36).
-    marginLeft: 18 * scaleX,
+    marginTop: 32 * scaleX,
+    // The frame stops above Next; step 1's 404-wide button at x=19.
+    width: 404 * scaleX,
+    marginLeft: -8 * scaleX,
   },
   /** Node 733:582 — photos end at y=1174, Done starts at y=1223, x=45. */
   nextButtonStep3: {
-    marginTop: 49 * scaleX,
-    marginLeft: 18 * scaleX,
+    marginTop: 31 * scaleX,
+    width: 404 * scaleX,
+    marginLeft: -9 * scaleX,
   },
   nextButtonDisabled: {
     backgroundColor: '#d3d3d3', // Gray background when disabled
@@ -1489,95 +1522,5 @@ const styles = StyleSheet.create({
   nextButtonTextDisabled: {
     color: '#999999', // Gray text when disabled
   },
-  // Step 2 Styles
-  step2Field: {
-    width: '100%',
-    maxWidth: REGISTER_FORM.step2.foundedBy.field.width * scaleX,
-    height: REGISTER_FORM.step2.foundedBy.field.height * scaleX,
-    borderRadius: REGISTER_FORM.step2.foundedBy.field.borderRadius * scaleX,
-    borderWidth: REGISTER_FORM.step2.foundedBy.field.borderWidth,
-    borderColor: REGISTER_FORM.step2.foundedBy.field.borderColor,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    // Figma 733:192: avatar at x=42 in a box at x=27; the search glyph ends 27
-    // short of the box's right edge.
-    paddingLeft: 15 * scaleX,
-    paddingRight: 27 * scaleX,
-    // A field ends at y=805, the next label starts at y=823.
-    marginBottom: 18 * scaleX,
-  },
-  /** Nodes 733:408 / 733:409 — the disc sits 16 in; the chevron ends 30 short. */
-  step2StatusField: {
-    paddingLeft: 16 * scaleX,
-    paddingRight: 30 * scaleX,
-    // Field ends at y=919, "Stored Location" starts at y=940.
-    marginBottom: 21 * scaleX,
-  },
-  /** Nodes 733:441 / 733:440 — text 12 in; the chevron ends 31 short. */
-  step2StoredLocationField: {
-    paddingLeft: 12 * scaleX,
-    paddingRight: 31 * scaleX,
-    // The last field: Next owns the gap below it (`nextButtonStep2`).
-    marginBottom: 0,
-  },
-  /** Node 733:210 — the step's first label, Regular 16. Label to field: 13. */
-  step2LeadLabel: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '400' as any,
-    color: '#000000',
-    marginBottom: 13 * scaleX,
-  },
-  /** Nodes 733:395 / 733:402 / 733:439 — Light 14. Label to field: 9. */
-  step2Label: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300' as any,
-    color: '#000000',
-    marginBottom: 9 * scaleX,
-  },
-  /** "Registered by" sits 11 above its field (y=707 -> 737, label 19 tall). */
-  step2RegisteredByLabel: {
-    marginBottom: 11 * scaleX,
-  },
-  step2FieldContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  /** The 32px avatar in the step 2 fields and step 3 summary, 12px before the name. */
-  staffAvatarSlot: {
-    marginRight: 12 * scaleX,
-  },
-  step2FieldText: {
-    fontSize: REGISTER_FORM.step2.foundedBy.name.fontSize * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: REGISTER_FORM.step2.foundedBy.name.fontWeight as any,
-    color: REGISTER_FORM.step2.foundedBy.name.color,
-  },
-  step2SearchIcon: {
-    marginLeft: 'auto', // Push to the right
-  },
-  step2StatusCircle: {
-    width: REGISTER_FORM.step2.status.icon.size * scaleX,
-    height: REGISTER_FORM.step2.status.icon.size * scaleX,
-    borderRadius: (REGISTER_FORM.step2.status.icon.size / 2) * scaleX,
-    // Node 733:409 ends at x=70, "Stored" starts at x=77.
-    marginRight: 7 * scaleX,
-  },
-  /*
-   * The wrapper box, not the glyph. It keeps the designed 14x7 footprint while
-   * the inner View rotates the chevron into it; the old `rotate: '270deg'` sat
-   * on the image itself, which painted the arrow sideways and let it spill out
-   * of this box on both sides.
-   */
-  step2Chevron: {
-    width: REGISTER_FORM.step2.status.chevron.width * scaleX,
-    height: REGISTER_FORM.step2.status.chevron.height * scaleX,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Step 3 Styles
 });
 

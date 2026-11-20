@@ -13,6 +13,7 @@ import {
 import { KeyboardDoneBar, KEYBOARD_DONE_BAR_ID } from '@/components/ui/KeyboardDoneBar';
 import { MAX_PHOTOS, choosePhotoSource, pickPhotos, type PhotoSource } from '@/components/media/photoPicker';
 import { GradientText } from '@/components/ui/GradientText';
+import { AddPhotoMark } from '@/components/media/AddPhotoMark';
 import { useToast } from '@/contexts/ToastContext';
 import { typography } from '@/theme';
 import type { User } from '@/types';
@@ -570,18 +571,6 @@ export default function TicketForm({
   );
 }
 
-/** Figma 2186:2044: the photo frame, the gradient "+" on its top-right corner. */
-function AddPhotoMark() {
-  return (
-    <View style={styles.addPhotoMark}>
-      <Icon name="action-add-photo-frame" width={55.4 * scaleX} height={47 * scaleX} color="#000000" />
-      <View style={styles.addPhotoPlus} pointerEvents="none">
-        <GradientText text="+" textStyle={styles.addPhotoPlusText} direction="vertical" />
-      </View>
-    </View>
-  );
-}
-
 function initials(name: string): string {
   return name
     .split(' ')
@@ -770,23 +759,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 75 * scaleX,
     paddingBottom: 72 * scaleX,
-  },
-  addPhotoMark: {
-    width: 55.4 * scaleX,
-    height: 47 * scaleX,
-  },
-  // Figma 2186:2050: the "+" box starts 38 right of the frame and its
-  // baseline lands ~6 below the frame's top; GradientText draws the baseline
-  // at 1.2 x the font size (50.4) below its own top.
-  addPhotoPlus: {
-    position: 'absolute',
-    left: 38 * scaleX,
-    top: -44 * scaleX,
-  },
-  addPhotoPlusText: {
-    fontSize: 42 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
   },
   addPhotoTitle: {
     marginTop: 14 * scaleX,

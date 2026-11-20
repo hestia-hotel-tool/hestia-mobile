@@ -272,7 +272,7 @@ type AllStaffModalProps = {
  * (RoomPickerModal: the #e4eefe band, back chevron, 24pt title) so the app's
  * two "choose from everything" screens look alike, and the dropdown's own row.
  */
-function AllStaffModal({ visible, title, me, others, selectedStaffId, onPick, onBack }: AllStaffModalProps) {
+export function AllStaffModal({ visible, title, me, others, selectedStaffId, onPick, onBack }: AllStaffModalProps) {
   const insets = useSafeAreaInsets();
   const [query, setQuery] = useState('');
 

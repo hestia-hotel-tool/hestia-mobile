@@ -11,6 +11,8 @@ export type CreateTicketButtonProps = {
   onPress?: () => void;
   /** Design-frame scale. The caller owns it while the header is still on `* scaleX`. */
   scaleX: number;
+  /** The pill's words — "Register Item" on Lost & Found (Figma 733:7). */
+  label?: string;
 };
 
 /**
@@ -31,7 +33,7 @@ export type CreateTicketButtonProps = {
  * The stroke is the only part needing SVG: React Native cannot paint a gradient
  * border, so it is one `<Rect>` with `fill="none"` and a gradient stroke.
  */
-export default function CreateTicketButton({ onPress, scaleX }: CreateTicketButtonProps) {
+export default function CreateTicketButton({ onPress, scaleX, label = 'Create Ticket' }: CreateTicketButtonProps) {
   const w = 152 * scaleX;
   const pillH = 60 * scaleX;
   const badge = 29 * scaleX;
@@ -41,7 +43,7 @@ export default function CreateTicketButton({ onPress, scaleX }: CreateTicketButt
       onPress={onPress}
       activeOpacity={0.85}
       accessibilityRole="button"
-      accessibilityLabel="Create ticket with AI"
+      accessibilityLabel={`${label} with AI`}
       style={{ width: w, height: 74 * scaleX }}
     >
       {/*
@@ -103,7 +105,7 @@ export default function CreateTicketButton({ onPress, scaleX }: CreateTicketButt
             color: colors.text.accent,
           }}
         >
-          Create Ticket
+          {label}
         </Text>
       </View>
 

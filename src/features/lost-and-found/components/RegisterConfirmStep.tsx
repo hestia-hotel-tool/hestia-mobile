@@ -1,572 +1,426 @@
-import React, { useState } from 'react';
-import { LostAndFoundStatusDisc, type LostAndFoundStatusKey } from './LostAndFoundStatusDisc';
-import { Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { typography } from '@/theme';
+import React, { type Ref } from 'react';
+import { Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Icon } from '@/components/Icon';
+import { typography } from '@/theme';
+import { formatDatesOfStayShort, formatGuestCountWords } from '@/utils/formatting';
+import { vipTierFor } from '@/domain/vip';
+import { useVipTiers } from '@/store/vipTiers';
 import type { RoomPickerRoom } from '@features/rooms/types/roomPicker.types';
+import type { FrontOfficeStatus } from '@features/rooms/types/allRooms.types';
+import { GuestRow } from '@features/rooms/components/roomsList/GuestRow';
+import { RoomCardHeader } from '@features/rooms/components/roomsList/RoomCardHeader';
+import { PANEL_FILL } from '@features/rooms/components/roomsList/roomCardLayout';
 import { scaleX } from '../constants/lostAndFoundStyles';
+import { LOST_AND_FOUND_STATUS_MARK, type LostAndFoundStatusKey } from './LostAndFoundStatusDisc';
 import { StaffAvatar } from './StaffAvatar';
-import { VipCode } from '@/components/ui/VipCode';
 
 const s = (n: number) => n * scaleX;
 
-/** Tinted panel fill used by all three cards — `#6483b0` at 7%. */
-const PANEL = 'rgba(100, 131, 176, 0.07)';
-/** Rules and the email field outline — `#afa9ad` at 26%. */
-const HAIRLINE = 'rgba(175, 169, 173, 0.26)';
-
 export type ConfirmPerson = { name: string; avatar?: unknown; department?: string };
 
+const FRONT_OFFICE: readonly FrontOfficeStatus[] = ['Arrival', 'Departure', 'Arrival/Departure', 'Stayover', 'Turndown', 'No Task', 'Refresh'];
+
+/** What a non-stored item's status means, under its name. */
+const STATUS_HINT: Record<LostAndFoundStatusKey, string> = {
+  stored: '',
+  shipped: 'Sent to guest Address',
+  discarded: 'Thrown away or Destroyed',
+};
+
 export type RegisterConfirmStepProps = {
+  title: string;
+  /** "11 November 2025" and "15:00". */
+  foundDate: string;
+  foundTime: string;
+  /** The first photo, top right; none draws no frame. */
+  photo?: string;
   location: 'room' | 'publicArea';
   room: RoomPickerRoom | null;
   publicArea: string | null;
-  sendEmail: boolean;
-  onToggleSendEmail: () => void;
-  guestEmail: string;
-  onGuestEmailChange: (value: string) => void;
   foundedBy: ConfirmPerson;
   registeredBy: ConfirmPerson;
-  statusLabel: string;
+  storedBy: ConfirmPerson;
   statusKey: LostAndFoundStatusKey;
+  statusLabel: string;
   storedLocationLabel: string;
-  pictures: string[];
-  /** Back to step 1 — where the item was found. */
-  onEditLocation: () => void;
-  /** Back to step 2 — people, status and storage. */
-  onEditDetails: () => void;
-  /** Line staff register as themselves: no editing who found / registered it. */
-  peopleLocked?: boolean;
-  onAddPhoto: () => void;
+  /** The status pill opens the status choice; measured from this. */
+  statusRef?: Ref<View>;
+  onPressStatus: () => void;
 };
 
-/** "2026-10-07" -> "07/10". */
-function dayMonth(value?: string | null): string {
-  if (!value) return '';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '';
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}`;
-}
-
-function initialsOf(name?: string): string {
-  const parts = String(name ?? '').trim().split(/\s+/).filter(Boolean);
-  return parts.slice(0, 2).map((p) => p[0] ?? '').join('').toUpperCase() || '?';
-}
-
 /**
- * Step 3, "Confirm Registration" — Figma 733:448.
- *
- * Three tinted panels summarising the first two steps — where it was found (with
- * the email-the-guest option), who found and registered it, and its status —
- * then the photos. Every section has an edit button that returns to the step
- * that owns it.
- *
- * Replaces an absolutely positioned layout whose offsets were differences of
- * old frame coordinates multiplied by fudge factors (`* 0.7`, `* 0.5`), and
- * which led with a large photo and a notes block the frame does not have.
+ * Register's last page, "Confirm and submit" — Figma 4649:3262. One card: the
+ * item's name, when it was found and who found it beside its photo; where it
+ * was found (the room as the Rooms list draws it, guest and all); who
+ * registered and who stored it; and, under a rule, where it is kept and its
+ * status as a pill that can still be changed.
  */
-export function RegisterConfirmStep(props: RegisterConfirmStepProps) {
-  const {
-    location,
-    room,
-    publicArea,
-    sendEmail,
-    onToggleSendEmail,
-    guestEmail,
-    onGuestEmailChange,
-    foundedBy,
-    registeredBy,
-    statusLabel,
-    statusKey,
-    storedLocationLabel,
-    pictures,
-    onEditLocation,
-    onEditDetails,
-    peopleLocked = false,
-    onAddPhoto,
-  } = props;
-  const isRoom = location === 'room';
-  const guest = room?.primaryGuest;
+export function RegisterConfirmStep({
+  title,
+  foundDate,
+  foundTime,
+  photo,
+  location,
+  room,
+  publicArea,
+  foundedBy,
+  registeredBy,
+  storedBy,
+  statusKey,
+  statusLabel,
+  storedLocationLabel,
+  statusRef,
+  onPressStatus,
+}: RegisterConfirmStepProps) {
+  const mark = LOST_AND_FOUND_STATUS_MARK[statusKey] ?? LOST_AND_FOUND_STATUS_MARK.stored;
+  const stored = statusKey === 'stored';
 
   return (
-    <View>
-      {/* Node 1102:3262 */}
-      <Text style={[styles.heading, styles.foundInHeading]}>Found in</Text>
-
-      {/* Node 4242:598 — where, and whether to tell the guest. */}
-      <View style={[styles.panel, styles.foundInPanel]}>
-        <View style={styles.optionsRow}>
-          <Option label="Room" checked={isRoom} labelGap={10} />
-          <View style={{ width: s(21) }} />
-          <Option label="Public Area" checked={!isRoom} labelGap={15} />
-        </View>
-
-        <View style={styles.whereRow}>
-          {isRoom ? (
-            <>
-              <Text style={styles.roomText} numberOfLines={1}>
-                Room {room?.number ?? '—'}
+    <View style={styles.card}>
+      <View style={styles.top}>
+        <View style={styles.topText}>
+          <Text style={styles.title} numberOfLines={2}>
+            {title || 'Lost item'}
+          </Text>
+          <View style={styles.whenRow}>
+            <Text style={[styles.when, styles.whenDate]}>{foundDate}</Text>
+            <Text style={styles.when}>{foundTime}</Text>
+          </View>
+          {/* 4649:3265 — avatar 35, "Found By" Light 11 over the name in Bold 13. */}
+          <View style={styles.foundBy}>
+            <StaffAvatar name={foundedBy.name} avatar={foundedBy.avatar} size={s(35)} />
+            <View style={styles.foundByText}>
+              <Text style={styles.smallLabel}>Found By</Text>
+              <Text style={styles.foundByName} numberOfLines={1}>
+                {foundedBy.name}
               </Text>
-              {guest ? <GuestBlock room={room} /> : <View style={{ flex: 1 }} />}
-            </>
-          ) : (
-            <Text style={[styles.roomText, styles.areaText]} numberOfLines={1}>
-              {publicArea ?? 'Public Area'}
-            </Text>
-          )}
-          <EditButton onPress={onEditLocation} label="Edit where it was found" />
+            </View>
+          </View>
         </View>
+        {photo ? <Image source={{ uri: photo }} style={styles.photo} resizeMode="cover" /> : null}
+      </View>
 
-        {/* A guest to email exists only for an item found in a room. */}
-        {isRoom && guest ? (
+      <Text style={[styles.smallLabel, styles.foundInLabel]}>Found in</Text>
+      {location === 'room' && room ? (
+        <RoomPanel room={room} />
+      ) : (
+        <View style={[styles.panel, styles.areaPanel]}>
+          <Text style={styles.areaName} numberOfLines={1}>
+            {publicArea ?? 'Public Area'}
+          </Text>
+        </View>
+      )}
+
+      {/* 4649:3274 / 3276 — two columns split by a 46-tall rule at x=141. */}
+      <View style={styles.people}>
+        <View style={styles.personColumn}>
+          <Text style={styles.smallLabel}>Registerd By</Text>
+          <Text style={styles.personName} numberOfLines={1}>
+            {registeredBy.name}
+          </Text>
+        </View>
+        {stored ? (
           <>
-            <View style={styles.foundInRule} />
-            <TouchableOpacity
-              style={styles.emailToggle}
-              onPress={onToggleSendEmail}
-              activeOpacity={0.7}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: sendEmail }}
-            >
-              {/* Node 1102:3283 — a 22px ring with a tick. */}
-              <View style={styles.emailRing}>
-                {sendEmail ? <Icon name="action-check" size={s(6.3)} color="#5a759d" /> : null}
-              </View>
-              <Text style={styles.emailLabel}>Send Email to Guest for reclamation?</Text>
-            </TouchableOpacity>
-            {sendEmail ? (
-              <View style={styles.emailField}>
-                <TextInput
-                  value={guestEmail}
-                  onChangeText={onGuestEmailChange}
-                  placeholder="Guest email"
-                  placeholderTextColor="rgba(0,0,0,0.35)"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={styles.emailInput}
-                />
-              </View>
-            ) : null}
+            <View style={styles.peopleRule} />
+            <View style={[styles.personColumn, styles.storedByColumn]}>
+              <Text style={styles.smallLabel}>Stored By</Text>
+              <Text style={styles.personName} numberOfLines={1}>
+                {storedBy.name}
+              </Text>
+            </View>
           </>
         ) : null}
       </View>
 
-      {/* Node 4231:581 — who found it, who registered it. */}
-      <View style={[styles.panel, styles.peoplePanel]}>
-        <Text style={[styles.heading, styles.peopleHeading]}>Found by</Text>
-        <PersonRow person={foundedBy} onEdit={peopleLocked ? undefined : onEditDetails} editLabel="Edit who found it" />
-        <View style={styles.peopleRule} />
-        <Text style={[styles.heading, styles.peopleHeading, styles.registeredHeading]}>
-          Registered by
-        </Text>
-        <PersonRow person={registeredBy} onEdit={peopleLocked ? undefined : onEditDetails} editLabel="Edit who registered it" />
-      </View>
+      <View style={styles.rule} />
 
-      {/* Node 1102:3280 */}
-      <Text style={[styles.heading, styles.statusHeading]}>Status</Text>
-
-      {/* Node 4242:586 */}
-      <View style={[styles.panel, styles.statusPanel]}>
-        <View style={styles.statusText}>
-          <View style={styles.statusRow}>
-            <View style={styles.statusDot}>
-              <LostAndFoundStatusDisc status={statusKey} size={s(18)} />
-            </View>
-            <Text style={styles.statusValue}>{statusLabel}</Text>
-          </View>
-          <Text style={styles.storedLabel}>Stored Location</Text>
-          <Text style={styles.storedValue}>{storedLocationLabel}</Text>
-        </View>
-        <EditButton onPress={onEditDetails} label="Edit status" />
-      </View>
-
-      {/* Node 4242:608 */}
-      <Text style={[styles.heading, styles.photosHeading]}>Photos</Text>
-      <View style={styles.photos}>
-        {pictures.map((uri, index) => (
-          <Image key={`${uri}-${index}`} source={{ uri }} style={styles.photo} resizeMode="cover" />
-        ))}
-        {/* Node 4242:600 — the empty slot after the photos. */}
-        <TouchableOpacity
-          style={styles.photoSlot}
-          onPress={onAddPhoto}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel="Add a photo"
-        />
-      </View>
-    </View>
-  );
-}
-
-/** A read-only choice: the one taken is solid, the other at 26% (node 4242:568). */
-function Option({ label, checked, labelGap }: { label: string; checked: boolean; labelGap: number }) {
-  return (
-    <View style={[styles.option, !checked && styles.optionMuted]}>
-      <View style={styles.optionBox}>
-        {checked ? <Icon name="action-check-bold" size={s(14)} color="#5a759d" /> : null}
-      </View>
-      <Text style={[styles.optionLabel, { marginLeft: s(labelGap) }]}>{label}</Text>
-    </View>
-  );
-}
-
-/** Nodes 2961:162 — the guest in the room, as the room picker draws them. */
-function GuestBlock({ room }: { room: RoomPickerRoom | null }) {
-  const guest = room?.primaryGuest;
-  const [failed, setFailed] = useState(false);
-  const dates = `${dayMonth(room?.checkIn)}-${dayMonth(room?.checkOut)}`.replace(/^-|-$/, '');
-  const photo = guest?.imageUrl && !failed ? guest.imageUrl : undefined;
-
-  return (
-    <View style={styles.guest}>
-      <View style={styles.thumbWrap}>
-        {photo ? (
-          <Image source={{ uri: photo }} style={styles.thumb} onError={() => setFailed(true)} />
-        ) : (
-          <View style={[styles.thumb, styles.thumbFallback]}>
-            <Text style={styles.thumbInitials}>{initialsOf(guest?.fullName)}</Text>
-          </View>
-        )}
-        {guest?.vipCode ? (
-          <View style={styles.vipDisc}>
-            <Icon name="guest-arrow" size={s(3.3)} color="#ffffff" style={styles.vipArrow} />
-          </View>
-        ) : null}
-      </View>
-      <View style={styles.guestText}>
-        <View style={styles.guestNameRow}>
-          <Text style={styles.guestName} numberOfLines={1}>
-            {guest?.fullName ?? '—'}
-          </Text>
-          <VipCode code={guest?.vipCode} fontSize={s(12)} style={styles.vipCode} />
-        </View>
-        <View style={styles.guestMeta}>
-          {dates ? <Text style={styles.guestDates}>{dates}</Text> : null}
-          {typeof room?.guestCount === 'number' ? (
+      <View style={styles.bottom}>
+        <View style={styles.bottomText}>
+          {stored ? (
             <>
-              <Icon name="guest-occupancy" width={s(13)} height={s(12)} color="#000000" />
-              <Text style={styles.guestCount}>{room.guestCount}/2</Text>
+              <Text style={styles.smallLabel}>Stored Location</Text>
+              <Text style={styles.locationValue} numberOfLines={1}>
+                {storedLocationLabel}
+              </Text>
+              <Text style={styles.locationStamp}>{`${foundTime}, ${foundDate}`}</Text>
             </>
-          ) : null}
+          ) : (
+            <>
+              <Text style={styles.smallLabel}>Status</Text>
+              <Text style={styles.locationValue} numberOfLines={2}>
+                {STATUS_HINT[statusKey]}
+              </Text>
+            </>
+          )}
         </View>
+
+        {/* 4664:620 — 177 x 70, the status colour, its mark, name and a chevron. */}
+        <TouchableOpacity
+          ref={statusRef}
+          style={[styles.statusPill, { backgroundColor: mark.tone }]}
+          onPress={onPressStatus}
+          activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel={`Status: ${statusLabel}. Change status`}
+        >
+          <View style={styles.statusGlyph}>
+            <Icon name={mark.icon} size={s(26)} color="#ffffff" />
+          </View>
+          <Text style={styles.statusText} numberOfLines={1}>
+            {statusLabel}
+          </Text>
+          <Icon name="action-chevron-down-wide" width={s(23)} height={s(11.8)} color="#ffffff" />
+        </TouchableOpacity>
       </View>
     </View>
   );
 }
 
-/** Nodes 1102:3324 / 4242:544 — avatar, name, department, and an edit button. */
-function PersonRow({
-  person,
-  onEdit,
-  editLabel,
-}: {
-  person: ConfirmPerson;
-  onEdit?: () => void;
-  editLabel: string;
-}) {
-  return (
-    <View style={styles.personRow}>
-      <StaffAvatar name={person.name} avatar={person.avatar} size={s(32)} />
-      <View style={styles.personText}>
-        <Text style={styles.personName} numberOfLines={1}>
-          {person.name}
-        </Text>
-        {person.department ? <Text style={styles.personDept}>{person.department}</Text> : null}
-      </View>
-      {onEdit ? <EditButton onPress={onEdit} label={editLabel} /> : null}
-    </View>
-  );
-}
+/** 4649:3291 — the room as the Rooms list's card draws it: number, type chip, guest. */
+function RoomPanel({ room }: { room: RoomPickerRoom }) {
+  const vipTiers = useVipTiers();
+  const guest = room.primaryGuest;
+  const type: FrontOfficeStatus = FRONT_OFFICE.includes(room.frontOfficeStatus as FrontOfficeStatus)
+    ? (room.frontOfficeStatus as FrontOfficeStatus)
+    : 'Departure';
+  const kind = room.guestKind;
+  const tier = vipTierFor(guest?.vipCode, vipTiers);
+  const timeLabel = room.time
+    ? kind === 'arrival'
+      ? `ETA: ${room.time}`
+      : kind === 'departure'
+        ? `EDT: ${room.time}`
+        : undefined
+    : undefined;
 
-/** Node 4244:628 — a 32px white disc holding a 16.4px pencil. */
-function EditButton({ onPress, label }: { onPress: () => void; label: string }) {
   return (
-    <TouchableOpacity
-      style={styles.edit}
-      onPress={onPress}
-      activeOpacity={0.7}
-      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Icon name="action-add-note" size={s(16.4)} color="#5a759d" />
-    </TouchableOpacity>
+    <View style={styles.panel}>
+      <View style={styles.roomHeader}>
+        <RoomCardHeader roomNumber={room.number} type={type} />
+      </View>
+      {guest ? (
+        <View style={styles.guest}>
+          <GuestRow
+            name={guest.fullName ?? '—'}
+            dates={room.checkIn && room.checkOut ? formatDatesOfStayShort({ from: room.checkIn, to: room.checkOut }) : undefined}
+            occupancy={formatGuestCountWords({ adults: room.adults ?? 0, kids: room.kids ?? 0 }) || undefined}
+            timeLabel={timeLabel}
+            kind={kind}
+            imageUrl={guest.imageUrl}
+            vip={tier && guest.vipCode ? { code: guest.vipCode, tier } : undefined}
+          />
+        </View>
+      ) : (
+        <Text style={styles.noGuest}>No guest</Text>
+      )}
+    </View>
   );
 }
 
 /*
- * Every value below is Figma 733:448, in design px. The scroll content is
- * padded 27, so a node at frame x=29 is 2 in.
+ * Figma 4649:3262, design px. The card is x=14..423 (409); the scroll content
+ * is padded 27, so the card hangs 13 out on each side.
  */
 const styles = StyleSheet.create({
-  heading: {
-    fontSize: s(16),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  // Bars end at y=222 (19 of it is the bar's own margin); "Found in" at y=252, x=36.
-  foundInHeading: { marginTop: s(11), marginLeft: s(9) },
-  panel: {
-    backgroundColor: PANEL,
-    borderRadius: s(6),
-  },
-  // y=280, 9 below the heading; x=29.
-  foundInPanel: {
-    marginTop: s(9),
-    marginLeft: s(2),
-    paddingTop: s(16),
-    paddingBottom: s(29),
-  },
-  optionsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingLeft: s(21),
-  },
-  option: { flexDirection: 'row', alignItems: 'center' },
-  optionMuted: { opacity: 0.26 },
-  // Nodes 4242:571 / 4242:569 — 28x28, 2px #5a759d.
-  optionBox: {
-    width: s(28),
-    height: s(28),
-    borderWidth: 2,
-    borderColor: '#5a759d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  optionLabel: {
-    fontSize: s(16),
-    fontFamily: typography.fontFamily.primary,
-    color: '#5a759d',
-  },
-  // Checkboxes end at y=324; the room row starts at y=361.
-  whereRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: s(37),
-    paddingLeft: s(32),
-    paddingRight: s(28),
-    minHeight: s(39),
-  },
-  // Node 1102:3322 — Inter Light 14, black. The guest block starts at x=154.
-  roomText: {
-    width: s(93),
-    fontSize: s(14),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-  },
-  areaText: { flex: 1, width: undefined },
-  guest: { flex: 1, flexDirection: 'row', alignItems: 'center' },
-  thumbWrap: { marginRight: s(14.4) },
-  thumb: { width: s(34.59), height: s(34.59), borderRadius: s(5) },
-  thumbFallback: { backgroundColor: '#5a759d', alignItems: 'center', justifyContent: 'center' },
-  thumbInitials: {
-    fontSize: s(12),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  // Node 2961:166.
-  vipDisc: {
-    position: 'absolute',
-    right: -s(1.4),
-    bottom: -s(4.2),
-    width: s(14.12),
-    height: s(14.12),
-    borderRadius: s(7.06),
-    backgroundColor: '#f92424',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  vipArrow: { transform: [{ scaleX: -1 }] },
-  guestText: { flex: 1 },
-  guestNameRow: { flexDirection: 'row', alignItems: 'baseline' },
-  // Node 2961:172 — Helvetica Bold 14.
-  guestName: {
-    flexShrink: 1,
-    fontSize: s(14),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '700',
-    color: '#000000',
-  },
-  // Node 2961:163's spot; the pill (VipCode) draws the code in its tier colour.
-  vipCode: {
-    marginLeft: s(6),
-  },
-  guestMeta: { flexDirection: 'row', alignItems: 'center', marginTop: s(4), gap: s(6) },
-  guestDates: {
-    marginRight: s(4),
-    fontSize: s(14),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-  },
-  guestCount: {
-    fontSize: s(14),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-  },
-  // Node 4242:626 — y=419, x=36..416.
-  foundInRule: {
-    height: 1,
-    backgroundColor: HAIRLINE,
-    marginTop: s(19),
-    marginLeft: s(7),
-    marginRight: s(1),
-  },
-  // Ring at y=446, x=44.
-  emailToggle: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  /* 4649:3263 — #f9fafc, #e3e3e3 hairline, radius 9; 27 under the heading. */
+  card: {
+    width: s(409),
+    marginLeft: s(-13),
     marginTop: s(27),
-    paddingLeft: s(15),
-  },
-  emailRing: {
-    width: s(22),
-    height: s(22),
-    borderRadius: s(11),
-    borderWidth: 2,
-    borderColor: '#5a759d',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  // Node 733:586 — Helvetica 13, #5a759d, at x=77.
-  emailLabel: {
-    marginLeft: s(11),
-    fontSize: s(13),
-    fontFamily: typography.fontFamily.primary,
-    color: '#5a759d',
-  },
-  // Node 3199:199 — 57 tall, x=43..405, 18 below the ring.
-  emailField: {
-    marginTop: s(18),
-    marginLeft: s(14),
-    marginRight: s(12),
-    height: s(57),
-    borderRadius: s(8),
+    paddingBottom: s(25),
     borderWidth: 1,
-    borderColor: HAIRLINE,
-    justifyContent: 'center',
-    paddingHorizontal: s(16),
+    borderColor: '#e3e3e3',
+    borderRadius: s(9),
+    backgroundColor: '#f9fafc',
   },
-  // Node 3199:200 — Inter Light 14.
-  emailInput: {
-    fontSize: s(14),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
-    paddingVertical: 0,
-  },
-  // y=595, 23 below the first panel.
-  peoplePanel: {
-    marginTop: s(23),
-    marginLeft: s(2),
-    paddingTop: s(12),
-    paddingBottom: s(27),
-  },
-  // Nodes 1102:3275 / 1102:3279 — x=47.
-  peopleHeading: { marginLeft: s(18) },
-  registeredHeading: { marginTop: s(23) },
-  // Heading ends y=626, avatar at y=649.
-  personRow: {
+  top: {
     flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: s(23),
-    paddingLeft: s(18),
-    paddingRight: s(28),
+    alignItems: 'flex-start',
+    paddingTop: s(15),
+    paddingRight: s(10),
   },
-  personText: { flex: 1, marginLeft: s(14) },
-  // Node 1102:3327 — Helvetica Regular 16, #1e1e1e.
-  personName: {
-    fontSize: s(16),
+  topText: {
+    flex: 1,
+    paddingTop: s(11),
+  },
+  /* 4649:3288 — Bold 21 at x=34. */
+  title: {
+    marginLeft: s(19),
+    fontSize: s(21),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#000000',
+  },
+  /* 4649:3289 / 3290 — Regular 14 at 39%, x=32 and x=162. */
+  whenRow: {
+    flexDirection: 'row',
+    marginTop: s(10),
+    marginLeft: s(17),
+  },
+  when: {
+    fontSize: s(14),
     fontFamily: typography.fontFamily.primary,
     color: '#1e1e1e',
+    opacity: 0.39,
   },
-  // Node 1102:3328 — Inter Light 14.
-  personDept: {
-    marginTop: s(1),
-    fontSize: s(14),
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000000',
+  whenDate: {
+    width: s(130),
   },
-  // Node 4242:615 — y=715, x=30..410.
-  peopleRule: {
-    height: 1,
-    backgroundColor: HAIRLINE,
-    marginTop: s(31),
-    marginLeft: s(1),
-    marginRight: s(7),
-  },
-  // y=860, 17 below the panel; x=43.
-  statusHeading: { marginTop: s(17), marginLeft: s(16) },
-  // Node 4242:586 — x=38..412, 12 below the heading.
-  statusPanel: {
+  foundBy: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: s(12),
-    marginLeft: s(11),
-    marginRight: s(5),
-    paddingTop: s(15),
-    paddingBottom: s(13),
-    paddingLeft: s(13),
-    paddingRight: s(23),
+    marginLeft: s(17),
   },
-  statusText: { flex: 1 },
-  statusRow: { flexDirection: 'row', alignItems: 'center' },
-  // Node 1102:3337 — 18px.
-  statusDot: { width: s(18), height: s(18), marginRight: s(7) },
-  statusValue: {
-    fontSize: s(16),
-    fontFamily: typography.fontFamily.primary,
-    color: '#5a759d',
+  foundByText: {
+    flex: 1,
+    marginLeft: s(9),
   },
-  // Node 1102:3281 — Inter Regular 16, 21 below the status row.
-  storedLabel: {
-    marginTop: s(21),
-    fontSize: s(16),
-    fontFamily: typography.fontFamily.primary,
+  /* Inter Light 11. */
+  smallLabel: {
+    fontSize: s(11),
+    fontFamily: typography.fontFamily.secondary,
+    fontWeight: '300',
     color: '#000000',
   },
-  // Node 1102:3339 — Helvetica Bold 16, #1e1e1e.
-  storedValue: {
-    marginTop: s(5),
-    marginLeft: s(1),
-    fontSize: s(16),
+  foundByName: {
+    marginTop: s(2),
+    fontSize: s(13),
     fontFamily: typography.fontFamily.primary,
     fontWeight: '700',
     color: '#1e1e1e',
   },
-  // y=1049, 49 below the panel; x=43.
-  photosHeading: { marginTop: s(49), marginLeft: s(16) },
-  // Photos at y=1082, x=44.
-  photos: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: s(11),
-    marginTop: s(14),
+  /* 4649:3264 — 183 x 135, radius 10, at x=229. */
+  photo: {
+    width: s(183),
+    height: s(135),
+    borderRadius: s(10),
+  },
+  /* 4649:3275 — x=32, at y=353. */
+  foundInLabel: {
+    marginTop: s(-4),
     marginLeft: s(17),
   },
-  // Node 4242:599 — 113x92, radius 5.
-  photo: { width: s(113), height: s(92), borderRadius: s(5), overflow: 'hidden' },
-  // Node 4242:600 — 106x92, #c4c4c4 at 28%.
-  photoSlot: {
-    width: s(106),
-    height: s(92),
-    borderRadius: s(5),
-    backgroundColor: 'rgba(196, 196, 196, 0.28)',
+  /* 4649:3291 — 383 wide at x=29, #dfe6f0 40%, radius 10; 10 under "Found in". */
+  panel: {
+    width: s(383),
+    marginTop: s(10),
+    marginLeft: s(14),
+    paddingBottom: s(15),
+    borderRadius: s(10),
+    backgroundColor: PANEL_FILL,
   },
-  edit: {
-    width: s(32),
-    height: s(32),
-    borderRadius: s(16),
-    backgroundColor: '#ffffff',
+  /* "201" at x=49, 21 down (the header pads 13 / 12). */
+  roomHeader: {
+    paddingTop: s(9),
+    paddingLeft: s(7),
+  },
+  /* The photo at x=52, 81 under the panel's top; the VIP disc ending 33 short. */
+  guest: {
+    marginTop: s(22),
+    paddingLeft: s(23),
+    paddingRight: s(33),
+  },
+  noGuest: {
+    marginTop: s(16),
+    marginLeft: s(20),
+    fontSize: s(14),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+  },
+  areaPanel: {
+    paddingTop: s(21),
+    paddingBottom: s(21),
+    paddingLeft: s(20),
+  },
+  areaName: {
+    fontSize: s(24),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#334866',
+  },
+  /* Labels at y=565, 36 under the panel. */
+  people: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    marginTop: s(30),
+    marginLeft: s(19),
+  },
+  personColumn: {
+    width: s(107),
+  },
+  /* 4649:3319 — 1 x 46, black, at x=141. */
+  peopleRule: {
+    width: 1,
+    height: s(46),
+    backgroundColor: '#000000',
+  },
+  /* "Stored By" at x=168. */
+  storedByColumn: {
+    marginLeft: s(26),
+    width: s(200),
+  },
+  /* Bold 14, 7 under its label. */
+  personName: {
+    marginTop: s(7),
+    fontSize: s(14),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#1e1e1e',
+  },
+  /* 4649:3271 — #e3e3e3 across the card, 42 under the rule beside the names. */
+  rule: {
+    height: 1,
+    marginTop: s(42),
+    backgroundColor: '#e3e3e3',
+  },
+  bottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: s(19),
+    paddingLeft: s(19),
+    paddingRight: s(21),
+  },
+  bottomText: {
+    flex: 1,
+  },
+  /* 4649:3266 — Bold 13. */
+  locationValue: {
+    marginTop: s(10),
+    fontSize: s(13),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#1e1e1e',
+  },
+  /* 4649:3270 — Light 12. */
+  locationStamp: {
+    marginTop: s(2),
+    fontSize: s(12),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '300',
+    color: '#000000',
+  },
+  statusPill: {
+    width: s(177),
+    height: s(70),
+    borderRadius: s(35),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: s(18),
+    paddingRight: s(22),
+  },
+  /* The mark at x=242; "Stored" at x=280. */
+  statusGlyph: {
+    width: s(38),
+  },
+  /* 4664:624 — Bold 17, white. */
+  statusText: {
+    flex: 1,
+    fontSize: s(17),
+    fontFamily: typography.fontFamily.primary,
+    fontWeight: '700',
+    color: '#ffffff',
   },
 });
 

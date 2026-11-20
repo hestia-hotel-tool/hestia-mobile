@@ -13,6 +13,7 @@ import { SafeKeyboardAvoidingView as KeyboardAvoidingView } from '@/components/u
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, NativeStackNavigationProp } from 'expo-router';
 import { Icon } from '@/components/Icon';
+import { LocationDropdown, LOCATION_ROOM } from '@/components/ui/LocationDropdown';
 import CreateTicketButton from '../components/CreateTicketButton';
 import { typography } from '@/theme';
 import type { RootStackParamList } from '@/types/navigation';
@@ -33,6 +34,13 @@ type SelectTicketLocationScreenNavigationProp = NativeStackNavigationProp<
 /** For the assistant: what this screen is for (see screenContext.ts). */
 const ASSISTANT_FACTS: ScreenFact[] = [{ label: 'Doing', value: 'Choosing the room or public area for a ticket' }];
 
+/**
+ * The "Select Location" dropdown's choices — Figma 4649:1018. "Room" opens the
+ * room search; every other entry is a public area, sent to the form by name.
+ */
+const ROOM = LOCATION_ROOM;
+const LOCATIONS = [ROOM, 'Restaurant', 'Gym', 'Spa', 'Kitchen', 'Basement', 'Roof top'] as const;
+
 export default function SelectTicketLocationScreen() {
   useAssistantScreen('Ticket location', ASSISTANT_FACTS);
   const navigation = useNavigation<SelectTicketLocationScreenNavigationProp>();
@@ -45,9 +53,15 @@ export default function SelectTicketLocationScreen() {
     [scaleX],
   );
 
-  const [locationType, setLocationType] = useState<'room' | 'publicArea'>('room');
+  const [location, setLocation] = useState<string>(ROOM);
+  const locationType: 'room' | 'publicArea' = location === ROOM ? 'room' : 'publicArea';
+  const selectedPublicArea = locationType === 'publicArea' ? location : null;
   const [selectedRoom, setSelectedRoom] = useState<RoomPickerRoom | null>(null);
-  const [selectedPublicArea, setSelectedPublicArea] = useState<string | null>(null);
+
+  const chooseLocation = (next: string) => {
+    setLocation(next);
+    setSelectedRoom(null);
+  };
 
   /*
    * Rooms, and the picker that shows them, are shared with Lost & Found →
@@ -82,14 +96,6 @@ export default function SelectTicketLocationScreen() {
     },
     [cardsById],
   );
-
-  const PUBLIC_AREAS = [
-    'Brasserie',
-    'Gym',
-    'Toilet',
-    'Reception',
-    'Elevator',
-  ];
 
   const handleBackPress = () => {
     navigation.goBack();
@@ -160,47 +166,16 @@ export default function SelectTicketLocationScreen() {
         {/* Location Section */}
         <Text style={styles.sectionTitle}>Select Location</Text>
         
-        {/* Location Type Toggles */}
-        <View style={styles.locationToggles}>
-          <TouchableOpacity
-            style={[styles.toggleButton, locationType === 'room' && styles.toggleButtonActive]}
-            onPress={() => {
-              setLocationType('room');
-              setSelectedRoom(null); // When coming back to Room, show dropdown again
-              setSelectedPublicArea(null);
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.checkbox, locationType === 'room' && styles.checkboxChecked]}>
-              {locationType === 'room' && (
-                <Icon name="action-checkbox-checked" size={28 * scaleX} color="#5a759d" />
-              )}
-            </View>
-            {/* 4649:832 — the bed, 23 after the box and 15.5 before the label. */}
-            <Icon name="checklist-bed" size={25 * scaleX} color="#5a759d" style={styles.bedIcon} />
-            <Text style={styles.toggleLabel}>Room</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.toggleButton, locationType === 'publicArea' && styles.toggleButtonActive]}
-            onPress={() => {
-              setLocationType('publicArea');
-              setSelectedRoom(null); // Unchecking Room should return to dropdown state
-            }}
-            activeOpacity={0.7}
-          >
-            <View style={[styles.checkbox, locationType === 'publicArea' && styles.checkboxChecked]}>
-              {locationType === 'publicArea' && (
-                <Icon name="action-checkbox-checked" size={28 * scaleX} color="#5a759d" />
-              )}
-            </View>
-            <Text style={styles.toggleLabel}>Public Area</Text>
-          </TouchableOpacity>
+        <LocationDropdown
+          value={location}
+          options={LOCATIONS}
+          onChange={chooseLocation}
+          scale={scaleX}
+          style={styles.locationBlock}
+        />
         </View>
 
-        </View>
-
-        {/* 4649:1016 — the #F9FAFC panel under the toggles, rounded on top. */}
+        {/* 4649:1016 — the #F9FAFC panel under the dropdown, rounded on top. */}
         <View style={styles.panel}>
         {/* Room Selection */}
         {locationType === 'room' && (
@@ -214,30 +189,6 @@ export default function SelectTicketLocationScreen() {
           />
         )}
 
-        {/* Public Area Selection */}
-        {locationType === 'publicArea' && (
-          <>
-            <Text style={styles.inputLabel}>Select Public Area</Text>
-            <View style={styles.publicAreasContainer}>
-              {/* List of public areas with location pin icons */}
-              {PUBLIC_AREAS.map((area) => (
-                <TouchableOpacity
-                  key={area}
-                  style={styles.publicAreaItem}
-                  onPress={() => setSelectedPublicArea(area)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.publicAreaContent}>
-                    <Text style={styles.publicAreaText}>{area}</Text>
-                  </View>
-                  {selectedPublicArea === area && (
-                    <Text style={styles.publicAreaCheckmark}>✓</Text>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-          </>
-        )}
         </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -319,19 +270,13 @@ function buildSelectTicketLocationStyles(scaleX: number) {
     fontWeight: '300',
     color: '#000',
     marginLeft: 7 * scaleX,
-    marginBottom: 25 * scaleX,
+    marginBottom: 13 * scaleX,
     ...androidText,
   },
-  /* Boxes at x=35 and x=242 (y=287); the panel starts 77 below them. */
-  locationToggles: {
-    flexDirection: 'row',
-    gap: 50 * scaleX,
-    marginLeft: 8 * scaleX,
-    marginBottom: 77 * scaleX,
-  },
-  bedIcon: {
-    marginLeft: 8 * scaleX,
-    marginRight: 15.5 * scaleX,
+  /* 4731:111 — the box at x=33, 13 under the label; the list ends ~28 above the panel. */
+  locationBlock: {
+    marginLeft: 6 * scaleX,
+    marginBottom: 28 * scaleX,
   },
   panel: {
     flexGrow: 1,
@@ -342,82 +287,6 @@ function buildSelectTicketLocationStyles(scaleX: number) {
     paddingHorizontal: 27 * scaleX,
     // Room for the pinned Continue button and the keyboard.
     paddingBottom: 220 * scaleX,
-  },
-  toggleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  toggleButtonActive: {},
-  /*
-   * Node 3005:489 — 28x28, 2px `#5a759d`, **square**. The checked state
-   * (3005:490) is not a fill: it is the same outline with a blue tick, and
-   * `action-checkbox-checked` is byte-identical to it, so the box simply steps
-   * aside and lets the glyph draw the whole control.
-   *
-   * Deliberately not `ui/Checkbox`: that component's checked state is a filled
-   * box with a white tick from node 2702:3195, which the filter sheets use.
-   * Two designed states, not one.
-   */
-  checkbox: {
-    width: 28 * scaleX,
-    height: 28 * scaleX,
-    borderWidth: 2,
-    borderColor: '#5a759d',
-    marginRight: 15 * scaleX,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    borderWidth: 0,
-  },
-  toggleLabel: {
-    fontSize: 16 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    color: '#5a759d',
-  },
-  inputLabel: {
-    fontSize: 16 * scaleX,
-    fontFamily: 'Inter',
-    fontWeight: '300',
-    color: '#000',
-    marginBottom: 12 * scaleX,
-  },
-  publicAreasContainer: {
-    backgroundColor: '#f9f9f9',
-    borderRadius: 12 * scaleX,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    overflow: 'hidden',
-  },
-  publicAreaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18 * scaleX,
-    paddingHorizontal: 20 * scaleX,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-  },
-  publicAreaContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  publicAreaIcon: {
-    width: 16 * scaleX,
-    height: 16 * scaleX,
-    tintColor: '#999',
-    marginRight: 16 * scaleX,
-  },
-  publicAreaText: {
-    fontSize: 14 * scaleX,
-    fontFamily: typography.fontFamily.primary,
-    fontWeight: '300',
-    color: '#000',
-  },
-  publicAreaCheckmark: {
-    fontSize: 18 * scaleX,
-    color: '#5a759d',
-    fontWeight: 'bold',
   },
   /*
    * Node 4649:823 — 386 x 70 at x=25, `#5a759d`, and **no corner radius**.
