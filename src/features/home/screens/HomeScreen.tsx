@@ -1145,6 +1145,11 @@ export default function HomeScreen() {
               <>
                 <View style={{ paddingTop: 12 * scaleX, paddingBottom: 24 * scaleX }}>
                   {chrome.ticketsTitle ? <Text style={[styles.ticketDashboardTitle]}>Tickets Overview</Text> : null}
+                  {/*
+                    Each circle opens the tickets it counted: the department's, not
+                    only the viewer's (Tom saw Sara's Engineering tickets counted
+                    here, then an empty list — it was filtered to "assigned to me").
+                  */}
                   <TicketsOverviewCard
                     total={ticketCounts.total}
                     priority={ticketCounts.priority}
@@ -1154,7 +1159,6 @@ export default function HomeScreen() {
                     onPressPriority={() => {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'all',
-                        assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'priority',
                       });
@@ -1162,7 +1166,6 @@ export default function HomeScreen() {
                     onPressUnsolved={() => {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'all',
-                        assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'unsolved',
                       });
@@ -1170,7 +1173,6 @@ export default function HomeScreen() {
                     onPressSolved={() => {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'all',
-                        assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'done',
                       });
@@ -1178,7 +1180,6 @@ export default function HomeScreen() {
                     onPressOutOfOrder={() => {
                       navigation.navigate('(tickets)/index' as any, {
                         initialTab: 'all',
-                        assignedToMeOnly: true,
                         category: ticketDepartment ?? undefined,
                         statusFilter: 'ofo',
                       });

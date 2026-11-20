@@ -49,6 +49,13 @@ interface PermissionContextValue {
    */
   worksFromTickets: boolean;
   /**
+   * Their Tickets list is their own tickets plus their department's, not the
+   * whole hotel's: everyone who works from tickets, and Engineering (client,
+   * 2026-11-20: "ENG staff should only see ENG tickets, not Laundry"). Unlike
+   * `worksFromTickets` it does not move them to the Tickets tab.
+   */
+  departmentTicketsOnly: boolean;
+  /**
    * In the Laundry department (laundry attendants): Tickets first in the tab
    * bar, their profile on Tickets rather than Rooms (client, 2026-11-09).
    */
@@ -153,6 +160,15 @@ export function worksFromTicketsFor(homeVariant: HomeVariant, departmentName: st
   return homeVariant === 'hsk_portier' || isLaundryDepartment(departmentName);
 }
 
+/** Laundry attendants, porters, and Engineering see their department's tickets only. */
+export function departmentTicketsOnlyFor(homeVariant: HomeVariant, departmentName: string | null): boolean {
+  return worksFromTicketsFor(homeVariant, departmentName) || isEngineeringDepartment(departmentName);
+}
+
+function isEngineeringDepartment(departmentName: string | null): boolean {
+  return (departmentName ?? '').trim().toLowerCase() === 'engineering';
+}
+
 function isLaundryDepartment(departmentName: string | null): boolean {
   return (departmentName ?? '').trim().toLowerCase() === 'laundry';
 }
@@ -163,6 +179,7 @@ const PermissionContext = createContext<PermissionContextValue>({
   roomsVariant: 'default',
   departmentId: null,
   worksFromTickets: false,
+  departmentTicketsOnly: false,
   inLaundry: false,
   isLoading: true,
   error: null,
@@ -305,6 +322,7 @@ export function PermissionProvider({ children }: { children: React.ReactNode }) 
       roomsVariant: canResolve && resolvedFor === userId ? roomsVariant : 'default',
       departmentId: mine ? department.id : null,
       worksFromTickets: mine ? worksFromTicketsFor(homeVariant, department.name) : false,
+      departmentTicketsOnly: mine ? departmentTicketsOnlyFor(homeVariant, department.name) : false,
       inLaundry: mine ? isLaundryDepartment(department.name) : false,
       isLoading,
       error: canResolve && resolvedFor === userId ? error : null,

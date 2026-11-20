@@ -57,8 +57,9 @@ import { FilterModalOverlay, RoomsFilterSheet } from '@/components/filters';
 
 /**
  * Figma 667:3068 (4702:2175): All / Open / Closed / Drafts (n) as chips, the
- * filter glyph at the end — no My Tickets (user, 2026-11-19). "Assigned to me"
- * is still reachable from Home's ticket counts (the `assignedToMeOnly` param).
+ * filter glyph at the end — no My Tickets (user, 2026-11-19). Home's ticket
+ * counts open this list filtered to their department and status (route
+ * params); the filter bar names that filter and clears it.
  */
 const TICKET_TABS: readonly TicketTab[] = ['all', 'open', 'closed', 'drafts'];
 /** A tab from a route or a stored selection; the retired 'myTickets' (older links) opens All. */
@@ -101,7 +102,7 @@ export default function TicketsScreen() {
   const toast = useToast();
   // Resolve: the ticket's department. Reassign: its leads. (migration 20261026090000)
   const { canResolve, canReassign } = useTicketAccess();
-  const { worksFromTickets, departmentId, inLaundry } = usePermissions();
+  const { departmentTicketsOnly, departmentId, inLaundry } = usePermissions();
   /** Header, tab row and scroll content all hang off absolute tops, so they move together. */
   const topShift = getTicketsTopShift(insets.top, scaleX);
   const [selectedTab, setSelectedTab] = useState<TicketTab>('all');
@@ -474,13 +475,14 @@ export default function TicketsScreen() {
 
   const currentUserId = session?.user?.id;
   /*
-   * Laundry attendants and porters see their own tickets and their
-   * department's — not the whole hotel's (client, 2026-11-09). Every tab
-   * works inside that: "All" is all of those, "Open" the open ones.
+   * Laundry attendants, porters (client, 2026-11-09) and Engineering (client,
+   * 2026-11-20) see their own tickets and their department's — not the whole
+   * hotel's. Every tab works inside that: "All" is all of those, "Open" the
+   * open ones.
    */
   const tickets: TicketData[] = (ticketsData?.tickets ?? []).filter(
     (t) =>
-      !worksFromTickets ||
+      !departmentTicketsOnly ||
       (!!currentUserId && t.assignedToId === currentUserId) ||
       (!!departmentId && t.departmentId === departmentId),
   );
@@ -534,8 +536,35 @@ export default function TicketsScreen() {
     (f.departments.length === 0 || f.departments.includes(deptOf(t))) &&
     (f.priorities.length === 0 || f.priorities.includes(t.priority ?? 'notUrgent'));
   const filteredTickets = tabTickets.filter((t) => matchesFilters(t, filters));
+  /*
+   * The filter Home's counts opened this list with. Shown with the sheet's own
+   * filters so it can be seen and cleared — it used to be invisible, and it
+   * stayed on the tab after leaving, so the list looked empty for no reason.
+   */
+  const homeFilter = (route as any).params as
+    | { assignedToMeOnly?: boolean; category?: string; statusFilter?: TicketStatus | 'priority' }
+    | undefined;
+  const HOME_STATUS_LABEL: Record<string, string> = {
+    priority: 'Priority',
+    unsolved: 'Unsolved',
+    inProgress: 'In progress',
+    done: 'Solved',
+    ofo: 'Out of order',
+  };
+  const homeFilterParts = [
+    homeFilter?.category ? String(homeFilter.category) : null,
+    homeFilter?.statusFilter ? HOME_STATUS_LABEL[homeFilter.statusFilter] ?? String(homeFilter.statusFilter) : null,
+    homeFilter?.assignedToMeOnly ? 'Assigned to me' : null,
+  ].filter((part): part is string => !!part);
+  const clearAllFilters = () => {
+    setFilters(NO_FILTERS);
+    if (homeFilterParts.length > 0) {
+      (stackNavigation as any).setParams({ category: undefined, statusFilter: undefined, assignedToMeOnly: undefined });
+    }
+  };
   const activeDept = filters.departments.length ? filters.departments.join(', ') : null;
   const activeFilterParts = [
+    ...homeFilterParts,
     ...filters.departments,
     ...filters.priorities.map((p) => PRIORITY_LABEL[p] ?? p),
   ];
@@ -687,7 +716,7 @@ export default function TicketsScreen() {
                 <ActiveFiltersBar
                   parts={activeFilterParts}
                   resultCount={filteredTickets.length}
-                  onClear={() => setFilters(NO_FILTERS)}
+                  onClear={clearAllFilters}
                   scaleX={scaleX}
                 />
               </View>
