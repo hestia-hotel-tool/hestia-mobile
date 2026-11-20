@@ -15,7 +15,9 @@ import type { ShiftType , CategorySection } from '../types/home.types';
 import { useAuth } from '@features/auth/hooks/useAuth';
 import { userProfileFromSession } from '@features/account/services/user';
 import { useUserStore } from '@features/account/store/useUserStore';
-import { getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt, getRoomNumbersByIds } from '@features/rooms/services/rooms';
+import { assignRoomsToStaff, getDistinctAssignedRoomIdsOrderedByAssignmentCreatedAt, getRoomNumbersByIds } from '@features/rooms/services/rooms';
+import ReassignModal from '@features/rooms/components/roomDetail/ReassignModal';
+import { useAssignmentDepartment } from '@/domain/useAssignmentDepartment';
 import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import type { } from '@/types/more.types';
@@ -214,6 +216,9 @@ export default function HomeScreen() {
   // reaches here, so this lookup cannot come back undefined.
   const chrome = HOME_CHROME[homeVariant];
   const toast = useToast();
+  /** Engineering → Assign Floor: the floor being given to a technician, while the picker is open. */
+  const assignment = useAssignmentDepartment();
+  const [floorToAssign, setFloorToAssign] = useState<{ label: string; roomIds: string[] } | null>(null);
 
   /*
    * Engineering and In Room Dining read the same dashboard over their own
@@ -897,10 +902,29 @@ export default function HomeScreen() {
     [filterCounts.floors]
   );
 
+  /** The shift's rooms by floor — what Assign Floor gives a technician. */
+  const roomIdsByFloor = useMemo(() => {
+    const roomsPM = roomsForHome.roomsPM ?? [];
+    const usePMRooms = homeData.selectedShift === 'PM' && roomsPM.length > 0;
+    const source = usePMRooms ? roomsPM : (roomsForHome.rooms ?? []);
+    const byFloor = new Map<string, string[]>();
+    for (const room of source) {
+      const floor = getFloorFromRoomNumber(room.roomNumber);
+      if (floor === null || !room.id) continue;
+      const key = String(floor);
+      byFloor.set(key, [...(byFloor.get(key) ?? []), room.id]);
+    }
+    return byFloor;
+  }, [roomsForHome, homeData.selectedShift]);
+
   const floorRows: FloorRow[] = useMemo(() => {
     if (!chrome.floors) return [];
-    const assignSoon = () =>
-      toast.show('Assigning floors is coming soon.', { type: 'info', title: 'Assign Floor' });
+    // Assigning is the leads' (Director, Supervisors); technicians get View Rooms only.
+    const canAssignFloors = assignment.key === 'engineering' && assignment.canAssign;
+    // Levels without rooms (Kitchen, Spa…) will have their own checklists; rooms first (user, 2026-11-20).
+    const assignSoon = canAssignFloors
+      ? () => toast.show('Kitchen, Spa and the other areas come next — for now, floors with rooms.', { type: 'info', title: 'Assign Floor' })
+      : undefined;
     // View Rooms opens the Rooms tab on that floor (its floor bar, Figma 4684:62).
     const roomFloors = roomFloorOptions.map(({ label, count }) => ({
       label,
@@ -915,14 +939,38 @@ export default function HomeScreen() {
             floors: { all: false, [label]: true },
           },
         } as any),
-      onAssign: assignSoon,
+      // Every room on the floor to one technician, for the shift on screen.
+      onAssign: canAssignFloors
+        ? () => setFloorToAssign({ label, roomIds: roomIdsByFloor.get(label) ?? [] })
+        : undefined,
     }));
     const levelsWithoutRooms: FloorRow[] = [
       { label: '-2', caption: 'Kitchen, HSK Office', onAssign: assignSoon },
       { label: '-1', caption: 'Technical Room', onAssign: assignSoon },
     ];
     return [...roomFloors, ...levelsWithoutRooms];
-  }, [chrome.floors, roomFloorOptions, navigation, homeData.selectedShift, toast]);
+  }, [chrome.floors, roomFloorOptions, navigation, homeData.selectedShift, toast, assignment.key, assignment.canAssign, roomIdsByFloor]);
+
+  const handleFloorTechnicianSelect = async (staffId: string, member?: { name?: string }) => {
+    const floor = floorToAssign;
+    setFloorToAssign(null);
+    if (!floor) return;
+    if (floor.roomIds.length === 0) {
+      toast.show(`Floor ${floor.label} has no rooms to assign.`, { type: 'error' });
+      return;
+    }
+    const shift = homeData.selectedShift === 'PM' ? 'PM' : 'AM';
+    try {
+      await assignRoomsToStaff(floor.roomIds, staffId, shift, 'engineering');
+      toast.show(
+        `${floor.roomIds.length} ${floor.roomIds.length === 1 ? 'room' : 'rooms'} on floor ${floor.label} assigned${member?.name ? ` to ${member.name}` : ''} (${shift}).`,
+        { type: 'success', title: 'Floor assigned' }
+      );
+      await fetchRooms(effectiveShift, { force: true, silent: true });
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'The floor could not be assigned.', { type: 'error', duration: 4500 });
+    }
+  };
 
   /*
    * What this Home shows, for the assistant: "I can read 18 on my Home screen"
@@ -1393,6 +1441,18 @@ export default function HomeScreen() {
         onFilterIconPress={handleFilterPress}
         selectedShift={homeData.selectedShift}
         headerHeight={headerBottom}
+      />
+
+      {/* Engineering → Assign Floor: pick the technician who takes every room on it. */}
+      <ReassignModal
+        visible={!!floorToAssign}
+        onClose={() => setFloorToAssign(null)}
+        onStaffSelect={(staffId, member) => void handleFloorTechnicianSelect(staffId, member)}
+        onAutoAssign={() => {}}
+        title={floorToAssign ? `Assign Floor ${floorToAssign.label}` : undefined}
+        showAutoAssign={false}
+        shift={homeData.selectedShift === 'PM' ? 'PM' : 'AM'}
+        assignmentDepartment="engineering"
       />
     </View>
   );

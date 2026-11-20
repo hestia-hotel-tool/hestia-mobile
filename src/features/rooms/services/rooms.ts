@@ -257,24 +257,41 @@ async function fetchRoomAssignmentsForShiftId(shiftId: string | null): Promise<M
   const map = new Map<string, RoomAssignees>();
   if (!shiftId) return map;
 
-  const { data, error } = await supabase
-    .from('room_assignments')
-    // `!room_assignments_user_id_fkey`: since `assigned_by_id` there are two links to users; this is the assignee.
-    .select('room_id, user_id, work_status, users!room_assignments_user_id_fkey(full_name, avatar_url), departments(key)')
-    .eq('shift_id', shiftId);
+  // `!room_assignments_user_id_fkey`: since `assigned_by_id` there are two links to users; this is the assignee.
+  const columns = 'room_id, user_id, work_status, shift_id, users!room_assignments_user_id_fkey(full_name, avatar_url), departments(key)';
+  /*
+   * Engineering's rows are cleared at every shift end, so any that exist are
+   * today's: a technician given a room on the other tab still holds it, as the
+   * round and the checklist treat it (migration 20261120110000). Housekeeping
+   * stays per shift.
+   */
+  const [shiftRes, engineeringRes] = await Promise.all([
+    supabase.from('room_assignments').select(columns).eq('shift_id', shiftId),
+    supabase
+      .from('room_assignments')
+      .select(columns.replace('departments(key)', 'departments!inner(key)'))
+      .eq('departments.key', 'engineering')
+      .neq('shift_id', shiftId),
+  ]);
 
-  if (error) {
+  if (shiftRes.error) {
     // Logged, not thrown: the list still renders, but a broken query (like the
     // ambiguous users embed) no longer hides as "Not assigned" on every card.
-    console.warn('[fetchRoomAssignmentsForShiftId]', error.message);
+    console.warn('[fetchRoomAssignmentsForShiftId]', shiftRes.error.message);
     return map;
   }
+  if (engineeringRes.error) console.warn('[fetchRoomAssignmentsForShiftId] engineering', engineeringRes.error.message);
 
-  const rows = (data ?? []) as unknown as RoomAssignmentRow[];
+  // This shift's rows first, so they win over another shift's technician.
+  const rows = [
+    ...((shiftRes.data ?? []) as unknown as RoomAssignmentRow[]),
+    ...((engineeringRes.data ?? []) as unknown as RoomAssignmentRow[]),
+  ];
   for (const row of rows) {
     // A row from before the department column reads as housekeeping, as the database defaults it.
     const department = asAssignmentDepartment(row.departments?.key) ?? 'housekeeping';
     const assignees = map.get(row.room_id) ?? {};
+    if (assignees[department]) continue;
     assignees[department] = staffInfoFromAssignment(row);
     map.set(row.room_id, assignees);
   }
@@ -1258,20 +1275,59 @@ export async function getAssignedRoomIdsForUserAndShiftOrderedByAssignmentCreate
  * rows that are still theirs, so a room reassigned in the meantime is left
  * with whoever has it now. Returns how many were removed.
  */
-export async function unassignRoomsFromStaff(roomIds: string[], userId: string, shift: 'AM' | 'PM'): Promise<number> {
+export async function unassignRoomsFromStaff(
+  roomIds: string[],
+  userId: string,
+  shift: 'AM' | 'PM',
+  department: AssignmentDepartment = 'housekeeping'
+): Promise<number> {
   const ids = roomIds.filter(isValidUUID);
   if (ids.length === 0 || !isValidUUID(userId)) return 0;
-  const shiftId = await getShiftIdByName(shift);
-  if (!shiftId) throw new Error(`No ${shift} shift is set up for this hotel.`);
-  const { data, error } = await supabase
-    .from('room_assignments')
-    .delete()
-    .in('room_id', ids)
-    .eq('shift_id', shiftId)
-    .eq('user_id', userId)
-    .select('id');
+  // Cast: the generated types predate departments.key and room_assignments.department_id.
+  let query = (supabase as any).from('room_assignments').delete().in('room_id', ids).eq('user_id', userId);
+  if (department === 'engineering') {
+    // A technician's rooms are theirs whichever shift they were given on
+    // (fetchRoomAssignmentsForShiftId shows them on both tabs).
+    const { data: dept } = await (supabase as any).from('departments').select('id').eq('key', 'engineering').maybeSingle();
+    if (!dept?.id) throw new Error('The Engineering department is not set up.');
+    query = query.eq('department_id', (dept as { id: string }).id);
+  } else {
+    const shiftId = await getShiftIdByName(shift);
+    if (!shiftId) throw new Error(`No ${shift} shift is set up for this hotel.`);
+    query = query.eq('shift_id', shiftId);
+  }
+  const { data, error } = await query.select('id');
   if (error) throw new Error(error.message || 'The rooms could not be unassigned.');
   return (data ?? []).length;
+}
+
+/**
+ * Assign several rooms to one person for a shift, in one department's layer —
+ * Engineering → Assign Floor gives a technician every room on a floor. One
+ * `assign_rooms()` call, so the person gets one notification for the batch.
+ */
+export async function assignRoomsToStaff(
+  roomIds: string[],
+  userId: string,
+  shift: 'AM' | 'PM',
+  department: AssignmentDepartment
+): Promise<void> {
+  const ids = roomIds.filter(isValidUUID);
+  if (ids.length === 0 || !isValidUUID(userId)) return;
+  const shiftId = await getShiftIdByName(shift);
+  if (!shiftId) throw new Error(`No ${shift} shift is set up for this hotel, so the rooms could not be assigned.`);
+  // Cast: the generated types predate assign_rooms(p_department).
+  const rpc = supabase.rpc.bind(supabase) as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => PromiseLike<{ error: { message?: string } | null }>;
+  const { error } = await rpc('assign_rooms', {
+    p_room_ids: ids,
+    p_user_id: userId,
+    p_shift_id: shiftId,
+    p_department: department,
+  });
+  if (error) throw new Error(error.message || 'The rooms could not be assigned.');
 }
 
 /**
@@ -1543,8 +1599,13 @@ export function fullRoomDetailsToRoomCardData(
 
   // Each department's assignee on this shift; the room attendant is housekeeping's.
   const assignees: RoomAssignees = {};
-  for (const a of full.assignedStaff) {
-    if (a.shift_name !== shift || assignees[a.department]) continue;
+  // Engineering's technician from the other shift counts too (its rows are today's), after this shift's.
+  const onShiftFirst = [...full.assignedStaff].sort(
+    (a, b) => Number(b.shift_name === shift) - Number(a.shift_name === shift)
+  );
+  for (const a of onShiftFirst) {
+    if (assignees[a.department]) continue;
+    if (a.shift_name !== shift && a.department !== 'engineering') continue;
     assignees[a.department] = staffInfoFromAssignment({
       user_id: a.user_id,
       work_status: a.work_status,

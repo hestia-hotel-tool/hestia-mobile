@@ -58,6 +58,11 @@ const META: Record<string, TaskMeta> = {
   // Figma 4783:2223: a submitted checklist is the green thumbs-up; a ticket made from it is red.
   checklist_submitted: { label: 'Checklist submitted', icon: 'action-thumbs-up-solid', iconSize: 20, target: 'room', colour: '#41d541' },
   ticket_created: { label: 'Ticket created', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
+  // Engineering's round, in its own status colours and glyphs (DEPARTMENT_STATUS_APPEARANCE).
+  eng_room_started: { label: 'Check started', icon: 'action-time-reset', iconSize: 22, target: 'room', colour: '#F0BE1B' },
+  eng_room_paused: { label: 'Check paused', icon: 'status-pause-circle', iconSize: 24, target: 'room', colour: '#b0c0c6' },
+  eng_room_checked: { label: 'Room checked', icon: 'action-thumbs-up', iconSize: 20, target: 'room', colour: '#41d541' },
+  eng_room_priority: { label: 'Priority room', icon: 'action-priority', iconSize: 20, target: 'room', colour: '#ffebeb', glyph: '#f92424' },
 };
 
 /** Whether a type has its own entry above (rather than the generic "Task"). */
@@ -93,6 +98,14 @@ export function taskHeadline(type: string, title: string, body: string): string 
   // "Martin Loose Created a ticket Room 201".
   const checklist = body.match(/^(.+?)\s+submitted the checklist for Room/i);
   if (type === 'checklist_submitted' && checklist) return `${checklist[1]} submitted Checklist Room ${room ?? ''}`.trim();
+  // Engineering's round, in the same short form: "Ivan started checking 301",
+  // "Ivan paused 301", "Ivan Checked 301".
+  const round = body.match(/^(.+?)\s+(started checking|paused the check of|finished checking)\s+Room/i);
+  if (round && type.startsWith('eng_room_')) {
+    const said = round[2].toLowerCase();
+    const verb = said === 'finished checking' ? 'Checked' : said === 'paused the check of' ? 'paused' : 'started checking';
+    return `${firstName(round[1])} ${verb} ${room ?? ''}`.trim();
+  }
   const created = body.match(/^(.+?)\s+created a ticket for Room/i);
   if (type === 'ticket_created' && created) return `${created[1]} Created a ticket Room ${room ?? ''}`.trim();
   switch (type) {

@@ -16,6 +16,12 @@ export interface LostAndFoundItem {
   guestDates?: string; // e.g., "07/10-15/10"
   guestCount?: number; // e.g., 2
   guestImage?: { uri: string } | any; // Guest avatar/image
+  /** The mark on the guest's photo, from the stay (arrival, departure, stayover…). */
+  guestKind?: import('@features/rooms/components/roomsList/GuestRow').GuestRowKind;
+  /** A reclamation email went to the guest (`guest_email` set) — the card's "Email sent to guest". */
+  emailSent?: boolean;
+  /** Who set it Discarded (`status_changed_by_id`), for the card's "Discarded By". */
+  discardedBy?: string;
   storedLocation: string; // e.g., "Office"
   /** The notes typed when it was registered (`description`), shown on the card. */
   notes?: string | null;

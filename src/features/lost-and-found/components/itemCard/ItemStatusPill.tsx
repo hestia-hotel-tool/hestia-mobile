@@ -24,8 +24,18 @@ export type ItemStatusPillProps = {
    * `large`: the card's own pill in Figma 3128:32 as redrawn (4735:396) —
    * 177 x 70, icon, the status in words (bold 17 white) and a wide chevron.
    * `small` (default): the 56 x 38 icon-and-chevron pill.
+   * `chip`: the list card's label (3128:32 as redrawn, 4799:368): the status
+   * in its colour on a 15% tint of it, 33 tall, fully rounded.
    */
-  size?: 'small' | 'large';
+  size?: 'small' | 'large' | 'chip';
+};
+
+/** 4799:369 / 4799:476 / 4799:513 — 84 (101 for Discarded) x 33.3, radius 45; Helvetica Bold 14. */
+const CHIP = { minWidth: 84, height: 33.3, radius: 45, paddingX: 18, fontSize: 14 };
+const CHIP_TONE: Record<LostAndFoundCardChrome['pillTone'], { background: string; label: string }> = {
+  stored: { background: 'rgba(240, 190, 27, 0.15)', label: '#f0be1b' },
+  shipped: { background: 'rgba(57, 212, 127, 0.15)', label: '#41d541' },
+  discarded: { background: 'rgba(87, 89, 93, 0.15)', label: '#1e1e1e' },
 };
 
 /** 4735:396 — 177 x 70, radius 45: the icon 18 in, the label at 56, the chevron 22 from the end. */
@@ -155,8 +165,30 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false, size =
     </>
   );
 
+  const chipTone = CHIP_TONE[chrome.pillTone];
+  const chipBody = updating ? (
+    <ActivityIndicator size="small" color={chipTone.label} />
+  ) : (
+    <Text
+      style={{ fontSize: CHIP.fontSize * scaleX, fontFamily: 'Helvetica', fontWeight: '700', color: chipTone.label }}
+      numberOfLines={1}
+    >
+      {chrome.pillLabel}
+    </Text>
+  );
+
   const shape =
-    size === 'large'
+    size === 'chip'
+      ? {
+          minWidth: CHIP.minWidth * scaleX,
+          height: CHIP.height * scaleX,
+          borderRadius: CHIP.radius * scaleX,
+          backgroundColor: chipTone.background,
+          paddingHorizontal: CHIP.paddingX * scaleX,
+          justifyContent: 'center' as const,
+          alignSelf: 'flex-start' as const,
+        }
+      : size === 'large'
       ? {
           width: LARGE.width * scaleX,
           height: LARGE.height * scaleX,
@@ -174,7 +206,7 @@ export function ItemStatusPill({ chrome, onStatusPress, updating = false, size =
           paddingLeft: L.statusPill.paddingLeft * scaleX,
           gap: L.statusPill.gap * scaleX,
         };
-  const content = size === 'large' && !updating ? largeBody : body;
+  const content = size === 'chip' ? chipBody : size === 'large' && !updating ? largeBody : body;
 
   if (!onStatusPress) {
     return (

@@ -935,7 +935,7 @@ export default function AllRoomsScreen() {
     }
     setAssigningStaffRoomId(room.id);
     try {
-      await unassignRoomsFromStaff([room.id], staff.userId, shift);
+      await unassignRoomsFromStaff([room.id], staff.userId, shift, assignment.key);
       setRoomAssignee(room.id, assignment.key, null);
     } catch (e) {
       toast.show(

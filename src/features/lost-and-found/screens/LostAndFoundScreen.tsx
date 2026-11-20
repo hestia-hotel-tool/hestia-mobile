@@ -26,6 +26,7 @@ import { useUserStore } from '@features/account/store/useUserStore';
 import { useRoomsStore } from '@features/rooms/store/useRoomsStore';
 import { LostAndFoundTab, LostAndFoundItem, LostAndFoundStatus } from '../types/lostAndFound.types';
 import { LOST_AND_FOUND_COLORS, scaleX } from '../constants/lostAndFoundStyles';
+import { formatDatesOfStayShort } from '@/utils/formatting';
 import type { ReturnToTab } from '@/types/navigation';
 import { LoadingOverlay } from '@/components/feedback/LoadingOverlay';
 import { useToast } from '@/contexts/ToastContext';
@@ -80,6 +81,17 @@ const TAB_STATUS: Record<LostAndFoundTab, LostAndFoundStatus[] | null> = {
 };
 
 const TAB_LABEL = LOST_AND_FOUND_TAB_LABELS;
+
+/** The mark on the guest's photo, from the reservation's front office status (as the Rooms list draws it). */
+function guestKindFromStay(frontOfficeStatus: string): LostAndFoundItem['guestKind'] {
+  const s = frontOfficeStatus.trim().toLowerCase();
+  if (s === 'arrival') return 'arrival';
+  // Arrival/Departure: the card shows the departing guest.
+  if (s === 'departure' || s === 'arrival/departure') return 'departure';
+  if (s.startsWith('stay')) return 'stayover-linen';
+  if (s === 'vacant') return 'vacant';
+  return 'occupied';
+}
 
 export default function LostAndFoundScreen() {
   const navigation = useNavigation<LostAndFoundScreenNavigationProp>();
@@ -224,16 +236,6 @@ export default function LostAndFoundScreen() {
     })();
   }, []);
 
-  const formatGuestDates = (arrival?: string | null, departure?: string | null): string => {
-    if (!arrival || !departure) return '';
-    const a = new Date(arrival);
-    const d = new Date(departure);
-    if (Number.isNaN(a.getTime()) || Number.isNaN(d.getTime())) return '';
-    const fmt = (dt: Date) =>
-      `${String(dt.getDate()).padStart(2, '0')}/${String(dt.getMonth() + 1).padStart(2, '0')}`;
-    return `${fmt(a)}-${fmt(d)}`;
-  };
-
   const formatRegisteredTimestamp = (iso?: string | null): string => {
     if (!iso) return '';
     const dt = new Date(iso);
@@ -287,9 +289,10 @@ export default function LostAndFoundScreen() {
         return;
       }
 
-      const userById = await fetchRegisteredByUsers(
-        rows.map((row) => row.registered_by_id ?? row.found_by_id)
-      );
+      const userById = await fetchRegisteredByUsers([
+        ...rows.map((row) => row.registered_by_id ?? row.found_by_id),
+        ...rows.map((row) => (row as { status_changed_by_id?: string | null }).status_changed_by_id),
+      ]);
 
       const mapped: LostAndFoundItem[] = rows.map((row) => {
         const room = (row as any).rooms;
@@ -319,7 +322,12 @@ export default function LostAndFoundScreen() {
           guestName: guest?.full_name,
           guestVipCode: guest?.vip_code ?? null,
           roomNumber: room?.room_number ? Number(room.room_number) : undefined,
-          guestDates: formatGuestDates(reservation?.arrival_date, reservation?.departure_date),
+          // "07 Oct - 15 Oct", as the Rooms list writes a stay (Figma 3128:32).
+          guestDates: formatDatesOfStayShort(
+            reservation?.arrival_date && reservation?.departure_date
+              ? { from: reservation.arrival_date, to: reservation.departure_date }
+              : null
+          ),
           guestCount: guestCount || undefined,
           /*
            * Only what the database holds.
@@ -334,6 +342,13 @@ export default function LostAndFoundScreen() {
            * initials, which is `Avatar`'s designed empty state.
            */
           guestImage: guestImageUri ? { uri: guestImageUri } : undefined,
+          guestKind: guestKindFromStay(frontOfficeStatus),
+          emailSent: !!String((row as { guest_email?: string | null }).guest_email ?? '').trim(),
+          discardedBy:
+            row.status === 'discarded'
+              ? userById.get((row as { status_changed_by_id?: string | null }).status_changed_by_id ?? '')?.full_name ?? undefined
+              : undefined,
+          discardedAt: (row as { discarded_at?: string | null }).discarded_at ?? undefined,
           storedLocation: row.storage_location ?? '',
           notes: (row as { description?: string | null }).description?.trim() || null,
           shippedLocation:

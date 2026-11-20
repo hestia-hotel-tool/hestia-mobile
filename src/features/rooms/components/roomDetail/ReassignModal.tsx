@@ -26,6 +26,8 @@ interface ReassignModalProps {
   onAutoAssign: () => void;
   currentAssignedStaffId?: string;
   roomNumber?: string;
+  /** The header, when it is not "Assign Room {roomNumber}" — e.g. "Assign Floor 3". */
+  title?: string;
   /** When false, hides the Auto Assign button (e.g. for "Assign Staff" flow). Default true. */
   showAutoAssign?: boolean;
   /**
@@ -61,6 +63,7 @@ export default function ReassignModal({
   onAutoAssign,
   currentAssignedStaffId,
   roomNumber,
+  title,
   showAutoAssign = true,
   shift,
   assignmentDepartment = 'housekeeping',
@@ -151,7 +154,7 @@ export default function ReassignModal({
       <View style={{ flex: 1, backgroundColor: '#ffffff' }}>
         <StaffHeader
           onBackPress={onClose}
-          title={roomNumber ? `Assign Room ${roomNumber}` : 'Assign Room'}
+          title={title ?? (roomNumber ? `Assign Room ${roomNumber}` : 'Assign Room')}
           searchOpen={searchOpen}
           onSearchPress={() => {
             if (searchOpen) setQuery('');

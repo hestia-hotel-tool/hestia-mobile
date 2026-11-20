@@ -10,7 +10,8 @@ export type FloorRow = {
   caption: string;
   /** Room floors can be opened in Rooms; levels without rooms cannot. */
   onViewRooms?: () => void;
-  onAssign: () => void;
+  /** Absent for people who cannot assign (technicians): no Assign Floor pill. */
+  onAssign?: () => void;
 };
 
 /**
@@ -47,6 +48,7 @@ export default function FloorsOverviewCard({ floors }: { floors: FloorRow[] }) {
                 <Text style={styles.pillText}>View Rooms</Text>
               </TouchableOpacity>
             ) : null}
+            {floor.onAssign ? (
             <TouchableOpacity
               style={[styles.pill, styles.assignPill]}
               onPress={floor.onAssign}
@@ -57,6 +59,7 @@ export default function FloorsOverviewCard({ floors }: { floors: FloorRow[] }) {
               <Icon name="action-assign-rooms" size={17 * scaleX} color="#5a759d" />
               <Text style={styles.pillText}>Assign Floor</Text>
             </TouchableOpacity>
+            ) : null}
           </View>
         </View>
       ))}
