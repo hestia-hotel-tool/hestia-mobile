@@ -59,7 +59,10 @@ function navigateFromPushData(data: PushData & Record<string, unknown>) {
 
   if (type === 'chat_message' && chatId) {
     router.push(`/chat/${chatId}`);
-  } else if ((type === 'ticket_tag' || type === 'ticket_assigned') && ticketId) {
+  } else if (
+    (type === 'ticket_tag' || type === 'ticket_assigned' || type === 'ticket_created' || type === 'ticket_solved') &&
+    ticketId
+  ) {
     router.push({ pathname: '/ticket/[id]', params: { id: ticketId } });
   } else if (type && (ROOM_TASK_NOTIFICATION_TYPES as readonly string[]).includes(type) && roomId) {
     router.push({ pathname: '/room/[roomId]', params: { roomId } });

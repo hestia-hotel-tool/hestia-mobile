@@ -4,6 +4,7 @@ import { Image } from 'expo-image';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SafeModal as Modal } from '@/components/ui/SafeModal';
 import { typography } from '@/theme';
+import { Icon } from '@/components/Icon';
 
 type Props = {
   photos: string[];
@@ -25,6 +26,12 @@ export function PhotoViewer({ photos, startIndex, visible, onClose }: Props) {
   const listRef = useRef<FlatList<string>>(null);
 
   const close = () => onClose(index);
+  /** The ‹ › arrows: to the photo before or after, as a swipe would. */
+  const goTo = (next: number) => {
+    const target = Math.max(0, Math.min(photos.length - 1, next));
+    listRef.current?.scrollToIndex({ index: target, animated: true });
+    setIndex(target);
+  };
 
   return (
     <Modal visible={visible} animationType="fade" onRequestClose={close} statusBarTranslucent>
@@ -50,6 +57,33 @@ export function PhotoViewer({ photos, startIndex, visible, onClose }: Props) {
             />
           )}
         />
+
+        {/* With more than one photo: ‹ and › on the sides, hidden at either end. */}
+        {photos.length > 1 && index > 0 ? (
+          <Pressable
+            onPress={() => goTo(index - 1)}
+            hitSlop={12}
+            style={[styles.arrow, styles.arrowLeft]}
+            accessibilityRole="button"
+            accessibilityLabel="Previous photo"
+          >
+            <Icon name="action-chevron" size={20} color="#ffffff" />
+          </Pressable>
+        ) : null}
+        {photos.length > 1 && index < photos.length - 1 ? (
+          <Pressable
+            onPress={() => goTo(index + 1)}
+            hitSlop={12}
+            style={[styles.arrow, styles.arrowRight]}
+            accessibilityRole="button"
+            accessibilityLabel="Next photo"
+          >
+            {/* `action-chevron` points left; turned, it is the "next" arrow. */}
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <Icon name="action-chevron" size={20} color="#ffffff" />
+            </View>
+          </Pressable>
+        ) : null}
 
         <View style={[styles.topBar, { paddingTop: insets.top + 8 }]} pointerEvents="box-none">
           <Text style={styles.counter}>
@@ -98,6 +132,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  arrow: {
+    position: 'absolute',
+    top: '50%',
+    marginTop: -22,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  arrowLeft: {
+    left: 12,
+  },
+  arrowRight: {
+    right: 12,
   },
   closeText: {
     fontSize: 18,

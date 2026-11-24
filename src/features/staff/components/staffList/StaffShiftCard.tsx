@@ -2,13 +2,11 @@ import React from 'react';
 
 import { View, Text, Pressable } from '@/tw';
 import { typography } from '@/theme';
-import { Icon } from '@/components/Icon';
 import { scaleX } from '@/utils/responsive';
 import type { StaffRosterPerson, StaffWorkload } from '../../types/staffRoster.types';
 import StaffIdentityRow from './StaffIdentityRow';
 import StaffWorkloadBar from './StaffWorkloadBar';
 import StaffTaskStats from './StaffTaskStats';
-import StaffCardDisclosure from './StaffCardDisclosure';
 import { STAFF_LIST_LAYOUT as L } from './staffListLayout';
 
 /** The Activity of someone with nothing assigned: every count 0. */
@@ -60,7 +58,8 @@ export default function StaffShiftCard({
   onViewDetails,
 }: StaffShiftCardProps) {
   const s = (n: number) => n * scaleX;
-  const label = person.statKind === 'cleaning' ? 'See rooms' : 'See tickets';
+  // 4761:1988 — "View Rooms" (a ticket department's people: "View Tickets").
+  const label = person.statKind === 'cleaning' ? 'View Rooms' : 'View Tickets';
 
   /*
    * Closed: the identity row, tapped anywhere to open. Everyone opens — with
@@ -109,7 +108,24 @@ export default function StaffShiftCard({
         showChevron={false}
         avatarSize={L.identity.cardAvatar}
         dotSize={L.identity.cardDot}
-        trailing={<StaffCardDisclosure isOpen onPress={onSeeRooms} label={label} showLabel />}
+        trailing={
+          /* 4761:1991 — white, a faint #5a759d outline, 135.6 x 45.5, fully rounded; Regular 15 #334866. */
+          <Pressable
+            onPress={onSeeRooms}
+            accessibilityRole="button"
+            accessibilityLabel={`${label} for ${person.name}`}
+            className="items-center justify-center bg-surface-primary"
+            style={{
+              width: s(135.6),
+              height: s(45.5),
+              borderRadius: s(45),
+              borderWidth: 1,
+              borderColor: 'rgba(90, 117, 157, 0.08)',
+            }}
+          >
+            <Text style={{ fontSize: s(15), fontFamily: typography.fontFamily.primary, color: '#334866' }}>{label}</Text>
+          </Pressable>
+        }
       />
 
       {/* Always: zeros for someone with nothing assigned. */}
@@ -169,12 +185,6 @@ export default function StaffShiftCard({
         </Pressable>
       ) : null}
 
-      {/* The way back: an up-chevron, centred, that closes the card. */}
-      <View className="items-center" style={{ marginTop: s(10) }} pointerEvents="none">
-        <View style={{ transform: [{ rotate: '90deg' }] }}>
-          <Icon name="action-chevron" size={s(16)} color="#9aa7bd" />
-        </View>
-      </View>
     </Pressable>
   );
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Icon } from '@/components/Icon';
 import { scaleX } from '@/utils/responsive';
+import { Avatar } from '@/components/ui/Avatar';
 
 export type FloorRow = {
   /** "2", "1", "-2"… */
@@ -12,6 +13,13 @@ export type FloorRow = {
   onViewRooms?: () => void;
   /** Absent for people who cannot assign (technicians): no Assign Floor pill. */
   onAssign?: () => void;
+  /**
+   * Who has the floor's rooms (client, 2026-11-24: "when you assign a floor,
+   * let their name and picture be on it"): the technician, and how many
+   * others hold rooms on it too. Shown in place of "Assign Floor"; a lead
+   * taps it to reassign.
+   */
+  assignee?: { name: string; avatar?: string; others: number };
 };
 
 /**
@@ -48,7 +56,9 @@ export default function FloorsOverviewCard({ floors }: { floors: FloorRow[] }) {
                 <Text style={styles.pillText}>View Rooms</Text>
               </TouchableOpacity>
             ) : null}
-            {floor.onAssign ? (
+            {floor.assignee ? (
+              <AssigneePill floor={floor} />
+            ) : floor.onAssign ? (
             <TouchableOpacity
               style={[styles.pill, styles.assignPill]}
               onPress={floor.onAssign}
@@ -64,6 +74,38 @@ export default function FloorsOverviewCard({ floors }: { floors: FloorRow[] }) {
         </View>
       ))}
     </View>
+  );
+}
+
+/** The floor's technician: photo and first name ("2 technicians" when it is shared). */
+function AssigneePill({ floor }: { floor: FloorRow }) {
+  const a = floor.assignee!;
+  const label = a.others > 0 ? `${a.others + 1} technicians` : a.name.trim().split(/\s+/)[0] ?? a.name;
+  const body = (
+    <>
+      <Avatar uri={a.avatar} name={a.name} size={28 * scaleX} />
+      <Text style={styles.pillText} numberOfLines={1}>
+        {label}
+      </Text>
+    </>
+  );
+  if (!floor.onAssign) {
+    return (
+      <View style={[styles.pill, styles.assignPill]} accessibilityLabel={`Floor ${floor.label}: ${a.name}`}>
+        {body}
+      </View>
+    );
+  }
+  return (
+    <TouchableOpacity
+      style={[styles.pill, styles.assignPill]}
+      onPress={floor.onAssign}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Floor ${floor.label} is ${a.name}'s. Reassign`}
+    >
+      {body}
+    </TouchableOpacity>
   );
 }
 

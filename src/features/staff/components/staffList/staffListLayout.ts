@@ -53,7 +53,7 @@ export const STAFF_LIST_LAYOUT = {
     /** Gap from the disc to its label (3883:6750 sits 76 from the group top). */
     discToLabel: 17,
     labelFontSize: 14,
-    /** For a department with no registry glyph; see StaffDepartmentStrip. */
+    /** For a department with no registry glyph; see StaffDepartmentDropdown. */
     fallbackInitialsFontSize: 18,
     gap: 26,
     /**

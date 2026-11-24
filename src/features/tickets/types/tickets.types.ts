@@ -15,6 +15,11 @@ export interface TicketData {
   roomNumber: string;
   /** Optional image URLs attached to this ticket (if provided by backend). */
   images?: string[];
+  /**
+   * Raised from a room checklist: the item's bundled picture
+   * (`inspection_items.image_key`), shown when the ticket has no photo of its own.
+   */
+  checklistImageKey?: string;
   /** Guest currently associated to the ticket's room (if any). */
   guest?: {
     name: string;

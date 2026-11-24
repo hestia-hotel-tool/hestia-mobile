@@ -902,6 +902,30 @@ export default function HomeScreen() {
     [filterCounts.floors]
   );
 
+  /** Each floor's technicians (Engineering), most rooms first — shown on its row. */
+  const assigneesByFloor = useMemo(() => {
+    const roomsPM = roomsForHome.roomsPM ?? [];
+    const usePMRooms = homeData.selectedShift === 'PM' && roomsPM.length > 0;
+    const source = usePMRooms ? roomsPM : (roomsForHome.rooms ?? []);
+    const byFloor = new Map<string, Map<string, { name: string; avatar?: string; rooms: number }>>();
+    for (const room of source) {
+      const tech = room.assignees?.engineering;
+      const floor = getFloorFromRoomNumber(room.roomNumber);
+      if (!tech?.userId || floor === null) continue;
+      const people = byFloor.get(String(floor)) ?? new Map();
+      const entry = people.get(tech.userId) ?? { name: tech.name, avatar: tech.avatar, rooms: 0 };
+      entry.rooms += 1;
+      people.set(tech.userId, entry);
+      byFloor.set(String(floor), people);
+    }
+    const out = new Map<string, { name: string; avatar?: string; others: number }>();
+    for (const [floor, people] of byFloor) {
+      const sorted = [...people.values()].sort((a, b) => b.rooms - a.rooms);
+      out.set(floor, { name: sorted[0].name, avatar: sorted[0].avatar, others: sorted.length - 1 });
+    }
+    return out;
+  }, [roomsForHome, homeData.selectedShift]);
+
   /** The shift's rooms by floor — what Assign Floor gives a technician. */
   const roomIdsByFloor = useMemo(() => {
     const roomsPM = roomsForHome.roomsPM ?? [];
@@ -943,13 +967,14 @@ export default function HomeScreen() {
       onAssign: canAssignFloors
         ? () => setFloorToAssign({ label, roomIds: roomIdsByFloor.get(label) ?? [] })
         : undefined,
+      assignee: assigneesByFloor.get(label),
     }));
     const levelsWithoutRooms: FloorRow[] = [
       { label: '-2', caption: 'Kitchen, HSK Office', onAssign: assignSoon },
       { label: '-1', caption: 'Technical Room', onAssign: assignSoon },
     ];
     return [...roomFloors, ...levelsWithoutRooms];
-  }, [chrome.floors, roomFloorOptions, navigation, homeData.selectedShift, toast, assignment.key, assignment.canAssign, roomIdsByFloor]);
+  }, [chrome.floors, roomFloorOptions, navigation, homeData.selectedShift, toast, assignment.key, assignment.canAssign, roomIdsByFloor, assigneesByFloor]);
 
   const handleFloorTechnicianSelect = async (staffId: string, member?: { name?: string }) => {
     const floor = floorToAssign;

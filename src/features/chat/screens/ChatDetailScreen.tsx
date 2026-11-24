@@ -646,7 +646,16 @@ export default function ChatDetailScreen() {
   });
 
   return (
-    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+    <SafeAreaView style={styles.safeArea} edges={[]}>
+      {/* No safe-area padding: the strip below covers the status bar, and the
+          message bar pads itself above the home indicator (it used to be padded
+          twice, leaving a white band under it). */}
+      {/*
+        The status bar's strip in the header's colour, as on every other screen
+        (it was the white page behind it). Same height the safe area used to
+        pad, so nothing below moves.
+      */}
+      <View style={{ height: insets.top, backgroundColor: colors.background.header }} />
       <KeyboardAvoidingView
         style={styles.container}
         behavior={keyboardBehavior}

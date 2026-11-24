@@ -20,6 +20,8 @@ type TicketsRow = {
   created_at: string;
   due_at?: string | null;
   photo_urls?: string[] | null;
+  /** A checklist ticket's item (room_inspection_results.ticket_id): its bundled picture's key. */
+  room_inspection_results?: { inspection_items: { image_key: string | null } | null }[] | null;
   rooms?: {
     room_number: string;
   } | null;
@@ -53,6 +55,8 @@ const TICKET_SELECT = [
   'created_at',
   'due_at',
   'photo_urls',
+  // Raised from a room checklist: the item it was raised for, for its picture.
+  'room_inspection_results(inspection_items(image_key))',
   'departments(name)',
   'rooms (room_number)',
   'created_by:users!tickets_created_by_id_fkey (full_name, avatar_url, departments(name))',
@@ -194,6 +198,7 @@ function mapRowToTicketData(
     description: row.description ?? '',
     roomNumber: row.room_id ? (row.rooms?.room_number ?? '—') : '',
     images: images.length ? images : undefined,
+    checklistImageKey: row.room_inspection_results?.find((r) => r?.inspection_items?.image_key)?.inspection_items?.image_key ?? undefined,
     guest,
     category: departmentName,
     status,
@@ -787,4 +792,55 @@ export async function deleteTicket(id: string, photoUrls: string[]): Promise<voi
   if (error) throw new Error(error.message || 'The ticket could not be deleted.');
   if (!data || data.length === 0) throw new Error('Only a manager can delete a ticket.');
   await removeTicketPhotos(photoUrls);
+}
+
+/** What "Create with AI" fills in (supabase/functions/ticket-draft). */
+export type TicketAiDraft = {
+  departmentId: string;
+  title: string;
+  urgency: 'high' | 'medium' | 'low';
+  description: string;
+};
+
+/**
+ * Create Ticket → "Create with AI" (Figma 589:514): the photos and/or note go
+ * to the `ticket-draft` function, which returns a draft for the form. Nothing
+ * is created.
+ *
+ * The photos are uploaded so the model can read them by URL (no base64 through
+ * the function), then removed again — on Submit the ticket uploads its own.
+ */
+export async function draftTicketWithAI(input: {
+  text: string;
+  pictures: string[];
+  roomId?: string | null;
+  publicAreaName?: string | null;
+}): Promise<TicketAiDraft> {
+  const photoUrls = input.pictures.length > 0 ? await uploadTicketPhotos(input.pictures.slice(0, 4)) : [];
+  try {
+    const { data, error } = await supabase.functions.invoke('ticket-draft', {
+      body: {
+        text: input.text,
+        photoUrls,
+        roomId: input.roomId ?? null,
+        publicAreaName: input.publicAreaName ?? null,
+      },
+    });
+    if (error) {
+      // The function's own message ("Add a photo or describe the issue.") when it sent one.
+      let message = 'The AI could not draft this ticket.';
+      try {
+        const body = await (error as { context?: Response }).context?.json?.();
+        if (body?.error) message = String(body.error);
+      } catch {
+        /* keep the generic message */
+      }
+      throw new Error(message);
+    }
+    const draft = (data as { draft?: TicketAiDraft } | null)?.draft;
+    if (!draft?.departmentId || !draft.title) throw new Error('The AI returned no draft. Try again.');
+    return draft;
+  } finally {
+    if (photoUrls.length > 0) void removeTicketPhotos(photoUrls);
+  }
 }

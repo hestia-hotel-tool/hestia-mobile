@@ -37,6 +37,8 @@ export const TASK_NOTIFICATION_TYPES = [
   // Engineering checklist (Figma 4783:2223): to the leads.
   'checklist_submitted',
   'ticket_created',
+  // The person who raised a ticket hears it was solved (migration 20261124090000).
+  'ticket_solved',
   // Engineering's room round (migration 20261120110000): to the leads, and the
   // technician's priority notice.
   'eng_room_started',

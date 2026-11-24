@@ -58,6 +58,8 @@ const META: Record<string, TaskMeta> = {
   // Figma 4783:2223: a submitted checklist is the green thumbs-up; a ticket made from it is red.
   checklist_submitted: { label: 'Checklist submitted', icon: 'action-thumbs-up-solid', iconSize: 20, target: 'room', colour: '#41d541' },
   ticket_created: { label: 'Ticket created', icon: 'nav-tickets', iconSize: 20, target: 'tickets', colour: '#f92424' },
+  // Green, as a solved ticket's status pill.
+  ticket_solved: { label: 'Ticket solved', icon: 'action-thumbs-up-solid', iconSize: 20, target: 'tickets', colour: '#41d541' },
   // Engineering's round, in its own status colours and glyphs (DEPARTMENT_STATUS_APPEARANCE).
   eng_room_started: { label: 'Check started', icon: 'action-time-reset', iconSize: 22, target: 'room', colour: '#F0BE1B' },
   eng_room_paused: { label: 'Check paused', icon: 'status-pause-circle', iconSize: 24, target: 'room', colour: '#b0c0c6' },

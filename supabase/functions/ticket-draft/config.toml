@@ -1,0 +1,4 @@
+# Called by the app on a user's behalf: the platform rejects requests without a
+# valid session, and the handler reads departments and the room as that user
+# (RLS), never as service role.
+verify_jwt = true

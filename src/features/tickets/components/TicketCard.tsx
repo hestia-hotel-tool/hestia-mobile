@@ -1,7 +1,8 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform, Image as RNImage } from 'react-native';
 import { Image } from 'expo-image';
-import { SafeModal as Modal } from '@/components/ui/SafeModal';
+import { PhotoViewer } from '@/components/media/PhotoViewer';
+import { inspectionImage } from '@features/rooms/constants/inspectionImages';
 import { typography } from '@/theme';
 import { Icon, type IconName } from '@/components/Icon';
 import { Avatar } from '@/components/ui/Avatar';
@@ -49,13 +50,23 @@ const STATUS: Record<TicketStatus, { label: string; color: string; icon: IconNam
  * opens the ticket.
  */
 export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneePress }: TicketCardProps) {
-  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  /** The photo viewer is open (all the ticket's photos, swipe between them). */
+  const [viewerOpen, setViewerOpen] = useState(false);
   const statusRef = useRef<View>(null);
   const departmentIcon: IconName | null = departmentIconName(ticket.category);
   const priority = PRIORITY[ticket.priority ?? 'medium'];
   const status = STATUS[ticket.status] ?? STATUS.unsolved;
   const dueLine = useMemo(() => (ticket.dueAt ? formatDueAtCalendarLabel(ticket.dueAt) : ''), [ticket.dueAt]);
-  const images = ticket.images ?? [];
+  /*
+   * The ticket's photos; for one raised from a room checklist with none of its
+   * own, the checklist item's picture (client, 2026-11-24).
+   */
+  const images = useMemo(() => {
+    if (ticket.images?.length) return ticket.images;
+    const checklist = inspectionImage(ticket.checklistImageKey ?? null);
+    const uri = checklist != null ? RNImage.resolveAssetSource(checklist as number)?.uri : undefined;
+    return uri ? [uri] : [];
+  }, [ticket.images, ticket.checklistImageKey]);
   const description = ticket.description?.trim();
   const assignee = ticket.assignedTo?.name ? ticket.assignedTo : null;
 
@@ -65,7 +76,7 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
       <View style={styles.header}>
         {images.length > 0 ? (
           <TouchableOpacity
-            onPress={() => setPreviewImage(images[0])}
+            onPress={() => setViewerOpen(true)}
             activeOpacity={0.8}
             accessibilityRole="imagebutton"
             accessibilityLabel={images.length > 1 ? `Photos, ${images.length}` : 'Photo'}
@@ -176,13 +187,10 @@ export default function TicketCard({ ticket, onPress, onStatusPress, onAssigneeP
         </View>
       </View>
 
-      <Modal visible={!!previewImage} transparent animationType="fade" onRequestClose={() => setPreviewImage(null)}>
-        <TouchableOpacity style={styles.previewOverlay} activeOpacity={1} onPress={() => setPreviewImage(null)}>
-          {previewImage && (
-            <Image source={{ uri: previewImage }} style={styles.previewImage} contentFit="contain" cachePolicy="memory-disk" />
-          )}
-        </TouchableOpacity>
-      </Modal>
+      {/* Every photo, full screen: swipe between them, "1 / 4" at the top. */}
+      {viewerOpen ? (
+        <PhotoViewer photos={images} startIndex={0} visible onClose={() => setViewerOpen(false)} />
+      ) : null}
     </TouchableOpacity>
   );
 }
@@ -381,15 +389,5 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#ffffff',
     ...androidText,
-  },
-  previewOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  previewImage: {
-    width: '100%',
-    height: '80%',
   },
 });

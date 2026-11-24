@@ -15,8 +15,8 @@ import type { ReturnToTab } from '@/types/navigation';
 
 import StaffHeader from '../components/StaffHeader';
 import { currentShiftTab } from '../services/staffRoster';
-import StaffTabs from '../components/StaffTabs';
-import StaffDepartmentStrip from '../components/StaffDepartmentStrip';
+import { DepartmentDropdown } from '@/components/ui/DepartmentDropdown';
+import { SegmentedToggle } from '@/components/ui/SegmentedToggle';
 import EmptyStaffState, { type StaffEmptyReason } from '../components/EmptyStaffState';
 import StaffShiftCard from '../components/staffList/StaffShiftCard';
 import ShiftGroupHeading from '../components/staffList/ShiftGroupHeading';
@@ -369,7 +369,7 @@ export default function StaffScreen() {
         keyExtractor={(person) => person.id}
         renderSectionHeader={({ section }) => (
           <View style={{ paddingHorizontal: s(L.gutter) }}>
-            <ShiftGroupHeading state={section.state} count={section.data.length} />
+            <ShiftGroupHeading state={section.state} />
           </View>
         )}
         /*
@@ -422,63 +422,63 @@ export default function StaffScreen() {
           Departments
         </Text>
 
-        <StaffDepartmentStrip
+        {/* 4761:1970 — 387 wide at x=26.5, 16 under "Departments". */}
+        <DepartmentDropdown
           departments={departments ?? []}
           activeId={activeDepartmentId}
           onSelect={setActiveDepartmentId}
+          style={{ marginTop: s(16), marginHorizontal: s(26.5) }}
         />
 
         {/*
-          The section header now sits **above** the tab row (node 4211:621,
-          y=332); it used to be below it at y=427.
+          4761:1987 — the department's bar: #eef2f7, 388 x 90, radius 5, 19
+          under the dropdown. Its name (Inter SemiBold 17) over "122 staff"
+          (Inter 16), the AM / PM switch on the right.
         */}
         <View
-          className="flex-row items-center justify-between"
+          className="flex-row items-center"
           style={{
-            paddingHorizontal: s(L.gutter),
-            marginTop: s(L.sectionHeader.marginTop),
-            marginBottom: s(L.sectionHeader.marginBottom),
+            marginTop: s(19),
+            marginHorizontal: s(26),
+            height: s(90),
+            borderRadius: s(5),
+            backgroundColor: '#eef2f7',
+            paddingLeft: s(17),
+            paddingRight: s(15),
           }}
         >
-          {/* 3240:705 — semibold 17, #607aa1. */}
-          <Text
-            className="font-hestia-primary"
-            style={{
-              fontSize: s(L.sectionHeader.fontSize),
-              fontFamily: typography.fontFamily.primary,
-              fontWeight: '600',
-              color: '#607aa1',
-            }}
-          >
-            {activeDepartment?.name ?? 'Staff'} Staff and Shifts
-          </Text>
-          {/* 3240:706 — semibold 16, #5a759d. */}
-          <Text
-            className="font-hestia-primary"
-            style={{
-              fontSize: s(L.sectionHeader.countFontSize),
-              fontFamily: typography.fontFamily.primary,
-              fontWeight: '600',
-              color: '#5a759d',
-            }}
-          >
-            {roster?.totalCount ?? 0}
-          </Text>
-        </View>
-
-        <View>
-          {/* Nodes 3883:6785 (y=372) and 3240:571 (y=427) — both full bleed. */}
-          <View className="h-px bg-border-medium" />
-          <View
-            style={{
-              paddingLeft: s(L.tabRow.paddingLeft),
-              paddingRight: s(L.tabRow.paddingRight),
-              paddingTop: s(L.tabRow.paddingTop),
-            }}
-          >
-            <StaffTabs selectedTab={selectedTab} onTabPress={selectTab} />
+          <View className="flex-1">
+            <Text
+              numberOfLines={1}
+              style={{
+                fontSize: s(17),
+                fontFamily: typography.fontFamily.secondary,
+                fontWeight: '600',
+                color: '#1e1e1e',
+              }}
+            >
+              {activeDepartment?.name ?? 'Staff'}
+            </Text>
+            <Text
+              style={{
+                marginTop: s(9),
+                fontSize: s(16),
+                fontFamily: typography.fontFamily.secondary,
+                color: '#1e1e1e',
+              }}
+            >
+              {`${roster?.totalCount ?? 0} staff`}
+            </Text>
           </View>
-          <View className="h-px bg-border-medium" />
+          {/* 4761:1963 — the shift switch. */}
+          <SegmentedToggle
+            options={[
+              { value: 'am', label: 'AM' },
+              { value: 'pm', label: 'PM' },
+            ]}
+            value={selectedTab}
+            onChange={(tab) => selectTab(tab as StaffTab)}
+          />
         </View>
 
         </>
